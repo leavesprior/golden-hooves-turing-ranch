@@ -5,6 +5,9 @@ interface GameState {
   karmaCoins: number;
   currentDialogue: { speaker: string; text: string } | null;
   gameStarted: boolean;
+  clueGameUnlocked: boolean;
+  discountCodeRevealed: boolean;
+  discountCode: string;
 }
 
 const STORAGE_KEY = 'golden-hooves-quest-save';
@@ -26,6 +29,9 @@ export const useGameState = () => {
       karmaCoins: 0,
       currentDialogue: null,
       gameStarted: false,
+      clueGameUnlocked: false,
+      discountCodeRevealed: false,
+      discountCode: '',
     };
   });
 
@@ -65,9 +71,33 @@ export const useGameState = () => {
 
     const reward = rewards[action];
     if (reward) {
+      const newKarmaCoins = gameState.karmaCoins + reward.coins;
+      const updates: Partial<GameState> = {
+        karmaCoins: newKarmaCoins
+      };
+
+      // Check for 6 karma milestone - unlock clue game
+      if (newKarmaCoins >= 6 && !gameState.clueGameUnlocked) {
+        updates.clueGameUnlocked = true;
+        toast.success('🎮 NEW MYSTERY UNLOCKED!', {
+          description: 'Shadow of the Golden Frog clue game is now available!',
+          duration: 5000,
+        });
+      }
+
+      // Check for 10 karma milestone - reveal discount code
+      if (newKarmaCoins >= 10 && !gameState.discountCodeRevealed) {
+        updates.discountCodeRevealed = true;
+        updates.discountCode = 'KARMA7OFF';
+        toast.success('🎉 7% DISCOUNT CODE UNLOCKED!', {
+          description: 'Use code KARMA7OFF when booking your stay!',
+          duration: 8000,
+        });
+      }
+      
       setGameState(prev => ({
         ...prev,
-        karmaCoins: prev.karmaCoins + reward.coins
+        ...updates
       }));
       
       toast.success(reward.message, {
@@ -103,6 +133,9 @@ export const useGameState = () => {
       karmaCoins: 0,
       currentDialogue: null,
       gameStarted: false,
+      clueGameUnlocked: false,
+      discountCodeRevealed: false,
+      discountCode: '',
     });
     setDialogueIndex(0);
     toast.success('Game reset! Starting fresh adventure...');

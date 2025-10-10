@@ -5,9 +5,11 @@ import { ActionButtons } from '@/components/ActionButtons';
 import { BookingCTA } from '@/components/BookingCTA';
 import { Button } from '@/components/ui/button';
 import { useGameState } from '@/hooks/useGameState';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
+  const navigate = useNavigate();
   const { gameState, startGame, handleAction, closeDialogue, resetGame } = useGameState();
 
   return (
@@ -56,6 +58,46 @@ const Index = () => {
                   disabled={!!gameState.currentDialogue}
                 />
               </section>
+
+              {gameState.clueGameUnlocked && (
+                <section className="space-y-4">
+                  <div className="bg-gradient-to-r from-primary/20 to-accent/20 border-2 border-primary p-6 text-center space-y-4 animate-pulse">
+                    <h3 className="text-primary text-sm md:text-base pixel-text">
+                      🔍 NEW MYSTERY UNLOCKED!
+                    </h3>
+                    <p className="text-foreground text-xs pixel-text leading-relaxed max-w-2xl mx-auto">
+                      Shadow of the Golden Frog awaits, detective! Solve clues across Gold Country 
+                      and earn up to 30% discount on your ranch stay!
+                    </p>
+                    <Button
+                      onClick={() => navigate('/clue-game')}
+                      className="bg-accent hover:bg-accent/90 text-accent-foreground pixel-text text-xs px-6 py-6 border-2 transition-all hover:translate-y-[-2px]"
+                    >
+                      <Search className="w-4 h-4 mr-2" />
+                      START MYSTERY
+                    </Button>
+                  </div>
+                </section>
+              )}
+
+              {gameState.discountCodeRevealed && (
+                <section className="space-y-4">
+                  <div className="bg-primary/10 border-4 border-primary p-6 text-center space-y-4 animate-pixel-bounce">
+                    <h3 className="text-primary text-lg pixel-text">
+                      🎉 7% DISCOUNT UNLOCKED!
+                    </h3>
+                    <div className="bg-background border-2 border-primary p-4 inline-block">
+                      <p className="text-accent pixel-text text-xl">
+                        {gameState.discountCode}
+                      </p>
+                    </div>
+                    <p className="text-foreground text-xs pixel-text max-w-md mx-auto">
+                      Use this code when booking your real adventure at Back of Beyond Ranch! 
+                      Valid for luxury cabins, pet-friendly stays, and all accommodations.
+                    </p>
+                  </div>
+                </section>
+              )}
 
               <section>
                 <BookingCTA />
