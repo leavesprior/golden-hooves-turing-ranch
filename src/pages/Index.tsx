@@ -144,8 +144,8 @@ const Index = () => {
                         <span className="text-primary text-base">🌟</span>
                         <span className="text-foreground">Stargazing</span>
                       </div>
-                      <span className="bg-primary/80 text-primary-foreground px-2 py-1 text-[10px] border border-primary">
-                        OPEN
+                      <span className="bg-accent/80 text-accent-foreground px-2 py-1 text-[10px] border border-accent">
+                        REQUEST EXPERIENCE
                       </span>
                     </div>
                   </div>
