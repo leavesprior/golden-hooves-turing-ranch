@@ -14,7 +14,145 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      booking_requests: {
+        Row: {
+          discount_code: string | null
+          id: string
+          player_id: string | null
+          requested_date: string
+          status: string
+        }
+        Insert: {
+          discount_code?: string | null
+          id?: string
+          player_id?: string | null
+          requested_date: string
+          status?: string
+        }
+        Update: {
+          discount_code?: string | null
+          id?: string
+          player_id?: string | null
+          requested_date?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      inventory: {
+        Row: {
+          id: string
+          item_name: string
+          player_id: string | null
+          quantity: number
+        }
+        Insert: {
+          id?: string
+          item_name: string
+          player_id?: string | null
+          quantity?: number
+        }
+        Update: {
+          id?: string
+          item_name?: string
+          player_id?: string | null
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      karma_ledger: {
+        Row: {
+          amount: number
+          id: string
+          player_id: string | null
+          transaction_type: string
+          ts: string
+        }
+        Insert: {
+          amount: number
+          id?: string
+          player_id?: string | null
+          transaction_type: string
+          ts?: string
+        }
+        Update: {
+          amount?: number
+          id?: string
+          player_id?: string | null
+          transaction_type?: string
+          ts?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "karma_ledger_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          alignment: string
+          coins: number
+          id: string
+          karma: number
+          username: string
+        }
+        Insert: {
+          alignment?: string
+          coins?: number
+          id?: string
+          karma?: number
+          username: string
+        }
+        Update: {
+          alignment?: string
+          coins?: number
+          id?: string
+          karma?: number
+          username?: string
+        }
+        Relationships: []
+      }
+      ranch_runs: {
+        Row: {
+          blockchain_hash: string | null
+          config: Json
+          created_at: string
+          full_log: string | null
+          id: string
+          name: string | null
+          results: Json
+        }
+        Insert: {
+          blockchain_hash?: string | null
+          config?: Json
+          created_at?: string
+          full_log?: string | null
+          id?: string
+          name?: string | null
+          results?: Json
+        }
+        Update: {
+          blockchain_hash?: string | null
+          config?: Json
+          created_at?: string
+          full_log?: string | null
+          id?: string
+          name?: string | null
+          results?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
