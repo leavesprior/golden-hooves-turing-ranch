@@ -6,6 +6,7 @@ interface Clue {
   text: string;
   answer: string;
   acceptableAnswers: string[]; // Multiple valid answer formats
+  closeAnswers?: string[]; // Answers that are close but need more detail
   hints: string[];
 }
 
@@ -43,6 +44,14 @@ const levels = [
         answer: "coloma",
         acceptableAnswers: ["coloma", "sutter's mill", "sutters mill", "james marshall", "gold discovery", "american river"],
         hints: ["Gold discovery site", "James Marshall", "American River"]
+      },
+      {
+        id: 4,
+        text: "The culprit hides in the 'Gem of the Southern Mines,' a perfectly preserved Gold Rush town frozen in time since 1850, where miners once struck it rich.",
+        answer: "columbia state historic park",
+        acceptableAnswers: ["columbia", "columbia state historic park", "gem of the southern mines", "columbia california", "historic columbia"],
+        closeAnswers: ["columbia california", "columbia ca"],
+        hints: ["Known as 'Gem of the Southern Mines'", "State Historic Park", "Perfectly preserved Gold Rush town"]
       }
     ]
   },
@@ -50,42 +59,42 @@ const levels = [
     name: "Level 1: Gold Country Mysteries",
     clues: [
       {
-        id: 4,
+        id: 5,
         text: "The shadow flees to bedrock mortars at the largest Miwok collection in North America, echoing tribes who inhabited pre-Gold Rush lands.",
         answer: "indian grinding rock",
         acceptableAnswers: ["indian grinding rock", "grinding rock", "chaw'se", "chawse", "miwok mortars", "bedrock mortars", "petroglyph", "state historic park"],
         hints: ["State Historic Park", "Chaw'se", "Grinding stones"]
       },
       {
-        id: 5,
+        id: 6,
         text: "Trace to a theatre in historic Volcano, CA, blending indigenous art with plays from the mining boom era.",
         answer: "volcano theatre",
         acceptableAnswers: ["volcano theatre", "volcano theater", "volcano", "historic volcano", "cultural gem", "volcano plays"],
         hints: ["Cultural gem", "Historic building", "Performing arts"]
       },
       {
-        id: 6,
+        id: 7,
         text: "Follow tracks to where miners once dug California's richest diggings, now a sleepy town with historic cemetery.",
         answer: "mokelumne hill",
         acceptableAnswers: ["mokelumne hill", "mokelumne", "mok hill", "french hill", "richest diggings", "historic cemetery"],
         hints: ["Rich gold deposits", "Historic cemetery", "French Hill"]
       },
       {
-        id: 7,
+        id: 8,
         text: "The culprit visits caves adorned with natural limestone formations, discovered by miners seeking fortune.",
         answer: "moaning cavern",
         acceptableAnswers: ["moaning cavern", "moaning cave", "limestone cave", "stalactites", "cavern", "rappelling cave"],
         hints: ["Stalactites", "Rappelling tours", "Ancient bones found"]
       },
       {
-        id: 8,
+        id: 9,
         text: "Trail leads to a reservoir where bass and trout swim, serving as a sanctuary gateway to wilderness.",
         answer: "new melones",
         acceptableAnswers: ["new melones", "melones", "new melones lake", "reservoir", "bass fishing", "melones reservoir"],
         hints: ["Lake", "Water recreation", "Near Angels Camp"]
       },
       {
-        id: 9,
+        id: 10,
         text: "The frog vanishes near a festival honoring yesteryear loggers with axe-throwing, rooted in post-Gold Rush timber booms.",
         answer: "west point lumberjack days",
         acceptableAnswers: ["west point", "lumberjack days", "west point lumberjack", "axe throwing", "logging festival", "timber festival"],
@@ -140,6 +149,23 @@ export const useClueGame = () => {
     
     // Remove punctuation and extra spaces
     normalized = normalized.replace(/[?.,!]/g, '').replace(/\s+/g, ' ').trim();
+
+    // Check for close answers first
+    if (currentClue.closeAnswers) {
+      const isClose = currentClue.closeAnswers.some(close => {
+        const normalizedClose = close.toLowerCase().trim();
+        return normalized === normalizedClose || 
+               normalized.includes(normalizedClose) ||
+               normalizedClose.split(' ').every(word => normalized.includes(word));
+      });
+      
+      if (isClose) {
+        toast.info("You're really close, detective! Give me a little more information...", {
+          duration: 4000,
+        });
+        return false;
+      }
+    }
 
     // Check if normalized answer matches any acceptable answer
     const isCorrect = currentClue.acceptableAnswers.some(acceptable => {
