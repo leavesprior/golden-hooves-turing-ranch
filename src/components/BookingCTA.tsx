@@ -4,7 +4,7 @@ import { ExternalLink } from 'lucide-react';
 export const BookingCTA = () => {
   const handleBooking = () => {
     // Replace with actual booking URL
-    window.open('https://www.airbnb.com/rooms/backofbeyondranch', '_blank');
+    window.open('https://airbnb.com/h/backofbeyondranch', '_blank');
   };
 
   return (
