@@ -140,23 +140,53 @@ export const useClueGame = () => {
 
     // Normalize input: remove common prefixes, trim, lowercase
     let normalized = answer.toLowerCase().trim();
-    const jeopardyPrefixes = ['what is', 'where is', 'who is', 'what are', 'where are'];
+    const jeopardyPrefixes = ['what is', 'where is', 'who is', 'what are', 'where are', 'when is', 'when was'];
     jeopardyPrefixes.forEach(prefix => {
       if (normalized.startsWith(prefix)) {
         normalized = normalized.substring(prefix.length).trim();
       }
     });
     
-    // Remove punctuation and extra spaces
-    normalized = normalized.replace(/[?.,!]/g, '').replace(/\s+/g, ' ').trim();
+    // More aggressive normalization: remove articles, apostrophes, and punctuation
+    normalized = normalized.replace(/[?.,!']/g, '')
+                           .replace(/\b(the|a|an|of)\b/g, '')
+                           .replace(/\s+/g, ' ')
+                           .trim();
+
+    // Helper function to extract key concepts from a phrase
+    const extractKeyConcepts = (phrase: string): string[] => {
+      const stopWords = ['the', 'a', 'an', 'of', 'in', 'at', 'to', 'for', 'is', 'was', 'are', 'were'];
+      return phrase.toLowerCase()
+                   .replace(/[?.,!']/g, '')
+                   .split(/\s+/)
+                   .filter(word => word.length > 2 && !stopWords.includes(word));
+    };
+
+    // Helper function to check if 2/3 of key concepts match
+    const checkPartialMatch = (userPhrase: string, targetPhrase: string): boolean => {
+      const userConcepts = extractKeyConcepts(userPhrase);
+      const targetConcepts = extractKeyConcepts(targetPhrase);
+      
+      if (targetConcepts.length === 0) return false;
+      
+      const matchCount = targetConcepts.filter(concept => 
+        userConcepts.some(userConcept => 
+          userConcept.includes(concept) || concept.includes(userConcept)
+        )
+      ).length;
+      
+      // Accept if at least 2/3 of concepts match, or 2+ concepts for short answers
+      const threshold = Math.max(2, Math.ceil(targetConcepts.length * 0.66));
+      return matchCount >= threshold;
+    };
 
     // Check for close answers first
     if (currentClue.closeAnswers) {
       const isClose = currentClue.closeAnswers.some(close => {
-        const normalizedClose = close.toLowerCase().trim();
+        const normalizedClose = close.toLowerCase().trim().replace(/[?.,!']/g, '');
         return normalized === normalizedClose || 
                normalized.includes(normalizedClose) ||
-               normalizedClose.split(' ').every(word => normalized.includes(word));
+               checkPartialMatch(normalized, close);
       });
       
       if (isClose) {
@@ -169,11 +199,22 @@ export const useClueGame = () => {
 
     // Check if normalized answer matches any acceptable answer
     const isCorrect = currentClue.acceptableAnswers.some(acceptable => {
-      const normalizedAcceptable = acceptable.toLowerCase().trim();
-      // Exact match or contains key term
-      return normalized === normalizedAcceptable || 
-             normalized.includes(normalizedAcceptable) ||
-             normalizedAcceptable.split(' ').every(word => normalized.includes(word));
+      const normalizedAcceptable = acceptable.toLowerCase().trim().replace(/[?.,!']/g, '');
+      
+      // 1. Exact match
+      if (normalized === normalizedAcceptable) return true;
+      
+      // 2. Contains the acceptable answer
+      if (normalized.includes(normalizedAcceptable)) return true;
+      
+      // 3. All words of acceptable answer appear in user input (any order)
+      const acceptableWords = normalizedAcceptable.split(' ').filter(w => w.length > 2);
+      if (acceptableWords.length > 0 && acceptableWords.every(word => normalized.includes(word))) return true;
+      
+      // 4. Partial match with 2/3 of key concepts (creative rewordings)
+      if (checkPartialMatch(normalized, acceptable)) return true;
+      
+      return false;
     });
 
     if (isCorrect) {
