@@ -8,6 +8,9 @@ interface Clue {
   acceptableAnswers: string[]; // Multiple valid answer formats
   closeAnswers?: string[]; // Answers that are close but need more detail
   hints: string[];
+  assistanceText?: string;
+  resourceLink?: string;
+  resourceTitle?: string;
 }
 
 interface ClueGameState {
@@ -29,14 +32,20 @@ const levels = [
         text: "The thief hopped to a festival born from Mark Twain's 1865 tale, where amphibians leap in a town that boomed since the Gold Rush era of 1849.",
         answer: "angels camp",
         acceptableAnswers: ["angels camp", "jumping frog", "jumping frogs", "calaveras county", "frog jubilee", "mark twain", "celebrated jumping frog", "frog festival", "angels camp frog"],
-        hints: ["Famous for jumping frogs", "Mark Twain wrote about it", "Annual festival"]
+        hints: ["Famous for jumping frogs", "Mark Twain wrote about it", "Annual festival"],
+        assistanceText: "This event celebrates local folklore with food stalls and live music—think athletic amphibians! It's held annually in May and draws visitors from around the world.",
+        resourceLink: "https://www.frogtown.org/",
+        resourceTitle: "Calaveras County Jumping Frog Jubilee"
       },
       {
         id: 2,
         text: "Seek giants in the Sequoia Gigantica stand, towering since Native Miwok times, near a town named for a biblical figure.",
         answer: "arnold",
         acceptableAnswers: ["arnold", "sequoia gigantica", "giant sequoia", "calaveras big trees", "big trees", "giant trees"],
-        hints: ["Giant sequoia trees", "Near Calaveras Big Trees", "Biblical name"]
+        hints: ["Giant sequoia trees", "Near Calaveras Big Trees", "Biblical name"],
+        assistanceText: "These ancient giants can live over 3,000 years! The grove features walking trails through towering sequoias in a peaceful mountain setting.",
+        resourceLink: "https://en.wikipedia.org/wiki/Sequoia_(genus)#California",
+        resourceTitle: "Sequoia Trees in California"
       },
       {
         id: 3,
@@ -63,14 +72,20 @@ const levels = [
         text: "The shadow flees to bedrock mortars at the largest Miwok collection in North America, echoing tribes who inhabited pre-Gold Rush lands.",
         answer: "indian grinding rock",
         acceptableAnswers: ["indian grinding rock", "grinding rock", "chaw'se", "chawse", "miwok mortars", "bedrock mortars", "petroglyph", "state historic park"],
-        hints: ["State Historic Park", "Chaw'se", "Grinding stones"]
+        hints: ["State Historic Park", "Chaw'se", "Grinding stones"],
+        assistanceText: "This park features petroglyphs and offers a window to Native American past—largest collection in North America! Visitors can see over 1,000 grinding holes.",
+        resourceLink: "https://www.parks.ca.gov/?page_id=553",
+        resourceTitle: "California State Parks - Indian Grinding Rock"
       },
       {
         id: 6,
         text: "Trace to a theatre in historic Volcano, CA, blending indigenous art with plays from the mining boom era.",
         answer: "volcano theatre",
         acceptableAnswers: ["volcano theatre", "volcano theater", "volcano", "historic volcano", "cultural gem", "volcano plays"],
-        hints: ["Cultural gem", "Historic building", "Performing arts"]
+        hints: ["Cultural gem", "Historic building", "Performing arts"],
+        assistanceText: "This intimate community theater hosts live performances year-round in a historic Gold Rush building, showcasing local talent and touring shows.",
+        resourceLink: "https://www.volcanotheatre.org/",
+        resourceTitle: "Volcano Theatre Company"
       },
       {
         id: 7,
@@ -98,7 +113,10 @@ const levels = [
         text: "The frog vanishes near a festival honoring yesteryear loggers with axe-throwing, rooted in post-Gold Rush timber booms.",
         answer: "west point lumberjack days",
         acceptableAnswers: ["west point", "lumberjack days", "west point lumberjack", "axe throwing", "logging festival", "timber festival"],
-        hints: ["Annual festival", "Logging history", "Mountain community"]
+        hints: ["Annual festival", "Logging history", "Mountain community"],
+        assistanceText: "This festival includes log-rolling, live music, and parades—step back to lumberjack nostalgia! Held annually with family-friendly activities.",
+        resourceLink: "https://www.gocalaveras.com/event/lumberjack-days/",
+        resourceTitle: "West Point Lumberjack Days"
       }
     ]
   }

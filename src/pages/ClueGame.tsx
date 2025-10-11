@@ -93,6 +93,9 @@ const ClueGame = () => {
             onInputChange={setUserInput}
             levelName={currentLevel.name}
             progress={`CLUE ${gameState.currentClueIndex + 1}/${currentLevel.clues.length}`}
+            assistanceText={currentClue.assistanceText}
+            resourceLink={currentClue.resourceLink}
+            resourceTitle={currentClue.resourceTitle}
           />
 
           {gameState.totalDiscount > 0 && (

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import sierraShadow from '@/assets/sierra-shadow.png';
-import { Lightbulb, RotateCcw } from 'lucide-react';
+import { Lightbulb, RotateCcw, HelpCircle, ExternalLink } from 'lucide-react';
 
 interface ClueDialogueBoxProps {
   clueText: string;
@@ -13,6 +13,9 @@ interface ClueDialogueBoxProps {
   onInputChange: (value: string) => void;
   levelName: string;
   progress: string;
+  assistanceText?: string;
+  resourceLink?: string;
+  resourceTitle?: string;
 }
 
 export const ClueDialogueBox = ({ 
@@ -23,10 +26,14 @@ export const ClueDialogueBox = ({
   userInput,
   onInputChange,
   levelName,
-  progress
+  progress,
+  assistanceText,
+  resourceLink,
+  resourceTitle
 }: ClueDialogueBoxProps) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
+  const [showAssistance, setShowAssistance] = useState(false);
 
   useEffect(() => {
     setDisplayedText('');
@@ -80,6 +87,40 @@ export const ClueDialogueBox = ({
               {isTyping && <span className="animate-pulse">▌</span>}
             </p>
           </div>
+
+          {assistanceText && (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                onClick={() => setShowAssistance(!showAssistance)}
+                variant="outline"
+                size="sm"
+                className="w-full pixel-text text-xs border-2 flex items-center justify-center gap-2"
+              >
+                <HelpCircle className="w-3 h-3" />
+                {showAssistance ? 'HIDE ASSISTANCE' : 'CLUE ASSISTANCE'}
+              </Button>
+              
+              {showAssistance && (
+                <div className="bg-primary/10 p-3 border-2 border-primary/30 space-y-2">
+                  <p className="text-foreground text-xs pixel-text leading-relaxed">
+                    {assistanceText}
+                  </p>
+                  {resourceLink && resourceTitle && (
+                    <a
+                      href={resourceLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary hover:text-primary/80 text-xs pixel-text underline"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      {resourceTitle}
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-2">
             <Input
