@@ -105,49 +105,68 @@ const Index = () => {
 
               <section className="space-y-3">
                 <h3 className="text-primary text-sm pixel-text">RANCH ATTRACTIONS</h3>
-                <div className="bg-card border-2 border-border p-4 space-y-3">
-                  <p className="text-foreground text-xs pixel-text leading-relaxed">
-                    Back of Beyond Ranch is nestled in California's historic Gold Country, 
-                    surrounded by the majestic Sierra Nevada mountains. Our sanctuary offers 
-                    luxury accommodations, farm-to-table dining, and unforgettable experiences.
-                  </p>
-                  <div className="grid grid-cols-1 gap-2 text-xs pixel-text">
-                    <div className="bg-muted/20 p-3 border border-border flex items-center justify-between">
+                <p className="text-muted-foreground text-xs pixel-text leading-relaxed">
+                  Managed by Leif Pryor, Ranch Manager. Each experience is themed like an enchanting ride at Disneyland—step into worlds of adventure, history, and relaxation!
+                </p>
+                <div className="space-y-3">
+                  <div className="bg-card border-2 border-border p-4 space-y-2">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-primary text-base">🐴</span>
-                        <span className="text-foreground">Horse Riding</span>
+                        <span className="text-foreground text-sm pixel-text font-bold">Horse Riding</span>
                       </div>
-                      <span className="bg-destructive/80 text-destructive-foreground px-2 py-1 text-[10px] border border-destructive">
+                      <span className="bg-destructive/80 text-destructive-foreground px-2 py-1 text-[10px] pixel-text border border-destructive">
                         CLOSED
                       </span>
                     </div>
-                    <div className="bg-muted/20 p-3 border border-border flex items-center justify-between">
+                    <p className="text-foreground text-xs pixel-text leading-relaxed">
+                      Like a thrilling frontier expedition, saddle up for guided trails through the Sierra Nevada foothills—perfect for all levels, with stunning views and a touch of Gold Rush spirit. (Temporarily unavailable for maintenance—check back soon!)
+                    </p>
+                  </div>
+
+                  <div className="bg-card border-2 border-border p-4 space-y-2">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-primary text-base">⛏️</span>
-                        <span className="text-foreground">Gold Panning</span>
+                        <span className="text-foreground text-sm pixel-text font-bold">Gold Panning</span>
                       </div>
-                      <span className="bg-accent/80 text-accent-foreground px-2 py-1 text-[10px] border border-accent">
+                      <span className="bg-accent/80 text-accent-foreground px-2 py-1 text-[10px] pixel-text border border-accent">
                         REQUEST EXPERIENCE
                       </span>
                     </div>
-                    <div className="bg-muted/20 p-3 border border-border flex items-center justify-between">
+                    <p className="text-foreground text-xs pixel-text leading-relaxed">
+                      Dive into the rush like prospectors of 1849! Pan for nuggets in nearby streams with expert guidance—strike it rich or just enjoy the thrill. Can be requested as a special add-on experience.
+                    </p>
+                  </div>
+
+                  <div className="bg-card border-2 border-border p-4 space-y-2">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-primary text-base">🏔️</span>
-                        <span className="text-foreground">Hiking Trails</span>
+                        <span className="text-foreground text-sm pixel-text font-bold">Hiking Trails</span>
                       </div>
-                      <span className="bg-primary/80 text-primary-foreground px-2 py-1 text-[10px] border border-primary">
+                      <span className="bg-primary/80 text-primary-foreground px-2 py-1 text-[10px] pixel-text border border-primary">
                         OPEN
                       </span>
                     </div>
-                    <div className="bg-muted/20 p-3 border border-border flex items-center justify-between">
+                    <p className="text-foreground text-xs pixel-text leading-relaxed">
+                      Back of Beyond Ranch is nestled in California's historic Gold Country, surrounded by the majestic Sierra Nevada mountains. Explore scenic trails with stunning views and unforgettable Gold Country vistas.
+                    </p>
+                  </div>
+
+                  <div className="bg-card border-2 border-border p-4 space-y-2">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-primary text-base">🌟</span>
-                        <span className="text-foreground">Stargazing</span>
+                        <span className="text-foreground text-sm pixel-text font-bold">Stargazing</span>
                       </div>
-                      <span className="bg-accent/80 text-accent-foreground px-2 py-1 text-[10px] border border-accent">
+                      <span className="bg-accent/80 text-accent-foreground px-2 py-1 text-[10px] pixel-text border border-accent">
                         REQUEST EXPERIENCE
                       </span>
                     </div>
+                    <p className="text-foreground text-xs pixel-text leading-relaxed">
+                      Embark on a celestial journey under minimal light pollution skies! The host enhances it upon request with a cozy setup: blankets, chairs, and wine for a romantic or family night gazing at the stars.
+                    </p>
                   </div>
                 </div>
               </section>
