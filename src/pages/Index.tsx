@@ -4,17 +4,17 @@ import { DialogueBox } from '@/components/DialogueBox';
 import { ActionButtons } from '@/components/ActionButtons';
 import { BookingCTA } from '@/components/BookingCTA';
 import { Button } from '@/components/ui/button';
-import { useGameState } from '@/hooks/useGameState';
+import { useGameStateV2 } from '@/hooks/useGameStateV2';
 import { RotateCcw, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const navigate = useNavigate();
-  const { gameState, startGame, handleAction, closeDialogue, resetGame } = useGameState();
+  const { gameState, startGame, handleAction, closeDialogue, resetGame } = useGameStateV2();
 
   return (
     <div className="min-h-screen bg-background relative">
-      <GameHeader karmaCoins={gameState.karmaCoins} />
+      <GameHeader karmaCoins={gameState.player.karmaCoins} />
       
       <main className="pb-32">
         <GameHero />
@@ -55,11 +55,11 @@ const Index = () => {
                 </div>
                 <ActionButtons 
                   onAction={handleAction} 
-                  disabled={!!gameState.currentDialogue}
+                  disabled={!!gameState.dialogue.currentSpeaker}
                 />
               </section>
 
-              {gameState.clueGameUnlocked && (
+              {gameState.world.clueGameUnlocked && (
                 <section className="space-y-4">
                   <div className="bg-gradient-to-r from-primary/20 to-accent/20 border-2 border-primary p-6 text-center space-y-4 animate-pulse">
                     <h3 className="text-primary text-sm md:text-base pixel-text">
@@ -80,7 +80,7 @@ const Index = () => {
                 </section>
               )}
 
-              {gameState.discountCodeRevealed && (
+              {gameState.milestones.discountCodeRevealed && (
                 <section className="space-y-4">
                   <div className="bg-primary/10 border-4 border-primary p-6 text-center space-y-4 animate-pixel-bounce">
                     <h3 className="text-primary text-lg pixel-text">
@@ -88,7 +88,7 @@ const Index = () => {
                     </h3>
                     <div className="bg-background border-2 border-primary p-4 inline-block">
                       <p className="text-accent pixel-text text-xl">
-                        {gameState.discountCode}
+                        {gameState.milestones.discountCode}
                       </p>
                     </div>
                     <p className="text-foreground text-xs pixel-text max-w-md mx-auto">
@@ -175,10 +175,10 @@ const Index = () => {
         </div>
       </main>
 
-      {gameState.currentDialogue && (
+      {gameState.dialogue.currentSpeaker && (
         <DialogueBox
-          speaker={gameState.currentDialogue.speaker}
-          text={gameState.currentDialogue.text}
+          speaker={gameState.dialogue.currentSpeaker}
+          text={gameState.dialogue.currentText || ''}
           onClose={closeDialogue}
         />
       )}
