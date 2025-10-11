@@ -104,25 +104,49 @@ const Index = () => {
               </section>
 
               <section className="space-y-3">
-                <h3 className="text-primary text-sm pixel-text">ABOUT THE RANCH</h3>
+                <h3 className="text-primary text-sm pixel-text">RANCH ATTRACTIONS</h3>
                 <div className="bg-card border-2 border-border p-4 space-y-3">
                   <p className="text-foreground text-xs pixel-text leading-relaxed">
                     Back of Beyond Ranch is nestled in California's historic Gold Country, 
                     surrounded by the majestic Sierra Nevada mountains. Our sanctuary offers 
                     luxury accommodations, farm-to-table dining, and unforgettable experiences.
                   </p>
-                  <div className="grid grid-cols-2 gap-2 text-xs pixel-text">
-                    <div className="bg-muted/20 p-2">
-                      <span className="text-primary">🐴</span> Horse Riding
+                  <div className="grid grid-cols-1 gap-2 text-xs pixel-text">
+                    <div className="bg-muted/20 p-3 border border-border flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-primary text-base">🐴</span>
+                        <span className="text-foreground">Horse Riding</span>
+                      </div>
+                      <span className="bg-destructive/80 text-destructive-foreground px-2 py-1 text-[10px] border border-destructive">
+                        CLOSED
+                      </span>
                     </div>
-                    <div className="bg-muted/20 p-2">
-                      <span className="text-primary">⛏️</span> Gold Panning
+                    <div className="bg-muted/20 p-3 border border-border flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-primary text-base">⛏️</span>
+                        <span className="text-foreground">Gold Panning</span>
+                      </div>
+                      <span className="bg-accent/80 text-accent-foreground px-2 py-1 text-[10px] border border-accent">
+                        REQUEST EXPERIENCE
+                      </span>
                     </div>
-                    <div className="bg-muted/20 p-2">
-                      <span className="text-primary">🏔️</span> Hiking Trails
+                    <div className="bg-muted/20 p-3 border border-border flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-primary text-base">🏔️</span>
+                        <span className="text-foreground">Hiking Trails</span>
+                      </div>
+                      <span className="bg-primary/80 text-primary-foreground px-2 py-1 text-[10px] border border-primary">
+                        OPEN
+                      </span>
                     </div>
-                    <div className="bg-muted/20 p-2">
-                      <span className="text-primary">🌟</span> Stargazing
+                    <div className="bg-muted/20 p-3 border border-border flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-primary text-base">🌟</span>
+                        <span className="text-foreground">Stargazing</span>
+                      </div>
+                      <span className="bg-primary/80 text-primary-foreground px-2 py-1 text-[10px] border border-primary">
+                        OPEN
+                      </span>
                     </div>
                   </div>
                 </div>
