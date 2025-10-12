@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
+import { ensureAuth } from "./auth";
 
 export async function saveRunToSupabase(snapshot: any) {
+  await ensureAuth();
   const payload = {
     name: "ranch_" + Date.now(),
     config: {},

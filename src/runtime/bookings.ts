@@ -1,9 +1,10 @@
-import { getSupabase } from "./sync";
+import { supabase } from "@/integrations/supabase/client";
+import { ensureAuth } from "./auth";
 
 export async function requestBooking(playerId: string, discountCode: string) {
-  const sb = getSupabase();
+  await ensureAuth();
   const today = new Date().toISOString().slice(0,10);
-  const { error } = await sb.from("booking_requests").insert({
+  const { error } = await supabase.from("booking_requests").insert({
     player_id: playerId, 
     requested_date: today, 
     status: "pending", 
