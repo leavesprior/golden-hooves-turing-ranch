@@ -30,13 +30,22 @@ const Index = () => {
                 Help Buck manage the ranch, earn karma coins, and discover the magic 
                 of Back of Beyond Ranch!
               </p>
-              <Button
-                onClick={startGame}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground pixel-text text-sm px-8 py-6 border-4 border-primary-foreground transition-all hover:translate-y-[-4px] active:translate-y-0"
-                style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}
-              >
-                ▶ START GAME
-              </Button>
+              <div className="flex gap-4 justify-center">
+                <Button
+                  onClick={startGame}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground pixel-text text-sm px-8 py-6 border-4 border-primary-foreground transition-all hover:translate-y-[-4px] active:translate-y-0"
+                  style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}
+                >
+                  ▶ START GAME
+                </Button>
+                <Button
+                  onClick={() => navigate('/phaser')}
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground pixel-text text-sm px-8 py-6 border-4 border-accent-foreground transition-all hover:translate-y-[-4px] active:translate-y-0"
+                  style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}
+                >
+                  🎮 PHASER MODE
+                </Button>
+              </div>
             </div>
           ) : (
             <>
