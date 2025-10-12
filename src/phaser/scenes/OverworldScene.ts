@@ -32,7 +32,7 @@ export class OverworldScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-Q", () => this.scene.start("ClueScene"));
     this.input.keyboard!.on("keydown-L", () => {
       const f = engine.getGameState().flags || {};
-      if (f.level1Complete) this.scene.start("Level2OverworldScene");
+      if (f.level1Complete) this.scene.start("Level2MapScene");
       else this.flash("Complete the quiz first (Q)");
     });
     this.input.keyboard!.on("keydown-V", () => {

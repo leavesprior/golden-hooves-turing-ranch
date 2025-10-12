@@ -4,23 +4,19 @@ import { OverworldScene } from "./scenes/OverworldScene";
 import { BattleScene } from "./scenes/BattleScene";
 import { DialogueScene } from "./scenes/DialogueScene";
 import { ClueScene } from "./scenes/ClueScene";
-import { Level2OverworldScene } from "./scenes/Level2OverworldScene";
-import { Level2TacticsScene } from "./scenes/Level2TacticsScene";
-import { Level2RitualScene } from "./scenes/Level2RitualScene";
+import { Level2MapScene } from "./scenes/Level2MapScene";
+import { Level2NodeScene } from "./scenes/Level2NodeScene";
+import { Level2ArrestScene } from "./scenes/Level2ArrestScene";
 
 export function startGame(parentId: string) {
   new Phaser.Game({
-    type: Phaser.AUTO,
-    width: 960,
-    height: 540,
-    parent: parentId,
+    type: Phaser.AUTO, width: 960, height: 540, parent: parentId, pixelArt: true,
     backgroundColor: "#0b0f14",
     scene: [
       BootScene,
-      OverworldScene, BattleScene, DialogueScene,
-      ClueScene, Level2OverworldScene, Level2TacticsScene, Level2RitualScene
+      OverworldScene, BattleScene, DialogueScene, ClueScene,
+      Level2MapScene, Level2NodeScene, Level2ArrestScene
     ],
-    pixelArt: true,
     physics: { default: "arcade", arcade: { debug: false } }
   });
 }
