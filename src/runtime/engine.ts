@@ -7,7 +7,20 @@ class Engine {
   private state: GameState;
 
   constructor() {
-    this.state = { tick: 0, player: { id: uuidv4(), username: "SierraShadow", karma: 0, coins: 0, alignment: "Good" }, herdHealth: 70, flags: {} };
+    this.state = { 
+      tick: 0, 
+      player: { 
+        id: uuidv4(), 
+        username: "SierraShadow", 
+        karma: 0, 
+        coins: 0, 
+        alignment: "Good" 
+      }, 
+      herdHealth: 70, 
+      flags: {},
+      activitiesCompleted: 0,
+      discountPercent: 0
+    };
     this.tapes.append("diag", this.tapes.core.snapshot().hash);
   }
 
@@ -50,6 +63,16 @@ class Engine {
   setHerdHealth(n: number) {
     this.state.herdHealth = Math.max(0, Math.min(100, n));
     this.recordAction({ type: "herd", value: this.state.herdHealth });
+  }
+
+  completeActivity() {
+    this.state.activitiesCompleted = (this.state.activitiesCompleted || 0) + 1;
+    this.recordAction({ type: "activity_complete", count: this.state.activitiesCompleted });
+  }
+
+  addDiscount(percent: number) {
+    this.state.discountPercent = (this.state.discountPercent || 0) + percent;
+    this.recordAction({ type: "discount_earned", total: this.state.discountPercent });
   }
 
   snapshot() {

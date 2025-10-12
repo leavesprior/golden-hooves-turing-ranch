@@ -91,6 +91,7 @@ export class QuestScene extends Phaser.Scene {
           // Award rewards
           engine.earnKarma(this.quest.karmaReward, `quest_${this.quest.id}`);
           engine.earnCoins(this.quest.coinReward, `quest_${this.quest.id}`);
+          engine.completeActivity();
 
           this.add.text(480, 300, "QUEST COMPLETE!", {
             fontFamily: "monospace",

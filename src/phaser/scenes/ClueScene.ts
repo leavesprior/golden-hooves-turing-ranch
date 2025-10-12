@@ -16,7 +16,14 @@ export class ClueScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor("#121821");
     this.info = document.getElementById("hud")!;
-    this.add.text(40, 30, "Clue Quiz — answer all 6 correctly to earn the Golden Frog", { fontFamily:"monospace", fontSize:"16px", color:"#cde3ff" });
+    
+    // Enhanced header
+    this.add.text(40, 30, "🔍 CLUE QUIZ — Earn the Golden Frog & 7% Discount!", { 
+      fontFamily:"monospace", 
+      fontSize:"18px", 
+      color:"#f0e68c",
+      fontStyle: "bold"
+    });
     this.qText = this.add.text(40, 90, "", { fontFamily:"monospace", fontSize:"16px", color:"#9ad1ff", wordWrap:{ width: 880 }});
     this.oText = [0,1,2,3].map((k)=> this.add.text(60, 150 + k*40, "", { fontFamily:"monospace", fontSize:"14px", color:"#cde3ff" }));
     this.input.keyboard!.on("keydown-ONE", ()=>this.answer(0));
@@ -44,21 +51,47 @@ export class ClueScene extends Phaser.Scene {
 
     const passed = this.correct === QUIZ.length;
     if (!passed) {
-      this.add.text(40, 360, `Need all 6 correct. You got ${this.correct}.`, { fontFamily:"monospace", fontSize:"14px", color:"#ff9aa2" });
+      this.add.text(40, 360, `❌ Need all 6 correct. You got ${this.correct}/6. Try again!`, { 
+        fontFamily:"monospace", 
+        fontSize:"16px", 
+        color:"#ff9aa2" 
+      });
+      this.add.text(40, 390, "💡 TIP: Each clue relates to Gold Country history or ranch features.", { 
+        fontFamily:"monospace", 
+        fontSize:"12px", 
+        color:"#cde3ff" 
+      });
       return;
     }
 
-    // Award Golden Frog and unlock Level 2
+    // Award Golden Frog, discount, and unlock Level 2
     const gs = engine.getGameState();
     gs.flags = { ...(gs.flags||{}), level1Complete: true, goldenFrog: true };
+    engine.addDiscount(7);
     engine.recordAction({ type:"quiz_passed", reward:"GoldenFrog" });
 
     const snap = engine.snapshot();
     saveRunLocal(snap);
     try { await saveRunToSupabase(snap); } catch {}
 
-    this.add.text(40, 360, "Golden Frog acquired. Level 2 unlocked.", { fontFamily:"monospace", fontSize:"14px", color:"#8ef5a2" });
+    this.add.text(40, 360, "🐸 GOLDEN FROG ACQUIRED! 🎉", { 
+      fontFamily:"monospace", 
+      fontSize:"20px", 
+      color:"#8ef5a2",
+      fontStyle: "bold"
+    });
+    this.add.text(40, 400, "✅ +7% Discount Code Earned!", { 
+      fontFamily:"monospace", 
+      fontSize:"16px", 
+      color:"#f0e68c"
+    });
+    this.add.text(40, 430, "🌟 Level 2 Unlocked — Advancing...", { 
+      fontFamily:"monospace", 
+      fontSize:"14px", 
+      color:"#cde3ff"
+    });
+    
     // Auto‑transition after a short pause
-    this.time.delayedCall(900, () => this.scene.start("Level2MapScene"));
+    this.time.delayedCall(1500, () => this.scene.start("Level2MapScene"));
   }
 }

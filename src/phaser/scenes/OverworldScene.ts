@@ -11,26 +11,90 @@ export class OverworldScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor("#0f1520");
     this.info = document.getElementById("hud")!;
-    this.add.text(40, 30, "Base Ranch — Overworld", { fontFamily: "monospace", fontSize: "16px", color: "#cde3ff" });
+    
+    // Enhanced title with ranch branding
+    this.add.text(40, 30, "🏞️ BACK OF BEYOND RANCH — OVERWORLD", { 
+      fontFamily: "monospace", 
+      fontSize: "18px", 
+      color: "#f0e68c",
+      fontStyle: "bold"
+    });
 
+    // Enhanced background with Sierra Nevada theme
     this.add.grid(480, 270, 960, 540, 48, 48, 0x0f141b, 1, 0x1c2531, 0.5);
+    
+    // Sky gradient effect (top portion)
+    const sky = this.add.rectangle(480, 100, 960, 200, 0x1a2332, 0.3);
 
-    // Barn
-    this.add.rectangle(200, 200, 120, 100, 0x2a3d55).setStrokeStyle(1, 0x3a4f66);
-    this.add.text(160, 180, "Barn (B)", { fontFamily: "monospace", fontSize: "12px", color: "#9ad1ff" });
+    // Barn with enhanced details
+    const barn = this.add.rectangle(200, 200, 120, 100, 0x8b4513).setStrokeStyle(2, 0xa0522d);
+    this.add.rectangle(200, 170, 100, 20, 0x654321); // Roof
+    this.add.text(160, 250, "🏚️ BARN (B)", { 
+      fontFamily: "monospace", 
+      fontSize: "13px", 
+      color: "#f0e68c",
+      backgroundColor: "#00000088",
+      padding: { x: 4, y: 2 }
+    });
 
-    // Pasture
-    this.add.rectangle(500, 300, 200, 150, 0x253248).setStrokeStyle(1, 0x4b6a86);
-    this.add.text(430, 280, "Pasture (P)", { fontFamily: "monospace", fontSize: "12px", color: "#9ad1ff" });
+    // Pasture with fence details
+    const pasture = this.add.rectangle(500, 300, 200, 150, 0x2d5016).setStrokeStyle(2, 0x4b6a86);
+    this.add.rectangle(400, 225, 200, 5, 0x8b7355); // Fence top
+    this.add.rectangle(400, 375, 200, 5, 0x8b7355); // Fence bottom
+    this.add.text(430, 385, "🌾 PASTURE (P)", { 
+      fontFamily: "monospace", 
+      fontSize: "13px", 
+      color: "#8ef5a2",
+      backgroundColor: "#00000088",
+      padding: { x: 4, y: 2 }
+    });
 
-    // Quiz gate
-    this.add.rectangle(750, 150, 140, 90, 0x324a6a).setStrokeStyle(1, 0x5a7a9a);
-    this.add.text(700, 130, "Quiz Gate (Q)", { fontFamily: "monospace", fontSize: "12px", color: "#9ad1ff" });
+    // Quest board
+    this.add.rectangle(200, 400, 100, 80, 0x654321).setStrokeStyle(2, 0x8b4513);
+    this.add.text(170, 450, "📋 QUEST (R)", { 
+      fontFamily: "monospace", 
+      fontSize: "13px", 
+      color: "#cde3ff",
+      backgroundColor: "#00000088",
+      padding: { x: 4, y: 2 }
+    });
 
+    // Quiz gate with mystical appearance
+    const quizGate = this.add.rectangle(750, 150, 140, 90, 0x4a5f7a).setStrokeStyle(3, 0x6a8faa);
+    this.add.star(750, 120, 5, 10, 20, 0xf0e68c); // Star decoration
+    this.add.text(700, 190, "🎯 CLUE QUIZ (Q)", { 
+      fontFamily: "monospace", 
+      fontSize: "13px", 
+      color: "#f0e68c",
+      backgroundColor: "#00000088",
+      padding: { x: 4, y: 2 }
+    });
+
+    // Level 2 Portal
+    this.add.rectangle(750, 400, 120, 80, 0x6a4a8a).setStrokeStyle(3, 0x8a6aaa);
+    this.add.text(710, 450, "🌟 LEVEL 2 (L)", { 
+      fontFamily: "monospace", 
+      fontSize: "13px", 
+      color: "#c9a0ff",
+      backgroundColor: "#00000088",
+      padding: { x: 4, y: 2 }
+    });
+
+    // Keyboard controls (original + WASD hints)
     this.input.keyboard!.on("keydown-B", () => this.scene.start("DialogueScene"));
     this.input.keyboard!.on("keydown-P", () => this.scene.start("BattleScene"));
-    this.input.keyboard!.on("keydown-Q", () => this.scene.start("ClueScene"));
-    this.input.keyboard!.on("keydown-R", () => this.scene.start("QuestScene"));
+    this.input.keyboard!.on("keydown-Q", () => {
+      const gs = engine.getGameState();
+      const activities = gs.activitiesCompleted || 0;
+      if (activities >= 3) {
+        this.scene.start("ClueScene");
+      } else {
+        this.flash(`Complete ${3 - activities} more activities to unlock Clue Quiz! Try quests (R).`);
+      }
+    });
+    this.input.keyboard!.on("keydown-R", () => {
+      this.scene.start("QuestScene");
+    });
     this.input.keyboard!.on("keydown-L", () => {
       const f = engine.getGameState().flags || {};
       if (f.level1Complete && f.goldenFrog) {
@@ -44,17 +108,22 @@ export class OverworldScene extends Phaser.Scene {
       this.flash(`Verify: ok=${r.ok} repaired=${r.repaired}`);
     });
 
-    this.updateHUD("Explore the ranch. B: barn | P: pasture | R: quest | Q: quiz | L: Level 2");
+    this.updateHUD("🎮 CONTROLS: B=Barn | P=Pasture | R=Quest | Q=Clue Quiz | L=Level 2 | V=Verify");
   }
 
   private updateHUD(msg: string) {
     const gs = engine.getGameState();
+    const activities = gs.activitiesCompleted || 0;
+    const discount = gs.discountPercent || 0;
+    const quizUnlocked = activities >= 3 ? "✅ UNLOCKED" : `🔒 ${3 - activities} more activities`;
+    
     this.info.textContent = [
-      "🏠 Back of Beyond Ranch — Managed by Leif Pryor",
+      "🏠 BACK OF BEYOND RANCH — Managed by Leif Pryor",
       msg,
-      `💰 Karma: ${gs.player.karma} | Coins: ${gs.player.coins} | ⚖️ Alignment: ${gs.player.alignment}`,
-      `🌾 Herd Health: ${gs.herdHealth}%`,
-      gs.flags ? `Flags: ${JSON.stringify(gs.flags)}` : ""
+      `💰 Karma: ${gs.player.karma} | Coins: ${gs.player.coins} | ⚖️ ${gs.player.alignment}`,
+      `🌾 Herd Health: ${gs.herdHealth}% | 🎯 Activities: ${activities}/3`,
+      `🎁 Current Discount: ${discount}% | Clue Quiz: ${quizUnlocked}`,
+      gs.flags?.goldenFrog ? "🐸 GOLDEN FROG ACQUIRED!" : ""
     ].filter(Boolean).join("\n");
   }
 
