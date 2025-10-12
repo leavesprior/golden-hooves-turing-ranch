@@ -59,7 +59,7 @@ export class ClueScene extends Phaser.Scene {
         await saveRunToSupabase(snap);
       } catch { }
       this.add.text(40, 360, "Unlocked Level 2. Press L to enter.", { fontFamily: "monospace", fontSize: "14px", color: "#8ef5a2" });
-      this.input.keyboard!.once("keydown-L", () => this.scene.start("Level2OverworldScene"));
+      this.input.keyboard!.once("keydown-L", () => this.scene.start("Level2MapScene"));
     } else {
       this.add.text(40, 360, `Need all 6 correct. You got ${this.correct}.`, { fontFamily: "monospace", fontSize: "14px", color: "#ff9aa2" });
     }
