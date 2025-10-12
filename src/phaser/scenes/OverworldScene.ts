@@ -30,6 +30,7 @@ export class OverworldScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-B", () => this.scene.start("DialogueScene"));
     this.input.keyboard!.on("keydown-P", () => this.scene.start("BattleScene"));
     this.input.keyboard!.on("keydown-Q", () => this.scene.start("ClueScene"));
+    this.input.keyboard!.on("keydown-R", () => this.scene.start("QuestScene"));
     this.input.keyboard!.on("keydown-L", () => {
       const f = engine.getGameState().flags || {};
       if (f.level1Complete && f.goldenFrog) {
@@ -43,17 +44,18 @@ export class OverworldScene extends Phaser.Scene {
       this.flash(`Verify: ok=${r.ok} repaired=${r.repaired}`);
     });
 
-    this.updateHUD("Explore the ranch. B: barn | P: pasture | Q: quiz | L: Level 2 | V: verify");
+    this.updateHUD("Explore the ranch. B: barn | P: pasture | R: quest | Q: quiz | L: Level 2");
   }
 
   private updateHUD(msg: string) {
     const gs = engine.getGameState();
     this.info.textContent = [
-      "Base Ranch",
+      "🏠 Back of Beyond Ranch — Managed by Leif Pryor",
       msg,
-      `Karma: ${gs.player.karma} | Herd: ${gs.herdHealth}`,
-      `Flags: ${JSON.stringify(gs.flags || {})}`
-    ].join("\n");
+      `💰 Karma: ${gs.player.karma} | Coins: ${gs.player.coins} | ⚖️ Alignment: ${gs.player.alignment}`,
+      `🌾 Herd Health: ${gs.herdHealth}%`,
+      gs.flags ? `Flags: ${JSON.stringify(gs.flags)}` : ""
+    ].filter(Boolean).join("\n");
   }
 
   private flash(m: string) {

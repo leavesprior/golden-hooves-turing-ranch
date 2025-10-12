@@ -24,6 +24,29 @@ class Engine {
     this.recordAction({ type: "karma", delta: n, reason });
   }
 
+  earnCoins(n: number, reason: string) {
+    this.state.player.coins += n;
+    this.recordAction({ type: "coins", delta: n, reason });
+  }
+
+  spendCoins(n: number, reason: string): boolean {
+    if (this.state.player.coins < n) return false;
+    this.state.player.coins -= n;
+    this.recordAction({ type: "coins", delta: -n, reason });
+    return true;
+  }
+
+  updateAlignment(alignment: "Good" | "Neutral" | "Chaotic") {
+    this.state.player.alignment = alignment;
+    this.recordAction({ type: "alignment", value: alignment });
+  }
+
+  setFlag(key: string, value: boolean) {
+    if (!this.state.flags) this.state.flags = {};
+    this.state.flags[key] = value;
+    this.recordAction({ type: "flag", key, value });
+  }
+
   setHerdHealth(n: number) {
     this.state.herdHealth = Math.max(0, Math.min(100, n));
     this.recordAction({ type: "herd", value: this.state.herdHealth });
