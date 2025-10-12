@@ -32,8 +32,11 @@ export class OverworldScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-Q", () => this.scene.start("ClueScene"));
     this.input.keyboard!.on("keydown-L", () => {
       const f = engine.getGameState().flags || {};
-      if (f.level1Complete) this.scene.start("Level2MapScene");
-      else this.flash("Complete the quiz first (Q)");
+      if (f.level1Complete && f.goldenFrog) {
+        this.scene.start("Level2MapScene");
+      } else {
+        this.flash("Level 2 locked. Earn the Golden Frog by passing all 6 clues.");
+      }
     });
     this.input.keyboard!.on("keydown-V", () => {
       const r = engine.tapes.verifyAndRepair();

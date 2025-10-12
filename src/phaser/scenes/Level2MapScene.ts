@@ -12,8 +12,12 @@ export class Level2MapScene extends Phaser.Scene {
   constructor(){ super("Level2MapScene"); }
 
   create() {
-    const f = engine.getGameState().flags||{};
-    if (!f.level1Complete) return this.scene.start("OverworldScene");
+    const f = engine.getGameState().flags || {};
+    if (!(f.level1Complete && f.goldenFrog)) {
+      // Hard guard. Route back to base.
+      this.scene.start("OverworldScene");
+      return;
+    }
 
     this.cameras.main.setBackgroundColor("#0f1520");
     this.info = document.getElementById("hud")!;
