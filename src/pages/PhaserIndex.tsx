@@ -20,7 +20,7 @@ const PhaserIndex = () => {
             BACK
           </Button>
           <h1 className="text-primary text-lg pixel-text">
-            RANCH GUARDIAN — PHASER EDITION
+            BACK OF BEYOND RANCH — RANCH MAP
           </h1>
           <div className="w-20" />
         </div>
@@ -32,7 +32,7 @@ const PhaserIndex = () => {
 
       <footer className="border-t-2 border-border p-2 text-center mt-8">
         <p className="text-muted-foreground text-[10px] pixel-text">
-          © 2025 BACK OF BEYOND RANCH • POWERED BY PHASER
+          © 2025 BACK OF BEYOND RANCH • INTERACTIVE RANCH MAP
         </p>
       </footer>
     </div>

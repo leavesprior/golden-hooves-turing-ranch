@@ -32,18 +32,14 @@ const Index = () => {
               </p>
               <div className="flex gap-4 justify-center">
                 <Button
-                  onClick={startGame}
+                  onClick={() => {
+                    startGame();
+                    navigate('/phaser');
+                  }}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground pixel-text text-sm px-8 py-6 border-4 border-primary-foreground transition-all hover:translate-y-[-4px] active:translate-y-0"
                   style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}
                 >
                   ▶ START GAME
-                </Button>
-                <Button
-                  onClick={() => navigate('/phaser')}
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground pixel-text text-sm px-8 py-6 border-4 border-accent-foreground transition-all hover:translate-y-[-4px] active:translate-y-0"
-                  style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}
-                >
-                  🎮 PHASER MODE
                 </Button>
               </div>
             </div>
@@ -66,6 +62,14 @@ const Index = () => {
                   onAction={handleAction} 
                   disabled={!!gameState.dialogue.currentSpeaker}
                 />
+                <div className="mt-4">
+                  <Button
+                    onClick={() => navigate('/phaser')}
+                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground pixel-text text-sm px-6 py-6 border-2 transition-all hover:translate-y-[-2px]"
+                  >
+                    🗺️ EXPLORE RANCH MAP
+                  </Button>
+                </div>
               </section>
 
               {gameState.world.clueGameUnlocked && (
