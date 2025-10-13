@@ -1,16 +1,18 @@
-import { v4 as uuidv4 } from "uuid";
 import { TapeHub } from "./tm/tapes";
 import type { GameState } from "./state";
+import { getCurrentUserId } from "./auth";
 
 class Engine {
   tapes = new TapeHub();
   private state: GameState;
+  private initialized = false;
 
   constructor() {
+    // Initialize with placeholder - will be set with actual auth.uid() on init
     this.state = { 
       tick: 0, 
       player: { 
-        id: uuidv4(), 
+        id: "", // Will be set from auth.uid()
         username: "SierraShadow", 
         karma: 0, 
         coins: 0, 
@@ -23,6 +25,18 @@ class Engine {
       discountPercent: 0
     };
     this.tapes.append("diag", this.tapes.core.snapshot().hash);
+  }
+
+  async initialize() {
+    if (this.initialized) return;
+    
+    const userId = await getCurrentUserId();
+    if (!userId) {
+      throw new Error("User must be authenticated to play");
+    }
+    
+    this.state.player.id = userId;
+    this.initialized = true;
   }
 
   loadState(state: GameState) {

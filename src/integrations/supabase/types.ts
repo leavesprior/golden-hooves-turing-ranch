@@ -18,23 +18,23 @@ export type Database = {
         Row: {
           discount_code: string | null
           id: string
-          player_id: string | null
+          player_id: string
           requested_date: string
-          status: string
+          status: Database["public"]["Enums"]["booking_status"]
         }
         Insert: {
           discount_code?: string | null
           id?: string
-          player_id?: string | null
+          player_id: string
           requested_date: string
-          status?: string
+          status?: Database["public"]["Enums"]["booking_status"]
         }
         Update: {
           discount_code?: string | null
           id?: string
-          player_id?: string | null
+          player_id?: string
           requested_date?: string
-          status?: string
+          status?: Database["public"]["Enums"]["booking_status"]
         }
         Relationships: []
       }
@@ -42,19 +42,19 @@ export type Database = {
         Row: {
           id: string
           item_name: string
-          player_id: string | null
+          player_id: string
           quantity: number
         }
         Insert: {
           id?: string
           item_name: string
-          player_id?: string | null
+          player_id: string
           quantity?: number
         }
         Update: {
           id?: string
           item_name?: string
-          player_id?: string | null
+          player_id?: string
           quantity?: number
         }
         Relationships: [
@@ -71,21 +71,21 @@ export type Database = {
         Row: {
           amount: number
           id: string
-          player_id: string | null
+          player_id: string
           transaction_type: string
           ts: string
         }
         Insert: {
           amount: number
           id?: string
-          player_id?: string | null
+          player_id: string
           transaction_type: string
           ts?: string
         }
         Update: {
           amount?: number
           id?: string
-          player_id?: string | null
+          player_id?: string
           transaction_type?: string
           ts?: string
         }
@@ -161,7 +161,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      alignment_type: "Good" | "Neutral" | "Chaotic"
+      booking_status: "pending" | "approved" | "used" | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -288,6 +289,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      alignment_type: ["Good", "Neutral", "Chaotic"],
+      booking_status: ["pending", "approved", "used", "expired"],
+    },
   },
 } as const

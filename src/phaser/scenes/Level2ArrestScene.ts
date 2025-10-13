@@ -18,7 +18,7 @@ export class Level2ArrestScene extends Phaser.Scene {
       g.flags = { ...(g.flags||{}), level2Complete: true };
       engine.addDiscount(7);
       engine.recordAction({ type:"l2_case_closed" });
-      try { await requestBooking(g.player.id, "GHQ15"); } catch {}
+      try { await requestBooking("GHQ15"); } catch {}
       
       this.add.text(40, 90, "🎉 CASE CLOSED AT CHAW'SE!", { 
         fontFamily:"monospace", 
