@@ -13,14 +13,32 @@ export class DialogueScene extends Phaser.Scene {
     this.info = document.getElementById("hud")!;
     this.add.text(40, 30, "Barn — Dialogue", { fontFamily: "monospace", fontSize: "16px", color: "#cde3ff" });
 
-    const dialogue = [
-      "Leif Pryor: Welcome to the ranch, Sierra.",
-      "The Golden Frog has been stolen.",
-      "We need your help to protect the herd.",
-      "",
-      "Press SPACE to acknowledge",
-      "Press ESC to return"
-    ];
+    const gs = engine.getGameState();
+    const hasFrog = gs.flags?.goldenFrog || false;
+
+    let dialogue: string[];
+    
+    if (hasFrog) {
+      dialogue = [
+        "Leif Pryor: Welcome back, Sierra!",
+        "You've recovered the Golden Frog - excellent work!",
+        "The herd is safe and thriving thanks to you.",
+        "Feel free to explore the ranch activities.",
+        "",
+        "Press SPACE to acknowledge",
+        "Press ESC to return"
+      ];
+    } else {
+      dialogue = [
+        "Leif Pryor: Welcome to the ranch, Sierra.",
+        "The Golden Frog has been stolen.",
+        "Complete activities to unlock the Clue Quiz.",
+        "Solve all 6 clues to recover it!",
+        "",
+        "Press SPACE to acknowledge",
+        "Press ESC to return"
+      ];
+    }
 
     dialogue.forEach((line, i) => {
       this.add.text(40, 80 + i * 30, line, { fontFamily: "monospace", fontSize: "14px", color: "#9ad1ff" });

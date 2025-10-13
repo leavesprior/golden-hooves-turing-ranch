@@ -9,6 +9,9 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   create() {
+    // Clear any previous keyboard listeners
+    this.input.keyboard!.removeAllListeners();
+    
     this.cameras.main.setBackgroundColor("#4a7c3e");
     this.info = document.getElementById("hud")!;
     
@@ -36,9 +39,9 @@ export class OverworldScene extends Phaser.Scene {
     this.add.rectangle(480, 450, 600, 40, 0x4a90e2);
     
     // PADDOCK 1: Horse Paddock (Top Left) - Jumanji
-    const paddock1Complete = completed.includes("pasture_patrol");
+    const paddock1Complete = completed.includes("horse_patrol");
     this.add.rectangle(150, 140, 140, 100, 0x6b8f5e).setStrokeStyle(3, paddock1Complete ? 0xf0e68c : 0x4a4a4a);
-    this.add.text(120, 100, paddock1Complete ? "✅ HORSE" : "🐴 HORSE", { 
+    this.add.text(120, 100, paddock1Complete ? "✅ HORSE" : "🐴 HORSE", {
       fontFamily: "monospace", fontSize: "11px", color: "#ffffff",
       backgroundColor: paddock1Complete ? "#28a74588" : "#00000088",
       padding: { x: 3, y: 2 }
@@ -47,9 +50,9 @@ export class OverworldScene extends Phaser.Scene {
     this.add.text(95, 165, "Press P", { fontFamily: "monospace", fontSize: "10px", color: "#cde3ff" });
 
     // PADDOCK 2: Sheep & Donkey Paddock (Top Center-Right)
-    const paddock2Complete = completed.includes("feeding_frenzy");
+    const paddock2Complete = completed.includes("feeding_time");
     this.add.rectangle(500, 140, 180, 100, 0x7a9f6e).setStrokeStyle(3, paddock2Complete ? 0xf0e68c : 0x4a4a4a);
-    this.add.text(450, 100, paddock2Complete ? "✅ FEEDING" : "🌾 FEEDING", { 
+    this.add.text(450, 100, paddock2Complete ? "✅ FEEDING" : "🌾 FEEDING", {
       fontFamily: "monospace", fontSize: "11px", color: "#ffffff",
       backgroundColor: paddock2Complete ? "#28a74588" : "#00000088",
       padding: { x: 3, y: 2 }
@@ -59,9 +62,9 @@ export class OverworldScene extends Phaser.Scene {
     this.add.text(475, 165, "Press R", { fontFamily: "monospace", fontSize: "10px", color: "#cde3ff" });
 
     // PADDOCK 3: Emu Enclosure (Top Right)
-    const paddock3Complete = completed.includes("creature_quest");
+    const paddock3Complete = completed.includes("emu_quest");
     this.add.rectangle(800, 140, 120, 100, 0x5e8f6b).setStrokeStyle(3, paddock3Complete ? 0xf0e68c : 0x4a4a4a);
-    this.add.text(770, 100, paddock3Complete ? "✅ EMUS" : "🦤 EMUS", { 
+    this.add.text(770, 100, paddock3Complete ? "✅ EMUS" : "🦤 EMUS", {
       fontFamily: "monospace", fontSize: "11px", color: "#ffffff",
       backgroundColor: paddock3Complete ? "#28a74588" : "#00000088",
       padding: { x: 3, y: 2 }
@@ -79,9 +82,9 @@ export class OverworldScene extends Phaser.Scene {
     });
 
     // Quest board (Bottom Left)
-    const paddock4Complete = completed.includes("fence_frontier");
+    const paddock4Complete = completed.includes("fence_repair");
     this.add.rectangle(150, 380, 120, 90, 0x654321).setStrokeStyle(3, paddock4Complete ? 0xf0e68c : 0x4a4a4a);
-    this.add.text(120, 345, paddock4Complete ? "✅ REPAIRS" : "🔨 REPAIRS", { 
+    this.add.text(120, 345, paddock4Complete ? "✅ REPAIRS" : "🔨 REPAIRS", {
       fontFamily: "monospace", fontSize: "11px", color: "#ffffff",
       backgroundColor: paddock4Complete ? "#28a74588" : "#00000088",
       padding: { x: 3, y: 2 }
@@ -160,10 +163,10 @@ export class OverworldScene extends Phaser.Scene {
     
     // Show which activities are complete
     const activityStatus = [
-      completed.includes("pasture_patrol") ? "✅ Horse Patrol" : "⬜ Horse Patrol",
-      completed.includes("feeding_frenzy") ? "✅ Feeding Time" : "⬜ Feeding Time",
-      completed.includes("creature_quest") ? "✅ Emu Quest" : "⬜ Emu Quest",
-      completed.includes("fence_frontier") ? "✅ Fence Repair" : "⬜ Fence Repair"
+      completed.includes("horse_patrol") ? "✅ Horse Patrol" : "⬜ Horse Patrol",
+      completed.includes("feeding_time") ? "✅ Feeding Time" : "⬜ Feeding Time",
+      completed.includes("emu_quest") ? "✅ Emu Quest" : "⬜ Emu Quest",
+      completed.includes("fence_repair") ? "✅ Fence Repair" : "⬜ Fence Repair"
     ].join(" | ");
     
     this.info.textContent = [
