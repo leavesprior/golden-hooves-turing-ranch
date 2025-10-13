@@ -19,9 +19,14 @@ class Engine {
       herdHealth: 70, 
       flags: {},
       activitiesCompleted: 0,
+      completedActivities: [],
       discountPercent: 0
     };
     this.tapes.append("diag", this.tapes.core.snapshot().hash);
+  }
+
+  loadState(state: GameState) {
+    this.state = state;
   }
 
   getGameState() { return this.state; }
@@ -65,9 +70,12 @@ class Engine {
     this.recordAction({ type: "herd", value: this.state.herdHealth });
   }
 
-  completeActivity() {
+  completeActivity(activityId?: string) {
     this.state.activitiesCompleted = (this.state.activitiesCompleted || 0) + 1;
-    this.recordAction({ type: "activity_complete", count: this.state.activitiesCompleted });
+    if (activityId && !this.state.completedActivities?.includes(activityId)) {
+      this.state.completedActivities = [...(this.state.completedActivities || []), activityId];
+    }
+    this.recordAction({ type: "activity_complete", count: this.state.activitiesCompleted, id: activityId });
   }
 
   addDiscount(percent: number) {

@@ -6,5 +6,6 @@ export interface GameState {
   herdHealth: number; 
   flags?: Record<string, boolean>; 
   activitiesCompleted?: number;
+  completedActivities?: string[];
   discountPercent?: number;
 }

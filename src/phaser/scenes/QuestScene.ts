@@ -2,6 +2,8 @@ import Phaser from "phaser";
 import { engine } from "../../runtime/engine";
 import { getRandomQuest, Quest } from "../../runtime/quests";
 import { skillCheck, getSkillModifier } from "../../runtime/dice";
+import { saveRunLocal } from "../../runtime/persistence";
+import { saveRunToSupabase } from "../../runtime/sync";
 
 export class QuestScene extends Phaser.Scene {
   private quest!: Quest;
@@ -91,7 +93,12 @@ export class QuestScene extends Phaser.Scene {
           // Award rewards
           engine.earnKarma(this.quest.karmaReward, `quest_${this.quest.id}`);
           engine.earnCoins(this.quest.coinReward, `quest_${this.quest.id}`);
-          engine.completeActivity();
+          engine.completeActivity(this.quest.id);
+
+          // Save progress immediately
+          const snap = engine.snapshot();
+          saveRunLocal(snap);
+          try { saveRunToSupabase(snap).catch(() => {}); } catch {}
 
           this.add.text(480, 300, "QUEST COMPLETE!", {
             fontFamily: "monospace",
