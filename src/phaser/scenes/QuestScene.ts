@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { engine } from "../../runtime/engine";
-import { getRandomQuest, Quest } from "../../runtime/quests";
+import { getRandomQuest, Quest, QUESTS, QuestType } from "../../runtime/quests";
 import { skillCheck, getSkillModifier } from "../../runtime/dice";
 import { saveRunLocal } from "../../runtime/persistence";
 import { saveRunToSupabase } from "../../runtime/sync";
@@ -13,10 +13,16 @@ export class QuestScene extends Phaser.Scene {
 
   constructor() { super("QuestScene"); }
 
-  create() {
+  create(data?: any) {
     this.cameras.main.setBackgroundColor("#1a2332");
     this.info = document.getElementById("hud")!;
-    this.quest = getRandomQuest();
+    
+    // Check if a specific quest was requested (e.g., emu_quest)
+    if (data?.specificQuest && QUESTS[data.specificQuest as QuestType]) {
+      this.quest = QUESTS[data.specificQuest as QuestType];
+    } else {
+      this.quest = getRandomQuest();
+    }
 
     // Title
     this.add.text(40, 30, this.quest.name, { 

@@ -121,7 +121,7 @@ export class OverworldScene extends Phaser.Scene {
 
     // Keyboard controls (original + WASD hints)
     this.input.keyboard!.on("keydown-B", () => this.scene.start("DialogueScene"));
-    this.input.keyboard!.on("keydown-E", () => this.scene.start("DialogueScene"));
+    this.input.keyboard!.on("keydown-E", () => this.scene.start("QuestScene", { specificQuest: "emu_quest" }));
     this.input.keyboard!.on("keydown-P", () => this.scene.start("BattleScene"));
     this.input.keyboard!.on("keydown-Q", () => {
       const gs = engine.getGameState();
