@@ -128,7 +128,10 @@ export class QuestScene extends Phaser.Scene {
         this.updateHUD();
       });
     } else if (this.phase === "result") {
-      // Reset for retry
+      // Clear the scene and reset for retry
+      this.children.removeAll();
+      this.phase = "intro";
+      this.rollResult = undefined;
       this.scene.restart();
     }
   }

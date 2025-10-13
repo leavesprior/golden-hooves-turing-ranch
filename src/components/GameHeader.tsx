@@ -26,7 +26,7 @@ export const GameHeader = ({ karmaCoins }: GameHeaderProps) => {
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h1 className="text-primary text-sm md:text-base pixel-text">
-            GOLDEN HOOVES QUEST
+            BACK OF BEYOND RANCH
           </h1>
         </div>
         

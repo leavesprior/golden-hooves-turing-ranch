@@ -67,7 +67,7 @@ export class OverworldScene extends Phaser.Scene {
       padding: { x: 3, y: 2 }
     });
     this.add.text(765, 135, "🦤🦤", { fontFamily: "monospace", fontSize: "18px", color: "#ffffff" });
-    this.add.text(775, 165, "Press B", { fontFamily: "monospace", fontSize: "10px", color: "#cde3ff" });
+    this.add.text(775, 165, "Press E", { fontFamily: "monospace", fontSize: "10px", color: "#cde3ff" });
 
     // Barn (Center)
     this.add.rectangle(400, 300, 150, 120, 0x8b4513).setStrokeStyle(3, 0xa0522d);
@@ -121,6 +121,7 @@ export class OverworldScene extends Phaser.Scene {
 
     // Keyboard controls (original + WASD hints)
     this.input.keyboard!.on("keydown-B", () => this.scene.start("DialogueScene"));
+    this.input.keyboard!.on("keydown-E", () => this.scene.start("DialogueScene"));
     this.input.keyboard!.on("keydown-P", () => this.scene.start("BattleScene"));
     this.input.keyboard!.on("keydown-Q", () => {
       const gs = engine.getGameState();
@@ -147,7 +148,7 @@ export class OverworldScene extends Phaser.Scene {
       this.flash(`Verify: ok=${r.ok} repaired=${r.repaired}`);
     });
 
-    this.updateHUD("🎮 CONTROLS: B=Barn | P=Pasture | R=Quest | Q=Clue Quiz | L=Level 2 | V=Verify");
+    this.updateHUD("🎮 CONTROLS: B=Barn | P=Pasture | E=Emus | R=Quest | Q=Clue Quiz | L=Level 2 | V=Verify");
   }
 
   private updateHUD(msg: string) {
