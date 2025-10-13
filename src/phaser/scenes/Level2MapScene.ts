@@ -13,8 +13,27 @@ export class Level2MapScene extends Phaser.Scene {
 
   create() {
     const f = engine.getGameState().flags || {};
+    const gs = engine.getGameState();
+    
+    // Debug info for level 2 entry
+    console.log("Level2MapScene entry check:", {
+      flags: f,
+      level1Complete: f.level1Complete,
+      goldenFrog: f.goldenFrog,
+      activitiesCompleted: gs.activitiesCompleted,
+      discountPercent: gs.discountPercent
+    });
+    
     if (!(f.level1Complete && f.goldenFrog)) {
-      // Hard guard. Route back to base.
+      // Show clear message about requirements
+      const msg = `Level 2 Requirements:\n` +
+        `✅ Complete Clue Quiz (6/6 correct) to get Golden Frog\n` +
+        `Current Status:\n` +
+        `  Golden Frog: ${f.goldenFrog ? '✅' : '❌'}\n` +
+        `  Level 1 Complete: ${f.level1Complete ? '✅' : '❌'}\n\n` +
+        `Complete 3+ activities, then pass the Clue Quiz (Press Q)`;
+      
+      alert(msg);
       this.scene.start("OverworldScene");
       return;
     }

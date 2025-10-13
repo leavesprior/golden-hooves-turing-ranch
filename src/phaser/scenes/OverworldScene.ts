@@ -29,6 +29,9 @@ export class OverworldScene extends Phaser.Scene {
     // Enhanced background - grass base
     this.add.rectangle(480, 270, 960, 540, 0x5a8c4e);
     
+    // Render fences first (so they appear behind other elements)
+    this.renderFences();
+    
     // Dirt paths (horizontal and vertical)
     this.add.rectangle(480, 200, 800, 60, 0x8b6f47);
     this.add.rectangle(480, 350, 800, 50, 0x8b6f47);
@@ -72,13 +75,16 @@ export class OverworldScene extends Phaser.Scene {
     this.add.text(765, 135, "🦤🦤", { fontFamily: "monospace", fontSize: "18px", color: "#ffffff" });
     this.add.text(775, 165, "Press E", { fontFamily: "monospace", fontSize: "10px", color: "#cde3ff" });
 
-    // Barn (Center)
+    // Barn (Center) - Shop for creature supplies
     this.add.rectangle(400, 300, 150, 120, 0x8b4513).setStrokeStyle(3, 0xa0522d);
     this.add.polygon(400, 245, [0, 30, 75, 0, 150, 30], 0x654321);
     this.add.rectangle(380, 330, 30, 40, 0x654321); // Door
-    this.add.text(355, 370, "🏚️ BARN", { 
+    this.add.text(335, 370, "🏚️ BARN SHOP", { 
       fontFamily: "monospace", fontSize: "12px", color: "#f0e68c",
       backgroundColor: "#00000088", padding: { x: 4, y: 2 }
+    });
+    this.add.text(350, 390, "Press B", { 
+      fontFamily: "monospace", fontSize: "10px", color: "#cde3ff"
     });
 
     // Quest board (Bottom Left)
@@ -122,21 +128,22 @@ export class OverworldScene extends Phaser.Scene {
       fontFamily: "monospace", fontSize: "10px", color: "#c9a0ff"
     });
 
-    // Keyboard controls (original + WASD hints)
-    this.input.keyboard!.on("keydown-B", () => this.scene.start("DialogueScene"));
+    // Keyboard controls - fixed quest routing
+    this.input.keyboard!.on("keydown-B", () => this.scene.start("BarnShopScene"));
     this.input.keyboard!.on("keydown-E", () => this.scene.start("QuestScene", { specificQuest: "emu_quest" }));
-    this.input.keyboard!.on("keydown-P", () => this.scene.start("BattleScene"));
+    this.input.keyboard!.on("keydown-P", () => this.scene.start("QuestScene", { specificQuest: "horse_patrol" }));
     this.input.keyboard!.on("keydown-Q", () => {
       const gs = engine.getGameState();
       const activities = gs.activitiesCompleted || 0;
       if (activities >= 3) {
-        this.scene.start("ClueScene");
+        // Navigate to web-based clue game
+        window.location.href = '/clue-game';
       } else {
-        this.flash(`Complete ${3 - activities} more activities to unlock Clue Quiz! Try quests (R).`);
+        this.flash(`Complete ${3 - activities} more activities to unlock Clue Quiz! Try quests.`);
       }
     });
     this.input.keyboard!.on("keydown-R", () => {
-      this.scene.start("QuestScene");
+      this.scene.start("QuestScene", { specificQuest: "fence_repair" });
     });
     this.input.keyboard!.on("keydown-L", () => {
       const f = engine.getGameState().flags || {};
@@ -161,12 +168,12 @@ export class OverworldScene extends Phaser.Scene {
     const completed = gs.completedActivities || [];
     const quizUnlocked = activities >= 3 ? "✅ UNLOCKED" : `🔒 ${3 - activities} more activities`;
     
-    // Show which activities are complete
+    // Show which activities are complete with fence visualization
     const activityStatus = [
       completed.includes("horse_patrol") ? "✅ Horse Patrol" : "⬜ Horse Patrol",
       completed.includes("feeding_time") ? "✅ Feeding Time" : "⬜ Feeding Time",
       completed.includes("emu_quest") ? "✅ Emu Quest" : "⬜ Emu Quest",
-      completed.includes("fence_repair") ? "✅ Fence Repair" : "⬜ Fence Repair"
+      completed.includes("fence_repair") ? "✅ Fence Repair (🔨 Fences Fixed!)" : "⬜ Fence Repair"
     ].join(" | ");
     
     this.info.textContent = [
@@ -176,8 +183,44 @@ export class OverworldScene extends Phaser.Scene {
       `🌾 Herd Health: ${gs.herdHealth}% | 🎯 Activities: ${activities}/4`,
       activityStatus,
       `🎁 Current Discount: ${discount}% | Clue Quiz: ${quizUnlocked}`,
-      gs.flags?.goldenFrog ? "🐸 GOLDEN FROG ACQUIRED!" : ""
+      gs.flags?.goldenFrog ? "🐸 GOLDEN FROG ACQUIRED! Level 2 Ready!" : "",
+      gs.flags?.level1Complete ? "🌟 Press L to enter Level 2" : ""
     ].filter(Boolean).join("\n");
+  }
+  
+  private renderFences() {
+    const gs = engine.getGameState();
+    const completed = gs.completedActivities || [];
+    const fenceFixed = completed.includes("fence_repair");
+    const fenceColor = fenceFixed ? 0xf0e68c : 0x654321;
+    const fenceStyle = fenceFixed ? 4 : 2;
+    
+    // Draw fence sections around paddocks - more visible when repaired
+    // Top fence around horse paddock
+    for (let i = 0; i < 10; i++) {
+      this.add.rectangle(90 + i * 15, 90, 3, 15, fenceColor);
+      this.add.rectangle(90 + i * 15 + 7, 95, 15, 3, fenceColor);
+    }
+    
+    // Right fence around feeding paddock
+    for (let i = 0; i < 10; i++) {
+      this.add.rectangle(580, 90 + i * 15, 3, 15, fenceColor);
+      this.add.rectangle(575, 90 + i * 15 + 7, 15, 3, fenceColor);
+    }
+    
+    // Fence posts at corners (more visible when fixed)
+    [[80, 80], [220, 80], [220, 190], [80, 190],
+     [420, 80], [580, 80], [580, 190], [420, 190],
+     [740, 80], [860, 80], [860, 190], [740, 190]].forEach(([x, y]) => {
+      this.add.circle(x, y, fenceFixed ? 5 : 3, fenceColor);
+    });
+    
+    // Add repair markers when fixed
+    if (fenceFixed) {
+      this.add.text(150, 75, "🔨", { fontSize: "12px" });
+      this.add.text(500, 75, "🔨", { fontSize: "12px" });
+      this.add.text(800, 75, "🔨", { fontSize: "12px" });
+    }
   }
 
   private flash(m: string) {
