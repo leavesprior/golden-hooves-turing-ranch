@@ -1,100 +1,306 @@
 import Phaser from "phaser";
 import { engine } from "../../runtime/engine";
 import { LOCS, LocID } from "../../content/gold_country";
-import { check } from "../../runtime/skills";
+import { skillCheck, getSkillModifier } from "../../runtime/dice";
 
 export class Level2NodeScene extends Phaser.Scene {
-  private info!: HTMLElement;
   private here!: LocID;
   private days!: number;
-  private evidence = new Set<string>();
-  private warrant = false;
+  private evidence!: Set<string>;
+  private warrant!: boolean;
+  private info!: HTMLElement;
   private log!: Phaser.GameObjects.Text;
 
   constructor(){ super("Level2NodeScene"); }
 
-  init(data:any){
-    this.here = data.here; this.days = data.days;
-    (data.evidence||[]).forEach((t:string)=> this.evidence.add(t));
+  init(data:any) {
+    this.here = data.here;
+    this.days = data.days;
+    this.evidence = new Set<string>(data.evidence || []);
     this.warrant = !!data.warrant;
   }
 
   create() {
-    const L = LOCS.find(l=>l.id===this.here)!;
-    this.cameras.main.setBackgroundColor("#111826");
+    this.cameras.main.setBackgroundColor("#0f1520");
     this.info = document.getElementById("hud")!;
-    this.add.text(40, 24, L.name, { fontFamily:"monospace", fontSize:"16px", color:"#cde3ff" });
-    this.add.text(40, 60, L.blurb, { fontFamily:"monospace", fontSize:"14px", color:"#9ad1ff", wordWrap:{ width: 880 }});
-    this.log = this.add.text(40, 380, "", { fontFamily:"monospace", fontSize:"14px", color:"#cde3ff", wordWrap:{ width: 880 }});
+    const loc = LOCS.find(l=>l.id===this.here)!;
 
-    // actions
-    this.add.text(40, 120, "A) Investigate (History DC12)", { fontFamily:"monospace", fontSize:"14px", color:"#cde3ff" });
-    this.add.text(40, 150, "B) Talk to locals (Diplomacy DC12)", { fontFamily:"monospace", fontSize:"14px", color:"#cde3ff" });
-    this.add.text(40, 180, "C) Track routes (Survival DC10)", { fontFamily:"monospace", fontSize:"14px", color:"#cde3ff" });
-    this.add.text(40, 210, "D) Profile suspect (Sense Motive DC12)", { fontFamily:"monospace", fontSize:"14px", color:"#cde3ff" });
+    // Enhanced visual header with location-specific color
+    const headerColor = this.getLocationColor(this.here);
+    this.add.rectangle(480, 60, 920, 80, headerColor, 0.3);
+    this.add.text(480, 40, `📍 ${loc.name}`, { 
+      fontFamily:"monospace", 
+      fontSize:"24px", 
+      color:"#f0e68c",
+      fontStyle: "bold"
+    }).setOrigin(0.5);
+    
+    this.add.text(480, 75, loc.blurb, { 
+      fontFamily:"monospace", 
+      fontSize:"14px", 
+      color:"#cde3ff",
+      wordWrap:{ width: 840 },
+      align: "center"
+    }).setOrigin(0.5);
 
-    if (this.here==="mokhill")
-      this.add.text(40, 240, "W) File warrant (need ≥3 evidence)", { fontFamily:"monospace", fontSize:"14px", color:"#8ef5a2" });
+    // Location image/icon
+    this.addLocationVisual(this.here, 120, 140);
 
-    if (this.here==="chawse")
-      this.add.text(40, 270, "R) Return artifact to cultural custodians (needs warrant + ≥4 evidence)", { fontFamily:"monospace", fontSize:"14px", color:"#8ef5a2" });
+    // Town facts box
+    const factsY = 150;
+    this.add.text(540, factsY, "🔍 Historical Facts:", { 
+      fontFamily:"monospace", 
+      fontSize:"14px", 
+      color:"#9ad1ff",
+      fontStyle: "bold"
+    });
+    loc.facts.forEach((fact, i) => {
+      this.add.text(560, factsY + 30 + (i * 25), `• ${fact}`, { 
+        fontFamily:"monospace", 
+        fontSize:"12px", 
+        color:"#cde3ff",
+        wordWrap:{ width: 380 }
+      });
+    });
 
-    this.input.keyboard!.on("keydown-A", ()=> this.act("History", 12));
-    this.input.keyboard!.on("keydown-B", ()=> this.act("Diplomacy", 12));
-    this.input.keyboard!.on("keydown-C", ()=> this.act("Survival", 10));
-    this.input.keyboard!.on("keydown-D", ()=> this.act("SenseMotive", 12));
-    this.input.keyboard!.on("keydown-W", ()=> this.fileWarrant());
-    this.input.keyboard!.on("keydown-R", ()=> this.tryReturn());
-    this.input.keyboard!.on("keydown-ESC", ()=> this.leave("Back to map"));
+    // Action menu with town-specific options
+    const menuY = 280;
+    this.add.text(540, menuY, "🎯 Investigation Actions:", { 
+      fontFamily:"monospace", 
+      fontSize:"14px", 
+      color:"#9ad1ff",
+      fontStyle: "bold"
+    });
+
+    const actions = this.getTownSpecificActions(this.here);
+    actions.forEach((action, i) => {
+      const actionText = this.add.text(560, menuY + 30 + (i * 30), 
+        `${action.key}: ${action.label}`, 
+        { 
+          fontFamily:"monospace", 
+          fontSize:"13px", 
+          color: action.available ? "#8ef5a2" : "#666",
+          backgroundColor: action.available ? "#1a2a1a" : undefined,
+          padding: { x: 8, y: 4 }
+        }
+      );
+      
+      if (action.available) {
+        actionText.setInteractive({ useHandCursor: true });
+        actionText.on('pointerover', () => actionText.setColor("#ffffff"));
+        actionText.on('pointerout', () => actionText.setColor("#8ef5a2"));
+      }
+    });
+
+    // Evidence tracker
+    this.add.text(540, 430, `📋 Evidence Collected: ${this.evidence.size}/4`, { 
+      fontFamily:"monospace", 
+      fontSize:"13px", 
+      color: this.evidence.size >= 4 ? "#8ef5a2" : "#f0e68c"
+    });
+    
+    if (loc.token) {
+      const hasToken = this.evidence.has(loc.token);
+      this.add.text(560, 455, `${hasToken ? "✅" : "🔒"} ${loc.token}`, { 
+        fontFamily:"monospace", 
+        fontSize:"12px", 
+        color: hasToken ? "#8ef5a2" : "#9ad1ff"
+      });
+    }
+
+    // Log output
+    this.log = this.add.text(40, 340, "", { 
+      fontFamily:"monospace", 
+      fontSize:"13px", 
+      color:"#f0e68c",
+      wordWrap:{ width: 460 }
+    });
+
+    // Register keyboard shortcuts
+    this.input.keyboard!.on("keydown-I", ()=> this.act("investigation", 12));
+    this.input.keyboard!.on("keydown-T", ()=> this.act("diplomacy", 13));
+    this.input.keyboard!.on("keydown-S", ()=> this.act("survival", 14));
+    this.input.keyboard!.on("keydown-P", ()=> this.act("wisdom", 15));
+    
+    if (this.here === "mokhill") {
+      this.input.keyboard!.on("keydown-W", ()=> this.fileWarrant());
+    }
+    if (this.here === "chawse") {
+      this.input.keyboard!.on("keydown-R", ()=> this.tryReturn());
+    }
+    
+    this.input.keyboard!.on("keydown-ESC", ()=> this.leave("Returned to map."));
+
     this.updateHUD();
   }
 
-  private act(skill: any, dc: number) {
-    if (this.days <= 0) return this.print("Out of time.");
-    this.days -= 1;
-    const r = check(skill, dc);
-    if (!r.ok) {
-      engine.recordAction({ type:"l2_check_fail", skill, here:this.here, roll:r.total });
-      return this.print(`${skill} ${r.total} vs ${dc}: no new lead.`);
+  private getLocationColor(loc: LocID): number {
+    const colors: Record<LocID, number> = {
+      angels: 0x4a7c59,      // Green (nature/frogs)
+      columbia: 0x6b4423,    // Brown (historic buildings)
+      mokhill: 0x5a4a6a,     // Purple (official/legal)
+      jackson: 0x8b6914,     // Gold (mining)
+      chawse: 0x8b4513       // Saddle brown (indigenous heritage)
+    };
+    return colors[loc] || 0x1a2a3a;
+  }
+
+  private addLocationVisual(loc: LocID, x: number, y: number) {
+    // Create visual representations for each location
+    const graphics = this.add.graphics();
+    
+    switch(loc) {
+      case "angels":
+        // Frog icon
+        graphics.fillStyle(0x4a7c59, 1);
+        graphics.fillCircle(x + 200, y + 50, 40);
+        this.add.text(x + 200, y + 50, "🐸", { fontSize: "48px" }).setOrigin(0.5);
+        this.add.text(x + 200, y + 110, "Frog Jump Capital", { 
+          fontFamily:"monospace", fontSize:"12px", color:"#8ef5a2" 
+        }).setOrigin(0.5);
+        break;
+      
+      case "columbia":
+        // Historic building
+        graphics.fillStyle(0x6b4423, 1);
+        graphics.fillRect(x + 160, y + 20, 80, 80);
+        graphics.fillStyle(0x4a3318, 1);
+        graphics.fillTriangle(x + 160, y + 20, x + 200, y - 10, x + 240, y + 20);
+        this.add.text(x + 200, y + 60, "🏛️", { fontSize: "40px" }).setOrigin(0.5);
+        this.add.text(x + 200, y + 110, "State Historic Park", { 
+          fontFamily:"monospace", fontSize:"12px", color:"#cde3ff" 
+        }).setOrigin(0.5);
+        break;
+      
+      case "mokhill":
+        // Courthouse/official building
+        graphics.fillStyle(0x5a4a6a, 1);
+        graphics.fillRect(x + 160, y + 20, 80, 80);
+        this.add.text(x + 200, y + 60, "⚖️", { fontSize: "40px" }).setOrigin(0.5);
+        this.add.text(x + 200, y + 110, "Legal District", { 
+          fontFamily:"monospace", fontSize:"12px", color:"#9ad1ff" 
+        }).setOrigin(0.5);
+        break;
+      
+      case "jackson":
+        // Mine shaft
+        graphics.fillStyle(0x8b6914, 1);
+        graphics.fillRect(x + 180, y + 30, 40, 70);
+        graphics.fillStyle(0x2a2a2a, 1);
+        graphics.fillRect(x + 185, y + 35, 30, 65);
+        this.add.text(x + 200, y + 60, "⛏️", { fontSize: "40px" }).setOrigin(0.5);
+        this.add.text(x + 200, y + 110, "Kennedy Mine", { 
+          fontFamily:"monospace", fontSize:"12px", color:"#f0e68c" 
+        }).setOrigin(0.5);
+        break;
+      
+      case "chawse":
+        // Grinding rock
+        graphics.fillStyle(0x8b4513, 1);
+        graphics.fillEllipse(x + 200, y + 60, 80, 40);
+        graphics.fillStyle(0x654321, 1);
+        for(let i = 0; i < 5; i++) {
+          graphics.fillCircle(x + 180 + i * 10, y + 55, 4);
+        }
+        this.add.text(x + 200, y + 60, "🪨", { fontSize: "40px" }).setOrigin(0.5);
+        this.add.text(x + 200, y + 110, "Grinding Rock SHP", { 
+          fontFamily:"monospace", fontSize:"12px", color:"#cde3ff" 
+        }).setOrigin(0.5);
+        break;
     }
-    const L = LOCS.find(l=>l.id===this.here)!;
-    const fact = L.facts[Math.min(this.evidence.size, L.facts.length-1)];
-    if (L.token && !this.evidence.has(L.token)) this.evidence.add(L.token);
-    engine.recordAction({ type:"l2_check_ok", skill, here:this.here, fact });
-    this.print(`Success. Lead: ${fact}${L.token?`  [+${L.token}]`:""}`);
+  }
+
+  private getTownSpecificActions(loc: LocID): Array<{key: string, label: string, available: boolean}> {
+    const base = [
+      { key: "I", label: "Investigate artifacts (Investigation DC 12)", available: true },
+      { key: "T", label: "Talk to locals (Diplomacy DC 13)", available: true },
+      { key: "S", label: "Track footprints (Survival DC 14)", available: true },
+      { key: "P", label: "Profile suspect behavior (Wisdom DC 15)", available: true }
+    ];
+
+    // Add location-specific options
+    if (loc === "mokhill" && this.evidence.size >= 2) {
+      base.push({ key: "W", label: "📜 File Warrant (requires 2+ evidence)", available: true });
+    } else if (loc === "mokhill") {
+      base.push({ key: "W", label: "📜 File Warrant (need more evidence)", available: false });
+    }
+
+    if (loc === "chawse" && this.warrant && this.evidence.size >= 4) {
+      base.push({ key: "R", label: "🎯 Return Artifact (requires warrant + 4 evidence)", available: true });
+    } else if (loc === "chawse") {
+      base.push({ key: "R", label: "🎯 Return Artifact (locked)", available: false });
+    }
+
+    return base;
+  }
+
+  private act(skill: any, dc: number) {
+    if (this.days <= 0) return this.print("❌ Out of time!");
+    
+    this.days -= 1;
+    const mod = getSkillModifier(skill);
+    const result = skillCheck(dc, mod);
+    
+    engine.recordAction({ type:"l2_action", loc:this.here, skill, result: result.success });
+    
+    const loc = LOCS.find(l=>l.id===this.here)!;
+    
+    if (result.success && loc.token && !this.evidence.has(loc.token)) {
+      this.evidence.add(loc.token);
+      this.print(`✅ Success! Rolled ${result.roll}+${mod}=${result.total} vs DC ${dc}\n🔍 Found: ${loc.token}!`);
+      
+      // Visual feedback
+      this.add.text(480, 200, `+${loc.token}`, {
+        fontFamily: "monospace",
+        fontSize: "20px",
+        color: "#8ef5a2"
+      }).setOrigin(0.5);
+    } else if (result.success) {
+      this.print(`✅ Success! Rolled ${result.roll}+${mod}=${result.total} vs DC ${dc}\nBut you already have evidence from here.`);
+    } else {
+      this.print(`❌ Failed. Rolled ${result.roll}+${mod}=${result.total} vs DC ${dc}`);
+    }
+    
     this.updateHUD();
   }
 
   private fileWarrant() {
-    if (this.here!=="mokhill") return;
-    if (this.evidence.size < 3) return this.print("Need at least 3 evidence.");
+    if (this.evidence.size < 2) return this.print("❌ Need at least 2 pieces of evidence to file a warrant.");
+    if (this.warrant) return this.print("You already have a warrant.");
+    
     this.warrant = true;
-    engine.recordAction({ type:"l2_warrant_filed" });
-    this.print("Pursuit warrant filed in Mokelumne Hill.");
-    this.updateHUD();
+    this.print("✅ Warrant filed at Mokelumne Hill courthouse!\n🔓 You can now legally return the artifact at Chaw'se.");
+    engine.recordAction({ type:"l2_warrant" });
   }
 
   private tryReturn() {
-    if (this.here!=="chawse") return;
-    if (!this.warrant || this.evidence.size < 4) return this.print("Need warrant and ≥4 evidence.");
+    if (!this.warrant) return this.print("❌ Need a warrant first! File one at Mokelumne Hill.");
+    if (this.evidence.size < 4) return this.print(`❌ Need all 4 pieces of evidence. You have ${this.evidence.size}/4.`);
+    
     this.scene.start("Level2ArrestScene", {
-      days: this.days, evidence: Array.from(this.evidence), warrant: this.warrant
+      warrant: this.warrant,
+      evidence: Array.from(this.evidence)
     });
   }
 
-  private leave(msg:string) {
-    this.scene.start("Level2MapScene", {
-      fromNode: true, here: this.here, days: this.days,
-      evidence: Array.from(this.evidence), warrant: this.warrant
+  private leave(msg: string) {
+    this.print(msg);
+    this.time.delayedCall(300, ()=> {
+      this.scene.start("Level2MapScene", {
+        fromNode: true,
+        here: this.here,
+        days: this.days,
+        evidence: Array.from(this.evidence),
+        warrant: this.warrant
+      });
     });
   }
 
   private updateHUD() {
-    this.info.textContent = [
-      `Days left: ${this.days} | Evidence: ${this.evidence.size} | Warrant: ${this.warrant? "yes":"no"}`,
-      "A/B/C/D to act. ESC to map."
-    ].join("\n");
+    this.info.textContent = `Days: ${this.days} | Evidence: ${this.evidence.size}/4 | Warrant: ${this.warrant?"✅":"❌"}\nESC: leave this location`;
   }
 
-  private print(t: string){ this.log.setText(t); }
+  private print(t: string) {
+    this.log.setText(t);
+  }
 }
