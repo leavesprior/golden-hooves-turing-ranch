@@ -21,6 +21,7 @@ export type Database = {
           player_id: string
           requested_date: string
           status: Database["public"]["Enums"]["booking_status"]
+          user_id: string | null
         }
         Insert: {
           discount_code?: string | null
@@ -28,6 +29,7 @@ export type Database = {
           player_id: string
           requested_date: string
           status?: Database["public"]["Enums"]["booking_status"]
+          user_id?: string | null
         }
         Update: {
           discount_code?: string | null
@@ -35,6 +37,40 @@ export type Database = {
           player_id?: string
           requested_date?: string
           status?: Database["public"]["Enums"]["booking_status"]
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      discount_grants: {
+        Row: {
+          code: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          percent: number
+          redeemed: boolean
+          token: string
+          user_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          percent: number
+          redeemed?: boolean
+          token: string
+          user_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          percent?: number
+          redeemed?: boolean
+          token?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -99,6 +135,30 @@ export type Database = {
           },
         ]
       }
+      level_progress: {
+        Row: {
+          golden_frog: boolean | null
+          level1_complete: boolean | null
+          level2_complete: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          golden_frog?: boolean | null
+          level1_complete?: boolean | null
+          level2_complete?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          golden_frog?: boolean | null
+          level1_complete?: boolean | null
+          level2_complete?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       players: {
         Row: {
           alignment: string
@@ -158,7 +218,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      book_with_token: {
+        Args: { _discount_token: string; _requested_date: string }
+        Returns: {
+          discount_code: string | null
+          id: string
+          player_id: string
+          requested_date: string
+          status: Database["public"]["Enums"]["booking_status"]
+          user_id: string | null
+        }
+      }
     }
     Enums: {
       alignment_type: "Good" | "Neutral" | "Chaotic"

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { engine } from "../../runtime/engine";
+import { syncProgressFromStorage } from "../../runtime/progress_bridge";
 
 export class OverworldScene extends Phaser.Scene {
   private info!: HTMLElement;
@@ -9,6 +10,9 @@ export class OverworldScene extends Phaser.Scene {
   }
 
   create() {
+    // Sync progress from clue game on scene start
+    syncProgressFromStorage();
+    
     // Clear any previous keyboard listeners
     this.input.keyboard!.removeAllListeners();
     
@@ -146,6 +150,7 @@ export class OverworldScene extends Phaser.Scene {
       this.scene.start("QuestScene", { specificQuest: "fence_repair" });
     });
     this.input.keyboard!.on("keydown-L", () => {
+      syncProgressFromStorage();
       const f = engine.getGameState().flags || {};
       if (f.level1Complete && f.goldenFrog) {
         this.scene.start("Level2MapScene");
@@ -156,6 +161,12 @@ export class OverworldScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-V", () => {
       const r = engine.tapes.verifyAndRepair();
       this.flash(`Verify: ok=${r.ok} repaired=${r.repaired}`);
+    });
+    
+    // Sync progress when waking from clue game
+    this.events.on("wake", () => {
+      syncProgressFromStorage();
+      this.updateHUD("Welcome back! Progress synced.");
     });
 
     this.updateHUD("🎮 CONTROLS: B=Barn | P=Pasture | E=Emus | R=Quest | Q=Clue Quiz | L=Level 2 | V=Verify");

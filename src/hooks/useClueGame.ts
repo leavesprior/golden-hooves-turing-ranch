@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { saveProgressToStorage } from '@/runtime/progress_bridge';
 
 interface Clue {
   id: number;
@@ -256,6 +257,8 @@ export const useClueGame = () => {
             description: 'Check your email for the discount code!',
             duration: 5000,
           });
+          // Save progress for Level 2 unlock
+          saveProgressToStorage({ level1Complete: true, goldenFrog: true });
         } else {
           newDiscount += 5;
           toast.success(`Level ${gameState.currentLevel} Complete! +5% Discount!`, {

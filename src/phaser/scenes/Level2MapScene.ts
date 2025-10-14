@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { engine } from "../../runtime/engine";
 import { LOCS, START, EDGES, LocID } from "../../content/gold_country";
+import { syncProgressFromStorage } from "../../runtime/progress_bridge";
 
 export class Level2MapScene extends Phaser.Scene {
   private info!: HTMLElement;
@@ -12,6 +13,9 @@ export class Level2MapScene extends Phaser.Scene {
   constructor(){ super("Level2MapScene"); }
 
   create() {
+    // Sync progress from clue game
+    syncProgressFromStorage();
+    
     const f = engine.getGameState().flags || {};
     const gs = engine.getGameState();
     
