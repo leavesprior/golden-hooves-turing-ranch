@@ -13,14 +13,13 @@ export class Level2MapScene extends Phaser.Scene {
   constructor(){ super("Level2MapScene"); }
 
   create() {
-    // Async guard to ensure flags are loaded before allowing entry
+    // Server-authoritative guard
     this.time.delayedCall(0, async () => {
+      const { verifyLevel2Access } = await import("../../runtime/progress_bridge");
       await pullProgress();
       syncProgressFromStorage();
-      const f = engine.getGameState().flags || {};
-      console.log("L2 guard flags:", f);
       
-      if (!(f.level1Complete && f.goldenFrog)) {
+      if (!(await verifyLevel2Access())) {
         alert("Level 2 requires Golden Frog (perfect quiz).");
         this.scene.start("OverworldScene");
       } else {
