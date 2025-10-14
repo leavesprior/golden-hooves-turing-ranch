@@ -56,14 +56,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/clue-game" element={<ClueGame />} />
-            <Route 
-              path="/phaser" 
-              element={
-                <ProtectedRoute session={session}>
-                  <PhaserIndex />
-                </ProtectedRoute>
-              } 
-            />
+            <Route path="/phaser" element={<PhaserIndex />} />
             <Route path="/auth" element={<Auth />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
