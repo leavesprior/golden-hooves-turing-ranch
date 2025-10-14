@@ -12,6 +12,15 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    // Register Level 2 scenes
+    const { Level2MapScene } = require("./Level2MapScene");
+    const { Level2NodeScene } = require("./Level2NodeScene");
+    const { Level2ArrestScene } = require("./Level2ArrestScene");
+    
+    this.scene.add("Level2MapScene", Level2MapScene, false);
+    this.scene.add("Level2NodeScene", Level2NodeScene, false);
+    this.scene.add("Level2ArrestScene", Level2ArrestScene, false);
+    
     // Load most recent saved state if available
     const runs = listRunsLocal();
     if (runs.length > 0) {

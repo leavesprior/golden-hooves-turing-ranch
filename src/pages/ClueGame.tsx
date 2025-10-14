@@ -30,23 +30,21 @@ const ClueGame = () => {
             style={{ imageRendering: 'pixelated' }}
           />
           <h2 className="text-primary text-xl pixel-text">
-            MYSTERY SOLVED!
+            🐸 GOLDEN FROG EARNED!
           </h2>
           <p className="text-foreground text-xs pixel-text max-w-md">
-            You've completed all available levels! More mysteries coming soon...
+            Level 2 is now unlocked! Return to the ranch and press L to continue your investigation.
           </p>
-          {gameState.totalDiscount > 0 && (
-            <div className="bg-primary/10 border-2 border-primary p-4">
-              <p className="text-primary text-sm pixel-text">
-                TOTAL DISCOUNT EARNED: {gameState.totalDiscount}%
-              </p>
-              <p className="text-foreground text-xs pixel-text mt-2">
-                Use code: GOLDFROG{gameState.totalDiscount} at checkout!
-              </p>
-            </div>
-          )}
+          <div className="bg-primary/10 border-2 border-primary p-4">
+            <p className="text-primary text-sm pixel-text">
+              ✅ LEVEL 2 UNLOCKED
+            </p>
+            <p className="text-foreground text-xs pixel-text mt-2">
+              Complete Level 2 to earn your booking discount!
+            </p>
+          </div>
           <Button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/game')}
             className="bg-primary hover:bg-primary/90 text-primary-foreground pixel-text text-xs px-6 py-6 border-2"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -74,7 +72,7 @@ const ClueGame = () => {
           <div className="flex items-center gap-2">
             <Award className="w-4 h-4 text-primary" />
             <span className="text-primary pixel-text text-xs">
-              {gameState.totalDiscount}% DISCOUNT
+              PROGRESS: {gameState.solvedClues}/6 CLUES
             </span>
           </div>
         </div>
@@ -97,19 +95,6 @@ const ClueGame = () => {
             resourceLink={currentClue.resourceLink}
             resourceTitle={currentClue.resourceTitle}
           />
-
-          {gameState.totalDiscount > 0 && (
-            <div className="mt-6 bg-primary/10 border-2 border-primary p-4">
-              <div className="text-center space-y-2">
-                <h3 className="text-primary text-sm pixel-text">
-                  CURRENT DISCOUNT: {gameState.totalDiscount}%
-                </h3>
-                <p className="text-foreground text-xs pixel-text">
-                  Keep solving to unlock more savings!
-                </p>
-              </div>
-            </div>
-          )}
 
           <div className="mt-6 bg-card border-2 border-border p-4 space-y-2">
             <h3 className="text-primary text-xs pixel-text">CASE FILE</h3>

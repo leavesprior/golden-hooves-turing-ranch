@@ -17,11 +17,16 @@ export class Level2MapScene extends Phaser.Scene {
     syncProgressFromStorage();
     const f = engine.getGameState().flags || {};
     
+    console.log("[L2 Gate] Checking flags:", f);
+    
     if (!(f.level1Complete && f.goldenFrog)) {
+      console.log("[L2 Gate] ❌ BLOCKED - Missing flags");
       alert("Level 2 locked. Finish the clue game to earn the Golden Frog.");
       this.scene.start("OverworldScene");
       return;
     }
+    
+    console.log("[L2 Gate] ✅ GRANTED - Both flags present");
     
     // Pull latest progress in background
     pullProgress();
