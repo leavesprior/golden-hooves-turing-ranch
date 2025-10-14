@@ -54,7 +54,7 @@ serve(async (req) => {
     const isEligible = code === "GHQ10" ? isEligibleFor10 : isEligibleFor15;
     
     if (!isEligible) {
-      console.log(`User ${user.id} not eligible for ${code}. Progress:`, progress);
+      console.log(`Eligibility check failed for code ${code}`);
       return new Response("Not eligible for this discount", { status: 403, headers: corsHeaders });
     }
 
@@ -77,7 +77,7 @@ serve(async (req) => {
       return new Response("Failed to create discount", { status: 500, headers: corsHeaders });
     }
 
-    console.log(`Issued ${code} token for user ${user.id}`);
+    console.log(`Successfully issued discount token`);
 
     return new Response(
       JSON.stringify({ token, percent }),

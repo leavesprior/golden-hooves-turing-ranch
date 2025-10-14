@@ -4,6 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { z } from 'zod';
+
+const emailSchema = z.string().email("Invalid email address").max(255, "Email too long");
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -41,10 +44,13 @@ const Auth = () => {
   };
 
   const handleMagicLink = async () => {
-    if (!email) {
+    // Validate email format
+    try {
+      emailSchema.parse(email);
+    } catch (error) {
       toast({
-        title: "Email required",
-        description: "Please enter your email address",
+        title: "Invalid email",
+        description: error instanceof z.ZodError ? error.errors[0].message : "Please enter a valid email address",
         variant: "destructive",
       });
       return;
