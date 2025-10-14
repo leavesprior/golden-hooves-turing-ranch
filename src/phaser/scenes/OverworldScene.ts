@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { engine } from "../../runtime/engine";
-import { syncProgressFromStorage } from "../../runtime/progress_bridge";
+import { syncProgressFromStorage, pullProgress } from "../../runtime/progress_bridge";
 
 export class OverworldScene extends Phaser.Scene {
   private info!: HTMLElement;
@@ -12,6 +12,7 @@ export class OverworldScene extends Phaser.Scene {
   create() {
     // Sync progress from clue game on scene start
     syncProgressFromStorage();
+    pullProgress().then(() => this.updateHUD("Progress synced from cloud."));
     
     // Clear any previous keyboard listeners
     this.input.keyboard!.removeAllListeners();
@@ -167,6 +168,7 @@ export class OverworldScene extends Phaser.Scene {
     this.events.on("wake", () => {
       syncProgressFromStorage();
       this.updateHUD("Welcome back! Progress synced.");
+      pullProgress();
     });
 
     this.updateHUD("🎮 CONTROLS: B=Barn | P=Pasture | E=Emus | R=Quest | Q=Clue Quiz | L=Level 2 | V=Verify");

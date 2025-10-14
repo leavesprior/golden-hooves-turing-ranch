@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { engine } from "../../runtime/engine";
 import { LOCS, START, EDGES, LocID } from "../../content/gold_country";
-import { syncProgressFromStorage } from "../../runtime/progress_bridge";
+import { syncProgressFromStorage, pullProgress } from "../../runtime/progress_bridge";
 
 export class Level2MapScene extends Phaser.Scene {
   private info!: HTMLElement;
@@ -13,34 +13,21 @@ export class Level2MapScene extends Phaser.Scene {
   constructor(){ super("Level2MapScene"); }
 
   create() {
-    // Sync progress from clue game
+    // Sync progress from clue game - guard entry
     syncProgressFromStorage();
-    
     const f = engine.getGameState().flags || {};
-    const gs = engine.getGameState();
-    
-    // Debug info for level 2 entry
-    console.log("Level2MapScene entry check:", {
-      flags: f,
-      level1Complete: f.level1Complete,
-      goldenFrog: f.goldenFrog,
-      activitiesCompleted: gs.activitiesCompleted,
-      discountPercent: gs.discountPercent
-    });
     
     if (!(f.level1Complete && f.goldenFrog)) {
-      // Show clear message about requirements
-      const msg = `Level 2 Requirements:\n` +
-        `✅ Complete Clue Quiz (6/6 correct) to get Golden Frog\n` +
-        `Current Status:\n` +
-        `  Golden Frog: ${f.goldenFrog ? '✅' : '❌'}\n` +
-        `  Level 1 Complete: ${f.level1Complete ? '✅' : '❌'}\n\n` +
-        `Complete 3+ activities, then pass the Clue Quiz (Press Q)`;
-      
-      alert(msg);
+      alert("Level 2 locked. Finish the clue game to earn the Golden Frog.");
       this.scene.start("OverworldScene");
       return;
     }
+    
+    // Pull latest progress in background
+    pullProgress();
+    
+    const gs = engine.getGameState();
+    
 
     this.cameras.main.setBackgroundColor("#1a2332");
     this.info = document.getElementById("hud")!;

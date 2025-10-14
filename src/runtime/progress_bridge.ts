@@ -1,91 +1,79 @@
-import { engine } from "./engine";
 import { supabase } from "@/integrations/supabase/client";
+import { engine } from "./engine";
 
-export interface ProgressData {
-  level1Complete: boolean;
-  goldenFrog: boolean;
-  level2Complete?: boolean;
-  ts: number;
-}
+const LS_KEY = "ghq.progress";
 
-export function syncProgressFromStorage() {
-  try {
-    const raw = localStorage.getItem("ghq.progress");
-    if (!raw) return;
-    const p: ProgressData = JSON.parse(raw);
-    const g = engine.getGameState();
-    g.flags = {
-      ...(g.flags || {}),
-      level1Complete: !!p.level1Complete,
-      goldenFrog: !!p.goldenFrog,
-      level2Complete: !!p.level2Complete,
-    };
-  } catch (err) {
-    console.warn("Failed to sync progress from storage:", err);
+function readLocal(): any | null {
+  try { 
+    const r = localStorage.getItem(LS_KEY); 
+    return r ? JSON.parse(r) : null; 
+  } catch { 
+    return null; 
   }
 }
 
-export async function saveProgressToStorage(progress: Partial<ProgressData>) {
+function writeLocal(p: any) {
+  try { 
+    localStorage.setItem(LS_KEY, JSON.stringify(p)); 
+  } catch {}
+}
+
+/** Push Level‑1 completion from web UI into DB + cache. Call this after the quiz passes 6/6. */
+export async function markLevel1Complete() {
+  const p = { level1Complete: true, goldenFrog: true, ts: Date.now() };
+  writeLocal(p);
   try {
-    const existing = localStorage.getItem("ghq.progress");
-    const current: ProgressData = existing
-      ? JSON.parse(existing)
-      : { level1Complete: false, goldenFrog: false, ts: Date.now() };
-
-    const updated: ProgressData = {
-      ...current,
-      ...progress,
-      ts: Date.now(),
-    };
-
-    localStorage.setItem("ghq.progress", JSON.stringify(updated));
-
-    // Also save to Supabase for durability
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) {
       await supabase.from("level_progress").upsert({
-        user_id: user.id,
-        level1_complete: updated.level1Complete,
-        golden_frog: updated.goldenFrog,
-        level2_complete: updated.level2Complete || false,
-        updated_at: new Date().toISOString(),
+        user_id: session.user.id,
+        level1_complete: true,
+        golden_frog: true,
+        updated_at: new Date().toISOString()
       });
     }
-  } catch (err) {
-    console.warn("Failed to save progress:", err);
-  }
+  } catch {}
 }
 
-export async function loadProgressFromSupabase() {
+/** Synchronous local sync (no network). Use before gating checks. */
+export function syncProgressFromStorage() {
+  const p = readLocal();
+  if (!p) return;
+  const g = engine.getGameState();
+  g.flags = { 
+    ...(g.flags || {}), 
+    level1Complete: !!p.level1Complete, 
+    goldenFrog: !!p.goldenFrog 
+  };
+}
+
+/** Best‑effort pull from DB, then mirror to local and engine. Call on scene create/wake. */
+export async function pullProgress() {
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    const { data, error } = await supabase
-      .from("level_progress")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (error || !data) return null;
-
-    const progress: ProgressData = {
-      level1Complete: data.level1_complete,
-      goldenFrog: data.golden_frog,
-      level2Complete: data.level2_complete,
-      ts: new Date(data.updated_at).getTime(),
-    };
-
-    // Sync to localStorage
-    localStorage.setItem("ghq.progress", JSON.stringify(progress));
-
-    return progress;
-  } catch (err) {
-    console.warn("Failed to load progress from Supabase:", err);
-    return null;
-  }
+    const { data: { session } } = await supabase.auth.getSession();
+    let p = readLocal();
+    if (session?.user?.id) {
+      const { data } = await supabase
+        .from("level_progress")
+        .select("level1_complete,golden_frog")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (data) {
+        p = { 
+          level1Complete: !!data.level1_complete, 
+          goldenFrog: !!data.golden_frog, 
+          ts: Date.now() 
+        };
+      }
+    }
+    if (p) {
+      writeLocal(p);
+      const g = engine.getGameState();
+      g.flags = { 
+        ...(g.flags || {}), 
+        level1Complete: !!p.level1Complete, 
+        goldenFrog: !!p.goldenFrog 
+      };
+    }
+  } catch {}
 }
