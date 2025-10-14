@@ -1,1 +1,7 @@
 project_id = "hhnwaibfuwikejfeqwjz"
+
+[functions.redeem_discount]
+verify_jwt = true
+
+[functions.neoma]
+verify_jwt = false
