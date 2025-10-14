@@ -26,6 +26,19 @@ export class BootScene extends Phaser.Scene {
     // Sync progress from clue game before starting
     syncProgressFromStorage();
     
+    // Seed initial market prices
+    import("../../runtime/tm").then(({ writePrice }) => {
+      writePrice("feed", 10);
+      writePrice("fence_kit", 25);
+      writePrice("stargaze_pack", 15);
+      writePrice("hay_bale", 15);
+      writePrice("grain_mix", 20);
+      writePrice("mineral_block", 25);
+      writePrice("treats", 10);
+      writePrice("medicine_kit", 40);
+      writePrice("bedding", 12);
+    });
+    
     this.scene.start("OverworldScene");
   }
 }

@@ -111,4 +111,9 @@ All colors MUST be HSL.
   .animate-coin-spin {
     animation: coin-spin 2s linear infinite;
   }
+
+  /* Touch and pointer affordances */
+  canvas, #game {
+    touch-action: manipulation;
+  }
 }

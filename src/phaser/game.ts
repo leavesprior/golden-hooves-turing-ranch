@@ -14,6 +14,7 @@ export function startGame(parentId: string) {
   new Phaser.Game({
     type: Phaser.AUTO, width: 960, height: 540, parent: parentId, pixelArt: true,
     backgroundColor: "#0b0f14",
+    input: { activePointers: 3 }, // touch, pen, mouse
     scene: [
       BootScene,
       OverworldScene, BattleScene, DialogueScene, ClueScene, QuestScene, BarnShopScene,

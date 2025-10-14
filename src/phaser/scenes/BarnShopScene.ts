@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { engine } from "../../runtime/engine";
 import { saveRunLocal } from "../../runtime/persistence";
 import { saveRunToSupabase } from "../../runtime/sync";
+import { marketTape, recomputePrices, readPrice } from "../../runtime/tm";
 
 interface ShopItem {
   id: string;
@@ -85,30 +86,45 @@ export class BarnShopScene extends Phaser.Scene {
     }
 
     // Title with barn aesthetic
-    this.add.text(40, 30, "🏚️ BARN SHOP — Creature Supplies", {
+    this.add.text(40, 30, "🏚️ BARN SHOP — Dynamic Market Prices", {
       fontFamily: "monospace",
       fontSize: "20px",
       color: "#f0e68c",
       fontStyle: "bold"
     });
 
-    this.add.text(40, 70, "Purchase supplies for your animals with Karma & Coins", {
+    this.add.text(40, 70, "Prices adjust with supply/demand • Updates every 5s", {
       fontFamily: "monospace",
       fontSize: "14px",
       color: "#cde3ff"
     });
 
-    // Shop items display
+    // Dynamic price updates
+    this.time.addEvent({ 
+      delay: 5000, 
+      loop: true, 
+      callback: async () => {
+        await recomputePrices();
+        this.scene.restart();
+      }
+    });
+
+    // Shop items display with dynamic prices
     const startY = 120;
     SHOP_ITEMS.forEach((item, idx) => {
       const y = startY + idx * 60;
       const isSelected = idx === this.selectedIndex;
+      
+      // Get dynamic price from market tape
+      const dynamicPrice = readPrice(item.id);
+      const adjustedKarma = Math.max(1, Math.round(item.karmaPrice * (dynamicPrice / 10)));
+      const adjustedCoins = Math.max(1, Math.round(item.coinPrice * (dynamicPrice / 10)));
 
       const bg = this.add.rectangle(480, y, 880, 50, isSelected ? 0x5a4a3a : 0x3a2a1a)
         .setStrokeStyle(2, isSelected ? 0xf0e68c : 0x654321);
 
       const text = this.add.text(60, y - 20, 
-        `${item.emoji} ${item.name} — ${item.description}\n💰 ${item.karmaPrice} Karma, ${item.coinPrice} Coins`, 
+        `${item.emoji} ${item.name} — ${item.description}\n💰 ${adjustedKarma} Karma, ${adjustedCoins} Coins (market: ${dynamicPrice})`, 
         {
           fontFamily: "monospace",
           fontSize: "12px",
@@ -143,21 +159,26 @@ export class BarnShopScene extends Phaser.Scene {
   private async purchaseItem() {
     const item = SHOP_ITEMS[this.selectedIndex];
     const gs = engine.getGameState();
+    
+    // Get dynamic prices
+    const dynamicPrice = readPrice(item.id);
+    const adjustedKarma = Math.max(1, Math.round(item.karmaPrice * (dynamicPrice / 10)));
+    const adjustedCoins = Math.max(1, Math.round(item.coinPrice * (dynamicPrice / 10)));
 
     // Check if player has enough currency
-    if (gs.player.karma < item.karmaPrice) {
-      this.updateHUD(`❌ Not enough Karma! Need ${item.karmaPrice}, have ${gs.player.karma}`);
+    if (gs.player.karma < adjustedKarma) {
+      this.updateHUD(`❌ Not enough Karma! Need ${adjustedKarma}, have ${gs.player.karma}`);
       return;
     }
 
-    if (gs.player.coins < item.coinPrice) {
-      this.updateHUD(`❌ Not enough Coins! Need ${item.coinPrice}, have ${gs.player.coins}`);
+    if (gs.player.coins < adjustedCoins) {
+      this.updateHUD(`❌ Not enough Coins! Need ${adjustedCoins}, have ${gs.player.coins}`);
       return;
     }
 
     // Deduct costs
-    engine.earnKarma(-item.karmaPrice, `shop_${item.id}`);
-    engine.earnCoins(-item.coinPrice, `shop_${item.id}`);
+    engine.earnKarma(-adjustedKarma, `shop_${item.id}`);
+    engine.earnCoins(-adjustedCoins, `shop_${item.id}`);
 
     // Apply benefits based on item type
     let benefit = "";

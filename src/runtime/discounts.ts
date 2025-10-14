@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export async function getDiscountToken(code: "GHQ10" | "GHQ15") {
+export async function getDiscountToken(code: "GHQ8" | "GHQ15") {
   const {
     data: { session },
   } = await supabase.auth.getSession();

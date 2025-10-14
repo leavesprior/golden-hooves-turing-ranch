@@ -1,6 +1,7 @@
 import { TapeHub } from "./tm/tapes";
 import type { GameState } from "./state";
 import { getCurrentUserId } from "./auth";
+import { tick } from "./tm";
 
 class Engine {
   tapes = new TapeHub();
@@ -52,6 +53,8 @@ class Engine {
     this.tapes.append("core", { t: Date.now(), evt });
     this.state.tick++;
     this.tapes.append("diag", this.tapes.core.snapshot().hash);
+    // Run TM tick for self-repair and market dynamics
+    tick();
   }
 
   earnKarma(n: number, reason: string) {

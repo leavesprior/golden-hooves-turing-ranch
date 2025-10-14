@@ -1,3 +1,5 @@
+export const LEVEL1_DISCOUNT = { code: "GHQ8", percent: 8 };
+
 export const QUIZ = [
   { 
     q: "A priceless golden artifact vanished from the ranch museum during the summer solstice. According to the display plaque, what sacred item went missing?", 

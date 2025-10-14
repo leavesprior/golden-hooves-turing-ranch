@@ -2,6 +2,8 @@ import Phaser from "phaser";
 import { engine } from "../../runtime/engine";
 import { LOCS, LocID } from "../../content/gold_country";
 import { skillCheck, getSkillModifier } from "../../runtime/dice";
+import { AIRBNB } from "../../runtime/airbnb";
+import { matchesAnswer } from "../../runtime/answers";
 
 export class Level2NodeScene extends Phaser.Scene {
   private here!: LocID;
@@ -122,6 +124,10 @@ export class Level2NodeScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-S", ()=> this.act("survival", 14));
     this.input.keyboard!.on("keydown-P", ()=> this.act("wisdom", 15));
     
+    if (this.here === "angels" && !this.evidence.has("game_room_clue")) {
+      this.input.keyboard!.on("keydown-A", ()=> this.showAirbnbClue());
+    }
+    
     if (this.here === "mokhill") {
       this.input.keyboard!.on("keydown-W", ()=> this.fileWarrant());
     }
@@ -218,6 +224,11 @@ export class Level2NodeScene extends Phaser.Scene {
       { key: "P", label: "Profile suspect behavior (Wisdom DC 15)", available: true }
     ];
 
+    // Add Airbnb photo clue for Angels Camp
+    if (loc === "angels" && !this.evidence.has("game_room_clue")) {
+      base.push({ key: "A", label: "🖼️ Study Airbnb game room photo", available: true });
+    }
+
     // Add location-specific options
     if (loc === "mokhill" && this.evidence.size >= 2) {
       base.push({ key: "W", label: "📜 File Warrant (requires 2+ evidence)", available: true });
@@ -232,6 +243,63 @@ export class Level2NodeScene extends Phaser.Scene {
     }
 
     return base;
+  }
+
+  private showAirbnbClue() {
+    this.print("🖼️ Opening Airbnb game room photo...\nStudy the caption carefully!");
+    window.open(AIRBNB.photos.gameRoom, "_blank");
+    
+    // Create DOM input for answer
+    const container = document.createElement("div");
+    container.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#0f1520;padding:20px;border:4px solid #8ef5a2;z-index:1000;";
+    
+    const prompt = document.createElement("p");
+    prompt.textContent = "What sentiment about family does the caption express?";
+    prompt.style.cssText = "color:#f0e68c;font-family:monospace;margin-bottom:10px;";
+    
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Type your answer...";
+    input.style.cssText = "width:100%;padding:8px;font-family:monospace;margin-bottom:10px;";
+    
+    const submit = document.createElement("button");
+    submit.textContent = "Submit";
+    submit.style.cssText = "background:#8ef5a2;color:#1a2a1a;border:2px solid #f0e68c;padding:8px 16px;cursor:pointer;margin-right:10px;";
+    
+    const cancel = document.createElement("button");
+    cancel.textContent = "Cancel";
+    cancel.style.cssText = "background:#666;color:#fff;border:2px solid #444;padding:8px 16px;cursor:pointer;";
+    
+    const GAME_ROOM_ACCEPT = [
+      "family memories",
+      "family makes a small town great",
+      "peace and quiet with family makes mountain living",
+      "peace and quiet with family makes country living",
+      "peace and quiet with family makes ranch life"
+    ];
+    
+    submit.onclick = () => {
+      const val = input.value || "";
+      if (matchesAnswer(val, GAME_ROOM_ACCEPT)) {
+        this.evidence.add("game_room_clue");
+        this.print("✅ Correct! You found a crucial clue about family values at the ranch.");
+        document.body.removeChild(container);
+        this.updateHUD();
+      } else {
+        this.print("❌ Not quite. Hint: Focus on what makes this place special for families.");
+      }
+    };
+    
+    cancel.onclick = () => {
+      document.body.removeChild(container);
+      this.print("Airbnb clue cancelled.");
+    };
+    
+    container.appendChild(prompt);
+    container.appendChild(input);
+    container.appendChild(submit);
+    container.appendChild(cancel);
+    document.body.appendChild(container);
   }
 
   private act(skill: any, dc: number) {
