@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { engine } from "../../runtime/engine";
 import { listRunsLocal } from "../../runtime/persistence";
+import { syncProgressFromStorage } from "../../runtime/progress_bridge";
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -30,6 +31,9 @@ export class BootScene extends Phaser.Scene {
         console.log("Loaded saved state:", latest.snapshot.state);
       }
     }
+    
+    // Sync progress from clue game before starting
+    syncProgressFromStorage();
     
     this.scene.start("OverworldScene");
   }

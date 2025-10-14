@@ -150,9 +150,12 @@ export class OverworldScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-R", () => {
       this.scene.start("QuestScene", { specificQuest: "fence_repair" });
     });
-    this.input.keyboard!.on("keydown-L", () => {
-      syncProgressFromStorage();
+    this.input.keyboard!.on("keydown-L", async () => {
+      await pullProgress();          // fetch DB -> localStorage
+      syncProgressFromStorage();     // localStorage -> engine.flags
+
       const f = engine.getGameState().flags || {};
+      console.log("L gate flags:", f);
       if (f.level1Complete && f.goldenFrog) {
         this.scene.start("Level2MapScene");
       } else {

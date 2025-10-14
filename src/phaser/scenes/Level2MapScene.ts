@@ -13,24 +13,23 @@ export class Level2MapScene extends Phaser.Scene {
   constructor(){ super("Level2MapScene"); }
 
   create() {
-    // Sync progress from clue game - guard entry
-    syncProgressFromStorage();
-    const f = engine.getGameState().flags || {};
-    
-    console.log("[L2 Gate] Checking flags:", f);
-    
-    if (!(f.level1Complete && f.goldenFrog)) {
-      console.log("[L2 Gate] ❌ BLOCKED - Missing flags");
-      alert("Level 2 locked. Finish the clue game to earn the Golden Frog.");
-      this.scene.start("OverworldScene");
-      return;
-    }
-    
-    console.log("[L2 Gate] ✅ GRANTED - Both flags present");
-    
-    // Pull latest progress in background
-    pullProgress();
-    
+    // Async guard to ensure flags are loaded before allowing entry
+    this.time.delayedCall(0, async () => {
+      await pullProgress();
+      syncProgressFromStorage();
+      const f = engine.getGameState().flags || {};
+      console.log("L2 guard flags:", f);
+      
+      if (!(f.level1Complete && f.goldenFrog)) {
+        alert("Level 2 requires Golden Frog (perfect quiz).");
+        this.scene.start("OverworldScene");
+      } else {
+        this.initMap();
+      }
+    });
+  }
+
+  private initMap() {
     const gs = engine.getGameState();
     
 
@@ -119,6 +118,16 @@ export class Level2MapScene extends Phaser.Scene {
     this.updateHUD();
   }
 
+  // receive state back
+  init(data:any) {
+    if (data?.fromNode) {
+      this.here = data.here ?? this.here;
+      this.days = data.days ?? this.days;
+      this.evidence = new Set<string>(data.evidence ?? Array.from(this.evidence));
+      this.warrant = !!data.warrant;
+    }
+  }
+
   private neighbors(): LocID[] { return EDGES[this.here]; }
 
   private updateHUD(msg="") {
@@ -151,15 +160,5 @@ export class Level2MapScene extends Phaser.Scene {
     this.here = dest;
     engine.recordAction({ type:"l2_travel", to: dest, days:this.days });
     this.updateHUD("Traveled.");
-  }
-
-  // receive state back
-  init(data:any) {
-    if (data?.fromNode) {
-      this.here = data.here ?? this.here;
-      this.days = data.days ?? this.days;
-      this.evidence = new Set<string>(data.evidence ?? Array.from(this.evidence));
-      this.warrant = !!data.warrant;
-    }
   }
 }
