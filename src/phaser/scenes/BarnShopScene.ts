@@ -67,7 +67,7 @@ const SHOP_ITEMS: ShopItem[] = [
 export class BarnShopScene extends Phaser.Scene {
   private info!: HTMLElement;
   private selectedIndex = 0;
-  private itemTexts: Phaser.GameObjects.Text[] = [];
+  private rows: { id: string; baseKarma: number; baseCoins: number; text: Phaser.GameObjects.Text; bg: Phaser.GameObjects.Rectangle }[] = [];
 
   constructor() {
     super("BarnShopScene");
@@ -99,40 +99,17 @@ export class BarnShopScene extends Phaser.Scene {
       color: "#cde3ff"
     });
 
+    // Build item list once
+    this.renderList();
+
     // Dynamic price updates
     this.time.addEvent({ 
       delay: 5000, 
       loop: true, 
       callback: async () => {
         await recomputePrices();
-        this.scene.restart();
+        this.renderPrices();
       }
-    });
-
-    // Shop items display with dynamic prices
-    const startY = 120;
-    SHOP_ITEMS.forEach((item, idx) => {
-      const y = startY + idx * 60;
-      const isSelected = idx === this.selectedIndex;
-      
-      // Get dynamic price from market tape
-      const dynamicPrice = readPrice(item.id);
-      const adjustedKarma = Math.max(1, Math.round(item.karmaPrice * (dynamicPrice / 10)));
-      const adjustedCoins = Math.max(1, Math.round(item.coinPrice * (dynamicPrice / 10)));
-
-      const bg = this.add.rectangle(480, y, 880, 50, isSelected ? 0x5a4a3a : 0x3a2a1a)
-        .setStrokeStyle(2, isSelected ? 0xf0e68c : 0x654321);
-
-      const text = this.add.text(60, y - 20, 
-        `${item.emoji} ${item.name} — ${item.description}\n💰 ${adjustedKarma} Karma, ${adjustedCoins} Coins (market: ${dynamicPrice})`, 
-        {
-          fontFamily: "monospace",
-          fontSize: "12px",
-          color: isSelected ? "#f0e68c" : "#cde3ff"
-        }
-      );
-
-      this.itemTexts.push(text);
     });
 
     // Instructions
@@ -153,7 +130,54 @@ export class BarnShopScene extends Phaser.Scene {
 
   private changeSelection(delta: number) {
     this.selectedIndex = (this.selectedIndex + delta + SHOP_ITEMS.length) % SHOP_ITEMS.length;
-    this.scene.restart();
+    this.renderSelection();
+  }
+
+  private renderList() {
+    const startY = 120;
+    this.rows = [];
+    SHOP_ITEMS.forEach((item, idx) => {
+      const y = startY + idx * 60;
+      const isSelected = idx === this.selectedIndex;
+      
+      const bg = this.add.rectangle(480, y, 880, 50, isSelected ? 0x5a4a3a : 0x3a2a1a)
+        .setStrokeStyle(2, isSelected ? 0xf0e68c : 0x654321);
+
+      const text = this.add.text(60, y - 20, "", {
+        fontFamily: "monospace",
+        fontSize: "12px",
+        color: isSelected ? "#f0e68c" : "#cde3ff"
+      });
+
+      this.rows.push({ 
+        id: item.id, 
+        baseKarma: item.karmaPrice, 
+        baseCoins: item.coinPrice, 
+        text,
+        bg
+      });
+    });
+    this.renderPrices(); // First paint
+  }
+
+  private renderPrices() {
+    this.rows.forEach((r, idx) => {
+      const item = SHOP_ITEMS[idx];
+      const m = readPrice(r.id);
+      const k = Math.max(1, Math.round(r.baseKarma * (m / 10)));
+      const c = Math.max(1, Math.round(r.baseCoins * (m / 10)));
+      r.text.setText(`${item.emoji} ${item.name} — ${item.description}\n💰 ${k} Karma, ${c} Coins (market: ${m})`);
+    });
+  }
+
+  private renderSelection() {
+    this.rows.forEach((r, idx) => {
+      const isSelected = idx === this.selectedIndex;
+      r.bg.setFillStyle(isSelected ? 0x5a4a3a : 0x3a2a1a);
+      r.bg.setStrokeStyle(2, isSelected ? 0xf0e68c : 0x654321);
+      r.text.setColor(isSelected ? "#f0e68c" : "#cde3ff");
+    });
+    this.updateHUD();
   }
 
   private async purchaseItem() {
