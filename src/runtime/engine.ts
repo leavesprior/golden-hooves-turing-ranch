@@ -40,7 +40,10 @@ class Engine {
   }
 
   loadState(state: GameState) {
-    this.state = state;
+    // Merge flags to preserve progress set by /clue-game bridge
+    const mergedFlags = { ...(this.state.flags || {}), ...(state.flags || {}) };
+    this.state = { ...state, flags: mergedFlags };
+    this.recordAction({ type: "load_state" });
   }
 
   getGameState() { return this.state; }
