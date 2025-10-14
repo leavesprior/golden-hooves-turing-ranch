@@ -91,6 +91,11 @@ export class Level2NodeScene extends Phaser.Scene {
         actionText.setInteractive({ useHandCursor: true });
         actionText.on('pointerover', () => actionText.setColor("#ffffff"));
         actionText.on('pointerout', () => actionText.setColor("#8ef5a2"));
+        actionText.on('pointerdown', () => {
+          if (action.key === "A" && this.here === "angels") {
+            this.showAirbnbClue();
+          }
+        });
       }
     });
 

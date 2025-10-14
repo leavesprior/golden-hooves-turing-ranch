@@ -77,3 +77,19 @@ export async function pullProgress() {
     }
   } catch {}
 }
+
+/** Server‑authoritative Level‑2 gate check */
+export async function verifyLevel2Access(): Promise<boolean> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return false;
+    const { data } = await supabase
+      .from("level_progress")
+      .select("level1_complete,golden_frog")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+    return !!(data?.level1_complete && data?.golden_frog);
+  } catch {
+    return false;
+  }
+}

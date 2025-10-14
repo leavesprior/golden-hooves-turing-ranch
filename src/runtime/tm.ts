@@ -1,4 +1,4 @@
-// Minimal 4‑tape core with self‑repair + market dynamics
+// src/runtime/tm.ts
 import { supabase } from "@/integrations/supabase/client";
 
 type Dir = -1 | 1;
@@ -12,55 +12,52 @@ class Tape {
   write(s: string) { this.arr[this.head] = s; }
   move(d: Dir) { this.head = Math.max(0, this.head + d); }
   snap() { return { arr: [...this.arr], head: this.head }; }
-  load(snap: {arr: string[]; head: number}) {
-    // merge: keep newer prices/flags from existing cells if different and non-empty
+  load(snap: { arr: string[]; head: number }) {
     const L = Math.max(this.arr.length, snap.arr.length);
     const merged = new Array(L).fill("_");
-    for (let i=0;i<L;i++) {
+    for (let i = 0; i < L; i++) {
       const a = this.arr[i] ?? "_";
       const b = snap.arr[i] ?? "_";
       merged[i] = b !== "_" ? b : a;
     }
-    this.arr = merged; this.head = snap.head;
+    this.arr = merged;
+    this.head = snap.head;
   }
 }
 
-export const coreTape = new Tape();   // game flags, progress, scene hints
-export const diagTape = new Tape();   // checksums, invariants
-export const syncTape = new Tape();   // cloud sync cursors, retry markers
-export const marketTape = new Tape(); // prices: P:item=123, stock: S:item=n
+export const coreTape = new Tape();    // flags/progress
+export const diagTape = new Tape();    // checksums
+export const syncTape = new Tape();    // sync cursors
+export const marketTape = new Tape();  // prices P:item=123
 
-// Simple rule table; extensible
 const rules: Table = {
   CORE: { "_": ["F", 1, "CORE"], "F": ["F", 1, "CORE"] },
   DIAG: { "_": ["C", 1, "DIAG"] },
   SYNC: { "_": ["Q", 1, "SYNC"] },
-  MKT : { "_": ["P", 1, "MKT"] }
+  MKT : { "_": ["P", 1, "MKT"] },
 };
 
-export function step(state: keyof typeof rules): string {
-  const t = state === "CORE" ? coreTape : state === "DIAG" ? diagTape : state === "SYNC" ? syncTape : marketTape;
+function step(state: keyof typeof rules): string {
+  const t =
+    state === "CORE" ? coreTape :
+    state === "DIAG" ? diagTape :
+    state === "SYNC" ? syncTape : marketTape;
   const sym = t.read();
   const r = rules[state]?.[sym] ?? null;
   if (!r) return state;
   t.write(r[0]); t.move(r[1]); return r[2];
 }
 
-// CRC over core+market to detect corruption
+// CRC across core+market
 function crc(): number {
   const all = coreTape.arr.join("") + marketTape.arr.join("");
-  let h = 2166136261>>>0;
-  for (let i=0;i<all.length;i++) { h ^= all.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return h>>>0;
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < all.length; i++) { h ^= all.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
 }
 
 let lastCRC = crc();
-
-// Self‑repair: restore last good snapshot on CRC drift
-let lastGood = {
-  core: coreTape.snap(),
-  mkt: marketTape.snap(),
-};
+let lastGood = { core: coreTape.snap(), mkt: marketTape.snap() };
 
 export function tick() {
   step("CORE"); step("DIAG"); step("SYNC"); step("MKT");
@@ -71,7 +68,6 @@ export function tick() {
   }
 }
 
-// Repair if invariants fail (e.g., negative prices)
 export function repairIfNeeded() {
   const bad = marketTape.arr.some(c => /^P:/.test(c) && Number(c.split("=")[1]) <= 0);
   if (bad) {
@@ -80,34 +76,37 @@ export function repairIfNeeded() {
   }
 }
 
-// Market: recompute prices from recent trades; fallback local if offline
 export async function recomputePrices() {
   try {
-    const since = new Date(Date.now() - 1000*60*60*24).toISOString();
+    // pull recent trades; schema‑agnostic, cheap
     const { data, error } = await supabase
       .from("karma_ledger")
       .select("transaction_type, amount")
-      .gte("ts", since);
+      .limit(200);
     if (error || !data) throw error;
-    const agg: Record<string,{v:number,w:number}> = {};
-    for (const r of data) {
-      const item = r.transaction_type.replace("shop_", "");
-      if (!agg[item]) agg[item] = { v:0, w:0 };
-      agg[item].v += Math.abs(r.amount) * 10; // Estimate price from karma spent
-      agg[item].w += 1;
+
+    const agg: Record<string, number> = {}; // demand counter
+    for (const r of data as Array<{transaction_type?: string; amount?: number}>) {
+      const t = r.transaction_type ?? "";
+      if (!t.startsWith("shop_")) continue;
+      const item = t.replace("shop_","").trim();
+      agg[item] = (agg[item] ?? 0) + Math.max(1, Math.abs(r.amount ?? 1));
     }
-    for (const [k, {v,w}] of Object.entries(agg)) {
-      const p = Math.max(1, Math.round(v / Math.max(1,w)));
-      writePrice(k, p);
+    for (const [item, demand] of Object.entries(agg)) {
+      // base 10, EMA toward demand/5
+      const current = readPrice(item);
+      const target = Math.max(1, Math.round(10 + demand / 5));
+      const next = Math.max(1, Math.round(0.8 * current + 0.2 * target));
+      writePrice(item, next);
     }
   } catch {
-    // local damped update
-    for (let i=0;i<marketTape.arr.length;i++) {
+    // local gentle decay
+    for (let i = 0; i < marketTape.arr.length; i++) {
       const c = marketTape.arr[i];
       if (/^P:/.test(c)) {
         const [_, kv] = c.split(":");
         const [item, raw] = kv.split("=");
-        const p = Math.max(1, Math.round(Number(raw||"10") * 0.99));
+        const p = Math.max(1, Math.round((Number(raw) || 10) * 0.99));
         marketTape.arr[i] = `P:${item}=${p}`;
       }
     }
@@ -125,6 +124,5 @@ export function writePrice(item: string, price: number) {
 
 export function readPrice(item: string): number {
   const c = marketTape.arr.find(x => x.startsWith(`P:${item}=`));
-  if (!c) return 10; // default
-  return Number(c.split("=")[1]) || 10;
+  return c ? Number(c.split("=")[1]) || 10 : 10;
 }

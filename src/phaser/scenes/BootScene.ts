@@ -26,8 +26,8 @@ export class BootScene extends Phaser.Scene {
     // Sync progress from clue game before starting
     syncProgressFromStorage();
     
-    // Seed initial market prices
-    import("../../runtime/tm").then(({ writePrice }) => {
+    // Seed initial market prices and start TM timers
+    import("../../runtime/tm").then(({ writePrice, tick, recomputePrices }) => {
       writePrice("feed", 10);
       writePrice("fence_kit", 25);
       writePrice("stargaze_pack", 15);
@@ -37,6 +37,11 @@ export class BootScene extends Phaser.Scene {
       writePrice("treats", 10);
       writePrice("medicine_kit", 40);
       writePrice("bedding", 12);
+      
+      // Hook TM tick at 10 Hz
+      this.time.addEvent({ delay: 100, loop: true, callback: tick });
+      // Recompute prices every 5s
+      this.time.addEvent({ delay: 5000, loop: true, callback: recomputePrices });
     });
     
     this.scene.start("OverworldScene");

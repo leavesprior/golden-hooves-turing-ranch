@@ -151,12 +151,10 @@ export class OverworldScene extends Phaser.Scene {
       this.scene.start("QuestScene", { specificQuest: "fence_repair" });
     });
     this.input.keyboard!.on("keydown-L", async () => {
-      await pullProgress();          // fetch DB -> localStorage
-      syncProgressFromStorage();     // localStorage -> engine.flags
-
-      const f = engine.getGameState().flags || {};
-      console.log("L gate flags:", f);
-      if (f.level1Complete && f.goldenFrog) {
+      const { verifyLevel2Access } = await import("../../runtime/progress_bridge");
+      await pullProgress();
+      syncProgressFromStorage();
+      if (await verifyLevel2Access()) {
         this.scene.start("Level2MapScene");
       } else {
         this.flash("Level 2 locked. Earn the Golden Frog by passing all 6 clues.");
