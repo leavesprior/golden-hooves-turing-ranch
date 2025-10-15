@@ -58,8 +58,14 @@ class Engine {
   }
 
   earnKarma(n: number, reason: string) {
+    const previousKarma = this.state.player.karma;
     this.state.player.karma += n;
     this.recordAction({ type: "karma", delta: n, reason });
+    
+    // Check for 20 karma milestone
+    if (previousKarma < 20 && this.state.player.karma >= 20) {
+      this.setFlag('ranch_map_unlocked', true);
+    }
   }
 
   earnCoins(n: number, reason: string) {

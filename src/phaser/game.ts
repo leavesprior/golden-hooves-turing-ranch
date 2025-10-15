@@ -9,6 +9,7 @@ import { BarnShopScene } from "./scenes/BarnShopScene";
 import { Level2MapScene } from "./scenes/Level2MapScene";
 import { Level2NodeScene } from "./scenes/Level2NodeScene";
 import { Level2ArrestScene } from "./scenes/Level2ArrestScene";
+import { RanchMapScene } from "./scenes/RanchMapScene";
 
 export function startGame(parentId: string) {
   new Phaser.Game({
@@ -18,7 +19,7 @@ export function startGame(parentId: string) {
     scene: [
       BootScene,
       OverworldScene, BattleScene, DialogueScene, ClueScene, QuestScene, BarnShopScene,
-      Level2MapScene, Level2NodeScene, Level2ArrestScene
+      Level2MapScene, Level2NodeScene, Level2ArrestScene, RanchMapScene
     ],
     physics: { default: "arcade", arcade: { debug: false } }
   });

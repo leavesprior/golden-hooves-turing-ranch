@@ -137,6 +137,14 @@ export class OverworldScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-B", () => this.scene.start("BarnShopScene"));
     this.input.keyboard!.on("keydown-E", () => this.scene.start("QuestScene", { specificQuest: "emu_quest" }));
     this.input.keyboard!.on("keydown-P", () => this.scene.start("QuestScene", { specificQuest: "horse_patrol" }));
+    this.input.keyboard!.on("keydown-M", () => {
+      // Open Ranch Map at any time, but show special message at 20+ karma
+      const gs = engine.getGameState();
+      if (gs.player.karma >= 20) {
+        this.flash("🎉 20+ Karma! Expanded ranch map unlocked!");
+      }
+      this.scene.start("RanchMapScene");
+    });
     this.input.keyboard!.on("keydown-Q", () => {
       const gs = engine.getGameState();
       const activities = gs.activitiesCompleted || 0;
@@ -172,7 +180,7 @@ export class OverworldScene extends Phaser.Scene {
       pullProgress();
     });
 
-    this.updateHUD("🎮 CONTROLS: B=Barn | P=Pasture | E=Emus | R=Quest | Q=Clue Quiz | L=Level 2 | V=Verify");
+    this.updateHUD("🎮 CONTROLS: B=Barn | P=Pasture | E=Emus | R=Quest | M=Ranch Map | Q=Clue Quiz | L=Level 2 | V=Verify");
   }
 
   private updateHUD(msg: string) {
@@ -197,6 +205,7 @@ export class OverworldScene extends Phaser.Scene {
       `🌾 Herd Health: ${gs.herdHealth}% | 🎯 Activities: ${activities}/4`,
       activityStatus,
       `🎁 Current Discount: ${discount}% | Clue Quiz: ${quizUnlocked}`,
+      gs.player.karma >= 20 ? "🗺️ RANCH MAP UNLOCKED! Press M to explore Farmville-style management!" : "",
       gs.flags?.goldenFrog ? "🐸 GOLDEN FROG ACQUIRED! Level 2 Ready!" : "",
       gs.flags?.level1Complete ? "🌟 Press L to enter Level 2" : ""
     ].filter(Boolean).join("\n");
