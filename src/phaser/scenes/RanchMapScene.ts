@@ -184,7 +184,7 @@ export class RanchMapScene extends Phaser.Scene {
     this.grids[index].setFillStyle(0x6b8f5e);
     
     // Add sprite
-    const emoji = type === 'grass' ? '🌱' : type === 'sheep' ? '🐑' : type === 'emu' ? '🦤' : type === 'donkey' ? '🫏' : '🚧';
+    const emoji = type === 'grass' ? '🌱' : type === 'sheep' ? '🐑' : type === 'emu' ? '🦤' : type === 'donkey' ? '🫏' : type === 'barn' ? '🏠' : '🚧';
     const sprite = this.add.text(x, y, emoji, {
       fontSize: "32px"
     }).setOrigin(0.5);
@@ -209,7 +209,8 @@ export class RanchMapScene extends Phaser.Scene {
       sheep: 10,
       emu: 15,
       donkey: 8,
-      fence: 3
+      fence: 3,
+      barn: 5
     };
 
     const karma = rewards[cell.type] || 5;
