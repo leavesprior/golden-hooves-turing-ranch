@@ -102,6 +102,17 @@ export class RanchMapScene extends Phaser.Scene {
       loop: true
     });
 
+    // Tutorial popup
+    const tutorial = this.add.text(480, 270, "🌟 Welcome to your ranch! Click any grid to start planting! 🌟", {
+      fontFamily: "monospace",
+      fontSize: "18px",
+      color: "#f0e68c",
+      backgroundColor: "#00000088",
+      padding: { x: 15, y: 10 }
+    }).setOrigin(0.5).setDepth(100);
+
+    this.time.delayedCall(5000, () => tutorial.destroy());
+
     // Keyboard controls
     this.input.keyboard!.removeAllListeners();
     this.input.keyboard!.on("keydown-SPACE", () => this.harvestReady());
@@ -125,13 +136,14 @@ export class RanchMapScene extends Phaser.Scene {
       return;
     }
 
-    // Plant menu
+    // Plant menu with demo timers (30s = 1hr, 60s = 2hr, etc.)
     const options = [
-      { type: 'grass', label: '🌱 Grass (1hr)', time: 60000 },
-      { type: 'sheep', label: '🐑 Sheep (2hr)', time: 120000 },
-      { type: 'emu', label: '🦤 Emu (3hr)', time: 180000 },
+      { type: 'grass', label: '🌱 Grass (30s)', time: 30000 },
+      { type: 'sheep', label: '🐑 Sheep (60s)', time: 60000 },
+      { type: 'emu', label: '🦤 Emu (90s)', time: 90000 },
       { type: 'donkey', label: '🫏 Donkey (guard)', time: 0 },
-      { type: 'fence', label: '🚧 Fence', time: 0 }
+      { type: 'fence', label: '🚧 Fence', time: 0 },
+      { type: 'barn', label: '🏠 Barn', time: 0 }
     ];
 
     // Show options
@@ -305,15 +317,20 @@ export class RanchMapScene extends Phaser.Scene {
 
   private showHelp() {
     const helpText = [
-      "🗺️ RANCH MAP HELP",
+      "🗺️ FARMVILLE-STYLE RANCH MAP",
       "━━━━━━━━━━━━━━━━━━━",
       "• Click grids to plant",
-      "• 🌱 Grass: 1hr, +5 karma",
-      "• 🐑 Sheep: 2hr, +10 karma",
-      "• 🦤 Emu: 3hr, +15 karma",
+      "• 🌱 Grass: 30s demo, +5 karma",
+      "• 🐑 Sheep: 60s demo, +10 karma",
+      "• 🦤 Emu: 90s demo, +15 karma",
+      "• 🫏 Donkey: Guard sheep, +8 karma",
+      "• 🚧 Fence: Protection, +3 karma",
+      "• 🏠 Barn: Storage, +5 karma",
       "• SPACE: Harvest all ready",
       "• ESC: Return to overworld",
-      "• H: This help menu"
+      "• H: This help menu",
+      "",
+      "TIP: Plant donkeys to protect sheep!"
     ];
 
     const help = this.add.text(480, 270, helpText.join("\n"), {
@@ -339,7 +356,8 @@ export class RanchMapScene extends Phaser.Scene {
       `🌾 Active Plots: ${activeCells}/16 | ✅ Ready: ${readyCells}`,
       `🎯 Activities Completed: ${gs.activitiesCompleted || 0}`,
       "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-      "CONTROLS: Click=Plant | SPACE=Harvest | H=Help | ESC=Exit"
+      "CONTROLS: Click=Plant | SPACE=Harvest | H=Help | ESC=Exit",
+      gs.player.karma >= 20 ? "🎉 20+ Karma! Keep growing your ranch!" : "🌱 Earn 20 karma to unlock more features!"
     ].join("\n");
   }
 
