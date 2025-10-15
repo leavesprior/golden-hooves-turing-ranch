@@ -57,6 +57,7 @@ const App = () => {
             <Route path="/" element={<Index />} />
             <Route path="/clue-game" element={<ClueGame />} />
             <Route path="/phaser" element={<PhaserIndex />} />
+            <Route path="/game" element={<Navigate to="/phaser" replace />} />
             <Route path="/auth" element={<Auth />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
