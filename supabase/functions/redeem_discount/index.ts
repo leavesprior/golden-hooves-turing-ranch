@@ -1,10 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schemas
+const redeemSchema = z.object({
+  code: z.enum(["GHQ10", "GHQ15"], { 
+    errorMap: () => ({ message: "Invalid discount code" }) 
+  })
+});
 
 function generateToken(): string {
   return crypto.randomUUID().replace(/-/g, "") + Math.floor(Math.random() * 1e6).toString(36);
@@ -20,21 +28,21 @@ serve(async (req) => {
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    console.log("Environment check:", {
-      hasUrl: !!SUPABASE_URL,
-      hasAnonKey: !!SUPABASE_ANON_KEY,
-      hasServiceKey: !!SUPABASE_SERVICE_ROLE_KEY
-    });
-
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Missing environment variables");
-      return new Response("Configuration error", { status: 500, headers: corsHeaders });
+      console.error("Service initialization failed");
+      return new Response(
+        JSON.stringify({ error: "Service temporarily unavailable" }), 
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Get authenticated user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }), 
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const authedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -43,14 +51,24 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await authedClient.auth.getUser();
     if (userError || !user) {
-      console.error("Auth error:", userError);
-      return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }), 
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const { code } = await req.json();
-    if (!code || !/^GHQ(10|15)$/.test(code)) {
-      return new Response("Invalid code format", { status: 400, headers: corsHeaders });
+    // Validate input
+    const body = await req.json();
+    const validation = redeemSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: "Invalid request" }), 
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    const { code } = validation.data;
 
     // Check eligibility from level_progress
     const { data: progress } = await authedClient
@@ -65,8 +83,10 @@ serve(async (req) => {
     const isEligible = code === "GHQ10" ? isEligibleFor10 : isEligibleFor15;
     
     if (!isEligible) {
-      console.log(`Eligibility check failed for code ${code}`);
-      return new Response("Not eligible for this discount", { status: 403, headers: corsHeaders });
+      return new Response(
+        JSON.stringify({ error: "Not eligible for this discount" }), 
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Issue grant using service role
@@ -84,18 +104,22 @@ serve(async (req) => {
     });
 
     if (insertError) {
-      console.error("Insert error:", insertError);
-      return new Response("Failed to create discount", { status: 500, headers: corsHeaders });
+      console.error("Grant creation failed:", insertError.code);
+      return new Response(
+        JSON.stringify({ error: "Unable to process request" }), 
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
-
-    console.log(`Successfully issued discount token`);
 
     return new Response(
       JSON.stringify({ token, percent }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error in redeem_discount:", error);
-    return new Response("Internal server error", { status: 500, headers: corsHeaders });
+    console.error("Service error:", error instanceof Error ? error.message : "Unknown error");
+    return new Response(
+      JSON.stringify({ error: "Service temporarily unavailable" }), 
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
