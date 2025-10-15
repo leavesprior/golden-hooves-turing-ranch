@@ -37,7 +37,7 @@ serve(async (req) => {
     }
 
     const { code } = await req.json();
-    if (!code || !/^GHQ(8|15)$/.test(code)) {
+    if (!code || !/^GHQ(10|15)$/.test(code)) {
       return new Response("Invalid code format", { status: 400, headers: corsHeaders });
     }
 
@@ -48,10 +48,10 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const isEligibleFor8 = progress?.level1_complete && progress?.golden_frog;
+    const isEligibleFor10 = progress?.level1_complete && progress?.golden_frog;
     const isEligibleFor15 = progress?.level2_complete === true;
 
-    const isEligible = code === "GHQ8" ? isEligibleFor8 : isEligibleFor15;
+    const isEligible = code === "GHQ10" ? isEligibleFor10 : isEligibleFor15;
     
     if (!isEligible) {
       console.log(`Eligibility check failed for code ${code}`);
@@ -62,7 +62,7 @@ serve(async (req) => {
     const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const token = generateToken();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 30).toISOString(); // 30 min
-    const percent = code === "GHQ8" ? 8 : 15;
+    const percent = code === "GHQ10" ? 10 : 15;
 
     const { error: insertError } = await serviceClient.from("discount_grants").insert({
       user_id: user.id,

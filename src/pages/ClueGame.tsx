@@ -2,12 +2,18 @@ import { ClueGameHero } from '@/components/ClueGameHero';
 import { ClueDialogueBox } from '@/components/ClueDialogueBox';
 import { Button } from '@/components/ui/button';
 import { useClueGame } from '@/hooks/useClueGame';
-import { ArrowLeft, Award } from 'lucide-react';
+import { ArrowLeft, Award, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import goldenFrog from '@/assets/golden-frog.png';
+import { getDiscountToken } from '@/runtime/discounts';
+import { toast } from 'sonner';
+import { useState } from 'react';
 
 const ClueGame = () => {
   const navigate = useNavigate();
+  const [discountCode, setDiscountCode] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  
   const {
     gameState,
     currentClue,
@@ -18,6 +24,24 @@ const ClueGame = () => {
     getHint,
     resetGame,
   } = useClueGame();
+
+  const handleGenerateDiscount = async () => {
+    setIsGenerating(true);
+    try {
+      const result = await getDiscountToken("GHQ10");
+      setDiscountCode(result.token);
+      toast.success(`${result.percent}% discount code generated!`, {
+        description: 'Use this code when booking your stay.'
+      });
+    } catch (error) {
+      console.error('Failed to generate discount:', error);
+      toast.error('Failed to generate discount code', {
+        description: 'Please try again or contact support.'
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   if (!currentClue || !currentLevel) {
     return (
@@ -35,14 +59,51 @@ const ClueGame = () => {
           <p className="text-foreground text-xs pixel-text max-w-md">
             Level 2 is now unlocked! Return to the ranch and press L to continue your investigation.
           </p>
-          <div className="bg-primary/10 border-2 border-primary p-4">
-            <p className="text-primary text-sm pixel-text">
-              ✅ LEVEL 2 UNLOCKED
-            </p>
-            <p className="text-foreground text-xs pixel-text mt-2">
-              Complete Level 2 to earn your booking discount!
-            </p>
+          
+          <div className="space-y-4 w-full max-w-md">
+            <div className="bg-primary/10 border-2 border-primary p-4">
+              <p className="text-primary text-sm pixel-text">
+                ✅ LEVEL 2 UNLOCKED
+              </p>
+              <p className="text-foreground text-xs pixel-text mt-2">
+                Complete Level 2 to earn an additional 5% discount!
+              </p>
+            </div>
+
+            <div className="bg-accent/20 border-2 border-accent p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Gift className="w-5 h-5 text-accent" />
+                <p className="text-accent text-sm pixel-text">
+                  🎁 10% DISCOUNT AVAILABLE
+                </p>
+              </div>
+              
+              {!discountCode ? (
+                <Button
+                  onClick={handleGenerateDiscount}
+                  disabled={isGenerating}
+                  className="w-full bg-accent hover:bg-accent/90 text-accent-foreground pixel-text text-xs py-6 border-2"
+                >
+                  {isGenerating ? 'GENERATING...' : 'GENERATE DISCOUNT CODE'}
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="bg-background border-2 border-accent p-3">
+                    <p className="text-muted-foreground text-[10px] pixel-text mb-1">
+                      YOUR DISCOUNT CODE:
+                    </p>
+                    <p className="text-accent text-sm pixel-text font-bold break-all">
+                      {discountCode}
+                    </p>
+                  </div>
+                  <p className="text-foreground text-[10px] pixel-text">
+                    Use this code when booking your stay at Back of Beyond Ranch. Valid for 30 minutes.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
+
           <Button
             onClick={() => navigate('/game')}
             className="bg-primary hover:bg-primary/90 text-primary-foreground pixel-text text-xs px-6 py-6 border-2"
