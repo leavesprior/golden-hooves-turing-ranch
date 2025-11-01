@@ -158,6 +158,91 @@ async def get_status_checks():
     status_checks = await db.status_checks.find().to_list(1000)
     return [StatusCheck(**status_check) for status_check in status_checks]
 
+# Authentication Endpoints
+@api_router.post("/auth/signup", response_model=AuthResponse)
+async def signup(request: SignupRequest):
+    """Register a new user"""
+    # Check if user already exists
+    existing_user = await db.users.find_one({"email": request.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create new user
+    user_id = str(uuid.uuid4())
+    hashed_password = hash_password(request.password)
+    
+    user_data = {
+        "user_id": user_id,
+        "email": request.email,
+        "password_hash": hashed_password,
+        "username": request.username or request.email.split('@')[0],
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    await db.users.insert_one(user_data)
+    
+    # Create JWT token
+    token = create_jwt_token(user_id, request.email)
+    
+    # Initialize game state for new user
+    initial_game_state = {
+        "user_id": user_id,
+        "karma": 0,
+        "clues": 0,
+        "activities": 0,
+        "level": 0,
+        "discount_percent": 0,
+        "created_at": datetime.utcnow()
+    }
+    await db.game_progress.insert_one(initial_game_state)
+    
+    return AuthResponse(
+        token=token,
+        user_id=user_id,
+        email=request.email,
+        username=user_data['username']
+    )
+
+@api_router.post("/auth/login", response_model=AuthResponse)
+async def login(request: LoginRequest):
+    """Login existing user"""
+    # Find user
+    user = await db.users.find_one({"email": request.email})
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Verify password
+    if not verify_password(request.password, user['password_hash']):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    # Create JWT token
+    token = create_jwt_token(user['user_id'], user['email'])
+    
+    return AuthResponse(
+        token=token,
+        user_id=user['user_id'],
+        email=user['email'],
+        username=user.get('username')
+    )
+
+@api_router.get("/auth/verify", response_model=UserProfile)
+async def verify_token(current_user: Dict[str, Any] = Depends(get_current_user)):
+    """Verify JWT token and return user profile"""
+    user = await db.users.find_one({"user_id": current_user['user_id']})
+    
+    return UserProfile(
+        user_id=user['user_id'],
+        email=user['email'],
+        username=user.get('username'),
+        created_at=user['created_at']
+    )
+
+@api_router.post("/auth/logout")
+async def logout():
+    """Logout user (client should delete token)"""
+    return {"message": "Logged out successfully"}
+
 # AI Hint Endpoint
 @api_router.post("/hint", response_model=HintResponse)
 async def get_ai_hint(request: HintRequest):
