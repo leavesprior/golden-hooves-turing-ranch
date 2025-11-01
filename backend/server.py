@@ -36,6 +36,32 @@ class StatusCheck(BaseModel):
 class StatusCheckCreate(BaseModel):
     client_name: str
 
+# AI Hint Models
+class HintRequest(BaseModel):
+    prompt: str
+    max_tokens: int = 100
+    user_id: Optional[str] = None
+
+class HintResponse(BaseModel):
+    text: str
+    character: str = "Leif Pryor"
+
+# Game State Models
+class GameState(BaseModel):
+    karma: int = 0
+    clues: int = 0
+    activities: int = 0
+    level: int = 0
+    discount_percent: int = 0
+
+class SaveStateRequest(BaseModel):
+    state: Dict[str, Any]
+
+# Discount Models
+class DiscountResponse(BaseModel):
+    code: str
+    discount: int
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
