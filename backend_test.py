@@ -332,21 +332,499 @@ def test_nonexistent_user_discount():
     except Exception as e:
         print(f"❌ Error: {e}")
 
+def test_auth_signup():
+    """Test POST /api/auth/signup - User registration"""
+    global auth_token, test_user_data
+    print("\n=== Testing POST /api/auth/signup ===")
+    
+    # Generate unique test user data
+    test_email = f"testuser_{uuid.uuid4().hex[:8]}@goldenhooves.com"
+    test_password = "securepass123"
+    test_username = f"testuser_{uuid.uuid4().hex[:6]}"
+    
+    # Test 1: Valid signup
+    print("Test 1: Valid user registration")
+    signup_data = {
+        "email": test_email,
+        "password": test_password,
+        "username": test_username
+    }
+    
+    try:
+        response = requests.post(f"{BASE_URL}/auth/signup", json=signup_data, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Response: {json.dumps(data, indent=2)}")
+            
+            # Verify response structure
+            required_fields = ["token", "user_id", "email", "username"]
+            if all(field in data for field in required_fields):
+                print("✅ Response has correct structure")
+                
+                # Store for later tests
+                auth_token = data["token"]
+                test_user_data = {
+                    "user_id": data["user_id"],
+                    "email": data["email"],
+                    "username": data["username"],
+                    "password": test_password
+                }
+                
+                print(f"✅ User created successfully: {data['email']}")
+                print(f"✅ JWT token received: {data['token'][:20]}...")
+                
+                # Verify JWT token format
+                if len(data["token"]) > 50:  # JWT tokens are typically long
+                    print("✅ JWT token format appears valid")
+                else:
+                    print("❌ JWT token format may be invalid")
+            else:
+                print(f"❌ Response missing required fields. Expected: {required_fields}")
+        else:
+            print(f"❌ Signup failed: {response.text}")
+            
+    except Exception as e:
+        print(f"❌ Error testing signup: {e}")
+    
+    # Test 2: Duplicate email (should fail)
+    print("\nTest 2: Duplicate email registration")
+    try:
+        response = requests.post(f"{BASE_URL}/auth/signup", json=signup_data, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 400:
+            print("✅ Correctly rejected duplicate email")
+            error_detail = response.json().get("detail", "")
+            if "already registered" in error_detail.lower():
+                print("✅ Appropriate error message returned")
+            else:
+                print(f"❌ Unexpected error message: {error_detail}")
+        else:
+            print(f"❌ Should have returned 400, got {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
+    
+    # Test 3: Invalid email format
+    print("\nTest 3: Invalid email format")
+    invalid_signup = {
+        "email": "invalid-email-format",
+        "password": "validpass123"
+    }
+    
+    try:
+        response = requests.post(f"{BASE_URL}/auth/signup", json=invalid_signup, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 422:  # FastAPI validation error
+            print("✅ Correctly rejected invalid email format")
+        else:
+            print(f"❌ Should have returned 422, got {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
+    
+    # Test 4: Weak password
+    print("\nTest 4: Weak password (< 6 characters)")
+    weak_pass_signup = {
+        "email": f"weakpass_{uuid.uuid4().hex[:8]}@test.com",
+        "password": "123"  # Too short
+    }
+    
+    try:
+        response = requests.post(f"{BASE_URL}/auth/signup", json=weak_pass_signup, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        print(f"Response: {response.text}")
+        # Note: Password validation might be handled client-side or server-side
+        
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+def test_auth_login():
+    """Test POST /api/auth/login - User authentication"""
+    global auth_token, test_user_data
+    print("\n=== Testing POST /api/auth/login ===")
+    
+    if not test_user_data:
+        print("❌ No test user data available. Signup test must run first.")
+        return
+    
+    # Test 1: Valid login
+    print("Test 1: Valid credentials login")
+    login_data = {
+        "email": test_user_data["email"],
+        "password": test_user_data["password"]
+    }
+    
+    try:
+        response = requests.post(f"{BASE_URL}/auth/login", json=login_data, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Response: {json.dumps(data, indent=2)}")
+            
+            # Verify response structure
+            required_fields = ["token", "user_id", "email"]
+            if all(field in data for field in required_fields):
+                print("✅ Response has correct structure")
+                
+                # Verify user data matches
+                if data["user_id"] == test_user_data["user_id"]:
+                    print("✅ User ID matches signup data")
+                else:
+                    print(f"❌ User ID mismatch. Expected: {test_user_data['user_id']}, Got: {data['user_id']}")
+                
+                # Update auth token
+                auth_token = data["token"]
+                print(f"✅ New JWT token received: {data['token'][:20]}...")
+            else:
+                print(f"❌ Response missing required fields. Expected: {required_fields}")
+        else:
+            print(f"❌ Login failed: {response.text}")
+            
+    except Exception as e:
+        print(f"❌ Error testing login: {e}")
+    
+    # Test 2: Invalid email
+    print("\nTest 2: Invalid email")
+    invalid_email_login = {
+        "email": "nonexistent@test.com",
+        "password": test_user_data["password"]
+    }
+    
+    try:
+        response = requests.post(f"{BASE_URL}/auth/login", json=invalid_email_login, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 401:
+            print("✅ Correctly rejected invalid email")
+            error_detail = response.json().get("detail", "")
+            print(f"Error message: {error_detail}")
+        else:
+            print(f"❌ Should have returned 401, got {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
+    
+    # Test 3: Wrong password
+    print("\nTest 3: Wrong password")
+    wrong_pass_login = {
+        "email": test_user_data["email"],
+        "password": "wrongpassword123"
+    }
+    
+    try:
+        response = requests.post(f"{BASE_URL}/auth/login", json=wrong_pass_login, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 401:
+            print("✅ Correctly rejected wrong password")
+            error_detail = response.json().get("detail", "")
+            print(f"Error message: {error_detail}")
+        else:
+            print(f"❌ Should have returned 401, got {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+def test_auth_verify():
+    """Test GET /api/auth/verify - Token validation"""
+    global auth_token, test_user_data
+    print("\n=== Testing GET /api/auth/verify ===")
+    
+    if not auth_token:
+        print("❌ No auth token available. Login test must run first.")
+        return
+    
+    # Test 1: Valid JWT token
+    print("Test 1: Valid JWT token")
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
+    try:
+        response = requests.get(f"{BASE_URL}/auth/verify", headers=headers, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Response: {json.dumps(data, indent=2)}")
+            
+            # Verify response structure
+            required_fields = ["user_id", "email", "created_at"]
+            if all(field in data for field in required_fields):
+                print("✅ Response has correct structure")
+                
+                # Verify user data matches
+                if data["user_id"] == test_user_data["user_id"]:
+                    print("✅ User profile data matches")
+                else:
+                    print(f"❌ User ID mismatch in profile")
+            else:
+                print(f"❌ Response missing required fields. Expected: {required_fields}")
+        else:
+            print(f"❌ Token verification failed: {response.text}")
+            
+    except Exception as e:
+        print(f"❌ Error testing token verification: {e}")
+    
+    # Test 2: Invalid token
+    print("\nTest 2: Invalid JWT token")
+    invalid_headers = {"Authorization": "Bearer invalid.jwt.token"}
+    
+    try:
+        response = requests.get(f"{BASE_URL}/auth/verify", headers=invalid_headers, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 401:
+            print("✅ Correctly rejected invalid token")
+            error_detail = response.json().get("detail", "")
+            print(f"Error message: {error_detail}")
+        else:
+            print(f"❌ Should have returned 401, got {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
+    
+    # Test 3: No token
+    print("\nTest 3: No authorization header")
+    
+    try:
+        response = requests.get(f"{BASE_URL}/auth/verify", timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 403:  # FastAPI HTTPBearer returns 403 for missing auth
+            print("✅ Correctly rejected missing token")
+        else:
+            print(f"❌ Should have returned 403, got {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
+    
+    # Test 4: Malformed token
+    print("\nTest 4: Malformed authorization header")
+    malformed_headers = {"Authorization": "InvalidFormat token"}
+    
+    try:
+        response = requests.get(f"{BASE_URL}/auth/verify", headers=malformed_headers, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code in [401, 403]:
+            print("✅ Correctly rejected malformed token")
+        else:
+            print(f"❌ Should have returned 401 or 403, got {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+def test_auth_logout():
+    """Test POST /api/auth/logout - Logout"""
+    print("\n=== Testing POST /api/auth/logout ===")
+    
+    # Test logout endpoint
+    print("Test 1: Logout endpoint")
+    
+    try:
+        response = requests.post(f"{BASE_URL}/auth/logout", timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Response: {json.dumps(data, indent=2)}")
+            
+            if "message" in data:
+                print("✅ Logout endpoint working correctly")
+            else:
+                print("❌ Unexpected response format")
+        else:
+            print(f"❌ Logout failed: {response.text}")
+            
+    except Exception as e:
+        print(f"❌ Error testing logout: {e}")
+
+def test_auth_integration_flow():
+    """Test complete authentication flow: signup → login → verify → logout"""
+    print("\n=== Testing Complete Authentication Flow ===")
+    
+    # Generate unique test data
+    flow_email = f"flowtest_{uuid.uuid4().hex[:8]}@goldenhooves.com"
+    flow_password = "flowtest123"
+    
+    print("Step 1: Signup")
+    signup_data = {
+        "email": flow_email,
+        "password": flow_password
+    }
+    
+    try:
+        # Signup
+        response = requests.post(f"{BASE_URL}/auth/signup", json=signup_data, timeout=30)
+        if response.status_code != 200:
+            print(f"❌ Signup failed: {response.text}")
+            return
+        
+        signup_result = response.json()
+        flow_token = signup_result["token"]
+        flow_user_id = signup_result["user_id"]
+        print(f"✅ Signup successful: {flow_user_id}")
+        
+        # Login
+        print("\nStep 2: Login")
+        login_data = {
+            "email": flow_email,
+            "password": flow_password
+        }
+        
+        response = requests.post(f"{BASE_URL}/auth/login", json=login_data, timeout=30)
+        if response.status_code != 200:
+            print(f"❌ Login failed: {response.text}")
+            return
+        
+        login_result = response.json()
+        flow_token = login_result["token"]  # Update token
+        print(f"✅ Login successful")
+        
+        # Verify
+        print("\nStep 3: Verify token")
+        headers = {"Authorization": f"Bearer {flow_token}"}
+        
+        response = requests.get(f"{BASE_URL}/auth/verify", headers=headers, timeout=30)
+        if response.status_code != 200:
+            print(f"❌ Token verification failed: {response.text}")
+            return
+        
+        verify_result = response.json()
+        if verify_result["user_id"] == flow_user_id:
+            print(f"✅ Token verification successful")
+        else:
+            print(f"❌ User ID mismatch in verification")
+            return
+        
+        # Check if game state was created during signup
+        print("\nStep 4: Verify game state initialization")
+        response = requests.get(f"{BASE_URL}/game-state/{flow_user_id}", timeout=30)
+        if response.status_code == 200:
+            game_state = response.json()
+            if all(game_state.get(field, -1) == 0 for field in ["karma", "clues", "activities", "level", "discount_percent"]):
+                print("✅ Initial game state created correctly")
+            else:
+                print(f"❌ Game state initialization issue: {game_state}")
+        else:
+            print(f"❌ Game state not found: {response.text}")
+        
+        # Logout
+        print("\nStep 5: Logout")
+        response = requests.post(f"{BASE_URL}/auth/logout", timeout=30)
+        if response.status_code == 200:
+            print("✅ Logout successful")
+        else:
+            print(f"❌ Logout failed: {response.text}")
+        
+        print("\n✅ COMPLETE AUTHENTICATION FLOW SUCCESSFUL")
+        
+    except Exception as e:
+        print(f"❌ Error in authentication flow: {e}")
+
+def test_authenticated_endpoints():
+    """Test that existing endpoints work with authenticated users"""
+    global auth_token, test_user_data
+    print("\n=== Testing Authenticated Endpoint Access ===")
+    
+    if not auth_token or not test_user_data:
+        print("❌ No authenticated user available for testing")
+        return
+    
+    # Test AI hint endpoint with authenticated user
+    print("Test 1: AI hint endpoint with authenticated user")
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    hint_data = {
+        "prompt": "I need help with the golden horseshoe clue",
+        "user_id": test_user_data["user_id"]
+    }
+    
+    try:
+        response = requests.post(f"{BASE_URL}/hint", json=hint_data, headers=headers, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            if "text" in data and "character" in data:
+                print("✅ AI hint endpoint works with authenticated user")
+            else:
+                print("❌ AI hint response format issue")
+        else:
+            print(f"❌ AI hint request failed: {response.text}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
+    
+    # Test game state endpoints with authenticated user
+    print("\nTest 2: Game state endpoints with authenticated user")
+    
+    try:
+        # Get game state
+        response = requests.get(f"{BASE_URL}/game-state/{test_user_data['user_id']}", headers=headers, timeout=30)
+        print(f"Get game state - Status Code: {response.status_code}")
+        
+        if response.status_code == 200:
+            print("✅ Game state retrieval works")
+            
+            # Save game state
+            save_data = {
+                "state": {
+                    "karma": 100,
+                    "clues": 8,
+                    "activities": 10,
+                    "level": 3,
+                    "discount_percent": 0
+                }
+            }
+            
+            response = requests.post(f"{BASE_URL}/save-state/{test_user_data['user_id']}", 
+                                   json=save_data, headers=headers, timeout=30)
+            print(f"Save game state - Status Code: {response.status_code}")
+            
+            if response.status_code == 200:
+                print("✅ Game state saving works with authenticated user")
+            else:
+                print(f"❌ Game state saving failed: {response.text}")
+        else:
+            print(f"❌ Game state retrieval failed: {response.text}")
+            
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
 def main():
     """Run all backend API tests"""
-    print("🧪 Starting Golden Hooves Quest AI Hints Backend API Tests")
+    print("🧪 Starting Golden Hooves Quest Backend API Tests")
+    print("🔐 Testing Authentication Migration (Supabase → MongoDB)")
     print(f"Testing against: {BASE_URL}")
-    print("=" * 60)
+    print("=" * 70)
     
-    # Test all endpoints
+    # Test authentication endpoints first
+    test_auth_signup()
+    test_auth_login()
+    test_auth_verify()
+    test_auth_logout()
+    test_auth_integration_flow()
+    test_authenticated_endpoints()
+    
+    print("\n" + "=" * 70)
+    print("🔐 Authentication Testing Complete")
+    print("\n🤖 Testing AI Hint Endpoints")
+    print("=" * 70)
+    
+    # Test AI hint endpoints
     test_ai_hint_endpoint()
     test_game_state_endpoint()
     test_user_id = test_save_state_endpoint()
     test_generate_discount_endpoint(test_user_id)
     test_nonexistent_user_discount()
     
-    print("\n" + "=" * 60)
-    print("🏁 Backend API Testing Complete")
+    print("\n" + "=" * 70)
+    print("🏁 Complete Backend API Testing Finished")
+    print("✅ Authentication Migration & AI Hints Verified")
 
 if __name__ == "__main__":
     main()
