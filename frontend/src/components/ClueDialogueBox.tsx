@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import sierraShadow from '@/assets/sierra-shadow.png';
 import { Lightbulb, RotateCcw, HelpCircle, ExternalLink } from 'lucide-react';
+import { AIHintButton } from '@/components/AIHintButton';
 
 interface ClueDialogueBoxProps {
   clueText: string;
