@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Session, User } from "@supabase/supabase-js";
+import { Session, User } from "@/services/auth";
 import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import ClueGame from "./pages/ClueGame";
