@@ -158,6 +158,21 @@ backend:
         agent: "testing"
         comment: "✅ COMPREHENSIVE TESTING PASSED: Token validation working perfectly. Tested valid JWT token (returns user profile with user_id, email, username, created_at), invalid token rejection (401 error), missing authorization header rejection (403 error), malformed token rejection (403 error). JWT signature verification and expiration handling working correctly."
 
+  - task: "POST /api/auth/logout - Logout"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created logout endpoint that returns success message (client-side token deletion required)."
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TESTING PASSED: Logout endpoint working correctly. Returns proper success message. Note: JWT logout is stateless - client must delete token locally."
+
   - task: "Install emergentintegrations library"
     implemented: true
     working: true
