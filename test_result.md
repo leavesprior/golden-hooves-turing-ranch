@@ -257,12 +257,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "POST /api/hint - AI-powered hints endpoint"
-    - "GET /api/game-state/{user_id} - Get user progress"
-    - "POST /api/save-state/{user_id} - Save user progress"
-    - "POST /api/generate-discount/{user_id} - Generate discount codes"
-    - "AIHintButton component functionality"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
