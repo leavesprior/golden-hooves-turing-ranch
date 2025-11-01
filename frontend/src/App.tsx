@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import ClueGame from "./pages/ClueGame";
 import PhaserIndex from "./pages/PhaserIndex";
-import Auth from "./pages/Auth";
+import Auth from "./pages/AuthNew";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
