@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for Golden Hooves Quest AI Hints
-Tests the 4 new endpoints: hint, game-state, save-state, generate-discount
+Backend API Testing for Golden Hooves Quest - Authentication Migration & AI Hints
+Tests authentication endpoints (signup, login, verify, logout) and AI hint endpoints
 """
 
 import requests
 import json
 import uuid
 from datetime import datetime
+import time
 
 # Backend URL from frontend .env
 BASE_URL = "https://ranch-adventure.preview.emergentagent.com/api"
+
+# Global variables to store auth tokens for testing
+auth_token = None
+test_user_data = None
 
 def test_ai_hint_endpoint():
     """Test POST /api/hint - AI-powered hints from Leif Pryor"""
