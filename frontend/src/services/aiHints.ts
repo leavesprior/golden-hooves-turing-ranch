@@ -3,6 +3,8 @@
  * Handles communication with the AI hint generation endpoint
  */
 
+import { auth } from './auth';
+
 const BACKEND_URL = import.meta.env.VITE_REACT_APP_BACKEND_URL || process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 
 export interface HintRequest {
