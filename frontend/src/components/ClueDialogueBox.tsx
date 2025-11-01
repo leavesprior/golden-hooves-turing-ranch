@@ -132,11 +132,11 @@ export const ClueDialogueBox = ({
               className="pixel-text text-xs border-2 bg-background/90"
             />
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button
                 type="submit"
                 disabled={isTyping || !userInput.trim()}
-                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground pixel-text text-xs py-5 border-2"
+                className="flex-1 min-w-[120px] bg-primary hover:bg-primary/90 text-primary-foreground pixel-text text-xs py-5 border-2"
               >
                 SUBMIT ANSWER
               </Button>
@@ -161,6 +161,13 @@ export const ClueDialogueBox = ({
               >
                 <RotateCcw className="w-3 h-3" />
               </Button>
+            </div>
+            
+            <div className="pt-2">
+              <AIHintButton 
+                clueText={clueText} 
+                disabled={isTyping}
+              />
             </div>
           </form>
         </div>
