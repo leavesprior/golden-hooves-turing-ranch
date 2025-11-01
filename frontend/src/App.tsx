@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import ClueGame from "./pages/ClueGame";
 import PhaserIndex from "./pages/PhaserIndex";
 import Auth from "./pages/AuthNew";
+import MapExplorer from "./pages/MapExplorer";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
