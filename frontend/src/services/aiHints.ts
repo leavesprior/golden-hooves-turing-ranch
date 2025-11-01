@@ -40,6 +40,7 @@ export async function getAIHint(prompt: string, userId?: string): Promise<HintRe
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...auth.getAuthHeader(),
       },
       body: JSON.stringify({
         prompt,
