@@ -73,6 +73,91 @@ class DiscountResponse(BaseModel):
     code: str
     discount: int
 
+# Map and Location Models
+class Location(BaseModel):
+    id: str
+    name: str
+    coordinates: List[int]  # [x, y] position on map
+    icon: str
+    unlocked: bool
+    description: str
+    npc_name: Optional[str] = None
+    interactions: List[str] = []  # Available actions: 'enter', 'talk', 'search'
+
+class MapOverview(BaseModel):
+    locations: List[Location]
+    karma_coins: int
+    visited_locations: List[str]
+    fog_of_war: List[str]  # List of hidden location IDs
+
+class InteractionReward(BaseModel):
+    karma_coins: int = 0
+    items: List[str] = []
+    experience: int = 0
+
+class InteractionResponse(BaseModel):
+    dialogue: str
+    rewards: InteractionReward
+    quest_update: Optional[Dict[str, Any]] = None
+    location_unlocked: Optional[str] = None
+
+class RedeemKarmaRequest(BaseModel):
+    coins_to_redeem: int
+
+# Location Data (Shining Force II inspired)
+RANCH_LOCATIONS = [
+    {
+        "id": "barn",
+        "name": "Old Barn",
+        "coordinates": [300, 200],
+        "icon": "🏚️",
+        "description": "A weathered barn that holds secrets of the Golden Hooves mystery",
+        "npc_name": "Old Ranch Hand",
+        "interactions": ["enter", "talk", "search"],
+        "base_unlocked": True
+    },
+    {
+        "id": "stable",
+        "name": "Horse Stable",
+        "coordinates": [500, 250],
+        "icon": "🐴",
+        "description": "Home to Jumanji the stubborn donkey and other ranch animals",
+        "npc_name": "Stable Keeper",
+        "interactions": ["enter", "talk", "search"],
+        "base_unlocked": True
+    },
+    {
+        "id": "farmhouse",
+        "name": "Farmhouse",
+        "coordinates": [400, 100],
+        "icon": "🏡",
+        "description": "Leif Pryor's headquarters for ranch management",
+        "npc_name": "Leif Pryor",
+        "interactions": ["enter", "talk"],
+        "base_unlocked": True
+    },
+    {
+        "id": "pasture",
+        "name": "Open Pasture",
+        "coordinates": [200, 350],
+        "icon": "🌾",
+        "description": "Rolling fields where animals graze under the Sierra Nevada sky",
+        "npc_name": "Wandering Prospector",
+        "interactions": ["talk", "search"],
+        "base_unlocked": True
+    },
+    {
+        "id": "secret_grove",
+        "name": "Hidden Grove",
+        "coordinates": [600, 350],
+        "icon": "🌲",
+        "description": "A mysterious grove that appears after solving clues...",
+        "npc_name": "Ancient Spirit",
+        "interactions": ["enter", "talk", "search"],
+        "base_unlocked": False  # Unlocked after 3 clues
+    }
+]
+
 # Authentication Models
 class SignupRequest(BaseModel):
     email: EmailStr
