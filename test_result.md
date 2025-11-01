@@ -113,6 +113,42 @@ user_problem_statement: |
   - All auth operations now use MongoDB
 
 backend:
+  - task: "POST /api/auth/signup - User registration"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created JWT-based signup endpoint with bcrypt password hashing. Creates user in MongoDB users collection and initializes game state."
+
+  - task: "POST /api/auth/login - User authentication"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created login endpoint with password verification and JWT token generation."
+
+  - task: "GET /api/auth/verify - Token validation"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created endpoint to verify JWT tokens and return user profile."
+
   - task: "Install emergentintegrations library"
     implemented: true
     working: true
