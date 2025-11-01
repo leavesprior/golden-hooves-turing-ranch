@@ -69,7 +69,9 @@ export async function getAIHint(prompt: string, userId?: string): Promise<HintRe
  */
 export async function getGameState(userId: string): Promise<GameStateResponse> {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/game-state/${userId}`);
+    const response = await fetch(`${BACKEND_URL}/api/game-state/${userId}`, {
+      headers: auth.getAuthHeader(),
+    });
     
     if (!response.ok) {
       throw new Error(`Failed to get game state: ${response.statusText}`);
@@ -97,6 +99,7 @@ export async function saveGameState(userId: string, state: Record<string, any>):
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...auth.getAuthHeader(),
       },
       body: JSON.stringify({ state }),
     });
@@ -119,6 +122,7 @@ export async function generateDiscount(userId: string): Promise<DiscountResponse
   try {
     const response = await fetch(`${BACKEND_URL}/api/generate-discount/${userId}`, {
       method: 'POST',
+      headers: auth.getAuthHeader(),
     });
 
     if (!response.ok) {
