@@ -1,0 +1,191 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Location, InteractionResponse } from '@/services/mapService';
+import { Sparkles, Search, MessageCircle, DoorOpen, Coins, Gift } from 'lucide-react';
+import { toast } from 'sonner';
+
+interface LocationInteractionDialogProps {
+  location: Location | null;
+  open: boolean;
+  onClose: () => void;
+  onInteract: (action: string) => Promise<InteractionResponse | null>;
+}
+
+export const LocationInteractionDialog = ({
+  location,
+  open,
+  onClose,
+  onInteract,
+}: LocationInteractionDialogProps) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentResponse, setCurrentResponse] = useState<InteractionResponse | null>(null);
+  const [showActions, setShowActions] = useState(true);
+
+  if (!location) return null;
+
+  const handleInteraction = async (action: string) => {
+    setIsLoading(true);
+    setShowActions(false);
+    
+    try {
+      const response = await onInteract(action);
+      
+      if (response) {
+        setCurrentResponse(response);
+        
+        // Show rewards toast
+        if (response.rewards.karma_coins > 0) {
+          toast.success(`+${response.rewards.karma_coins} Karma Coins!`, {
+            description: response.rewards.items.length > 0 
+              ? `Found: ${response.rewards.items.join(', ')}`
+              : undefined,
+          });
+        }
+
+        // Show location unlock toast
+        if (response.location_unlocked) {
+          toast.success('New Location Unlocked!', {
+            description: 'Check the map for a newly revealed area!',
+          });
+        }
+      } else {
+        toast.error('Interaction failed', {
+          description: 'Please try again',
+        });
+        setShowActions(true);
+      }
+    } catch (error) {
+      console.error('Interaction error:', error);
+      toast.error('Something went wrong');
+      setShowActions(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setCurrentResponse(null);
+    setShowActions(true);
+    onClose();
+  };
+
+  const actionIcons: Record<string, any> = {
+    enter: DoorOpen,
+    talk: MessageCircle,
+    search: Search,
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="pixel-text bg-card border-4 border-primary max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-primary text-lg pixel-text flex items-center gap-2">
+            <span className="text-2xl">{location.icon}</span>
+            {location.name}
+          </DialogTitle>
+          <DialogDescription className="text-foreground text-xs pixel-text pt-2">
+            {location.description}
+            {location.npc_name && (
+              <span className="block mt-2 text-accent">
+                NPC: {location.npc_name}
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-4">
+          {/* Show interaction response */}
+          {currentResponse && (
+            <div className="bg-background/80 border-2 border-muted p-4 space-y-3">
+              <p className="text-foreground text-xs pixel-text leading-relaxed whitespace-pre-line">
+                {currentResponse.dialogue}
+              </p>
+
+              {/* Rewards Display */}
+              {currentResponse.rewards.karma_coins > 0 && (
+                <div className="flex items-center gap-2 bg-primary/10 p-2 border border-primary">
+                  <Coins className="w-4 h-4 text-primary" />
+                  <p className="text-primary text-xs pixel-text">
+                    +{currentResponse.rewards.karma_coins} KARMA COINS
+                  </p>
+                </div>
+              )}
+
+              {currentResponse.rewards.items.length > 0 && (
+                <div className="flex items-center gap-2 bg-accent/10 p-2 border border-accent">
+                  <Gift className="w-4 h-4 text-accent" />
+                  <p className="text-accent text-xs pixel-text">
+                    Found: {currentResponse.rewards.items.join(', ')}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          {showActions && !currentResponse && (
+            <div className="space-y-2">
+              <p className="text-primary text-xs pixel-text">CHOOSE ACTION:</p>
+              <div className="grid grid-cols-1 gap-2">
+                {location.interactions.map((action) => {
+                  const Icon = actionIcons[action] || Sparkles;
+                  const actionLabels: Record<string, string> = {
+                    enter: 'ENTER LOCATION',
+                    talk: `TALK TO ${location.npc_name?.toUpperCase()}`,
+                    search: 'SEARCH AREA',
+                  };
+
+                  return (
+                    <Button
+                      key={action}
+                      onClick={() => handleInteraction(action)}
+                      disabled={isLoading}
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground pixel-text text-xs py-6 border-2 flex items-center justify-center gap-2"
+                    >
+                      <Icon className="w-4 h-4" />
+                      {actionLabels[action] || action.toUpperCase()}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Continue/Close button after interaction */}
+          {currentResponse && (
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setCurrentResponse(null);
+                  setShowActions(true);
+                }}
+                variant="outline"
+                className="flex-1 pixel-text text-xs border-2"
+              >
+                TRY ANOTHER ACTION
+              </Button>
+              <Button
+                onClick={handleClose}
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground pixel-text text-xs border-2"
+              >
+                RETURN TO MAP
+              </Button>
+            </div>
+          )}
+
+          {/* Initial close button */}
+          {showActions && !currentResponse && (
+            <Button
+              onClick={handleClose}
+              variant="ghost"
+              className="w-full pixel-text text-xs border-2"
+            >
+              BACK TO MAP
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
