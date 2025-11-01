@@ -64,7 +64,7 @@ const Index = () => {
                 />
                 <div className="mt-4">
                   <Button
-                    onClick={() => navigate('/phaser')}
+                    onClick={() => navigate('/map')}
                     className="w-full bg-accent hover:bg-accent/90 text-accent-foreground pixel-text text-sm px-6 py-6 border-2 transition-all hover:translate-y-[-2px]"
                   >
                     🗺️ EXPLORE RANCH MAP
