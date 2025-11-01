@@ -101,3 +101,176 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Implement AI-powered hints using OpenAI GPT-4o with Emergent LLM Key for the Golden Hooves Quest game.
+  Add backend endpoints for hints, game state, and discount generation. 
+  Integrate frontend with AI hint button in Clue Game.
+
+backend:
+  - task: "Install emergentintegrations library"
+    implemented: true
+    working: true
+    file: "backend/requirements.txt"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Installed emergentintegrations via pip with custom index URL"
+
+  - task: "Add EMERGENT_LLM_KEY to backend .env"
+    implemented: true
+    working: true
+    file: "backend/.env"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added Emergent LLM key to environment variables"
+
+  - task: "POST /api/hint - AI-powered hints endpoint"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented AI hint endpoint using LlmChat with GPT-4o model. Leif Pryor character personality integrated."
+
+  - task: "GET /api/game-state/{user_id} - Get user progress"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented game state retrieval from MongoDB"
+
+  - task: "POST /api/save-state/{user_id} - Save user progress"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented game state saving with upsert to MongoDB"
+
+  - task: "POST /api/generate-discount/{user_id} - Generate discount codes"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented discount generation based on clues solved (6+ clues required, 7-27% discount range)"
+
+frontend:
+  - task: "Create AI hints service (aiHints.ts)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/services/aiHints.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created service with functions for getAIHint, getGameState, saveGameState, generateDiscount"
+
+  - task: "Create AIHintButton component"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/AIHintButton.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created reusable AI hint button with loading states and dialog display"
+
+  - task: "Integrate AI hint button into ClueDialogueBox"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/ClueDialogueBox.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added AIHintButton below the answer submission form"
+
+  - task: "Add VITE_REACT_APP_BACKEND_URL to frontend .env"
+    implemented: true
+    working: true
+    file: "frontend/.env"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added Vite-compatible backend URL environment variable"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "POST /api/hint - AI-powered hints endpoint"
+    - "GET /api/game-state/{user_id} - Get user progress"
+    - "POST /api/save-state/{user_id} - Save user progress"
+    - "POST /api/generate-discount/{user_id} - Generate discount codes"
+    - "AIHintButton component functionality"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      BACKEND IMPLEMENTATION COMPLETE:
+      - Installed emergentintegrations library
+      - Added Emergent LLM Key (sk-emergent-61b70F5B3Ba5903838) to backend/.env
+      - Created 4 new API endpoints:
+        1. POST /api/hint - Returns AI-generated hints from Leif Pryor character using GPT-4o
+        2. GET /api/game-state/{user_id} - Retrieves user's game progress from MongoDB
+        3. POST /api/save-state/{user_id} - Saves user's game state to MongoDB
+        4. POST /api/generate-discount/{user_id} - Generates discount codes (requires 6+ clues, gives 7-27% discount)
+      
+      FRONTEND IMPLEMENTATION COMPLETE:
+      - Created services/aiHints.ts with API client functions
+      - Created AIHintButton component with dialog display
+      - Integrated AI hint button into ClueDialogueBox component
+      - Added VITE_REACT_APP_BACKEND_URL to frontend/.env
+      
+      TESTING REQUIREMENTS:
+      1. Test all 4 backend endpoints with various scenarios
+      2. Test AI hint generation with different clue prompts
+      3. Verify game state save/load functionality
+      4. Test discount generation (should fail with <6 clues, succeed with 6+)
+      5. Test frontend AI hint button click flow
+      6. Verify Leif Pryor's personality in AI responses
+      
+      Backend running on port 8001, frontend on port 3000.
+      Both services restarted and operational.
