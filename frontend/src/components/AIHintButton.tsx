@@ -17,11 +17,11 @@ interface AIHintButtonProps {
   disabled?: boolean;
 }
 
-export const AIHintButton: React.FC<AIHintButtonProps> = ({ 
+export const AIHintButton = ({ 
   clueText, 
   userId,
   disabled = false 
-}) => {
+}: AIHintButtonProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [hintText, setHintText] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
