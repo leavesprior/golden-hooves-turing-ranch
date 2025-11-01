@@ -73,6 +73,74 @@ class DiscountResponse(BaseModel):
     code: str
     discount: int
 
+# Authentication Models
+class SignupRequest(BaseModel):
+    email: EmailStr
+    password: str
+    username: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class AuthResponse(BaseModel):
+    token: str
+    user_id: str
+    email: str
+    username: Optional[str] = None
+
+class UserProfile(BaseModel):
+    user_id: str
+    email: str
+    username: Optional[str] = None
+    created_at: datetime
+
+# Auth Helper Functions
+def hash_password(password: str) -> str:
+    """Hash password using bcrypt"""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify password against hash"""
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def create_jwt_token(user_id: str, email: str) -> str:
+    """Create JWT token for user"""
+    payload = {
+        'user_id': user_id,
+        'email': email,
+        'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
+        'iat': datetime.utcnow()
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def decode_jwt_token(token: str) -> Dict[str, Any]:
+    """Decode and validate JWT token"""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+    """Dependency to get current authenticated user"""
+    token = credentials.credentials
+    payload = decode_jwt_token(token)
+    
+    # Verify user exists in database
+    user = await db.users.find_one({"user_id": payload['user_id']})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    return {
+        'user_id': user['user_id'],
+        'email': user['email'],
+        'username': user.get('username')
+    }
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
