@@ -57,6 +57,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/clue-game" element={<ClueGame />} />
+            <Route path="/map" element={<MapExplorer />} />
             <Route path="/phaser" element={<PhaserIndex />} />
             <Route path="/game" element={<Navigate to="/phaser" replace />} />
             <Route path="/auth" element={<Auth />} />
