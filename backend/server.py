@@ -447,6 +447,224 @@ async def generate_discount(user_id: str):
     
     return DiscountResponse(code=code, discount=discount)
 
+# Map Interaction Endpoints
+@api_router.get("/map-overview/{user_id}", response_model=MapOverview)
+async def get_map_overview(user_id: str):
+    """Get full map state for user"""
+    # Get user's game state
+    state = await db.game_progress.find_one({"user_id": user_id})
+    
+    if not state:
+        # Initialize default state
+        state = {
+            "visited_locations": [],
+            "karma_coins": 0,
+            "clues": 0
+        }
+    
+    visited = state.get("visited_locations", [])
+    karma_coins = state.get("karma_coins", 0)
+    clues_solved = state.get("clues", 0)
+    
+    # Build locations with unlock status
+    locations = []
+    fog_of_war = []
+    
+    for loc_data in RANCH_LOCATIONS:
+        # Check if location should be unlocked
+        unlocked = loc_data["base_unlocked"]
+        if not unlocked and clues_solved >= 3:  # Secret grove unlocks at 3 clues
+            unlocked = True
+        
+        if not unlocked:
+            fog_of_war.append(loc_data["id"])
+        
+        locations.append(Location(
+            id=loc_data["id"],
+            name=loc_data["name"],
+            coordinates=loc_data["coordinates"],
+            icon=loc_data["icon"],
+            unlocked=unlocked,
+            description=loc_data["description"],
+            npc_name=loc_data.get("npc_name"),
+            interactions=loc_data["interactions"]
+        ))
+    
+    return MapOverview(
+        locations=locations,
+        karma_coins=karma_coins,
+        visited_locations=visited,
+        fog_of_war=fog_of_war
+    )
+
+@api_router.post("/map-interact/{user_id}/{location_id}/{action}", response_model=InteractionResponse)
+async def map_interaction(user_id: str, location_id: str, action: str):
+    """Handle map location interactions"""
+    # Validate location exists
+    location = next((loc for loc in RANCH_LOCATIONS if loc["id"] == location_id), None)
+    if not location:
+        raise HTTPException(status_code=404, detail="Location not found")
+    
+    # Validate action
+    if action not in location["interactions"]:
+        raise HTTPException(status_code=400, detail=f"Action '{action}' not available for this location")
+    
+    # Get user's current state
+    state = await db.game_progress.find_one({"user_id": user_id})
+    if not state:
+        raise HTTPException(status_code=404, detail="User game state not found")
+    
+    visited = state.get("visited_locations", [])
+    karma_coins = state.get("karma_coins", 0)
+    
+    # Determine if first visit
+    is_first_visit = location_id not in visited
+    
+    # Generate interaction response based on location and action
+    dialogue = ""
+    rewards = InteractionReward()
+    location_unlocked = None
+    
+    # Static dialogues (cost-efficient - no AI)
+    dialogues = {
+        "barn": {
+            "enter": "You step into the old barn. Dust motes dance in shafts of sunlight. Something glitters in the corner...",
+            "talk": f"{location['npc_name']}: 'Been workin' this ranch for 40 years. Seen some strange things, especially around that golden frog statue...'",
+            "search": "You search through hay bales and find an old ranch journal with cryptic notes!"
+        },
+        "stable": {
+            "enter": "Jumanji the donkey eyes you suspiciously. The stable smells of hay and leather.",
+            "talk": f"{location['npc_name']}: 'Jumanji's been acting strange lately. Keeps braying at the old oak tree by the creek.'",
+            "search": "Behind a feed bucket, you discover a tarnished horseshoe with mysterious engravings."
+        },
+        "farmhouse": {
+            "enter": "Leif Pryor's office is filled with maps and ranch records. A portrait of a golden frog hangs on the wall.",
+            "talk": f"{location['npc_name']}: 'Welcome! Need any hints about the mystery? I've been tracking these clues for years.'"
+        },
+        "pasture": {
+            "talk": f"{location['npc_name']}: 'I prospected these hills during the Gold Rush. Found more than gold... found legends.'",
+            "search": "You spot an unusual rock formation that resembles a frog. A hidden compartment contains a golden coin!"
+        },
+        "secret_grove": {
+            "enter": "Ancient trees surround you. The air tingles with magic. A stone altar bears frog carvings.",
+            "talk": f"{location['npc_name']}: 'You have proven worthy by solving the clues. The Golden Hooves secret awaits...'",
+            "search": "Beneath moss-covered stones, you find the legendary Golden Frog Medallion!"
+        }
+    }
+    
+    # Get dialogue for this interaction
+    location_dialogues = dialogues.get(location_id, {})
+    dialogue = location_dialogues.get(action, "You interact with the location.")
+    
+    # Reward karma coins
+    base_reward = 10 if is_first_visit else 5
+    
+    # Random treasure event (20% chance)
+    import random
+    if random.random() < 0.2:
+        treasure_bonus = random.randint(5, 15)
+        rewards.karma_coins = base_reward + treasure_bonus
+        dialogue += f"\n\n✨ You found hidden treasure! +{treasure_bonus} bonus karma coins!"
+    else:
+        rewards.karma_coins = base_reward
+    
+    # Special rewards for searching
+    if action == "search":
+        rewards.items.append(f"{location['name']} Artifact")
+        rewards.experience = 20
+    
+    # Update user state
+    new_karma = karma_coins + rewards.karma_coins
+    if location_id not in visited:
+        visited.append(location_id)
+    
+    # Check for secret grove unlock
+    clues_solved = state.get("clues", 0)
+    if clues_solved >= 3 and "secret_grove" not in visited:
+        location_unlocked = "secret_grove"
+        dialogue += "\n\n🌟 A hidden path has revealed itself! The Secret Grove is now accessible!"
+    
+    # Update MongoDB
+    await db.game_progress.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "visited_locations": visited,
+                "karma_coins": new_karma,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    # Auto-trigger discount at 50 coins
+    if new_karma >= 50 and karma_coins < 50:
+        dialogue += "\n\n🎁 You've earned 50 karma coins! A special discount is now available!"
+    
+    return InteractionResponse(
+        dialogue=dialogue,
+        rewards=rewards,
+        location_unlocked=location_unlocked
+    )
+
+@api_router.post("/redeem-karma/{user_id}", response_model=DiscountResponse)
+async def redeem_karma_coins(user_id: str, request: RedeemKarmaRequest):
+    """Redeem karma coins for discount codes"""
+    state = await db.game_progress.find_one({"user_id": user_id})
+    
+    if not state:
+        raise HTTPException(status_code=404, detail="Game progress not found")
+    
+    karma_coins = state.get("karma_coins", 0)
+    
+    # Check if user has enough coins (50 minimum for 7% discount)
+    if karma_coins < 50:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient karma coins. Need 50, have {karma_coins}"
+        )
+    
+    # Calculate discount based on coins (7% base at 50, up to 27% at 200+)
+    if karma_coins >= 200:
+        discount = 27
+    elif karma_coins >= 150:
+        discount = 22
+    elif karma_coins >= 100:
+        discount = 17
+    elif karma_coins >= 75:
+        discount = 12
+    else:  # 50-74
+        discount = 7
+    
+    # Check for existing unused discount
+    existing_code = await db.discount_codes.find_one({
+        "user_id": user_id,
+        "used": False
+    })
+    
+    if existing_code:
+        return DiscountResponse(
+            code=existing_code["code"],
+            discount=existing_code["percent"]
+        )
+    
+    # Generate new code
+    code = f"KARMA{os.urandom(4).hex().upper()}"
+    
+    # Save discount code
+    discount_data = {
+        "user_id": user_id,
+        "code": code,
+        "percent": discount,
+        "used": False,
+        "created_at": datetime.utcnow(),
+        "karma_coins_used": karma_coins,
+        "source": "karma_redemption"
+    }
+    
+    await db.discount_codes.insert_one(discount_data)
+    
+    return DiscountResponse(code=code, discount=discount)
+
 # Include the router in the main app
 app.include_router(api_router)
 
