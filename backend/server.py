@@ -102,7 +102,7 @@ class InteractionResponse(BaseModel):
     rewards: InteractionReward
     quest_update: Optional[Dict[str, Any]] = None
     location_unlocked: Optional[str] = None
-    shop_menu: Optional["ShopMenu"] = None
+    shop_menu: Optional[ShopMenu] = None
 
 class RedeemKarmaRequest(BaseModel):
     coins_to_redeem: int
