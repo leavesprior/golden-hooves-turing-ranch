@@ -71,6 +71,20 @@ const MapExplorer = () => {
     return response;
   };
 
+  const handlePurchase = async (itemId: string) => {
+    if (!userId || !selectedLocation) return false;
+
+    const success = await purchaseShopItem(userId, selectedLocation.id, itemId);
+    
+    if (success) {
+      // Refresh map data to show updated karma coins
+      const updatedMap = await getMapOverview(userId);
+      setMapData(updatedMap);
+    }
+
+    return success;
+  };
+
   const handleRedeemKarma = async () => {
     if (!userId || !mapData) return;
 
