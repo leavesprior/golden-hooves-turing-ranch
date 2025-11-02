@@ -404,8 +404,10 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
-  stuck_tasks: []
+  current_focus:
+    - "Phase 1 Interactive Ranch Map + Hybrid Shop System"
+  stuck_tasks:
+    - "Phase 1 Interactive Ranch Map + Hybrid Shop System"
   test_all: false
   test_priority: "high_first"
 
