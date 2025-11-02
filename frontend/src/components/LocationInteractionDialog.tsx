@@ -79,6 +79,7 @@ export const LocationInteractionDialog = ({
     enter: DoorOpen,
     talk: MessageCircle,
     search: Search,
+    browse_goods: ShoppingBag,
   };
 
   return (
