@@ -131,6 +131,73 @@ class PurchaseResponse(BaseModel):
     item: Optional[ShopItem] = None
     new_karma_balance: int
 
+# RPG Progression Models
+class Trait(BaseModel):
+    id: str
+    name: str
+    description: str
+    effect: str
+    modifier: float  # e.g., 1.2 for 20% boost
+
+class ProgressionUpdate(BaseModel):
+    xp_gained: int
+    new_xp: int
+    level: int
+    leveled_up: bool
+    available_traits: List[Trait] = []
+
+class SelectTraitRequest(BaseModel):
+    trait_id: str
+
+# XP Thresholds for leveling
+XP_THRESHOLDS = [0, 100, 250, 500, 1000, 1750, 2750, 4000, 5500, 7500]  # Levels 1-10
+
+# Available Traits (Shining Force II inspired promotions)
+AVAILABLE_TRAITS = {
+    "farmer": {
+        "id": "farmer",
+        "name": "Master Farmer",
+        "description": "Your green thumb increases crop yields and farming XP",
+        "effect": "farming_boost",
+        "modifier": 1.20  # 20% boost to farming rewards
+    },
+    "herbalist": {
+        "id": "herbalist",
+        "name": "Herbalist",
+        "description": "Knowledge of plants enhances treat effectiveness",
+        "effect": "treat_boost",
+        "modifier": 1.25  # 25% boost to treat effects
+    },
+    "rancher": {
+        "id": "rancher",
+        "name": "Expert Rancher",
+        "description": "Animal handling skills speed up grazing and increase affinity",
+        "effect": "animal_boost",
+        "modifier": 1.30  # 30% boost to animal interactions
+    },
+    "lucky": {
+        "id": "lucky",
+        "name": "Lucky Finder",
+        "description": "Increased chance of finding treasure and rare items",
+        "effect": "treasure_boost",
+        "modifier": 1.50  # 50% increased treasure chance
+    },
+    "bargainer": {
+        "id": "bargainer",
+        "name": "Master Bargainer",
+        "description": "Shop prices reduced and discounts increased",
+        "effect": "shop_discount",
+        "modifier": 0.85  # 15% discount on all shop items
+    },
+    "explorer": {
+        "id": "explorer",
+        "name": "Keen Explorer",
+        "description": "Discover hidden locations and secrets faster",
+        "effect": "exploration_boost",
+        "modifier": 1.40  # 40% boost to exploration rewards
+    }
+}
+
 # Shop Inventory Data (Shining Force II inspired)
 SHOP_ITEMS = {
     "farmhouse": {
