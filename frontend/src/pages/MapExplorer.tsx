@@ -4,7 +4,7 @@ import { RanchMap } from '@/components/RanchMap';
 import { LocationInteractionDialog } from '@/components/LocationInteractionDialog';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Gift } from 'lucide-react';
-import { getMapOverview, mapInteraction, redeemKarmaCoins, Location, MapOverview } from '@/services/mapService';
+import { getMapOverview, mapInteraction, redeemKarmaCoins, purchaseShopItem, Location, MapOverview } from '@/services/mapService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
