@@ -641,7 +641,19 @@ async def map_interaction(user_id: str, location_id: str, action: str):
     # Get user's current state
     state = await db.game_progress.find_one({"user_id": user_id})
     if not state:
-        raise HTTPException(status_code=404, detail="User game state not found")
+        # Initialize state for guest users or create new state
+        state = {
+            "user_id": user_id,
+            "karma_coins": 0,
+            "visited_locations": [],
+            "clues": 0,
+            "activities": 0,
+            "level": 0,
+            "inventory": [],
+            "created_at": datetime.utcnow()
+        }
+        # Insert initial state for this user
+        await db.game_progress.insert_one(state.copy())
     
     visited = state.get("visited_locations", [])
     karma_coins = state.get("karma_coins", 0)
