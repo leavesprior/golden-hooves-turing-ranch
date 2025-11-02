@@ -20,6 +20,8 @@ export const LocationInteractionDialog = ({
   open,
   onClose,
   onInteract,
+  onPurchase,
+  karmaCoins,
 }: LocationInteractionDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentResponse, setCurrentResponse] = useState<InteractionResponse | null>(null);
