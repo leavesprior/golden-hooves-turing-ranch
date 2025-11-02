@@ -36,6 +36,23 @@ export interface InteractionResponse {
   rewards: InteractionReward;
   quest_update?: any;
   location_unlocked?: string;
+  shop_menu?: ShopMenu;
+}
+
+export interface ShopItem {
+  id: string;
+  name: string;
+  cost: number;
+  description: string;
+  effect: string;
+  available: boolean;
+  coming_soon: boolean;
+  icon: string;
+}
+
+export interface ShopMenu {
+  shop_type: string;
+  items: ShopItem[];
 }
 
 /**
