@@ -104,6 +104,129 @@ class InteractionResponse(BaseModel):
 class RedeemKarmaRequest(BaseModel):
     coins_to_redeem: int
 
+# Shop Models
+class ShopItem(BaseModel):
+    id: str
+    name: str
+    cost: int
+    description: str
+    effect: str
+    available: bool = True
+    coming_soon: bool = False
+    icon: str = "🎁"
+
+class ShopMenu(BaseModel):
+    shop_type: str
+    items: List[ShopItem]
+
+class PurchaseRequest(BaseModel):
+    item_id: str
+
+class PurchaseResponse(BaseModel):
+    success: bool
+    message: str
+    item: Optional[ShopItem] = None
+    new_karma_balance: int
+
+# Shop Inventory Data (Shining Force II inspired)
+SHOP_ITEMS = {
+    "farmhouse": {
+        "shop_type": "Ranch Supply",
+        "items": [
+            {
+                "id": "hint_token",
+                "name": "Hint Token",
+                "cost": 20,
+                "description": "Request an extra hint from Leif Pryor",
+                "effect": "grants_hint",
+                "available": True,
+                "coming_soon": False,
+                "icon": "💡"
+            },
+            {
+                "id": "energy_boost",
+                "name": "Energy Boost",
+                "cost": 50,
+                "description": "Double karma coin earnings for your next interaction",
+                "effect": "double_coins_next",
+                "available": False,
+                "coming_soon": True,
+                "icon": "⚡"
+            },
+            {
+                "id": "quest_guide",
+                "name": "Quest Guide",
+                "cost": 100,
+                "description": "Comprehensive guide to all ranch mysteries",
+                "effect": "reveals_clues",
+                "available": False,
+                "coming_soon": True,
+                "icon": "📖"
+            }
+        ]
+    },
+    "barn": {
+        "shop_type": "Wearables Shop",
+        "items": [
+            {
+                "id": "ranch_hat",
+                "name": "Ranch Hat",
+                "cost": 30,
+                "description": "Classic cowboy hat for the stylish rancher",
+                "effect": "cosmetic",
+                "available": True,
+                "coming_soon": False,
+                "icon": "🤠"
+            },
+            {
+                "id": "golden_horseshoe",
+                "name": "Golden Horseshoe",
+                "cost": 75,
+                "description": "Lucky charm that boosts treasure finding",
+                "effect": "treasure_boost",
+                "available": False,
+                "coming_soon": True,
+                "icon": "🧲"
+            },
+            {
+                "id": "mystery_box",
+                "name": "Mystery Box",
+                "cost": 150,
+                "description": "Contains a rare surprise item",
+                "effect": "random_reward",
+                "available": False,
+                "coming_soon": True,
+                "icon": "🎁"
+            }
+        ]
+    },
+    "secret_grove": {
+        "shop_type": "Ancient Deals",
+        "items": [
+            {
+                "id": "discount_booster",
+                "name": "Discount Booster",
+                "cost": 200,
+                "description": "Adds +5% to your next discount redemption",
+                "effect": "discount_boost",
+                "available": True,
+                "coming_soon": False,
+                "icon": "🎫"
+            },
+            {
+                "id": "ancient_artifact",
+                "name": "Ancient Artifact",
+                "cost": 500,
+                "description": "Mysterious relic with unknown powers",
+                "effect": "special",
+                "available": False,
+                "coming_soon": True,
+                "icon": "🗿"
+            }
+        ]
+    }
+}
+
 # Location Data (Shining Force II inspired)
 RANCH_LOCATIONS = [
     {
