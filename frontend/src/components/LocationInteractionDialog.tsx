@@ -154,6 +154,9 @@ export const LocationInteractionDialog = ({
                     talk: `TALK TO ${location.npc_name?.toUpperCase()}`,
                     search: 'SEARCH AREA',
                     browse_goods: 'BROWSE SHOP',
+                    furrow_fields: 'FURROW FIELDS 🚜',
+                    grow_crops: 'GROW CROPS 🌱',
+                    graze_animals: 'GRAZE ANIMALS 🐴',
                   };
 
                   return (
