@@ -264,6 +264,54 @@ backend:
         agent: "testing"
         comment: "✅ COMPREHENSIVE TESTING PASSED: Discount generation working flawlessly. Verified: (1) Rejects users with <6 clues (400 error), (2) Generates correct discount for 6+ clues, (3) Code format GOLDFROG{8 hex chars} correct, (4) Discount calculation accurate (7% base + 5% per level, max 27%), (5) Duplicate prevention working, (6) Proper 404 for non-existent users."
 
+  - task: "GET /api/map-overview/{user_id} - Ranch map overview"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented map overview with 5 locations, karma coins tracking, fog-of-war for locked areas. Secret grove unlocks at 3 clues."
+
+  - task: "POST /api/map-interact/{user_id}/{location_id}/{action} - Location interactions"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented interactions (enter/talk/search/browse_goods). Karma coin rewards (10 first visit, 5 revisit). 20% random treasure events. Static dialogues for cost efficiency."
+
+  - task: "POST /api/redeem-karma/{user_id} - Karma to discount conversion"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Converts karma coins to discounts (50=7%, 75=12%, 100=17%, 150=22%, 200+=27%). Generates KARMA prefix codes."
+
+  - task: "POST /api/shop-purchase/{user_id}/{location_id} - Shop purchases"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Hybrid shop system with 3 locations (Farmhouse, Barn, Secret Grove). 9 items total (3 available, 6 coming soon). Validates coins, deducts, adds to inventory."
+
 frontend:
   - task: "Create AI hints service (aiHints.ts)"
     implemented: true
