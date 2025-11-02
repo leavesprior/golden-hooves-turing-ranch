@@ -325,6 +325,21 @@ backend:
         comment: "✅ COMPREHENSIVE TESTING PASSED: Shop purchase system working excellently. Verified: (1) Available item purchases working (hint_token=20 coins, ranch_hat=30 coins, discount_booster=200 coins), (2) Karma coin deduction accurate, (3) Inventory updates in MongoDB, (4) Coming soon items correctly rejected (400 error), (5) Insufficient coins handling (returns failure message), (6) Error handling for invalid locations (404) and invalid items (404), (7) Shop browsing via browse_goods action returns correct shop menus, (8) All 3 shop locations working (Farmhouse=Ranch Supply, Barn=Wearables, Secret Grove=Ancient Deals), (9) Item structure complete with all required fields."
 
 frontend:
+  - task: "Phase 1 Interactive Ranch Map + Hybrid Shop System"
+    implemented: true
+    working: false
+    file: "frontend/src/pages/MapExplorer.tsx"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented complete interactive map system with 5 locations, karma coin economy, hybrid shop system, and AI hints integration. Fixed backend NameError causing 'interaction failed' errors."
+      - working: false
+        agent: "testing"
+        comment: "❌ CRITICAL BACKEND ISSUE: Frontend UI working perfectly (map canvas, location dialogs, action buttons, shop menus all render correctly), but backend API failing for guest users. GET /api/map-overview works (200 OK) but POST /api/map-interact returns 404 for guest user IDs like 'guest_1762100441001'. Authenticated users with UUID work fine. Backend logs show: 'POST /api/map-interact/guest_1762100441001/farmhouse/enter HTTP/1.1 404 Not Found'. The 'interaction failed' bug fix is incomplete - guest user support missing in map interaction endpoints."
+
   - task: "Create AI hints service (aiHints.ts)"
     implemented: true
     working: true
