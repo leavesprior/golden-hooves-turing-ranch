@@ -868,9 +868,134 @@ async def map_interaction(user_id: str, location_id: str, action: str):
         rewards.items.append(f"{location['name']} Artifact")
         rewards.experience = 20
     
-    # Update user state
-    new_karma = karma_coins + rewards.karma_coins
-    if location_id not in visited:
+    # Farming actions for Open Pasture
+    if location_id == "pasture" and action in ["furrow_fields", "grow_crops", "graze_animals"]:
+        pasture_state = state.get("pasture_state", {
+            "furrowed": False,
+            "crop_progress": 0,
+            "grazed": False,
+            "last_action": None
+        })
+        
+        if action == "furrow_fields":
+            if pasture_state.get("furrowed"):
+                dialogue = "The fields are already furrowed and ready for planting!"
+                rewards.karma_coins = 0
+            else:
+                pasture_state["furrowed"] = True
+                pasture_state["last_action"] = datetime.utcnow()
+                dialogue = "🚜 You furrow the fields, creating neat rows for planting. The soil is rich and ready! +20 XP earned."
+                rewards.experience = 20
+                rewards.karma_coins = base_reward
+                
+                # Award XP via progression system
+                await db.game_progress.update_one(
+                    {"user_id": user_id},
+                    {
+                        "$set": {
+                            "pasture_state": pasture_state
+                        },
+                        "$inc": {
+                            "progression.xp": 20
+                        }
+                    }
+                )
+        
+        elif action == "grow_crops":
+            if not pasture_state.get("furrowed"):
+                dialogue = "❌ You need to furrow the fields first before planting!"
+                rewards.karma_coins = 0
+            elif pasture_state.get("crop_progress", 0) >= 3:
+                # Harvest time!
+                harvest_bonus = 50
+                traits = state.get("progression", {}).get("traits", [])
+                if "farmer" in traits:
+                    harvest_bonus = int(harvest_bonus * 1.20)  # 20% boost
+                
+                pasture_state["crop_progress"] = 0
+                pasture_state["furrowed"] = False
+                dialogue = f"🌾 Harvest time! Your crops have matured beautifully. +{harvest_bonus} karma coins, +30 XP!"
+                rewards.karma_coins = harvest_bonus
+                rewards.experience = 30
+                rewards.items.append("Fresh Harvest")
+                
+                # Award XP
+                await db.game_progress.update_one(
+                    {"user_id": user_id},
+                    {
+                        "$set": {
+                            "pasture_state": pasture_state
+                        },
+                        "$inc": {
+                            "progression.xp": 30
+                        }
+                    }
+                )
+            else:
+                # Growing stage
+                pasture_state["crop_progress"] = pasture_state.get("crop_progress", 0) + 1
+                progress = pasture_state["crop_progress"]
+                stage_names = ["Sprouting 🌱", "Growing 🌿", "Maturing 🌾"]
+                dialogue = f"🌱 You tend to the crops. They're {stage_names[progress-1]}! (Progress: {progress}/3)"
+                rewards.karma_coins = 5
+                rewards.experience = 10
+                
+                await db.game_progress.update_one(
+                    {"user_id": user_id},
+                    {
+                        "$set": {
+                            "pasture_state": pasture_state
+                        },
+                        "$inc": {
+                            "progression.xp": 10
+                        }
+                    }
+                )
+        
+        elif action == "graze_animals":
+            if pasture_state.get("grazed"):
+                dialogue = "🐴 The animals are already resting peacefully in the pasture."
+                rewards.karma_coins = 0
+            else:
+                base_graze_xp = 25
+                traits = state.get("progression", {}).get("traits", [])
+                
+                # Check for trait bonuses
+                if "rancher" in traits:
+                    base_graze_xp = int(base_graze_xp * 1.30)  # 30% boost
+                
+                pasture_state["grazed"] = True
+                pasture_state["last_action"] = datetime.utcnow()
+                dialogue = f"🐴 You lead the animals to graze. They munch contentedly on fresh grass. +{base_graze_xp} XP, +15 karma!"
+                rewards.karma_coins = 15
+                rewards.experience = base_graze_xp
+                
+                # Check for treats in inventory to boost affinity
+                inventory = state.get("inventory", [])
+                has_treats = any(item.get("effect") in ["general_treat", "training_treat", "grazing_unlock"] for item in inventory)
+                if has_treats:
+                    dialogue += "\n\n💚 Your animal treats make the herd extra happy! +10 affinity bonus."
+                
+                await db.game_progress.update_one(
+                    {"user_id": user_id},
+                    {
+                        "$set": {
+                            "pasture_state": pasture_state
+                        },
+                        "$inc": {
+                            "progression.xp": base_graze_xp
+                        }
+                    }
+                )
+        
+        # Don't run the normal karma coin logic for farming actions
+        new_karma = karma_coins + rewards.karma_coins
+    else:
+        # Normal interaction karma rewards
+        # Update user state
+        new_karma = karma_coins + rewards.karma_coins
+    
+    if location_id not in visited and action not in ["furrow_fields", "grow_crops", "graze_animals"]:
         visited.append(location_id)
     
     # Check for secret grove unlock
