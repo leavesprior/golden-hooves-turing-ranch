@@ -80,6 +80,9 @@ export const LocationInteractionDialog = ({
     talk: MessageCircle,
     search: Search,
     browse_goods: ShoppingBag,
+    furrow_fields: Tractor,
+    grow_crops: Sprout,
+    graze_animals: Beef,
   };
 
   return (
