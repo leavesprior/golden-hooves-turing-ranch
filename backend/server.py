@@ -399,7 +399,7 @@ RANCH_LOCATIONS = [
         "icon": "🌾",
         "description": "Rolling fields where animals graze under the Sierra Nevada sky",
         "npc_name": "Wandering Prospector",
-        "interactions": ["talk", "search"],
+        "interactions": ["talk", "search", "furrow_fields", "grow_crops", "graze_animals"],
         "base_unlocked": True
     },
     {
