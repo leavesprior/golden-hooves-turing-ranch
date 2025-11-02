@@ -213,6 +213,67 @@ SHOP_ITEMS = {
                 "coming_soon": False,
                 "icon": "💡"
             },
+            # Animal Treats (Research-based)
+            {
+                "id": "emu_berries",
+                "name": "Assorted Berries (Emus)",
+                "cost": 15,
+                "description": "Fresh berries loved by emus, boosts emu affinity +10%",
+                "effect": "emu_affinity",
+                "available": True,
+                "coming_soon": False,
+                "icon": "🫐"
+            },
+            {
+                "id": "apples",
+                "name": "Fresh Apples",
+                "cost": 10,
+                "description": "Crisp apples for donkeys, pigs, horses, sheep & cattle. +5 XP on use",
+                "effect": "general_treat",
+                "available": True,
+                "coming_soon": False,
+                "icon": "🍎"
+            },
+            {
+                "id": "carrots",
+                "name": "Garden Carrots",
+                "cost": 10,
+                "description": "Training treat for all ranch animals. +10 karma on interaction",
+                "effect": "training_treat",
+                "available": True,
+                "coming_soon": False,
+                "icon": "🥕"
+            },
+            {
+                "id": "alfalfa_hay",
+                "name": "Alfalfa Hay Bale",
+                "cost": 20,
+                "description": "Premium herbivore feed, unlocks grazing bonus in pasture",
+                "effect": "grazing_unlock",
+                "available": True,
+                "coming_soon": False,
+                "icon": "🌾"
+            },
+            {
+                "id": "orchard_hay",
+                "name": "Orchard Hay Bale",
+                "cost": 20,
+                "description": "High-quality hay for all herbivores. Grants +15 XP",
+                "effect": "premium_feed",
+                "available": True,
+                "coming_soon": False,
+                "icon": "🌿"
+            },
+            {
+                "id": "feed_barrel",
+                "name": "Barrel of Feed",
+                "cost": 25,
+                "description": "Specialized feed mix for enhanced animal care. +20 affinity",
+                "effect": "special_feed",
+                "available": True,
+                "coming_soon": False,
+                "icon": "🛢️"
+            },
             {
                 "id": "energy_boost",
                 "name": "Energy Boost",
