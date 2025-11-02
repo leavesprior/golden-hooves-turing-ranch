@@ -120,6 +120,9 @@ class ShopMenu(BaseModel):
     shop_type: str
     items: List[ShopItem]
 
+# Resolve forward references
+InteractionResponse.model_rebuild()
+
 class PurchaseRequest(BaseModel):
     item_id: str
 
