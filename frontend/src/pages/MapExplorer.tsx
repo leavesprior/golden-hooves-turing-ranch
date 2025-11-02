@@ -17,6 +17,12 @@ const MapExplorer = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [showRedeemDialog, setShowRedeemDialog] = useState(false);
+  const [showTraitModal, setShowTraitModal] = useState(false);
+  const [availableTraits, setAvailableTraits] = useState<any[]>([]);
+  const [currentLevel, setCurrentLevel] = useState(1);
+  
+  // Use progression hook
+  const { progression, setProgression } = useProgression(userId);
 
   // Get user ID
   useEffect(() => {
