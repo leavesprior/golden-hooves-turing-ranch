@@ -150,6 +150,7 @@ export const LocationInteractionDialog = ({
                     enter: 'ENTER LOCATION',
                     talk: `TALK TO ${location.npc_name?.toUpperCase()}`,
                     search: 'SEARCH AREA',
+                    browse_goods: 'BROWSE SHOP',
                   };
 
                   return (
