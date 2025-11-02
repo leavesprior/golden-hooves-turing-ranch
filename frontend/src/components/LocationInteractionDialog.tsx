@@ -11,6 +11,8 @@ interface LocationInteractionDialogProps {
   open: boolean;
   onClose: () => void;
   onInteract: (action: string) => Promise<InteractionResponse | null>;
+  onPurchase: (itemId: string) => Promise<boolean>;
+  karmaCoins: number;
 }
 
 export const LocationInteractionDialog = ({
