@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Location, InteractionResponse } from '@/services/mapService';
 import { ShopMenu } from '@/components/ShopMenu';
-import { Sparkles, Search, MessageCircle, DoorOpen, Coins, Gift, ShoppingBag } from 'lucide-react';
+import { Sparkles, Search, MessageCircle, DoorOpen, Coins, Gift, ShoppingBag, Tractor, Sprout, Beef } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface LocationInteractionDialogProps {
