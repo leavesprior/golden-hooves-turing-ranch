@@ -651,6 +651,32 @@ async def map_interaction(user_id: str, location_id: str, action: str):
     dialogue = ""
     rewards = InteractionReward()
     location_unlocked = None
+    shop_menu = None
+    
+    # Handle browse_goods action (shop system)
+    if action == "browse_goods":
+        if location_id in SHOP_ITEMS:
+            shop_data = SHOP_ITEMS[location_id]
+            shop_items = []
+            
+            for item_data in shop_data["items"]:
+                shop_items.append(ShopItem(**item_data))
+            
+            shop_menu = ShopMenu(
+                shop_type=shop_data["shop_type"],
+                items=shop_items
+            )
+            
+            dialogue = f"{location['npc_name']}: 'Welcome to my {shop_data['shop_type']}! Take a look at what I have available. Some items are still being prepared...'"
+        else:
+            dialogue = f"{location['npc_name']}: 'No shop here, but feel free to explore!'"
+        
+        # Don't give rewards for browsing
+        return InteractionResponse(
+            dialogue=dialogue,
+            rewards=rewards,
+            shop_menu=shop_menu
+        )
     
     # Static dialogues (cost-efficient - no AI)
     dialogues = {
