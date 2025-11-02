@@ -1029,6 +1029,127 @@ async def purchase_item(user_id: str, location_id: str, request: PurchaseRequest
         new_karma_balance=new_karma
     )
 
+# RPG Progression Endpoints
+@api_router.post("/progression-update/{user_id}/{event_type}/{value}", response_model=ProgressionUpdate)
+async def update_progression(user_id: str, event_type: str, value: int):
+    """Award XP and handle leveling"""
+    # Get user's current state
+    state = await db.game_progress.find_one({"user_id": user_id})
+    if not state:
+        raise HTTPException(status_code=404, detail="User game state not found")
+    
+    # Get current progression
+    progression = state.get("progression", {"xp": 0, "level": 1, "traits": []})
+    current_xp = progression.get("xp", 0)
+    current_level = progression.get("level", 1)
+    traits = progression.get("traits", [])
+    
+    # Apply trait modifiers to XP gain
+    xp_modifier = 1.0
+    for trait_id in traits:
+        if trait_id in AVAILABLE_TRAITS:
+            trait = AVAILABLE_TRAITS[trait_id]
+            if trait["effect"] == "farming_boost" and event_type == "farming":
+                xp_modifier = trait["modifier"]
+            elif trait["effect"] == "exploration_boost" and event_type == "exploration":
+                xp_modifier = trait["modifier"]
+    
+    # Calculate XP gain
+    xp_gained = int(value * xp_modifier)
+    new_xp = current_xp + xp_gained
+    
+    # Check for level up
+    leveled_up = False
+    new_level = current_level
+    available_traits = []
+    
+    if new_level < len(XP_THRESHOLDS):
+        # Find new level
+        for level, threshold in enumerate(XP_THRESHOLDS[1:], start=1):
+            if new_xp >= threshold and level > current_level:
+                new_level = level
+                leveled_up = True
+        
+        # If leveled up, offer 3 random traits
+        if leveled_up:
+            import random
+            all_traits = list(AVAILABLE_TRAITS.values())
+            # Exclude already selected traits
+            available_trait_pool = [t for t in all_traits if t["id"] not in traits]
+            # Offer up to 3 random traits
+            num_to_offer = min(3, len(available_trait_pool))
+            selected_traits = random.sample(available_trait_pool, num_to_offer)
+            available_traits = [Trait(**t) for t in selected_traits]
+    
+    # Update MongoDB
+    await db.game_progress.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "progression.xp": new_xp,
+                "progression.level": new_level,
+                "progression.pending_traits": [t["id"] for t in selected_traits] if leveled_up else [],
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    return ProgressionUpdate(
+        xp_gained=xp_gained,
+        new_xp=new_xp,
+        level=new_level,
+        leveled_up=leveled_up,
+        available_traits=available_traits
+    )
+
+@api_router.post("/select-trait/{user_id}/{trait_id}")
+async def select_trait(user_id: str, trait_id: str):
+    """Apply selected trait to user"""
+    # Validate trait exists
+    if trait_id not in AVAILABLE_TRAITS:
+        raise HTTPException(status_code=404, detail="Trait not found")
+    
+    # Get user's current state
+    state = await db.game_progress.find_one({"user_id": user_id})
+    if not state:
+        raise HTTPException(status_code=404, detail="User game state not found")
+    
+    # Get current progression
+    progression = state.get("progression", {"xp": 0, "level": 1, "traits": []})
+    traits = progression.get("traits", [])
+    pending_traits = progression.get("pending_traits", [])
+    
+    # Validate trait is in pending list
+    if trait_id not in pending_traits:
+        raise HTTPException(status_code=400, detail="Trait not available for selection")
+    
+    # Check if already has this trait
+    if trait_id in traits:
+        raise HTTPException(status_code=400, detail="Trait already selected")
+    
+    # Add trait
+    traits.append(trait_id)
+    
+    # Update MongoDB
+    await db.game_progress.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "progression.traits": traits,
+                "progression.pending_traits": [],
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    trait_info = AVAILABLE_TRAITS[trait_id]
+    return {
+        "success": True,
+        "message": f"Trait '{trait_info['name']}' activated!",
+        "trait": Trait(**trait_info),
+        "all_traits": traits
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
