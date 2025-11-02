@@ -74,9 +74,51 @@ const MapExplorer = () => {
       // Refresh map data to show updated karma coins and visited status
       const updatedMap = await getMapOverview(userId);
       setMapData(updatedMap);
+      
+      // Award XP for interaction
+      const xpValue = action === 'browse_goods' ? 10 : 
+                      action.includes('furrow') || action.includes('graze') ? 20 : 15;
+      
+      await updateProgression('interaction', xpValue);
     }
 
     return response;
+  };
+  
+  const updateProgression = async (eventType: string, value: number) => {
+    if (!userId) return;
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_REACT_APP_BACKEND_URL}/api/progression-update/${userId}/${eventType}/${value}`,
+        { method: 'POST' }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Update progression state
+        setProgression({
+          xp: data.new_xp,
+          level: data.level,
+          maxXp: progression.maxXp,
+          traits: progression.traits,
+        });
+        
+        // Show level up modal if leveled up
+        if (data.leveled_up && data.available_traits.length > 0) {
+          setAvailableTraits(data.available_traits);
+          setCurrentLevel(data.level);
+          setShowTraitModal(true);
+          
+          toast.success('Level Up!', {
+            description: `You reached Level ${data.level}! Choose a trait.`,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error updating progression:', error);
+    }
   };
 
   const handlePurchase = async (itemId: string) => {
