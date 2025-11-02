@@ -269,6 +269,23 @@ const MapExplorer = () => {
         karmaCoins={mapData?.karma_coins || 0}
       />
 
+      {/* Trait Selection Modal */}
+      {userId && (
+        <TraitSelectionModal
+          open={showTraitModal}
+          onClose={() => setShowTraitModal(false)}
+          traits={availableTraits}
+          userId={userId}
+          level={currentLevel}
+          onTraitSelected={(traitId) => {
+            setProgression({
+              ...progression,
+              traits: [...progression.traits, traitId],
+            });
+          }}
+        />
+      )}
+
       <footer className="fixed bottom-0 left-0 right-0 bg-card/90 border-t-2 border-border p-2 text-center backdrop-blur-sm">
         <p className="text-muted-foreground text-[10px] pixel-text">
           GOLDEN HOOVES QUEST © 2025 BACK OF BEYOND RANCH
