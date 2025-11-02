@@ -208,6 +208,8 @@ const MapExplorer = () => {
         open={!!selectedLocation}
         onClose={() => setSelectedLocation(null)}
         onInteract={handleInteraction}
+        onPurchase={handlePurchase}
+        karmaCoins={mapData?.karma_coins || 0}
       />
 
       <footer className="fixed bottom-0 left-0 right-0 bg-card/90 border-t-2 border-border p-2 text-center backdrop-blur-sm">
