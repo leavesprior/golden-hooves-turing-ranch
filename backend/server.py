@@ -278,8 +278,9 @@ RANCH_LOCATIONS = [
         "icon": "🌲",
         "description": "A mysterious grove that appears after solving clues...",
         "npc_name": "Ancient Spirit",
-        "interactions": ["enter", "talk", "search"],
-        "base_unlocked": False  # Unlocked after 3 clues
+        "interactions": ["enter", "talk", "search", "browse_goods"],
+        "base_unlocked": False,  # Unlocked after 3 clues
+        "has_shop": True
     }
 ]
 
