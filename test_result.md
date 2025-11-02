@@ -103,14 +103,21 @@
 #====================================================================================================
 
 user_problem_statement: |
-  Phase 1: Migrate from Supabase to MongoDB for Emergent deployment compatibility
-  Phase 2: Implement Phase 1 of interactive map system (basics)
+  Phase 1: Complete Interactive Ranch Map + Hybrid Shop System
   
-  COMPLETED: Supabase → MongoDB Migration
-  - Created JWT-based authentication system
-  - Replaced Supabase client with MongoDB backend
-  - Removed Supabase dependency
-  - All auth operations now use MongoDB
+  COMPLETED MIGRATIONS & FEATURES:
+  1. Supabase → MongoDB Migration (JWT auth)
+  2. Interactive map exploration with 5 locations
+  3. Karma coin economy (earn/spend/redeem)
+  4. Hybrid shop system (3 shops, 9 items total)
+  5. AI hints integration with map context
+  
+  TESTING REQUIREMENTS:
+  - All auth endpoints
+  - Map overview and interactions
+  - Shop browsing and purchases
+  - Karma coin flows (earn → spend → discount)
+  - Inventory persistence
 
 backend:
   - task: "POST /api/auth/signup - User registration"
