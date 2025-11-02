@@ -216,6 +216,13 @@ const MapExplorer = () => {
 
       <main className="container mx-auto px-4 py-8">
         <div className="space-y-6">
+          {/* Progression HUD */}
+          <ProgressionHUD 
+            xp={progression.xp} 
+            level={progression.level} 
+            maxXp={progression.maxXp}
+          />
+          
           {/* Instructions */}
           <div className="bg-primary/10 border-2 border-primary p-4 text-center">
             <p className="text-primary text-xs pixel-text mb-2">
