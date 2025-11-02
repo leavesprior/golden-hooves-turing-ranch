@@ -141,3 +141,37 @@ export async function redeemKarmaCoins(
     return null;
   }
 }
+
+/**
+ * Purchase item from shop
+ */
+export async function purchaseShopItem(
+  userId: string,
+  locationId: string,
+  itemId: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${BACKEND_URL}/api/shop-purchase/${userId}/${locationId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeader(),
+        },
+        body: JSON.stringify({ item_id: itemId }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Purchase failed');
+    }
+
+    const result = await response.json();
+    return result.success;
+  } catch (error) {
+    console.error('Error purchasing item:', error);
+    return false;
+  }
+}
