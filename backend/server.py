@@ -818,6 +818,75 @@ async def redeem_karma_coins(user_id: str, request: RedeemKarmaRequest):
     
     return DiscountResponse(code=code, discount=discount)
 
+@api_router.post("/shop-purchase/{user_id}/{location_id}", response_model=PurchaseResponse)
+async def purchase_item(user_id: str, location_id: str, request: PurchaseRequest):
+    """Purchase an item from a shop"""
+    # Get user's current state
+    state = await db.game_progress.find_one({"user_id": user_id})
+    if not state:
+        raise HTTPException(status_code=404, detail="User game state not found")
+    
+    karma_coins = state.get("karma_coins", 0)
+    inventory = state.get("inventory", [])
+    
+    # Find the item
+    if location_id not in SHOP_ITEMS:
+        raise HTTPException(status_code=404, detail="No shop at this location")
+    
+    shop_data = SHOP_ITEMS[location_id]
+    item_data = next((item for item in shop_data["items"] if item["id"] == request.item_id), None)
+    
+    if not item_data:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    # Check if available
+    if not item_data["available"] or item_data["coming_soon"]:
+        raise HTTPException(status_code=400, detail="Item not available for purchase")
+    
+    # Check if user has enough coins
+    if karma_coins < item_data["cost"]:
+        return PurchaseResponse(
+            success=False,
+            message=f"Insufficient karma coins. Need {item_data['cost']}, have {karma_coins}",
+            new_karma_balance=karma_coins
+        )
+    
+    # Deduct coins
+    new_karma = karma_coins - item_data["cost"]
+    
+    # Add to inventory
+    existing_item = next((item for item in inventory if item.get("item_id") == request.item_id), None)
+    if existing_item:
+        existing_item["quantity"] += 1
+    else:
+        inventory.append({
+            "item_id": request.item_id,
+            "name": item_data["name"],
+            "icon": item_data["icon"],
+            "effect": item_data["effect"],
+            "quantity": 1,
+            "purchased_at": datetime.utcnow()
+        })
+    
+    # Update MongoDB
+    await db.game_progress.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "karma_coins": new_karma,
+                "inventory": inventory,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    return PurchaseResponse(
+        success=True,
+        message=f"Successfully purchased {item_data['name']}!",
+        item=ShopItem(**item_data),
+        new_karma_balance=new_karma
+    )
+
 # Include the router in the main app
 app.include_router(api_router)
 
