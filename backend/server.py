@@ -256,8 +256,9 @@ RANCH_LOCATIONS = [
         "icon": "🏡",
         "description": "Leif Pryor's headquarters for ranch management",
         "npc_name": "Leif Pryor",
-        "interactions": ["enter", "talk"],
-        "base_unlocked": True
+        "interactions": ["enter", "talk", "browse_goods"],
+        "base_unlocked": True,
+        "has_shop": True
     },
     {
         "id": "pasture",
