@@ -126,6 +126,16 @@ export const LocationInteractionDialog = ({
                   </p>
                 </div>
               )}
+
+              {/* Shop Menu Display */}
+              {currentResponse.shop_menu && (
+                <ShopMenu
+                  shopType={currentResponse.shop_menu.shop_type}
+                  items={currentResponse.shop_menu.items}
+                  karmaCoins={karmaCoins}
+                  onPurchase={onPurchase}
+                />
+              )}
             </div>
           )}
 
