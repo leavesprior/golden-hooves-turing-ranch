@@ -1344,6 +1344,198 @@ async def select_trait(user_id: str, trait_id: str):
         "all_traits": traits
     }
 
+# Quest System Endpoints
+@api_router.get("/quests/{user_id}")
+async def get_quests(user_id: str):
+    """Get all quests for user"""
+    # Get user's current state
+    state = await db.game_progress.find_one({"user_id": user_id})
+    if not state:
+        raise HTTPException(status_code=404, detail="User game state not found")
+    
+    level = state.get("progression", {}).get("level", 1)
+    affinities = state.get("affinities", {})
+    quests_state = state.get("quests", {"active": [], "completed": []})
+    
+    available_quests = []
+    
+    # Check each quest for availability
+    for quest_id, quest_data in QUESTS.items():
+        # Check level requirement
+        if level < quest_data.get("required_level", 1):
+            continue
+        
+        # Check affinity requirement
+        req_affinity = quest_data.get("required_affinity", {})
+        if req_affinity:
+            meets_req = all(affinities.get(npc, 0) >= min_aff for npc, min_aff in req_affinity.items())
+            if not meets_req:
+                continue
+        
+        # Build quest object
+        quest_progress = next((q for q in quests_state["active"] if q["id"] == quest_id), None)
+        
+        if quest_id in quests_state["completed"]:
+            status = "completed"
+            current_step = len(quest_data["steps"])
+        elif quest_progress:
+            status = "active"
+            current_step = quest_progress.get("current_step", 0)
+        else:
+            status = "available"
+            current_step = 0
+        
+        quest_steps = [QuestStep(**step) for step in quest_data["steps"]]
+        
+        available_quests.append(Quest(
+            id=quest_id,
+            name=quest_data["name"],
+            type=quest_data["type"],
+            steps=quest_steps,
+            current_step=current_step,
+            status=status,
+            required_level=quest_data.get("required_level", 1),
+            required_affinity=quest_data.get("required_affinity")
+        ))
+    
+    return {
+        "quests": available_quests,
+        "affinities": affinities
+    }
+
+@api_router.post("/quest-interact/{user_id}/{quest_id}/{choice}", response_model=QuestInteractionResponse)
+async def quest_interaction(user_id: str, quest_id: str, choice: str):
+    """Handle quest choices with AI-generated outcomes"""
+    # Get user's current state
+    state = await db.game_progress.find_one({"user_id": user_id})
+    if not state:
+        raise HTTPException(status_code=404, detail="User game state not found")
+    
+    # Get quest data
+    if quest_id not in QUESTS:
+        raise HTTPException(status_code=404, detail="Quest not found")
+    
+    quest_data = QUESTS[quest_id]
+    quests_state = state.get("quests", {"active": [], "completed": []})
+    affinities = state.get("affinities", {})
+    traits = state.get("progression", {}).get("traits", [])
+    inventory = state.get("inventory", [])
+    
+    # Find quest progress
+    quest_progress = next((q for q in quests_state["active"] if q["id"] == quest_id), None)
+    if not quest_progress:
+        # Start new quest
+        quest_progress = {"id": quest_id, "current_step": 0}
+        quests_state["active"].append(quest_progress)
+    
+    current_step = quest_progress["current_step"]
+    
+    # Generate AI response using LlmChat
+    api_key = os.environ.get('EMERGENT_LLM_KEY')
+    if not api_key:
+        # Fallback to static response
+        dialogue = f"You chose '{choice}' in {quest_data['name']}. Your decision echoes through the ranch..."
+        affinity_delta = 10
+        xp = 20
+        karma = 15
+        progress = 1
+    else:
+        try:
+            session_id = f"quest_{quest_id}_{current_step}"
+            
+            # Build context for AI
+            affinity_str = ", ".join([f"{k}: {v}/100" for k, v in affinities.items()])
+            trait_str = ", ".join([AVAILABLE_TRAITS[t]["name"] for t in traits if t in AVAILABLE_TRAITS])
+            inventory_str = ", ".join([item.get("name", "") for item in inventory[:5]])
+            
+            prompt = f"""Quest: {quest_data['name']} (Step {current_step + 1})
+Choice: {choice}
+Player Affinities: {affinity_str or 'None'}
+Player Traits: {trait_str or 'None'}
+Inventory: {inventory_str or 'Empty'}
+
+As Leif Pryor, generate a witty, ranch-themed dialogue (200-300 chars) responding to this choice. Balance 40-60% success based on affinities/traits. Respond in JSON format ONLY:
+{{
+  "dialogue": "string",
+  "affinity_delta": int (-20 to +20),
+  "xp": int (10-50),
+  "karma": int (5-30),
+  "progress": int (0 or 1)
+}}"""
+            
+            chat = LlmChat(
+                api_key=api_key,
+                session_id=session_id,
+                system_message="You are Leif Pryor, ranch manager. Generate quest outcomes as JSON."
+            ).with_model("openai", "gpt-4o")
+            
+            user_message = UserMessage(text=prompt)
+            response_text = await chat.send_message(user_message)
+            
+            # Parse JSON response
+            import json
+            try:
+                response_data = json.loads(response_text)
+                dialogue = response_data.get("dialogue", "The ranch responds to your choice...")
+                affinity_delta = response_data.get("affinity_delta", 10)
+                xp = response_data.get("xp", 20)
+                karma = response_data.get("karma", 15)
+                progress = response_data.get("progress", 1)
+            except:
+                # Fallback if JSON parsing fails
+                dialogue = response_text[:300] if response_text else "Your choice resonates across the ranch..."
+                affinity_delta = 10
+                xp = 20
+                karma = 15
+                progress = 1
+                
+        except Exception as e:
+            logger.error(f"AI quest generation error: {str(e)}")
+            dialogue = "Your decision shapes the ranch's future in unexpected ways..."
+            affinity_delta = 10
+            xp = 20
+            karma = 15
+            progress = 1
+    
+    # Update quest progress
+    quest_progress["current_step"] += progress
+    quest_completed = quest_progress["current_step"] >= len(quest_data["steps"])
+    
+    if quest_completed:
+        quests_state["active"] = [q for q in quests_state["active"] if q["id"] != quest_id]
+        quests_state["completed"].append(quest_id)
+    
+    # Update affinities (simple logic - can be enhanced)
+    if quest_id == "emu_escape":
+        affinities["emu"] = affinities.get("emu", 0) + affinity_delta
+    elif quest_id == "golden_hooves_main":
+        affinities["jumanji"] = affinities.get("jumanji", 0) + affinity_delta
+    
+    # Update MongoDB
+    await db.game_progress.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "quests": quests_state,
+                "affinities": affinities,
+                "updated_at": datetime.utcnow()
+            },
+            "$inc": {
+                "karma_coins": karma,
+                "progression.xp": xp
+            }
+        }
+    )
+    
+    return QuestInteractionResponse(
+        dialogue=dialogue,
+        affinity_delta=affinity_delta,
+        xp=xp,
+        karma=karma,
+        progress=progress,
+        quest_completed=quest_completed
+    )
+
 # Include the router in the main app
 app.include_router(api_router)
 
