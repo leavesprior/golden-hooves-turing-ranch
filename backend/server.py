@@ -198,6 +198,75 @@ AVAILABLE_TRAITS = {
     }
 }
 
+# Quest Models
+class QuestStep(BaseModel):
+    step: int
+    title: str
+    description: str
+    completed: bool = False
+
+class Quest(BaseModel):
+    id: str
+    name: str
+    type: str  # main, side, event
+    steps: List[QuestStep]
+    current_step: int
+    status: str  # active, completed, locked
+    required_level: int = 1
+    required_affinity: Optional[Dict[str, int]] = None
+
+class QuestChoice(BaseModel):
+    id: str
+    text: str
+    requires: Optional[Dict[str, Any]] = None
+
+class QuestInteractionResponse(BaseModel):
+    dialogue: str
+    affinity_delta: int
+    xp: int
+    karma: int
+    progress: int
+    next_branch: Optional[str] = None
+    quest_completed: bool = False
+
+# Quest Definitions (Sample Quests for Phase 3)
+QUESTS = {
+    "golden_hooves_main": {
+        "id": "golden_hooves_main",
+        "name": "The Golden Hooves Mystery",
+        "type": "main",
+        "required_level": 2,
+        "steps": [
+            {"step": 1, "title": "Gather Clues", "description": "Explore the ranch and collect 3 clues about the golden frog"},
+            {"step": 2, "title": "Build Alliances", "description": "Gain trust with ranch animals (affinity 30+)"},
+            {"step": 3, "title": "Secret Grove Access", "description": "Unlock the hidden grove"},
+            {"step": 4, "title": "Ancient Artifact", "description": "Discover the golden hooves artifact"},
+            {"step": 5, "title": "Final Choice", "description": "Decide the fate of the artifact"}
+        ]
+    },
+    "emu_escape": {
+        "id": "emu_escape",
+        "name": "Emu Escape",
+        "type": "side",
+        "required_level": 1,
+        "required_affinity": {"emu": 0},
+        "steps": [
+            {"step": 1, "title": "Find the Emu", "description": "Search the pasture for the escaped emu"},
+            {"step": 2, "title": "Earn Trust", "description": "Use berries to befriend the emu"},
+            {"step": 3, "title": "Safe Return", "description": "Lead the emu back safely"}
+        ]
+    },
+    "wild_raid": {
+        "id": "wild_raid",
+        "name": "Wild Animal Raid",
+        "type": "event",
+        "required_level": 1,
+        "steps": [
+            {"step": 1, "title": "Defend the Ranch", "description": "Wild animals are raiding! Choose your response"}
+        ]
+    }
+}
+
 # Shop Inventory Data (Shining Force II inspired)
 SHOP_ITEMS = {
     "farmhouse": {
