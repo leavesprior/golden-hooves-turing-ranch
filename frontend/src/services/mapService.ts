@@ -175,3 +175,58 @@ export async function purchaseShopItem(
     return false;
   }
 }
+
+/**
+ * Feed treat to creature at location
+ */
+export async function feedTreat(
+  userId: string,
+  locationId: string,
+  treatId: string,
+  creature: string
+): Promise<InteractionResponse | null> {
+  try {
+    const response = await fetch(
+      `${BACKEND_URL}/api/map-interact/${userId}/${locationId}/feed_treat`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...auth.getAuthHeader(),
+        },
+        body: JSON.stringify({ treat_id: treatId, creature: creature }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Feeding failed');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error feeding treat:', error);
+    return null;
+  }
+}
+
+/**
+ * Get user's inventory
+ */
+export async function getUserInventory(userId: string): Promise<ShopItem[]> {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/game-state/${userId}`, {
+      headers: auth.getAuthHeader(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get inventory');
+    }
+
+    const state = await response.json();
+    return state.inventory || [];
+  } catch (error) {
+    console.error('Error getting inventory:', error);
+    return [];
+  }
+}
