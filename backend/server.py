@@ -1048,7 +1048,7 @@ async def map_interaction(
         
         # Check if treat is in inventory
         inventory = state.get("inventory", [])
-        treat_item = next((item for item in inventory if item.get("id") == treat_id), None)
+        treat_item = next((item for item in inventory if item.get("item_id") == treat_id), None)
         
         if not treat_item:
             raise HTTPException(status_code=400, detail="You don't have this treat in your inventory")
