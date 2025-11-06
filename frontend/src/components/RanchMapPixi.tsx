@@ -290,7 +290,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     container.addChild(fog);
 
     // "???" text
-    const questionText = new Text({
+    const questionText = new PIXI.Text({
       text: '???',
       style: new TextStyle({
         fontFamily: '"Press Start 2P", monospace',
