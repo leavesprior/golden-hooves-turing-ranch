@@ -241,6 +241,7 @@ export const LocationInteractionDialog = ({
                     grow_crops: 'GROW CROPS 🌱',
                     graze_animals: 'GRAZE ANIMALS 🐴',
                     feed_treat: 'FEED TREAT 🍎',
+                    explore_artifact: 'EXPLORE ARTIFACT 🗿',
                   };
 
                   // Special handling for feed_treat action
