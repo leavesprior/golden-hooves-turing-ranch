@@ -107,6 +107,15 @@ class InteractionResponse(BaseModel):
 class RedeemKarmaRequest(BaseModel):
     coins_to_redeem: int
 
+class MapInteractionRequest(BaseModel):
+    treat_id: Optional[str] = None
+    creature: Optional[str] = None
+
+class FeedingEvent(BaseModel):
+    event_desc: str
+    bonus_xp: Optional[int] = None
+    bonus_item: Optional[str] = None
+
 # Shop Models
 class ShopItem(BaseModel):
     id: str
