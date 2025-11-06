@@ -324,6 +324,18 @@ backend:
         agent: "testing"
         comment: "✅ COMPREHENSIVE TESTING PASSED: Shop purchase system working excellently. Verified: (1) Available item purchases working (hint_token=20 coins, ranch_hat=30 coins, discount_booster=200 coins), (2) Karma coin deduction accurate, (3) Inventory updates in MongoDB, (4) Coming soon items correctly rejected (400 error), (5) Insufficient coins handling (returns failure message), (6) Error handling for invalid locations (404) and invalid items (404), (7) Shop browsing via browse_goods action returns correct shop menus, (8) All 3 shop locations working (Farmhouse=Ranch Supply, Barn=Wearables, Secret Grove=Ancient Deals), (9) Item structure complete with all required fields."
 
+  - task: "POST /api/map-interact - feed_treat action (Phase 3)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented treat-feeding mechanics with: (1) Treat-creature compatibility validation at 3 locations (stable, pasture, barn), (2) Affinity gain calculation (+15 base, modified by Herbalist/Rancher traits), (3) Random procedural events (5-10% chance, Lucky trait increases to 7.5%), (4) AI-generated dialogues from Leif Pryor using GPT-4o, (5) Inventory deduction for consumed treats, (6) Affinity persistence per creature (horse, donkey, emu, pig, sheep, cattle), (7) Quest milestone detection at 30+ affinity, (8) XP gain (+15), karma gain (+10), and bonus rewards from events. Added 3 helper functions: get_creature_compatibility(), calculate_affinity_gain(), generate_random_event(). Updated RANCH_LOCATIONS to include feed_treat action. Backend restarted successfully."
+
 frontend:
   - task: "Phase 1 Interactive Ranch Map + Hybrid Shop System"
     implemented: true
