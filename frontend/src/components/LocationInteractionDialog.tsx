@@ -306,6 +306,101 @@ export const LocationInteractionDialog = ({
               BACK TO MAP
             </Button>
           )}
+
+          {/* Treat Feeding Modal */}
+          {showTreatModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-card border-4 border-accent p-6 max-w-md w-full space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-accent text-lg pixel-text flex items-center gap-2">
+                    <Apple className="w-5 h-5" />
+                    FEED TREAT
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowTreatModal(false)}
+                    className="pixel-text text-xs"
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                <p className="text-foreground text-xs pixel-text">
+                  Select a treat from your inventory and choose which creature to feed:
+                </p>
+
+                {/* Treat Selection */}
+                <div className="space-y-2">
+                  <label className="text-primary text-xs pixel-text">SELECT TREAT:</label>
+                  <Select value={selectedTreat} onValueChange={setSelectedTreat}>
+                    <SelectTrigger className="pixel-text text-xs">
+                      <SelectValue placeholder="Choose treat..." />
+                    </SelectTrigger>
+                    <SelectContent className="pixel-text">
+                      {availableTreats.map((treat) => (
+                        <SelectItem key={treat.id} value={treat.id} className="text-xs">
+                          {treat.icon} {treat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Creature Selection */}
+                <div className="space-y-2">
+                  <label className="text-primary text-xs pixel-text">SELECT CREATURE:</label>
+                  <Select value={selectedCreature} onValueChange={setSelectedCreature}>
+                    <SelectTrigger className="pixel-text text-xs">
+                      <SelectValue placeholder="Choose creature..." />
+                    </SelectTrigger>
+                    <SelectContent className="pixel-text">
+                      {locationCreatures[location.id]?.map((creature) => (
+                        <SelectItem key={creature} value={creature} className="text-xs capitalize">
+                          {creature === 'emu' && '🦤'} 
+                          {creature === 'horse' && '🐴'} 
+                          {creature === 'donkey' && '🫏'} 
+                          {creature === 'pig' && '🐷'} 
+                          {creature === 'sheep' && '🐑'} 
+                          {creature === 'cattle' && '🐄'} 
+                          {' '}{creature}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Info Box */}
+                <div className="bg-accent/10 border border-accent p-3 space-y-1">
+                  <p className="text-accent text-xs pixel-text">ℹ️ TREAT EFFECTS:</p>
+                  <p className="text-foreground text-[10px] pixel-text">
+                    • Increases creature affinity<br />
+                    • Earns XP and karma coins<br />
+                    • May trigger special events!
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setShowTreatModal(false)}
+                    variant="outline"
+                    className="flex-1 pixel-text text-xs"
+                  >
+                    CANCEL
+                  </Button>
+                  <Button
+                    onClick={handleFeedTreat}
+                    disabled={!selectedTreat || !selectedCreature || isLoading}
+                    className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground pixel-text text-xs"
+                  >
+                    <Heart className="w-3 h-3 mr-2" />
+                    FEED
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
