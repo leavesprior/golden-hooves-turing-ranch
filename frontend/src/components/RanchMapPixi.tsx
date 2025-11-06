@@ -114,7 +114,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     // Sky gradient (top portion)
     const skyHeight = height * 0.4;
     for (let i = 0; i < skyHeight; i += 16) {
-      const graphics = new Graphics();
+      const graphics = new PIXI.Graphics();
       const progress = i / skyHeight;
       const color = lerpColor(PALETTE.sky[0], PALETTE.sky[1], progress);
       graphics.rect(0, i, width, 16);
@@ -125,7 +125,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     // Grass tiles (16-bit style)
     for (let y = skyHeight; y < height; y += 16) {
       for (let x = 0; x < width; x += 16) {
-        const graphics = new Graphics();
+        const graphics = new PIXI.Graphics();
         // Checkerboard pattern for texture
         const variant = ((x / 16) + (y / 16)) % 2;
         const grassColor = variant === 0 ? PALETTE.grass[0] : PALETTE.grass[1];
