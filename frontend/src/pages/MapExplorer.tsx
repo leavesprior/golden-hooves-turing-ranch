@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RanchMap } from '@/components/RanchMap';
+import { RanchMapPixi } from '@/components/RanchMapPixi';
 import { LocationInteractionDialog } from '@/components/LocationInteractionDialog';
 import { ProgressionHUD, useProgression } from '@/components/ProgressionHUD';
 import { TraitSelectionModal } from '@/components/TraitSelectionModal';
