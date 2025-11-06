@@ -574,3 +574,61 @@ agent_communication:
       - Integration Flows: Complete exploration → earn coins → purchase → redeem discount flows tested
       
       🎯 ALL PHASE 1 FEATURES READY FOR PRODUCTION! NO CRITICAL ISSUES FOUND.
+
+  - agent: "main"
+    message: |
+      🐴 PHASE 3 TREAT-FEEDING BACKEND IMPLEMENTATION COMPLETE:
+      
+      FEATURES IMPLEMENTED:
+      1. **feed_treat Action Handler**: Added to map_interaction endpoint
+         - Accepts request body with treat_id and creature parameters
+         - Works at 3 locations: stable, pasture, barn
+      
+      2. **Treat-Creature Compatibility System**:
+         - emu_berries → emus only
+         - apples → horses, donkeys, pigs, sheep, cattle
+         - carrots → all animals (universal training treat)
+         - alfalfa_hay → herbivores (horses, sheep, cattle, donkeys)
+         - orchard_hay → herbivores
+         - feed_barrel → all animals (special feed)
+      
+      3. **Affinity System**:
+         - Base affinity gain: +15 per treat
+         - Herbalist trait: +25% bonus (→ +19)
+         - Rancher trait: +30% bonus (→ +20)
+         - Affinity capped at 100 per creature
+         - Persisted in game_progress.affinities
+      
+      4. **Random Procedural Events** (5-10% chance):
+         - Base chance: 5%
+         - Lucky trait increases to 7.5%
+         - AI-generated events with bonuses (0-20 XP, items)
+         - Fallback static events if AI unavailable
+      
+      5. **AI-Generated Responses**:
+         - Leif Pryor personality via GPT-4o
+         - Context-aware: includes affinity, traits, location
+         - 200-300 char ranch-themed dialogues
+         - Fallback to static dialogue if AI fails
+      
+      6. **Rewards & Updates**:
+         - Base: +15 XP, +10 karma per feeding
+         - Inventory: Treat consumed, bonus items added
+         - Quest milestone detection at 30+ affinity
+      
+      7. **Helper Functions**:
+         - get_creature_compatibility(treat_id, creature, location_id)
+         - calculate_affinity_gain(base_gain, traits)
+         - generate_random_event(treat, creature, location, affinity, traits, api_key)
+      
+      TESTING REQUIREMENTS:
+      - Test treat feeding at each location (stable, pasture, barn)
+      - Verify treat-creature compatibility validation
+      - Test affinity gain calculations with/without traits
+      - Test random event generation (may need multiple attempts)
+      - Verify inventory deduction
+      - Test AI dialogue generation
+      - Verify quest milestone detection at 30 affinity
+      - Test error handling (missing treat, incompatible treat-creature)
+      
+      Backend restarted successfully. Ready for comprehensive testing.
