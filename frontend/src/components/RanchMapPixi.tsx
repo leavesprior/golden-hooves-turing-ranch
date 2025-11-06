@@ -242,8 +242,8 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     });
   };
 
-  const drawLocationSprite = (location: Location, isVisited: boolean, isHovered: boolean): Graphics => {
-    const graphics = new Graphics();
+  const drawLocationSprite = (location: Location, isVisited: boolean, isHovered: boolean): PIXI.Graphics => {
+    const graphics = new PIXI.Graphics();
 
     // Base circle (16-bit style with outline)
     const baseColor = isVisited ? PALETTE.visited : PALETTE.unvisited;
