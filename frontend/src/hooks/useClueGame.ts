@@ -40,13 +40,13 @@ const levels = [
       },
       {
         id: 2,
-        text: "Seek giants in the Sequoia Gigantica stand, towering since Native Miwok times, near a town named for a biblical figure.",
+        text: "Seek giants in the Sequoia Gigantica stand, towering since Native Miwok times, near a town named for a Gold Rush pioneer (not Daniel, but Arnold).",
         answer: "arnold",
-        acceptableAnswers: ["arnold", "sequoia gigantica", "giant sequoia", "calaveras big trees", "big trees", "giant trees"],
-        hints: ["Giant sequoia trees", "Near Calaveras Big Trees", "Biblical name"],
-        assistanceText: "These ancient giants can live over 3,000 years! The grove features walking trails through towering sequoias in a peaceful mountain setting.",
-        resourceLink: "https://en.wikipedia.org/wiki/Sequoia_(genus)#California",
-        resourceTitle: "Sequoia Trees in California"
+        acceptableAnswers: ["arnold", "sequoia gigantica", "giant sequoia", "calaveras big trees", "big trees", "giant trees", "calaveras"],
+        hints: ["Giant sequoia trees", "Near Calaveras Big Trees State Park", "Town name: Arnold"],
+        assistanceText: "These ancient giants can live over 3,000 years! Visit Calaveras Big Trees State Park near Arnold, CA to walk among towering sequoias in this peaceful Sierra Nevada mountain setting.",
+        resourceLink: "https://www.parks.ca.gov/?page_id=551",
+        resourceTitle: "Calaveras Big Trees State Park - Official CA Parks"
       },
       {
         id: 3,
