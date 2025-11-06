@@ -862,7 +862,7 @@ async def generate_random_event(
                 bonus_item=None
             ),
             FeedingEvent(
-                event_desc=f"A neighbor sees your kindness and gives you extra treats!",
+                event_desc="A neighbor sees your kindness and gives you extra treats!",
                 bonus_xp=None,
                 bonus_item="Bonus Treat"
             )
