@@ -1776,7 +1776,7 @@ As Leif Pryor, generate a witty, ranch-themed dialogue (200-300 chars) respondin
                 xp = response_data.get("xp", 20)
                 karma = response_data.get("karma", 15)
                 progress = response_data.get("progress", 1)
-            except:
+            except Exception:
                 # Fallback if JSON parsing fails
                 dialogue = response_text[:300] if response_text else "Your choice resonates across the ranch..."
                 affinity_delta = 10
