@@ -99,8 +99,8 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
   // Update locations when map data changes
   useEffect(() => {
     if (appRef.current) {
-      const locationsLayer = appRef.current.stage.children[1] as Container;
-      const effectsLayer = appRef.current.stage.children[2] as Container;
+      const locationsLayer = appRef.current.stage.children[1] as PIXI.Container;
+      const effectsLayer = appRef.current.stage.children[2] as PIXI.Container;
       
       // Clear and redraw locations
       locationsLayer.removeChildren();
@@ -108,7 +108,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     }
   }, [mapData, hoveredLocation]);
 
-  const drawPixelArtBackground = (app: Application, layer: Container) => {
+  const drawPixelArtBackground = (app: PIXI.Application, layer: PIXI.Container) => {
     const { width, height } = canvasSize;
 
     // Sky gradient (top portion)
