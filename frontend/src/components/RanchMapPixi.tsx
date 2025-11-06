@@ -159,7 +159,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
 
     // Fence (16-bit style wooden posts)
     for (let x = 0; x < width; x += 80) {
-      const fencePost = new Graphics();
+      const fencePost = new PIXI.Graphics();
       fencePost.rect(x, height - 80, 8, 40);
       fencePost.fill(PALETTE.fence[0]);
       fencePost.rect(x, height - 85, 16, 5);
