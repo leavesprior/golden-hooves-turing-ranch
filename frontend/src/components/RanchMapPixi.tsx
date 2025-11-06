@@ -48,7 +48,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
 
     const init = async () => {
       // Create Pixi application
-      const app = new Application();
+      const app = new PIXI.Application();
       await app.init({
         width: canvasSize.width,
         height: canvasSize.height,
@@ -66,9 +66,9 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
       }
 
       // Create layers
-      const backgroundLayer = new Container();
-      const locationsLayer = new Container();
-      const effectsLayer = new Container();
+      const backgroundLayer = new PIXI.Container();
+      const locationsLayer = new PIXI.Container();
+      const effectsLayer = new PIXI.Container();
 
       app.stage.addChild(backgroundLayer);
       app.stage.addChild(locationsLayer);
