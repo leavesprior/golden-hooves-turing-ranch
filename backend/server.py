@@ -445,7 +445,7 @@ RANCH_LOCATIONS = [
         "icon": "🏚️",
         "description": "A weathered barn that holds secrets of the Golden Hooves mystery",
         "npc_name": "Old Ranch Hand",
-        "interactions": ["enter", "talk", "search", "browse_goods"],
+        "interactions": ["enter", "talk", "search", "browse_goods", "feed_treat"],
         "base_unlocked": True,
         "has_shop": True
     },
