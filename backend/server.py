@@ -1906,7 +1906,8 @@ async def solve_artifact_puzzle(user_id: str, choice_id: int):
                 
                 chat = LlmChat(api_key=api_key, session_id=session_id, system_message="You are Leif Pryor. Gruff but encouraging.").with_model("openai", "gpt-4o")
                 dialogue = await chat.send_message(UserMessage(text=prompt))
-            except:
+            except Exception as e:
+                logger.error(f"AI failure dialogue error: {str(e)}")
                 dialogue = f"❌ Wrong path, partner. Make my day and try again! The artifact remains sealed. +{xp_reward} XP for trying, but you'll need to explore more before attempting this puzzle again."
         else:
             dialogue = "❌ Not quite, partner. The artifact's secrets remain hidden. Try building more affinities first!"
