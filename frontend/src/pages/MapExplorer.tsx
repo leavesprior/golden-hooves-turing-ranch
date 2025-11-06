@@ -235,7 +235,7 @@ const MapExplorer = () => {
           </div>
 
           {/* Map */}
-          <RanchMap mapData={mapData} onLocationClick={handleLocationClick} />
+          <RanchMapPixi mapData={mapData} onLocationClick={handleLocationClick} />
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
