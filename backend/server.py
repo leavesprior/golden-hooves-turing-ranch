@@ -993,6 +993,8 @@ async def map_interaction(
             "activities": 0,
             "level": 0,
             "inventory": [],
+            "affinities": {},
+            "progression": {"xp": 0, "level": 1, "traits": []},
             "created_at": datetime.utcnow()
         }
         # Insert initial state for this user
