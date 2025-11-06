@@ -1856,7 +1856,8 @@ async def solve_artifact_puzzle(user_id: str, choice_id: int):
                 
                 chat = LlmChat(api_key=api_key, session_id=session_id, system_message="You are Leif Pryor. Gruff cowboy-miner style.").with_model("openai", "gpt-4o")
                 dialogue = await chat.send_message(UserMessage(text=prompt))
-            except:
+            except Exception as e:
+                logger.error(f"AI success dialogue error: {str(e)}")
                 dialogue = f"🎉 Well I'll be! You chose wisely, partner! The artifact reveals its secrets—an ancient Gold Rush map fragment! +{xp_reward} XP, +{karma_reward} karma, +{affinity_boost} all affinities!"
         else:
             dialogue = f"🎉 Smart choice, partner! You struck it rich! +{xp_reward} XP, +{karma_reward} karma!"
