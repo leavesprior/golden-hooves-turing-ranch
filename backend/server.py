@@ -965,7 +965,12 @@ async def get_map_overview(user_id: str):
     )
 
 @api_router.post("/map-interact/{user_id}/{location_id}/{action}", response_model=InteractionResponse)
-async def map_interaction(user_id: str, location_id: str, action: str):
+async def map_interaction(
+    user_id: str, 
+    location_id: str, 
+    action: str,
+    request: Optional[MapInteractionRequest] = None
+):
     """Handle map location interactions"""
     # Validate location exists
     location = next((loc for loc in RANCH_LOCATIONS if loc["id"] == location_id), None)
