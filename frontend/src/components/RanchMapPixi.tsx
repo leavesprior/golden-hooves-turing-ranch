@@ -284,7 +284,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     container.y = location.coordinates[1];
 
     // Fog rectangle
-    const fog = new Graphics();
+    const fog = new PIXI.Graphics();
     fog.rect(-40, -40, 80, 80);
     fog.fill({ color: PALETTE.shadow, alpha: 0.7 });
     container.addChild(fog);
