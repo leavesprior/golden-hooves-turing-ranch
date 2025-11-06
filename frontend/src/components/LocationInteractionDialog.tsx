@@ -54,6 +54,62 @@ export const LocationInteractionDialog = ({
 
   if (!location) return null;
 
+  // Define creatures available at each location
+  const locationCreatures: Record<string, string[]> = {
+    stable: ['horse', 'donkey'],
+    pasture: ['emu', 'donkey', 'sheep', 'cattle', 'pig', 'horse'],
+    barn: ['emu', 'donkey', 'pig', 'sheep', 'cattle'],
+  };
+
+  // Get treats from inventory (items with treat effects)
+  const availableTreats = inventory.filter(item => 
+    ['emu_affinity', 'general_treat', 'training_treat', 'grazing_unlock', 'premium_feed', 'special_feed'].includes(item.effect)
+  );
+
+  const handleFeedTreat = async () => {
+    if (!selectedTreat || !selectedCreature) {
+      toast.error('Please select both a treat and creature');
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      const response = await feedTreat(userId, location.id, selectedTreat, selectedCreature);
+      
+      if (response) {
+        setCurrentResponse(response);
+        setShowTreatModal(false);
+        setShowActions(false);
+        
+        // Show success toast with affinity gain
+        toast.success(`Fed treat to ${selectedCreature}!`, {
+          description: `+${response.rewards.experience} XP, +${response.rewards.karma_coins} Karma`,
+        });
+
+        // Show special event if occurred
+        if (response.quest_update) {
+          toast.success('🎉 Quest Milestone!', {
+            description: response.quest_update.message,
+          });
+        }
+
+        // Reload inventory
+        await loadInventory();
+      } else {
+        toast.error('Failed to feed treat');
+      }
+    } catch (error: any) {
+      toast.error('Feeding failed', {
+        description: error.message || 'Please try again',
+      });
+    } finally {
+      setIsLoading(false);
+      setSelectedTreat('');
+      setSelectedCreature('');
+    }
+  };
+
   const handleInteraction = async (action: string) => {
     setIsLoading(true);
     setShowActions(false);
