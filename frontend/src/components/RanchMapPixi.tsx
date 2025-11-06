@@ -168,7 +168,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     }
   };
 
-  const drawLocations = (app: Application, layer: Container, effectsLayer: Container) => {
+  const drawLocations = (app: PIXI.Application, layer: PIXI.Container, effectsLayer: PIXI.Container) => {
     locationSpritesRef.current.clear();
 
     mapData.locations.forEach((location) => {
