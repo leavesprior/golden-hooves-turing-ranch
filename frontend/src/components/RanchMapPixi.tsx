@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Application, Container, Graphics, Sprite, Texture, Text, TextStyle, filters } from 'pixi.js';
+import * as PIXI from 'pixi.js';
 import { Location, MapOverview } from '@/services/mapService';
 import { Coins } from 'lucide-react';
 
