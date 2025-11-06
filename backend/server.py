@@ -782,6 +782,138 @@ async def generate_discount(user_id: str):
     
     return DiscountResponse(code=code, discount=discount)
 
+# Map Interaction Helper Functions
+def get_creature_compatibility(treat_id: str, creature: str, location_id: str) -> bool:
+    """Check if a treat is compatible with a creature at a location"""
+    # Define treat-creature compatibility
+    compatibility = {
+        "emu_berries": ["emu"],
+        "apples": ["horse", "donkey", "pig", "sheep", "cattle"],
+        "carrots": ["horse", "donkey", "pig", "sheep", "cattle", "emu"],  # Training treat for all
+        "alfalfa_hay": ["horse", "sheep", "cattle", "donkey"],  # Herbivores
+        "orchard_hay": ["horse", "sheep", "cattle", "donkey"],  # Herbivores
+        "feed_barrel": ["horse", "donkey", "pig", "sheep", "cattle", "emu"]  # Special feed for all
+    }
+    
+    # Define location-creature mapping
+    location_creatures = {
+        "stable": ["horse", "donkey"],
+        "pasture": ["emu", "donkey", "sheep", "cattle", "pig", "horse"],
+        "barn": ["emu", "donkey", "pig", "sheep", "cattle"]
+    }
+    
+    # Check if treat exists
+    if treat_id not in compatibility:
+        return False
+    
+    # Check if creature is at this location
+    if location_id not in location_creatures or creature not in location_creatures[location_id]:
+        return False
+    
+    # Check if treat is compatible with creature
+    return creature in compatibility[treat_id]
+
+def calculate_affinity_gain(base_gain: int, traits: List[str]) -> int:
+    """Calculate affinity gain with trait modifiers"""
+    multiplier = 1.0
+    
+    # Apply trait bonuses
+    if "herbalist" in traits:
+        multiplier *= AVAILABLE_TRAITS["herbalist"]["modifier"]  # 1.25
+    if "rancher" in traits:
+        multiplier *= AVAILABLE_TRAITS["rancher"]["modifier"]  # 1.30
+    
+    return int(base_gain * multiplier)
+
+async def generate_random_event(
+    treat: str, 
+    creature: str, 
+    location: str, 
+    affinity: int, 
+    traits: List[str], 
+    api_key: Optional[str]
+) -> Optional[FeedingEvent]:
+    """Generate a random procedural event with AI (5-10% chance)"""
+    import random
+    
+    # Base event chance: 5%
+    event_chance = 0.05
+    
+    # Lucky trait increases chance to 7.5%
+    if "lucky" in traits:
+        event_chance = 0.075
+    
+    # Roll for event
+    if random.random() > event_chance:
+        return None
+    
+    # Generate event with AI if key available
+    if not api_key:
+        # Fallback static event
+        events = [
+            FeedingEvent(
+                event_desc=f"The {creature} uncovers a hidden clue while munching!",
+                bonus_xp=10,
+                bonus_item="Clue Fragment"
+            ),
+            FeedingEvent(
+                event_desc=f"The {creature} does a happy dance! +5 bonus XP",
+                bonus_xp=5,
+                bonus_item=None
+            ),
+            FeedingEvent(
+                event_desc=f"A neighbor sees your kindness and gives you extra treats!",
+                bonus_xp=None,
+                bonus_item="Bonus Treat"
+            )
+        ]
+        return random.choice(events)
+    
+    try:
+        session_id = f"feeding_event_{uuid.uuid4()}"
+        
+        trait_str = ", ".join([AVAILABLE_TRAITS[t]["name"] for t in traits if t in AVAILABLE_TRAITS])
+        
+        prompt = f"""Generate a minor positive event for feeding {treat} to {creature} at {location}. 
+Player has {affinity} affinity with {creature}.
+Player traits: {trait_str or 'None'}
+
+Create a short, ranch-themed surprise (100-150 chars). Keep it light and positive.
+Respond ONLY with valid JSON:
+{{
+  "eventDesc": "string (event description)",
+  "bonusXp": int or null (0-20 range),
+  "bonusItem": "string" or null (item name if any)
+}}"""
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=session_id,
+            system_message="You are Leif Pryor. Generate feeding events as JSON only."
+        ).with_model("openai", "gpt-4o")
+        
+        user_message = UserMessage(text=prompt)
+        response_text = await chat.send_message(user_message)
+        
+        # Parse JSON response
+        import json
+        response_data = json.loads(response_text)
+        
+        return FeedingEvent(
+            event_desc=response_data.get("eventDesc", "Something special happens!"),
+            bonus_xp=response_data.get("bonusXp"),
+            bonus_item=response_data.get("bonusItem")
+        )
+        
+    except Exception as e:
+        logger.error(f"AI event generation error: {str(e)}")
+        # Return simple fallback event
+        return FeedingEvent(
+            event_desc=f"The {creature} seems extra happy today!",
+            bonus_xp=5,
+            bonus_item=None
+        )
+
 # Map Interaction Endpoints
 @api_router.get("/map-overview/{user_id}", response_model=MapOverview)
 async def get_map_overview(user_id: str):
