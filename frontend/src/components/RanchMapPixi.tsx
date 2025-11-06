@@ -191,7 +191,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
 
       // Add glow effect for hovered locations
       if (isHovered) {
-        const glowFilter = new filters.GlowFilter({
+        const glowFilter = new PIXI.filters.GlowFilter({
           color: PALETTE.highlight,
           distance: 20,
           outerStrength: 2,
