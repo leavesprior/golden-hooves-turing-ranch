@@ -267,7 +267,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     // Icon (simplified emoji as pixel art)
     const iconText = new PIXI.Text({
       text: location.icon,
-      style: new TextStyle({
+      style: new PIXI.TextStyle({
         fontFamily: 'Arial',
         fontSize: 36,
       }),
