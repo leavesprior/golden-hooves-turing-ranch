@@ -278,7 +278,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     return graphics;
   };
 
-  const drawFoggedLocation = (layer: Container, location: Location) => {
+  const drawFoggedLocation = (layer: PIXI.Container, location: Location) => {
     const container = new Container();
     container.x = location.coordinates[0];
     container.y = location.coordinates[1];
