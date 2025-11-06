@@ -292,7 +292,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     // "???" text
     const questionText = new PIXI.Text({
       text: '???',
-      style: new TextStyle({
+      style: new PIXI.TextStyle({
         fontFamily: '"Press Start 2P", monospace',
         fontSize: 16,
         fill: 0xFFFFFF,
