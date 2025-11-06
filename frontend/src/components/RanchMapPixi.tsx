@@ -206,7 +206,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
       }
 
       // Location name text (pixel font style)
-      const nameText = new Text({
+      const nameText = new PIXI.Text({
         text: location.name,
         style: new TextStyle({
           fontFamily: '"Press Start 2P", monospace',
