@@ -164,6 +164,7 @@ export const LocationInteractionDialog = ({
     furrow_fields: Tractor,
     grow_crops: Sprout,
     graze_animals: Beef,
+    feed_treat: Apple,
   };
 
   return (
