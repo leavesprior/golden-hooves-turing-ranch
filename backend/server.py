@@ -1809,6 +1809,132 @@ async def select_trait(user_id: str, trait_id: str):
     }
 
 # Quest System Endpoints
+@api_router.post("/artifact-choice/{user_id}/{choice_id}")
+async def solve_artifact_puzzle(user_id: str, choice_id: int):
+    """Handle artifact puzzle choice"""
+    state = await db.game_progress.find_one({"user_id": user_id})
+    
+    if not state:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if puzzle is active
+    if not state.get("artifact_puzzle_active"):
+        raise HTTPException(status_code=400, detail="No active artifact puzzle")
+    
+    puzzle_data = state.get("artifact_puzzle", {})
+    choices = puzzle_data.get("choices", [])
+    
+    # Find selected choice
+    selected_choice = next((c for c in choices if c["id"] == choice_id), None)
+    if not selected_choice:
+        raise HTTPException(status_code=400, detail="Invalid choice")
+    
+    # Roll for success based on success_rate
+    import random
+    success = random.random() < selected_choice["success_rate"]
+    
+    # Get player stats for outcome
+    traits = state.get("progression", {}).get("traits", [])
+    affinities = state.get("affinities", {})
+    
+    # Calculate rewards
+    if success:
+        xp_reward = random.randint(30, 50)
+        karma_reward = 20
+        affinity_boost = 15
+        
+        # Apply trait bonuses
+        if "explorer" in traits:
+            xp_reward = int(xp_reward * 1.2)
+        
+        # Generate success dialogue with AI
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        if api_key:
+            try:
+                session_id = f"artifact_success_{user_id}"
+                prompt = f"Player chose '{selected_choice['text']}' and succeeded! Generate Leif Pryor's gruff congratulations (100 words max, Gold Rush lore reward reveal)."
+                
+                chat = LlmChat(api_key=api_key, session_id=session_id, system_message="You are Leif Pryor. Gruff cowboy-miner style.").with_model("openai", "gpt-4o")
+                dialogue = await chat.send_message(UserMessage(text=prompt))
+            except:
+                dialogue = f"🎉 Well I'll be! You chose wisely, partner! The artifact reveals its secrets—an ancient Gold Rush map fragment! +{xp_reward} XP, +{karma_reward} karma, +{affinity_boost} all affinities!"
+        else:
+            dialogue = f"🎉 Smart choice, partner! You struck it rich! +{xp_reward} XP, +{karma_reward} karma!"
+        
+        # Update affinities
+        updated_affinities = {k: v + affinity_boost for k, v in affinities.items()}
+        
+        # Mark artifact as explored
+        await db.game_progress.update_one(
+            {"user_id": user_id},
+            {
+                "$set": {
+                    "artifact_explored": True,
+                    "artifact_puzzle_active": False,
+                    "affinities": updated_affinities,
+                    "updated_at": datetime.utcnow()
+                },
+                "$inc": {
+                    "karma_coins": karma_reward,
+                    "progression.xp": xp_reward
+                }
+            }
+        )
+        
+        return {
+            "success": True,
+            "dialogue": dialogue,
+            "rewards": {
+                "experience": xp_reward,
+                "karma_coins": karma_reward,
+                "affinity_boost": affinity_boost
+            },
+            "quest_update": {"message": "Artifact secrets revealed! All creature affinities increased!"}
+        }
+    else:
+        # Failure
+        xp_reward = 10
+        karma_penalty = -5
+        
+        # Generate failure dialogue
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        if api_key:
+            try:
+                session_id = f"artifact_fail_{user_id}"
+                prompt = f"Player chose '{selected_choice['text']}' but failed. Generate Leif Pryor's gruff 'make my day' style hint to try again."
+                
+                chat = LlmChat(api_key=api_key, session_id=session_id, system_message="You are Leif Pryor. Gruff but encouraging.").with_model("openai", "gpt-4o")
+                dialogue = await chat.send_message(UserMessage(text=prompt))
+            except:
+                dialogue = f"❌ Wrong path, partner. Make my day and try again! The artifact remains sealed. +{xp_reward} XP for trying, but you'll need to explore more before attempting this puzzle again."
+        else:
+            dialogue = "❌ Not quite, partner. The artifact's secrets remain hidden. Try building more affinities first!"
+        
+        # Reset puzzle (can try again)
+        await db.game_progress.update_one(
+            {"user_id": user_id},
+            {
+                "$set": {
+                    "artifact_puzzle_active": False,
+                    "updated_at": datetime.utcnow()
+                },
+                "$inc": {
+                    "karma_coins": karma_penalty,
+                    "progression.xp": xp_reward
+                }
+            }
+        )
+        
+        return {
+            "success": False,
+            "dialogue": dialogue,
+            "rewards": {
+                "experience": xp_reward,
+                "karma_coins": karma_penalty
+            },
+            "hint": "Build creature affinities to improve your chances!"
+        }
+
 @api_router.get("/quests/{user_id}")
 async def get_quests(user_id: str):
     """Get all quests for user"""
