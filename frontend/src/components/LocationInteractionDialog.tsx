@@ -239,7 +239,24 @@ export const LocationInteractionDialog = ({
                     furrow_fields: 'FURROW FIELDS 🚜',
                     grow_crops: 'GROW CROPS 🌱',
                     graze_animals: 'GRAZE ANIMALS 🐴',
+                    feed_treat: 'FEED TREAT 🍎',
                   };
+
+                  // Special handling for feed_treat action
+                  if (action === 'feed_treat') {
+                    return (
+                      <Button
+                        key={action}
+                        onClick={() => setShowTreatModal(true)}
+                        disabled={isLoading || availableTreats.length === 0}
+                        className="w-full bg-accent hover:bg-accent/90 text-accent-foreground pixel-text text-xs py-6 border-2 flex items-center justify-center gap-2"
+                      >
+                        <Icon className="w-4 h-4" />
+                        {actionLabels[action] || action.toUpperCase()}
+                        {availableTreats.length === 0 && ' (NO TREATS)'}
+                      </Button>
+                    );
+                  }
 
                   return (
                     <Button
