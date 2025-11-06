@@ -417,9 +417,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Phase 1 Interactive Ranch Map + Hybrid Shop System"
-  stuck_tasks:
-    - "Phase 1 Interactive Ranch Map + Hybrid Shop System"
+    - "POST /api/map-interact - feed_treat action (Phase 3)"
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
