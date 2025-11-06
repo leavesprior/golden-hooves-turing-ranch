@@ -1139,7 +1139,7 @@ As Leif Pryor, generate a witty, ranch-themed response (200-300 chars) about the
         affinities[creature] = new_affinity
         
         # Remove treat from inventory
-        updated_inventory = [item for item in inventory if item.get("id") != treat_id or item != treat_item]
+        updated_inventory = [item for item in inventory if item.get("item_id") != treat_id or item != treat_item]
         
         # Add bonus items if any
         for bonus_item in bonus_items:
