@@ -178,7 +178,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
         return;
       }
 
-      const container = new Container();
+      const container = new PIXI.Container();
       container.x = location.coordinates[0];
       container.y = location.coordinates[1];
 
