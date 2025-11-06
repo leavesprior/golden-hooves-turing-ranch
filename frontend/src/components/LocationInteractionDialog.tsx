@@ -20,6 +20,7 @@ interface LocationInteractionDialogProps {
   onInteract: (action: string) => Promise<InteractionResponse | null>;
   onPurchase: (itemId: string) => Promise<boolean>;
   karmaCoins: number;
+  userId: string;
 }
 
 export const LocationInteractionDialog = ({
@@ -29,10 +30,27 @@ export const LocationInteractionDialog = ({
   onInteract,
   onPurchase,
   karmaCoins,
+  userId,
 }: LocationInteractionDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentResponse, setCurrentResponse] = useState<InteractionResponse | null>(null);
   const [showActions, setShowActions] = useState(true);
+  const [showTreatModal, setShowTreatModal] = useState(false);
+  const [inventory, setInventory] = useState<ShopItem[]>([]);
+  const [selectedTreat, setSelectedTreat] = useState<string>('');
+  const [selectedCreature, setSelectedCreature] = useState<string>('');
+
+  // Load inventory when dialog opens
+  useEffect(() => {
+    if (open && userId) {
+      loadInventory();
+    }
+  }, [open, userId]);
+
+  const loadInventory = async () => {
+    const items = await getUserInventory(userId);
+    setInventory(items);
+  };
 
   if (!location) return null;
 
