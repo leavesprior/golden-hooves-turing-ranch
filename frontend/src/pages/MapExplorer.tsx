@@ -267,6 +267,7 @@ const MapExplorer = () => {
         onInteract={handleInteraction}
         onPurchase={handlePurchase}
         karmaCoins={mapData?.karma_coins || 0}
+        userId={userId || ''}
       />
 
       {/* Trait Selection Modal */}
