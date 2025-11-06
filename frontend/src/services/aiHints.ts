@@ -58,7 +58,7 @@ export async function getAIHint(prompt: string, userId?: string): Promise<HintRe
     console.error('Error getting AI hint:', error);
     // Return fallback hint
     return {
-      text: "Well partner, sometimes the best hints come from exploring! Try talking to folks around the ranch and checking those clue spots. 🤠",
+      text: "Listen up, partner—best way to strike it rich is by exploring them hills! Wrong turn? Make my day and keep searching. 🤠",
       character: "Leif Pryor"
     };
   }
