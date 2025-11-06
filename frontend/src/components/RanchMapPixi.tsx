@@ -304,8 +304,8 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     layer.addChild(container);
   };
 
-  const createSparkleEffect = (): Graphics => {
-    const sparkle = new Graphics();
+  const createSparkleEffect = (): PIXI.Graphics => {
+    const sparkle = new PIXI.Graphics();
     sparkle.star(0, 0, 4, 10, 5);
     sparkle.fill(PALETTE.highlight);
     return sparkle;
