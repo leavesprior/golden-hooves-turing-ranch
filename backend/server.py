@@ -1186,6 +1186,173 @@ As Leif Pryor, generate a witty, ranch-themed response (200-300 chars) about the
             quest_update=quest_update
         )
     
+    # Handle explore_artifact action (Secret Grove RPG puzzle)
+    if action == "explore_artifact":
+        # Check if at secret grove
+        if location_id != "secret_grove":
+            raise HTTPException(status_code=400, detail="Artifacts can only be explored at Secret Grove")
+        
+        # Get player progression and affinities
+        traits = state.get("progression", {}).get("traits", [])
+        affinities = state.get("affinities", {})
+        total_affinity = sum(affinities.values())
+        player_level = state.get("progression", {}).get("level", 1)
+        
+        # Check if artifact already explored (one-time puzzle)
+        artifact_state = state.get("artifact_explored", False)
+        
+        if artifact_state:
+            dialogue = "🗿 The ancient artifact rests peacefully. Its secrets have been revealed. The grove's magic continues to flow through the ranch..."
+            return InteractionResponse(
+                dialogue=dialogue,
+                rewards=rewards
+            )
+        
+        # Generate artifact puzzle with AI (Leif Pryor gruff style)
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        
+        if api_key:
+            try:
+                session_id = f"artifact_{user_id}_{uuid.uuid4()}"
+                
+                trait_str = ", ".join([AVAILABLE_TRAITS[t]["name"] for t in traits if t in AVAILABLE_TRAITS])
+                affinity_tier = "high" if total_affinity >= 100 else "medium" if total_affinity >= 50 else "low"
+                
+                prompt = f"""Player discovers ancient Gold Rush artifact in Secret Grove.
+Player level: {player_level}
+Traits: {trait_str or 'None'}
+Affinities: {affinity_tier} ({total_affinity} total)
+
+As Leif Pryor (gruff Clint Eastwood-style cowboy-miner), generate a simple 3-choice artifact puzzle inspired by Shining Force/Zelda. 
+Puzzle should:
+- Tie to California Gold Rush lore (e.g., miner's riddle, hidden treasure map choice)
+- Difficulty scales with affinity: High affinity = clearer hints (60% success), Low = risky (40% like Vagrant Story)
+- Choices lead to outcomes: Success (+30-50 XP, +20 karma, affinity boost, lore item) or Failure (+10 XP, -5 karma, hint for retry)
+
+Respond ONLY with valid JSON:
+{{
+  "puzzle_intro": "string (Leif's gruff introduction to artifact, 150 chars)",
+  "choices": [
+    {{"id": 1, "text": "string (choice description)", "success_rate": float (0.4-0.7 based on affinity)}},
+    {{"id": 2, "text": "string", "success_rate": float}},
+    {{"id": 3, "text": "string", "success_rate": float}}
+  ]
+}}"""
+                
+                chat = LlmChat(
+                    api_key=api_key,
+                    session_id=session_id,
+                    system_message="You are Leif Pryor. Generate artifact puzzles as JSON only. Gruff, witty Gold Rush style."
+                ).with_model("openai", "gpt-4o")
+                
+                user_message = UserMessage(text=prompt)
+                response_text = await chat.send_message(user_message)
+                
+                # Parse JSON response
+                import json
+                puzzle_data = json.loads(response_text)
+                
+                # Store puzzle in state for choice validation
+                await db.game_progress.update_one(
+                    {"user_id": user_id},
+                    {
+                        "$set": {
+                            "artifact_puzzle": puzzle_data,
+                            "artifact_puzzle_active": True,
+                            "updated_at": datetime.utcnow()
+                        }
+                    }
+                )
+                
+                # Return puzzle intro
+                dialogue = f"🗿 {puzzle_data['puzzle_intro']}\n\n🎯 Choose wisely, partner:\n"
+                for i, choice in enumerate(puzzle_data['choices'], 1):
+                    dialogue += f"\n{i}. {choice['text']}"
+                
+                return InteractionResponse(
+                    dialogue=dialogue,
+                    rewards=rewards,
+                    quest_update={"message": "Artifact puzzle activated! Make your choice carefully..."}
+                )
+                
+            except Exception as e:
+                logger.error(f"AI artifact puzzle generation error: {str(e)}")
+                # Fallback static puzzle
+                dialogue = """🗿 Listen up, partner—this here's a miner's riddle from the Gold Rush days:
+
+"In the Sierra's heart, where sequoias stand tall,
+Three paths to treasure, but only one for all.
+The greedy strike early, the wise wait for signs,
+The patient find gold where the sun's last light shines."
+
+🎯 Choose your path:
+1. Dig where morning sun hits (Greedy path)
+2. Wait and observe the grove's patterns (Wise path)
+3. Search where evening shadows fall (Patient path)"""
+                
+                # Store simple fallback puzzle
+                fallback_puzzle = {
+                    "puzzle_intro": "Miner's riddle discovered!",
+                    "choices": [
+                        {"id": 1, "text": "Morning sun path", "success_rate": 0.3},
+                        {"id": 2, "text": "Observe and wait", "success_rate": 0.5},
+                        {"id": 3, "text": "Evening shadow path", "success_rate": 0.7}
+                    ]
+                }
+                
+                await db.game_progress.update_one(
+                    {"user_id": user_id},
+                    {
+                        "$set": {
+                            "artifact_puzzle": fallback_puzzle,
+                            "artifact_puzzle_active": True,
+                            "updated_at": datetime.utcnow()
+                        }
+                    }
+                )
+                
+                return InteractionResponse(
+                    dialogue=dialogue,
+                    rewards=rewards,
+                    quest_update={"message": "Ancient riddle discovered!"}
+                )
+        else:
+            # No API key - use static puzzle
+            dialogue = """🗿 Listen up, partner—this here's a miner's riddle from the Gold Rush days:
+
+"In the Sierra's heart, where sequoias stand tall,
+Three paths to treasure, but only one for all."
+
+🎯 Choose wisely:
+1. The greedy path (quick but risky)
+2. The wise path (balanced approach)
+3. The patient path (slow but sure)"""
+            
+            fallback_puzzle = {
+                "puzzle_intro": "Miner's riddle discovered!",
+                "choices": [
+                    {"id": 1, "text": "Greedy path", "success_rate": 0.3},
+                    {"id": 2, "text": "Wise path", "success_rate": 0.5},
+                    {"id": 3, "text": "Patient path", "success_rate": 0.7}
+                ]
+            }
+            
+            await db.game_progress.update_one(
+                {"user_id": user_id},
+                {
+                    "$set": {
+                        "artifact_puzzle": fallback_puzzle,
+                        "artifact_puzzle_active": True,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            return InteractionResponse(
+                dialogue=dialogue,
+                rewards=rewards
+            )
+    
     # Static dialogues (cost-efficient - no AI)
     dialogues = {
         "barn": {
