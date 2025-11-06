@@ -265,7 +265,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     graphics.stroke({ color: isHovered ? PALETTE.highlight : 0x333333, width: 3 });
 
     // Icon (simplified emoji as pixel art)
-    const iconText = new Text({
+    const iconText = new PIXI.Text({
       text: location.icon,
       style: new TextStyle({
         fontFamily: 'Arial',
