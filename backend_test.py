@@ -11,7 +11,7 @@ from datetime import datetime
 import time
 
 # Backend URL from frontend .env
-BASE_URL = "https://ranch-adventure.preview.emergentagent.com/api"
+BASE_URL = "https://mapquest-16.preview.emergentagent.com/api"
 
 # Global variables to store auth tokens for testing
 auth_token = None
