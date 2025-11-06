@@ -23,10 +23,10 @@ const PALETTE = {
 
 export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const appRef = useRef<Application | null>(null);
+  const appRef = useRef<PIXI.Application | null>(null);
   const [hoveredLocation, setHoveredLocation] = useState<string | null>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 960, height: 640 });
-  const locationSpritesRef = useRef<Map<string, Container>>(new Map());
+  const locationSpritesRef = useRef<Map<string, PIXI.Container>>(new Map());
   const timeRef = useRef(0);
 
   // Responsive sizing
