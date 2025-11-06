@@ -143,7 +143,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     }
 
     // Dirt paths (connecting locations)
-    const pathGraphics = new Graphics();
+    const pathGraphics = new PIXI.Graphics();
     pathGraphics.rect(0, height - 100, width, 40);
     pathGraphics.fill(PALETTE.dirt[0]);
     
