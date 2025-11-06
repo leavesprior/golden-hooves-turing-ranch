@@ -242,7 +242,8 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     });
   };
 
-  const drawLocationSprite = (location: Location, isVisited: boolean, isHovered: boolean): PIXI.Graphics => {
+  const drawLocationSprite = (location: Location, isVisited: boolean, isHovered: boolean): PIXI.Container => {
+    const container = new PIXI.Container();
     const graphics = new PIXI.Graphics();
 
     // Base circle (16-bit style with outline)
@@ -264,6 +265,8 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     graphics.circle(0, 0, 36);
     graphics.stroke({ color: isHovered ? PALETTE.highlight : 0x333333, width: 3 });
 
+    container.addChild(graphics);
+
     // Icon (simplified emoji as pixel art)
     const iconText = new PIXI.Text({
       text: location.icon,
@@ -273,9 +276,9 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
       }),
     });
     iconText.anchor.set(0.5);
-    graphics.addChild(iconText);
+    container.addChild(iconText);
 
-    return graphics;
+    return container;
   };
 
   const drawFoggedLocation = (layer: PIXI.Container, location: Location) => {
