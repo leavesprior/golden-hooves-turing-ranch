@@ -1035,6 +1035,153 @@ async def map_interaction(
             shop_menu=shop_menu
         )
     
+    # Handle feed_treat action (Phase 3 treat-feeding mechanic)
+    if action == "feed_treat":
+        # Validate request body
+        if not request or not request.treat_id or not request.creature:
+            raise HTTPException(status_code=400, detail="treat_id and creature required for feed_treat action")
+        
+        treat_id = request.treat_id
+        creature = request.creature
+        
+        # Check if treat is in inventory
+        inventory = state.get("inventory", [])
+        treat_item = next((item for item in inventory if item.get("id") == treat_id), None)
+        
+        if not treat_item:
+            raise HTTPException(status_code=400, detail="You don't have this treat in your inventory")
+        
+        # Validate treat-creature compatibility at this location
+        if not get_creature_compatibility(treat_id, creature, location_id):
+            raise HTTPException(
+                status_code=400, 
+                detail=f"This treat is not suitable for {creature} at this location"
+            )
+        
+        # Get player traits
+        traits = state.get("progression", {}).get("traits", [])
+        affinities = state.get("affinities", {})
+        current_affinity = affinities.get(creature, 0)
+        
+        # Calculate affinity gain
+        base_affinity_gain = 15
+        affinity_gain = calculate_affinity_gain(base_affinity_gain, traits)
+        
+        # Base rewards
+        base_xp = 15
+        base_karma = 10
+        
+        total_xp = base_xp
+        total_karma = base_karma
+        bonus_items = []
+        
+        # Check for random procedural event
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        feeding_event = await generate_random_event(
+            treat_item.get("name", treat_id),
+            creature,
+            location['name'],
+            current_affinity,
+            traits,
+            api_key
+        )
+        
+        # Generate AI response from Leif Pryor
+        if api_key:
+            try:
+                session_id = f"feed_{user_id}_{creature}_{uuid.uuid4()}"
+                
+                trait_str = ", ".join([AVAILABLE_TRAITS[t]["name"] for t in traits if t in AVAILABLE_TRAITS])
+                affinity_display = f"{current_affinity}/100"
+                
+                event_context = ""
+                if feeding_event:
+                    event_context = f"\n\nSPECIAL EVENT: {feeding_event.event_desc}"
+                    if feeding_event.bonus_xp:
+                        total_xp += feeding_event.bonus_xp
+                    if feeding_event.bonus_item:
+                        bonus_items.append(feeding_event.bonus_item)
+                
+                prompt = f"""Player feeds {treat_item.get('name', treat_id)} to {creature} at {location['name']}.
+Current {creature} affinity: {affinity_display}
+Affinity gain: +{affinity_gain}
+Player traits: {trait_str or 'None'}
+Rewards: +{total_xp} XP, +{total_karma} karma{event_context}
+
+As Leif Pryor, generate a witty, ranch-themed response (200-300 chars) about the feeding interaction. Include creature reaction and affinity change. Keep it engaging and in-character."""
+                
+                chat = LlmChat(
+                    api_key=api_key,
+                    session_id=session_id,
+                    system_message="You are Leif Pryor, Back of Beyond Ranch manager. Provide engaging, ranch-themed responses about animal interactions."
+                ).with_model("openai", "gpt-4o")
+                
+                user_message = UserMessage(text=prompt)
+                ai_dialogue = await chat.send_message(user_message)
+                
+                dialogue = ai_dialogue
+                
+            except Exception as e:
+                logger.error(f"AI feeding dialogue error: {str(e)}")
+                dialogue = f"🐴 You feed {treat_item.get('name', treat_id)} to the {creature}. It munches happily, clearly enjoying the treat! Your bond strengthens. +{affinity_gain} affinity!"
+        else:
+            # Fallback static dialogue
+            dialogue = f"🐴 You feed {treat_item.get('name', treat_id)} to the {creature}. It munches happily, clearly enjoying the treat! Your bond strengthens. +{affinity_gain} affinity!"
+        
+        # Add event description if triggered
+        if feeding_event:
+            dialogue += f"\n\n✨ {feeding_event.event_desc}"
+        
+        # Update affinity
+        new_affinity = min(current_affinity + affinity_gain, 100)  # Cap at 100
+        affinities[creature] = new_affinity
+        
+        # Remove treat from inventory
+        updated_inventory = [item for item in inventory if item.get("id") != treat_id or item != treat_item]
+        
+        # Add bonus items if any
+        for bonus_item in bonus_items:
+            updated_inventory.append({
+                "id": f"bonus_{uuid.uuid4()}",
+                "name": bonus_item,
+                "effect": "bonus"
+            })
+        
+        # Set rewards
+        rewards.experience = total_xp
+        rewards.karma_coins = total_karma
+        rewards.items = bonus_items
+        
+        # Update MongoDB
+        await db.game_progress.update_one(
+            {"user_id": user_id},
+            {
+                "$set": {
+                    "affinities": affinities,
+                    "inventory": updated_inventory,
+                    "updated_at": datetime.utcnow()
+                },
+                "$inc": {
+                    "karma_coins": total_karma,
+                    "progression.xp": total_xp
+                }
+            }
+        )
+        
+        # Check for quest progression based on affinity
+        quest_update = None
+        if new_affinity >= 30:
+            quest_update = {
+                "message": f"{creature.capitalize()} affinity reached milestone!",
+                "affinity": new_affinity
+            }
+        
+        return InteractionResponse(
+            dialogue=dialogue,
+            rewards=rewards,
+            quest_update=quest_update
+        )
+    
     # Static dialogues (cost-efficient - no AI)
     dialogues = {
         "barn": {
