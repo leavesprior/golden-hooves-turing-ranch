@@ -311,7 +311,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
     return sparkle;
   };
 
-  const animateEffects = (layer: Container, time: number) => {
+  const animateEffects = (layer: PIXI.Container, time: number) => {
     // Animate sparkles and other effects
     layer.children.forEach((child, index) => {
       if (child instanceof Graphics) {
