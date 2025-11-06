@@ -223,7 +223,7 @@ export const RanchMapPixi = ({ mapData, onLocationClick }: RanchMapPixiProps) =>
       // Make interactive
       container.eventMode = 'static';
       container.cursor = 'pointer';
-      container.hitArea = new Graphics().circle(0, 0, 50).geometry;
+      container.hitArea = new PIXI.Graphics().circle(0, 0, 50).geometry;
 
       container.on('pointerdown', () => {
         onLocationClick(location);
