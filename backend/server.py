@@ -456,7 +456,7 @@ RANCH_LOCATIONS = [
         "icon": "🐴",
         "description": "Home to Jumanji the stubborn donkey and other ranch animals",
         "npc_name": "Stable Keeper",
-        "interactions": ["enter", "talk", "search"],
+        "interactions": ["enter", "talk", "search", "feed_treat"],
         "base_unlocked": True
     },
     {
