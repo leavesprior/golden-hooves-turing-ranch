@@ -703,7 +703,7 @@ async def get_ai_hint(request: HintRequest):
         logger.error(f"Error generating AI hint: {str(e)}")
         # Fallback to a generic hint if AI fails
         return HintResponse(
-            text="Well partner, sometimes the best hints come from exploring! Try talking to folks around the ranch and checking those clue spots. 🤠",
+            text="Listen up, partner—best way to strike it rich is by exploring them hills and talking to folks. Wrong path? Well, make my day and try again! 🤠",
             character="Leif Pryor"
         )
 
