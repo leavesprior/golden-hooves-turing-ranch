@@ -1,5 +1,8 @@
 'use client'
+
+import { useState } from 'react'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+import { useGame } from '@/lib/gameContext'
 
 const amenities = [
   { icon: '🛏️', name: '6 Bedrooms', desc: 'Sleeps 12 guests' },
@@ -20,11 +23,27 @@ const nearby = [
 ]
 
 export default function RentalsPage() {
+  const { getReward, gameState } = useGame()
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const reward = getReward()
+
   return (
     <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
       <PixelNavigation />
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Game Reward Banner */}
+        {gameState === 'complete' && reward && (
+          <div className="bg-gradient-to-r from-[var(--pixel-gold-dark)] via-[var(--pixel-fire-orange)] to-[var(--pixel-gold-dark)] border-4 border-[var(--pixel-gold-mid)] p-4 mb-6 text-center">
+            <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
+              Quest Complete! You earned <span className="text-[var(--pixel-gold-light)]">{reward.discount}% OFF</span>
+            </p>
+            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mt-2">
+              Use code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{reward.code}</span> when booking
+            </p>
+          </div>
+        )}
+
         {/* Hero */}
         <div className="text-center mb-12">
           <h1 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-lg sm:text-xl mb-4">
@@ -47,8 +66,8 @@ export default function RentalsPage() {
               <p className="text-[var(--pixel-ui-text)]">Reviews</p>
             </div>
             <div className="text-center">
-              <span className="text-[var(--pixel-forest-light)] text-lg">10%</span>
-              <p className="text-[var(--pixel-ui-text)]">Direct Discount</p>
+              <span className="text-[var(--pixel-forest-light)] text-lg">{reward ? `${reward.discount}%` : '10%'}</span>
+              <p className="text-[var(--pixel-ui-text)]">{reward ? 'Your Discount' : 'Direct Discount'}</p>
             </div>
             <div className="text-center">
               <span className="text-[var(--pixel-fire-orange)] text-lg">#1</span>
@@ -165,12 +184,33 @@ export default function RentalsPage() {
 
             <PixelCard title="⚔️ Bonus: Treasure Hunt">
               <div className="space-y-4">
-                <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed">
-                  Every stay includes access to our exclusive treasure hunt game! Explore the ranch, solve riddles, and compete on the leaderboard.
-                </p>
-                <PixelButton href="/game" variant="orange" size="sm">
-                  Learn More
-                </PixelButton>
+                {gameState === 'complete' && reward ? (
+                  <>
+                    <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed text-[var(--pixel-forest-light)]">
+                      You completed the Golden Hooves Legacy!
+                    </p>
+                    <div className="bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] p-3 text-center">
+                      <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
+                        {reward.discount}% OFF
+                      </p>
+                      <p className="font-[var(--font-pixel)] text-[6px] text-[var(--pixel-ui-text)]">
+                        {reward.tier.toUpperCase()} TIER
+                      </p>
+                    </div>
+                    <PixelButton href="/certificate" variant="gold" size="sm">
+                      View Certificate
+                    </PixelButton>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed">
+                      Every stay includes access to our exclusive treasure hunt game! Explore the ranch, solve riddles, and earn up to 27% off your next stay.
+                    </p>
+                    <PixelButton href="/game" variant="orange" size="sm">
+                      {gameState === 'playing' ? 'Continue Quest' : 'Start the Quest'}
+                    </PixelButton>
+                  </>
+                )}
               </div>
             </PixelCard>
 

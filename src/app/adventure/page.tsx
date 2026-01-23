@@ -1,0 +1,985 @@
+'use client'
+
+import { useState, useCallback } from 'react'
+import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+import { useRPG, TRAITS, type TraitId, type AttributeName } from '@/lib/rpgContext'
+import {
+  rollAllStats,
+  generateMandelbrotSeed,
+  distributeStatsMandelbrot,
+  attributeRollsToStats,
+  type AttributeRolls,
+  type CharacterAttributes,
+  type CreationMethod,
+} from '@/lib/rpgContext'
+import { chapters } from '@/lib/chapters'
+
+// Character creation steps
+type CreationStep = 'name' | 'method' | 'stats' | 'trait' | 'confirm'
+
+// Attribute display names and descriptions
+const ATTRIBUTE_INFO: Record<AttributeName, { name: string; abbr: string; desc: string }> = {
+  str: { name: 'Strength', abbr: 'STR', desc: 'Mining & hauling' },
+  dex: { name: 'Dexterity', abbr: 'DEX', desc: 'Panning & precision' },
+  con: { name: 'Constitution', abbr: 'CON', desc: 'Endurance & health' },
+  int: { name: 'Intelligence', abbr: 'INT', desc: 'Geology & business' },
+  wis: { name: 'Wisdom', abbr: 'WIS', desc: 'Survival & intuition' },
+  cha: { name: 'Charisma', abbr: 'CHA', desc: 'Negotiation & trust' },
+}
+
+// Dice component for visual display
+function DiceDisplay({ value, kept }: { value: number; kept: boolean }) {
+  const dots: Record<number, string[]> = {
+    1: ['50% 50%'],
+    2: ['25% 25%', '75% 75%'],
+    3: ['25% 25%', '50% 50%', '75% 75%'],
+    4: ['25% 25%', '25% 75%', '75% 25%', '75% 75%'],
+    5: ['25% 25%', '25% 75%', '50% 50%', '75% 25%', '75% 75%'],
+    6: ['25% 25%', '25% 50%', '25% 75%', '75% 25%', '75% 50%', '75% 75%'],
+  }
+
+  return (
+    <div
+      className={`
+        relative w-8 h-8 sm:w-10 sm:h-10 border-2 rounded
+        ${kept
+          ? 'bg-[var(--pixel-ui-bg)] border-[var(--pixel-gold-mid)]'
+          : 'bg-[var(--pixel-bg-dark)] border-[var(--pixel-fire-red)] opacity-50'}
+      `}
+    >
+      {dots[value]?.map((pos, i) => (
+        <div
+          key={i}
+          className={`absolute w-2 h-2 rounded-full ${kept ? 'bg-[var(--pixel-gold-light)]' : 'bg-[var(--pixel-fire-red)]'}`}
+          style={{
+            left: pos.split(' ')[0],
+            top: pos.split(' ')[1],
+            transform: 'translate(-50%, -50%)',
+          }}
+        />
+      ))}
+      {!kept && (
+        <div className="absolute inset-0 flex items-center justify-center text-[var(--pixel-fire-red)] font-bold text-lg">
+          ×
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Stat row with dice display
+function StatRollRow({
+  attr,
+  rolls,
+  total,
+}: {
+  attr: AttributeName
+  rolls: { value: number; kept: boolean }[]
+  total: number
+}) {
+  const info = ATTRIBUTE_INFO[attr]
+  const modifier = Math.floor((total - 10) / 2)
+  const modStr = modifier >= 0 ? `+${modifier}` : `${modifier}`
+
+  return (
+    <div className="flex items-center justify-between gap-2 py-2 border-b border-[var(--pixel-ui-border)] last:border-0">
+      <div className="w-16 sm:w-20">
+        <span className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-gold-light)]">
+          {info.abbr}
+        </span>
+        <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">
+          {info.desc}
+        </p>
+      </div>
+      <div className="flex gap-1">
+        {rolls.map((die, i) => (
+          <DiceDisplay key={i} value={die.value} kept={die.kept} />
+        ))}
+      </div>
+      <div className="text-right w-16">
+        <span className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)]">
+          {total}
+        </span>
+        <span className={`font-[var(--font-pixel)] text-[10px] sm:text-[12px] ml-1 ${modifier >= 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
+          ({modStr})
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// Mandelbrot visualization
+function MandelbrotVisual({ c, iterations }: { c: { re: number; im: number }; iterations: number }) {
+  return (
+    <div className="relative w-32 h-32 mx-auto border-2 border-[var(--pixel-gold-mid)] bg-[var(--pixel-bg-dark)]">
+      {/* Simple fractal-like visualization */}
+      <div
+        className="absolute rounded-full bg-[var(--pixel-gold-mid)]"
+        style={{
+          width: `${Math.min(80, iterations * 0.8)}%`,
+          height: `${Math.min(80, iterations * 0.8)}%`,
+          left: `${50 + c.re * 20}%`,
+          top: `${50 + c.im * 20}%`,
+          transform: 'translate(-50%, -50%)',
+          opacity: 0.3 + (iterations / 100) * 0.7,
+        }}
+      />
+      <div
+        className="absolute w-2 h-2 bg-[var(--pixel-fire-orange)] rounded-full"
+        style={{
+          left: `${50 + c.re * 30}%`,
+          top: `${50 + c.im * 30}%`,
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
+      <div className="absolute bottom-1 left-1 right-1 text-center">
+        <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+          z = z² + ({c.re.toFixed(2)} + {c.im.toFixed(2)}i)
+        </span>
+      </div>
+    </div>
+  )
+}
+
+export default function AdventurePage() {
+  const { session, startNewGame, loadGame, resetGame, getDiscountCode } = useRPG()
+
+  // Character creation state
+  const [creationStep, setCreationStep] = useState<CreationStep>('name')
+  const [nameInput, setNameInput] = useState('')
+  const [showNewGame, setShowNewGame] = useState(false)
+  const [creationMethod, setCreationMethod] = useState<CreationMethod | null>(null)
+
+  // Dice roll state
+  const [attributeRolls, setAttributeRolls] = useState<AttributeRolls | null>(null)
+  const [rerollsUsed, setRerollsUsed] = useState(0)
+  const MAX_REROLLS = 3
+
+  // Mandelbrot state
+  const [mandelbrotResult, setMandelbrotResult] = useState<{ seed: number; iterations: number; c: { re: number; im: number }; escaped: boolean } | null>(null)
+  const [mandelbrotStats, setMandelbrotStats] = useState<CharacterAttributes | null>(null)
+
+  // Trait selection
+  const [selectedTrait, setSelectedTrait] = useState<TraitId | null>(null)
+
+  // Final stats for starting the game
+  const [finalStats, setFinalStats] = useState<CharacterAttributes | null>(null)
+
+  const hasSavedGame = typeof window !== 'undefined' && localStorage.getItem('bobr_rpg_session')
+  const discount = getDiscountCode()
+
+  // Handle rolling dice
+  const handleRollDice = useCallback(() => {
+    const rolls = rollAllStats()
+    setAttributeRolls(rolls)
+    setFinalStats(attributeRollsToStats(rolls))
+  }, [])
+
+  // Handle reroll
+  const handleReroll = useCallback(() => {
+    if (rerollsUsed < MAX_REROLLS) {
+      handleRollDice()
+      setRerollsUsed(prev => prev + 1)
+    }
+  }, [rerollsUsed, handleRollDice])
+
+  // Handle Mandelbrot generation
+  const handleMandelbrot = useCallback(() => {
+    const result = generateMandelbrotSeed()
+    setMandelbrotResult(result)
+    const stats = distributeStatsMandelbrot(result.seed)
+    setMandelbrotStats(stats)
+    setFinalStats(stats)
+  }, [])
+
+  // Select creation method
+  const handleSelectMethod = useCallback((method: CreationMethod) => {
+    setCreationMethod(method)
+    if (method === 'dice_roll') {
+      handleRollDice()
+    } else if (method === 'mandelbrot') {
+      handleMandelbrot()
+    }
+    setCreationStep('stats')
+  }, [handleRollDice, handleMandelbrot])
+
+  // Proceed to trait selection
+  const handleConfirmStats = useCallback(() => {
+    setCreationStep('trait')
+  }, [])
+
+  // Start the game
+  const handleStartGame = useCallback(() => {
+    const playerName = nameInput.trim() || 'Prospector'
+    startNewGame(playerName, {
+      attributes: finalStats || undefined,
+      creationMethod: creationMethod || 'standard',
+      rerollsUsed,
+      traits: selectedTrait ? [selectedTrait] : [],
+    })
+  }, [nameInput, finalStats, creationMethod, rerollsUsed, selectedTrait, startNewGame])
+
+  const handleContinue = () => {
+    loadGame()
+  }
+
+  // Check if trait prerequisites are met
+  const isTraitAvailable = (traitId: TraitId): boolean => {
+    if (!finalStats) return true
+    const trait = TRAITS[traitId]
+    if (!trait.prerequisite) return true
+    return finalStats[trait.prerequisite.attribute] >= trait.prerequisite.min
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
+      <PixelNavigation />
+
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Title */}
+        <div className="text-center mb-8">
+          <h1 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-lg sm:text-xl mb-2">
+            THE PROSPECTOR'S TALE
+          </h1>
+          <p className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)]">
+            A Gold Rush Adventure
+          </p>
+        </div>
+
+        {/* Hero Scene - 64-bit Style */}
+        <div className="relative border-4 border-[var(--pixel-ui-border)] aspect-video mb-8 overflow-hidden">
+          {/* Gradient Sky with Golden Hour */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: 'linear-gradient(to bottom, #1a0a2e 0%, #16213e 15%, #0f3460 30%, #e94560 50%, #ff9a3c 65%, #ffd93d 80%, #6bcb77 95%)'
+            }}
+          />
+
+          {/* Stars (visible in upper sky) - deterministic positions */}
+          <div className="absolute top-0 left-0 right-0 h-1/3 overflow-hidden opacity-60">
+            {[
+              { x: 5, y: 12, d: 0 }, { x: 15, y: 28, d: 0.5 }, { x: 25, y: 8, d: 1 },
+              { x: 35, y: 22, d: 1.5 }, { x: 42, y: 5, d: 2 }, { x: 52, y: 18, d: 0.3 },
+              { x: 62, y: 30, d: 0.8 }, { x: 72, y: 10, d: 1.2 }, { x: 78, y: 25, d: 1.8 },
+              { x: 88, y: 15, d: 2.2 }, { x: 95, y: 8, d: 0.6 }, { x: 8, y: 35, d: 1.4 },
+              { x: 28, y: 38, d: 1.9 }, { x: 48, y: 32, d: 0.2 }, { x: 68, y: 36, d: 2.5 },
+              { x: 82, y: 40, d: 0.9 }, { x: 18, y: 45, d: 1.6 }, { x: 58, y: 42, d: 2.1 },
+              { x: 38, y: 48, d: 0.4 }, { x: 92, y: 38, d: 1.1 }
+            ].map((star, i) => (
+              <div
+                key={i}
+                className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
+                style={{
+                  left: `${star.x}%`,
+                  top: `${star.y}%`,
+                  animationDelay: `${star.d}s`,
+                  animationDuration: '3s',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Sun/Moon */}
+          <div
+            className="absolute w-16 h-16 sm:w-20 sm:h-20 rounded-full"
+            style={{
+              right: '15%',
+              top: '20%',
+              background: 'radial-gradient(circle, #ffd93d 0%, #ff9a3c 50%, #e94560 100%)',
+              boxShadow: '0 0 60px 20px rgba(255,217,61,0.4), 0 0 100px 40px rgba(255,154,60,0.2)',
+            }}
+          />
+
+          {/* Distant Mountains (Purple/Blue) */}
+          <div className="absolute bottom-0 left-0 right-0 h-2/3">
+            <svg viewBox="0 0 200 80" className="w-full h-full" preserveAspectRatio="xMidYMax slice">
+              {/* Far mountains - misty purple */}
+              <defs>
+                <linearGradient id="farMountain" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#4a3f6b" />
+                  <stop offset="100%" stopColor="#2d2d44" />
+                </linearGradient>
+                <linearGradient id="midMountain" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#3d5a80" />
+                  <stop offset="100%" stopColor="#293241" />
+                </linearGradient>
+                <linearGradient id="nearMountain" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#386641" />
+                  <stop offset="100%" stopColor="#1a3a1a" />
+                </linearGradient>
+                <linearGradient id="hills" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#4a7c59" />
+                  <stop offset="100%" stopColor="#2d5016" />
+                </linearGradient>
+              </defs>
+
+              {/* Far mountains */}
+              <polygon points="0,80 0,50 20,35 35,45 50,25 70,40 85,20 100,35 115,30 130,40 150,22 170,38 185,28 200,40 200,80" fill="url(#farMountain)" opacity="0.7" />
+
+              {/* Mid mountains */}
+              <polygon points="0,80 0,55 15,42 30,52 48,38 65,48 80,32 100,45 120,35 140,48 160,38 180,50 200,42 200,80" fill="url(#midMountain)" opacity="0.85" />
+
+              {/* Near mountains */}
+              <polygon points="0,80 0,58 25,48 45,55 60,42 80,52 100,40 125,50 145,45 165,52 185,48 200,55 200,80" fill="url(#nearMountain)" />
+
+              {/* Rolling hills */}
+              <ellipse cx="30" cy="75" rx="45" ry="15" fill="url(#hills)" />
+              <ellipse cx="100" cy="78" rx="50" ry="12" fill="url(#hills)" />
+              <ellipse cx="170" cy="76" rx="45" ry="14" fill="url(#hills)" />
+            </svg>
+          </div>
+
+          {/* Ground/Valley */}
+          <div
+            className="absolute bottom-0 left-0 right-0 h-1/4"
+            style={{
+              background: 'linear-gradient(to bottom, #4a7c59 0%, #3d6b4f 30%, #2d5a3f 60%, #1e4a2f 100%)',
+            }}
+          />
+
+          {/* Trail/Path leading to ranch */}
+          <div className="absolute bottom-0 left-0 right-0 h-1/4 overflow-hidden">
+            <svg viewBox="0 0 200 50" className="w-full h-full" preserveAspectRatio="xMidYMax slice">
+              <path
+                d="M 0,50 Q 50,45 100,30 Q 150,15 200,20"
+                fill="none"
+                stroke="#8b7355"
+                strokeWidth="4"
+                opacity="0.6"
+              />
+              <path
+                d="M 0,50 Q 50,45 100,30 Q 150,15 200,20"
+                fill="none"
+                stroke="#a08060"
+                strokeWidth="2"
+                strokeDasharray="4 4"
+                opacity="0.4"
+              />
+            </svg>
+          </div>
+
+          {/* Ranch House - Pixel Art Style */}
+          <div className="absolute bottom-[18%] left-1/2 transform -translate-x-1/2" style={{ width: '120px' }}>
+            <svg viewBox="0 0 80 60" className="w-full">
+              {/* Main house body */}
+              <rect x="15" y="25" width="50" height="30" fill="#8b4513" />
+              <rect x="15" y="25" width="50" height="30" fill="#a0522d" opacity="0.5" />
+
+              {/* Roof */}
+              <polygon points="10,25 40,5 70,25" fill="#654321" />
+              <polygon points="10,25 40,5 40,25" fill="#5d3a1a" />
+
+              {/* Chimney */}
+              <rect x="55" y="8" width="8" height="17" fill="#4a3728" />
+              <rect x="54" y="6" width="10" height="3" fill="#5d4532" />
+
+              {/* Smoke from chimney */}
+              <ellipse cx="59" cy="3" rx="3" ry="2" fill="#888" opacity="0.5">
+                <animate attributeName="cy" values="3;-2;3" dur="3s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.5;0.2;0.5" dur="3s" repeatCount="indefinite" />
+              </ellipse>
+
+              {/* Door */}
+              <rect x="35" y="38" width="10" height="17" fill="#4a3728" />
+              <circle cx="43" cy="47" r="1" fill="#ffd700" />
+
+              {/* Windows */}
+              <rect x="20" y="32" width="8" height="8" fill="#87ceeb" stroke="#4a3728" strokeWidth="1" />
+              <line x1="24" y1="32" x2="24" y2="40" stroke="#4a3728" strokeWidth="0.5" />
+              <line x1="20" y1="36" x2="28" y2="36" stroke="#4a3728" strokeWidth="0.5" />
+
+              <rect x="52" y="32" width="8" height="8" fill="#87ceeb" stroke="#4a3728" strokeWidth="1" />
+              <line x1="56" y1="32" x2="56" y2="40" stroke="#4a3728" strokeWidth="0.5" />
+              <line x1="52" y1="36" x2="60" y2="36" stroke="#4a3728" strokeWidth="0.5" />
+
+              {/* Window glow (warm light) */}
+              <rect x="20" y="32" width="8" height="8" fill="#ffd700" opacity="0.3" />
+              <rect x="52" y="32" width="8" height="8" fill="#ffd700" opacity="0.3" />
+
+              {/* Porch */}
+              <rect x="12" y="52" width="56" height="3" fill="#654321" />
+              <rect x="15" y="45" width="2" height="10" fill="#654321" />
+              <rect x="63" y="45" width="2" height="10" fill="#654321" />
+              <rect x="13" y="45" width="54" height="2" fill="#5d3a1a" />
+
+              {/* Porch roof */}
+              <polygon points="10,45 40,38 70,45" fill="#4a3728" opacity="0.8" />
+
+              {/* Fence posts */}
+              <rect x="0" y="48" width="2" height="12" fill="#8b7355" />
+              <rect x="8" y="48" width="2" height="12" fill="#8b7355" />
+              <rect x="70" y="48" width="2" height="12" fill="#8b7355" />
+              <rect x="78" y="48" width="2" height="12" fill="#8b7355" />
+
+              {/* Fence rails */}
+              <rect x="0" y="50" width="12" height="1.5" fill="#a08060" />
+              <rect x="0" y="55" width="12" height="1.5" fill="#a08060" />
+              <rect x="68" y="50" width="12" height="1.5" fill="#a08060" />
+              <rect x="68" y="55" width="12" height="1.5" fill="#a08060" />
+            </svg>
+          </div>
+
+          {/* Trees (silhouettes) */}
+          <div className="absolute bottom-[15%] left-[8%]">
+            <svg viewBox="0 0 30 50" className="w-8 sm:w-10 h-auto">
+              <polygon points="15,0 0,40 30,40" fill="#1a3a1a" />
+              <rect x="12" y="40" width="6" height="10" fill="#4a3728" />
+            </svg>
+          </div>
+          <div className="absolute bottom-[15%] right-[10%]">
+            <svg viewBox="0 0 30 50" className="w-8 sm:w-10 h-auto">
+              <polygon points="15,0 0,40 30,40" fill="#1a3a1a" />
+              <rect x="12" y="40" width="6" height="10" fill="#4a3728" />
+            </svg>
+          </div>
+          <div className="absolute bottom-[12%] left-[18%]">
+            <svg viewBox="0 0 25 40" className="w-6 sm:w-8 h-auto">
+              <polygon points="12.5,0 0,32 25,32" fill="#2d5016" />
+              <rect x="10" y="32" width="5" height="8" fill="#4a3728" />
+            </svg>
+          </div>
+          <div className="absolute bottom-[12%] right-[20%]">
+            <svg viewBox="0 0 25 40" className="w-6 sm:w-8 h-auto">
+              <polygon points="12.5,0 0,32 25,32" fill="#2d5016" />
+              <rect x="10" y="32" width="5" height="8" fill="#4a3728" />
+            </svg>
+          </div>
+
+          {/* Wagon on trail */}
+          <div className="absolute bottom-[8%] left-[25%]">
+            <svg viewBox="0 0 40 25" className="w-10 sm:w-12 h-auto">
+              {/* Wagon body */}
+              <rect x="8" y="5" width="20" height="12" fill="#8b4513" />
+              <rect x="6" y="3" width="24" height="3" fill="#a0522d" />
+              {/* Canvas cover */}
+              <ellipse cx="18" cy="5" rx="12" ry="6" fill="#f5deb3" opacity="0.9" />
+              {/* Wheels */}
+              <circle cx="10" cy="20" r="5" fill="#4a3728" stroke="#8b7355" strokeWidth="1" />
+              <circle cx="26" cy="20" r="5" fill="#4a3728" stroke="#8b7355" strokeWidth="1" />
+              {/* Wheel spokes */}
+              <line x1="10" y1="15" x2="10" y2="25" stroke="#8b7355" strokeWidth="0.5" />
+              <line x1="5" y1="20" x2="15" y2="20" stroke="#8b7355" strokeWidth="0.5" />
+              <line x1="26" y1="15" x2="26" y2="25" stroke="#8b7355" strokeWidth="0.5" />
+              <line x1="21" y1="20" x2="31" y2="20" stroke="#8b7355" strokeWidth="0.5" />
+            </svg>
+          </div>
+
+          {/* Horse */}
+          <div className="absolute bottom-[7%] left-[18%] text-xl sm:text-2xl">
+            🐴
+          </div>
+
+          {/* Dust particles floating - deterministic positions */}
+          <div className="absolute inset-0 pointer-events-none">
+            {[
+              { x: 25, y: 8, dur: 5, del: 0 }, { x: 35, y: 15, dur: 6, del: 0.5 },
+              { x: 48, y: 10, dur: 4.5, del: 1 }, { x: 55, y: 18, dur: 5.5, del: 1.5 },
+              { x: 65, y: 12, dur: 6.5, del: 0.3 }, { x: 72, y: 20, dur: 4, del: 0.8 },
+              { x: 42, y: 22, dur: 5.2, del: 1.2 }, { x: 58, y: 6, dur: 6.2, del: 1.8 }
+            ].map((dust, i) => (
+              <div
+                key={`dust-${i}`}
+                className="absolute w-1 h-1 bg-amber-200/40 rounded-full"
+                style={{
+                  left: `${dust.x}%`,
+                  bottom: `${dust.y}%`,
+                  animation: `float ${dust.dur}s ease-in-out infinite`,
+                  animationDelay: `${dust.del}s`,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Title overlay */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="bg-[var(--pixel-bg-dark)]/85 px-6 py-4 border-2 border-[var(--pixel-gold-mid)] backdrop-blur-sm">
+              <p className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)] text-center">
+                California, 1852
+              </p>
+              <p className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)] text-center mt-2">
+                The story that started it all...
+              </p>
+            </div>
+          </div>
+
+          {/* Floating animation keyframes */}
+          <style jsx>{`
+            @keyframes float {
+              0%, 100% { transform: translateY(0) translateX(0); opacity: 0.4; }
+              50% { transform: translateY(-10px) translateX(5px); opacity: 0.7; }
+            }
+          `}</style>
+        </div>
+
+        {/* Game Start Options */}
+        {!session && !showNewGame && (
+          <div className="space-y-4 max-w-md mx-auto">
+            {hasSavedGame && (
+              <PixelButton onClick={handleContinue} variant="gold" size="md">
+                Continue Adventure
+              </PixelButton>
+            )}
+            <PixelButton onClick={() => setShowNewGame(true)} variant="green" size="md">
+              New Adventure
+            </PixelButton>
+
+            {/* Preview chapters */}
+            <div className="mt-8">
+              <h2 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-sm text-center mb-4">
+                5 Chapters to Explore
+              </h2>
+              <div className="grid gap-3">
+                {Object.values(chapters).map((chapter) => (
+                  <div
+                    key={chapter.id}
+                    className="bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] p-3"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-gold-light)]">
+                          Chapter {chapter.id}:
+                        </span>
+                        <span className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)] ml-2">
+                          {chapter.title}
+                        </span>
+                      </div>
+                      <span className="text-lg">🔒</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* New Game Form - Character Creation Flow */}
+        {!session && showNewGame && (
+          <div className="max-w-lg mx-auto">
+            {/* Step 1: Name Entry */}
+            {creationStep === 'name' && (
+              <PixelCard title="Step 1: Name Your Character">
+                <div className="space-y-4">
+                  <div>
+                    <label className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)] block mb-2">
+                      What is your name, traveler?
+                    </label>
+                    <input
+                      type="text"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="Tobias"
+                      className="w-full bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] p-3 font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-ui-text)] placeholder:text-[var(--pixel-ui-border)]"
+                      maxLength={20}
+                      onKeyDown={(e) => e.key === 'Enter' && setCreationStep('method')}
+                    />
+                  </div>
+                  <div className="flex gap-4">
+                    <PixelButton onClick={() => setCreationStep('method')} variant="gold" size="md">
+                      Next
+                    </PixelButton>
+                    <PixelButton onClick={() => setShowNewGame(false)} variant="blue" size="sm">
+                      Back
+                    </PixelButton>
+                  </div>
+                </div>
+              </PixelCard>
+            )}
+
+            {/* Step 2: Choose Creation Method */}
+            {creationStep === 'method' && (
+              <PixelCard title="Step 2: Choose Your Fate">
+                <div className="space-y-4">
+                  <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center mb-4">
+                    How shall destiny shape {nameInput || 'Prospector'}?
+                  </p>
+
+                  <div className="grid gap-4">
+                    {/* Dice Rolling Option */}
+                    <button
+                      onClick={() => handleSelectMethod('dice_roll')}
+                      className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-gold-mid)] p-4 hover:bg-[var(--pixel-gold-dark)] transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">🎲</span>
+                        <div>
+                          <h3 className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)]">
+                            Roll the Dice
+                          </h3>
+                          <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
+                            Classic D&D style: 4d6, drop lowest
+                          </p>
+                          <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-forest-light)] mt-1">
+                            Higher highs, lower lows • {MAX_REROLLS} rerolls allowed
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Mandelbrot Option */}
+                    <button
+                      onClick={() => handleSelectMethod('mandelbrot')}
+                      className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-ui-border)] p-4 hover:bg-[var(--pixel-bg-light)] transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">🌀</span>
+                        <div>
+                          <h3 className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)]">
+                            Just Start
+                          </h3>
+                          <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
+                            Mandelbrot-seeded balanced stats
+                          </p>
+                          <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-sky-light)] mt-1">
+                            z = z² + C • Balanced distribution (8-16)
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="text-center pt-2">
+                    <button
+                      onClick={() => setCreationStep('name')}
+                      className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-border)] hover:text-[var(--pixel-ui-text)]"
+                    >
+                      ← Back to name
+                    </button>
+                  </div>
+                </div>
+              </PixelCard>
+            )}
+
+            {/* Step 3: View/Reroll Stats */}
+            {creationStep === 'stats' && (
+              <PixelCard title="Step 3: Your Attributes">
+                <div className="space-y-4">
+                  {/* Dice Roll Display */}
+                  {creationMethod === 'dice_roll' && attributeRolls && (
+                    <div className="space-y-2">
+                      <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center mb-2">
+                        4d6, drop lowest (shown crossed out)
+                      </p>
+                      <StatRollRow attr="str" rolls={attributeRolls.str.dice} total={attributeRolls.str.total} />
+                      <StatRollRow attr="dex" rolls={attributeRolls.dex.dice} total={attributeRolls.dex.total} />
+                      <StatRollRow attr="con" rolls={attributeRolls.con.dice} total={attributeRolls.con.total} />
+                      <StatRollRow attr="int" rolls={attributeRolls.int.dice} total={attributeRolls.int.total} />
+                      <StatRollRow attr="wis" rolls={attributeRolls.wis.dice} total={attributeRolls.wis.total} />
+                      <StatRollRow attr="cha" rolls={attributeRolls.cha.dice} total={attributeRolls.cha.total} />
+
+                      {/* Total and Reroll */}
+                      <div className="flex justify-between items-center pt-3 border-t-2 border-[var(--pixel-gold-mid)]">
+                        <span className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)]">
+                          Total: <span className="text-[var(--pixel-gold-light)]">
+                            {Object.values(attributeRolls).reduce((sum, r) => sum + r.total, 0)}
+                          </span>
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
+                            Rerolls: {MAX_REROLLS - rerollsUsed}/{MAX_REROLLS}
+                          </span>
+                          {rerollsUsed < MAX_REROLLS && (
+                            <PixelButton onClick={handleReroll} variant="orange" size="sm">
+                              Reroll All 🎲
+                            </PixelButton>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mandelbrot Display */}
+                  {creationMethod === 'mandelbrot' && mandelbrotResult && mandelbrotStats && (
+                    <div className="space-y-4">
+                      <MandelbrotVisual c={mandelbrotResult.c} iterations={mandelbrotResult.iterations} />
+                      <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center">
+                        Seed: {mandelbrotResult.seed} • {mandelbrotResult.iterations} iterations
+                        {mandelbrotResult.escaped ? ' (escaped)' : ' (bounded)'}
+                      </p>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        {(Object.keys(mandelbrotStats) as AttributeName[]).map((attr) => {
+                          const val = mandelbrotStats[attr]
+                          const mod = Math.floor((val - 10) / 2)
+                          return (
+                            <div key={attr} className="bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] p-2 text-center">
+                              <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
+                                {ATTRIBUTE_INFO[attr].abbr}
+                              </span>
+                              <p className="font-[var(--font-pixel)] text-[16px] text-[var(--pixel-ui-text)]">{val}</p>
+                              <span className={`font-[var(--font-pixel)] text-[10px] ${mod >= 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
+                                ({mod >= 0 ? '+' : ''}{mod})
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      <div className="text-center">
+                        <PixelButton onClick={handleMandelbrot} variant="blue" size="sm">
+                          Generate New Seed 🌀
+                        </PixelButton>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-4 pt-4">
+                    <PixelButton onClick={handleConfirmStats} variant="gold" size="md">
+                      Accept Stats
+                    </PixelButton>
+                    <PixelButton onClick={() => setCreationStep('method')} variant="blue" size="sm">
+                      Back
+                    </PixelButton>
+                  </div>
+                </div>
+              </PixelCard>
+            )}
+
+            {/* Step 4: Trait Selection */}
+            {creationStep === 'trait' && (
+              <PixelCard title="Step 4: Choose a Trait (Optional)">
+                <div className="space-y-4">
+                  <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center">
+                    Traits provide special bonuses. Some require minimum attributes.
+                  </p>
+
+                  <div className="grid gap-2 max-h-64 overflow-y-auto">
+                    {/* No Trait Option */}
+                    <button
+                      onClick={() => setSelectedTrait(null)}
+                      className={`text-left p-3 border-2 transition-colors ${
+                        selectedTrait === null
+                          ? 'border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]'
+                          : 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-bg-light)]'
+                      }`}
+                    >
+                      <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">
+                        No Trait (Start humble)
+                      </span>
+                    </button>
+
+                    {/* Trait Options */}
+                    {(Object.keys(TRAITS) as TraitId[]).map((traitId) => {
+                      const trait = TRAITS[traitId]
+                      const available = isTraitAvailable(traitId)
+
+                      return (
+                        <button
+                          key={traitId}
+                          onClick={() => available && setSelectedTrait(traitId)}
+                          disabled={!available}
+                          className={`text-left p-3 border-2 transition-colors ${
+                            selectedTrait === traitId
+                              ? 'border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]'
+                              : available
+                              ? 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-bg-light)]'
+                              : 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-dark)] opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
+                                {trait.name}
+                              </span>
+                              <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
+                                {trait.description}
+                              </p>
+                            </div>
+                            {trait.prerequisite && (
+                              <span className={`font-[var(--font-pixel)] text-[8px] ${available ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
+                                {ATTRIBUTE_INFO[trait.prerequisite.attribute].abbr} {trait.prerequisite.min}+
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className="flex gap-4 pt-4">
+                    <PixelButton onClick={handleStartGame} variant="gold" size="md">
+                      Begin Adventure!
+                    </PixelButton>
+                    <PixelButton onClick={() => setCreationStep('stats')} variant="blue" size="sm">
+                      Back
+                    </PixelButton>
+                  </div>
+                </div>
+              </PixelCard>
+            )}
+          </div>
+        )}
+
+        {/* Active Session */}
+        {session && (
+          <div className="space-y-6">
+            {/* Player HUD */}
+            <div className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-ui-border)] p-4">
+              <div className="flex flex-wrap justify-between items-center gap-4">
+                <div className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)]">
+                  <span className="text-[var(--pixel-gold-light)]">PROSPECTOR: </span>
+                  <span>{session.playerName}</span>
+                </div>
+                <div className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)]">
+                  <span className="text-[var(--pixel-gold-light)]">SCORE: </span>
+                  <span className="text-[var(--pixel-forest-light)]">{session.totalScore}</span>
+                </div>
+                <div className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)]">
+                  <span className="text-[var(--pixel-gold-light)]">CHAPTER: </span>
+                  <span>{session.currentChapter}/5</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Chapter Selection */}
+            <div className="grid gap-4">
+              {Object.values(chapters).map((chapter) => {
+                const progress = session.chapters[chapter.id]
+                const isUnlocked = chapter.id <= session.currentChapter
+                const isCurrent = chapter.id === session.currentChapter
+
+                return (
+                  <div
+                    key={chapter.id}
+                    className={`
+                      border-4 p-4 transition-all
+                      ${isCurrent ? 'border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]' :
+                        isUnlocked ? 'border-[var(--pixel-forest-mid)] bg-[var(--pixel-bg-mid)]' :
+                        'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-dark)] opacity-50'}
+                    `}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)]">
+                          Chapter {chapter.id}: {chapter.title}
+                        </h3>
+                        <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] mt-1">
+                          {chapter.subtitle}
+                        </p>
+                        <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] mt-2 max-w-md">
+                          {chapter.description}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        {progress.completed ? (
+                          <span className="text-2xl">✅</span>
+                        ) : isUnlocked ? (
+                          <span className="text-2xl animate-pulse">▶️</span>
+                        ) : (
+                          <span className="text-2xl">🔒</span>
+                        )}
+                        {progress.score > 0 && (
+                          <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-forest-light)] mt-1">
+                            Score: {progress.score}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {isCurrent && !progress.completed && (
+                      <div className="mt-4">
+                        <PixelButton href="/adventure/play" variant="gold" size="sm">
+                          {progress.choicesMade.length > 0 ? 'Continue' : 'Begin Chapter'}
+                        </PixelButton>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* D&D Attributes */}
+            <PixelCard title="Character Attributes">
+              <div className="grid grid-cols-6 gap-2 text-center mb-4">
+                {(Object.keys(session.character.attributes) as AttributeName[]).map((attr) => {
+                  const val = session.character.attributes[attr]
+                  const mod = Math.floor((val - 10) / 2)
+                  return (
+                    <div key={attr} className="bg-[var(--pixel-bg-mid)] border border-[var(--pixel-ui-border)] p-1">
+                      <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-gold-light)]">
+                        {ATTRIBUTE_INFO[attr].abbr}
+                      </p>
+                      <p className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)]">{val}</p>
+                      <p className={`font-[var(--font-pixel)] text-[8px] ${mod >= 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
+                        {mod >= 0 ? '+' : ''}{mod}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Legacy Stats */}
+              <div className="grid grid-cols-4 gap-2 text-center border-t border-[var(--pixel-ui-border)] pt-3">
+                <div>
+                  <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">Wisdom</p>
+                  <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">{session.stats.wisdom}</p>
+                </div>
+                <div>
+                  <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">Trust</p>
+                  <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-forest-light)]">{session.stats.trust}</p>
+                </div>
+                <div>
+                  <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">Luck</p>
+                  <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-sky-light)]">{session.stats.luck}</p>
+                </div>
+                <div>
+                  <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">Gold</p>
+                  <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-mid)]">{session.stats.gold}</p>
+                </div>
+              </div>
+
+              {/* Character Sheet Link */}
+              <div className="mt-3 text-center">
+                <PixelButton href="/adventure/character" variant="blue" size="sm">
+                  View Character Sheet
+                </PixelButton>
+              </div>
+            </PixelCard>
+
+            {/* Discount earned */}
+            {discount && (
+              <div className="bg-gradient-to-r from-[var(--pixel-gold-dark)] to-[var(--pixel-fire-orange)] border-4 border-[var(--pixel-gold-mid)] p-4 text-center">
+                <p className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-ui-text)]">
+                  Discount Earned: <span className="text-[var(--pixel-gold-light)]">{discount.percent}% OFF</span>
+                </p>
+                <p className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-gold-light)] mt-1">
+                  Code: {discount.code}
+                </p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-wrap gap-4 justify-center">
+              <PixelButton href="/adventure/leaderboard" variant="blue" size="sm">
+                Leaderboard
+              </PixelButton>
+              <PixelButton onClick={resetGame} variant="orange" size="sm">
+                Reset Game
+              </PixelButton>
+            </div>
+          </div>
+        )}
+
+        {/* Connection to Mystery Hunt */}
+        <div className="mt-12 text-center bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-gold-mid)] p-6">
+          <h2 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-sm mb-4">
+            The Story Continues...
+          </h2>
+          <p className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)] mb-4 max-w-lg mx-auto">
+            Complete the online adventure to unlock the prologue. Then visit Back of Beyond Ranch
+            in person to play "The Golden Hooves Legacy" - a QR code mystery hunt where you
+            discover what Tobias left behind 170 years ago.
+          </p>
+          <div className="flex flex-wrap gap-4 justify-center">
+            <PixelButton href="/game" variant="gold" size="sm">
+              Learn About Mystery Hunt
+            </PixelButton>
+            <PixelButton href="/rentals" variant="green" size="sm">
+              Book Your Stay
+            </PixelButton>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

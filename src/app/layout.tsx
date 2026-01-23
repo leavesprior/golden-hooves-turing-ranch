@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Press_Start_2P } from "next/font/google";
 import "./globals.css";
+import { GameProvider } from "@/lib/gameContext";
+import { RPGProvider } from "@/lib/rpgContext";
+import { KarmaProvider } from "@/lib/karmaContext";
 
 const pressStart2P = Press_Start_2P({
   weight: "400",
@@ -22,7 +25,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={pressStart2P.variable}>
       <body className="antialiased">
-        {children}
+        <KarmaProvider>
+          <GameProvider>
+            <RPGProvider>
+              {children}
+            </RPGProvider>
+          </GameProvider>
+        </KarmaProvider>
       </body>
     </html>
   );

@@ -1,18 +1,42 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+
+// Cabin photos from Airbnb listing
+const cabinPhotos = [
+  '/cabin-photos/cabin-1.jpg',
+  '/cabin-photos/cabin-2.jpg',
+  '/cabin-photos/cabin-3.jpg',
+  '/cabin-photos/cabin-4.jpg',
+  '/cabin-photos/cabin-5.jpg',
+  '/cabin-photos/cabin-7.jpg',
+  '/cabin-photos/cabin-8.jpg',
+]
+
+const AIRBNB_URL = 'https://airbnb.com/h/backofbeyondranch'
 
 export default function Home() {
   const [showCursor, setShowCursor] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
 
   useEffect(() => {
     setMounted(true)
-    const interval = setInterval(() => {
+    const cursorInterval = setInterval(() => {
       setShowCursor(prev => !prev)
     }, 500)
-    return () => clearInterval(interval)
+
+    // Rotate photos every 8 seconds
+    const photoInterval = setInterval(() => {
+      setCurrentPhotoIndex(prev => (prev + 1) % cabinPhotos.length)
+    }, 8000)
+
+    return () => {
+      clearInterval(cursorInterval)
+      clearInterval(photoInterval)
+    }
   }, [])
 
   if (!mounted) return null
@@ -21,10 +45,32 @@ export default function Home() {
     <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
       <PixelNavigation />
 
-      {/* Hero Section - 16-bit Title Screen */}
-      <section className="relative min-h-[80vh] bg-gradient-to-b from-[var(--pixel-sky-dark)] via-[var(--pixel-bg-mid)] to-[var(--pixel-bg-dark)] overflow-hidden">
-        {/* Stars Background */}
-        <div className="absolute inset-0 overflow-hidden">
+      {/* Hero Section - Photo Background with Pixel Overlay */}
+      <section className="relative min-h-[80vh] overflow-hidden">
+        {/* Rotating Photo Background */}
+        <div className="absolute inset-0">
+          {cabinPhotos.map((photo, index) => (
+            <div
+              key={photo}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                index === currentPhotoIndex ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <Image
+                src={photo}
+                alt={`Back of Beyond Ranch - Photo ${index + 1}`}
+                fill
+                className="object-cover"
+                priority={index === 0}
+              />
+            </div>
+          ))}
+          {/* Dark overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80" />
+        </div>
+
+        {/* Stars Background (on top of photos) */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {[...Array(50)].map((_, i) => (
             <div
               key={i}
@@ -84,6 +130,85 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Barn */}
+        <div className="absolute bottom-20 left-[15%] z-10 hidden md:block">
+          <div className="relative">
+            {/* Barn Structure */}
+            <div className="w-24 h-16 bg-[#8B4513] relative">
+              {/* Gambrel Roof */}
+              <div className="absolute -top-6 left-0 w-24 h-0 border-l-[12px] border-r-[12px] border-b-[20px] border-l-transparent border-r-transparent border-b-[#654321]" />
+              <div className="absolute -top-14 left-[12px] w-0 h-0 border-l-[12px] border-r-[12px] border-b-[8px] border-l-transparent border-r-transparent border-b-[#654321]" />
+              {/* Barn Door */}
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-12 bg-[#5D3A1A] border-2 border-[#3D2A0A]">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-[#FFD700] rounded-full" />
+              </div>
+              {/* Hay Loft Window */}
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-6 h-4 bg-[#F4D76B] opacity-50" />
+            </div>
+          </div>
+        </div>
+
+        {/* Horses in Corral */}
+        <div className="absolute bottom-12 left-[8%] z-10 hidden lg:block">
+          <div className="flex gap-2">
+            {/* Horse 1 - Brown */}
+            <div className="relative" style={{ animation: 'horseIdle 3s ease-in-out infinite' }}>
+              <div className="text-xl">🐴</div>
+            </div>
+            {/* Horse 2 - Black */}
+            <div className="relative" style={{ animation: 'horseIdle 3s ease-in-out infinite', animationDelay: '1s' }}>
+              <div className="text-xl transform scale-x-[-1]">🐴</div>
+            </div>
+          </div>
+          {/* Fence */}
+          <div className="absolute -bottom-1 left-[-8px] w-16 h-1 bg-[var(--pixel-earth-mid)]" />
+        </div>
+
+        {/* Sheep Grazing */}
+        <div className="absolute bottom-12 right-[10%] z-10 hidden lg:block">
+          <div className="flex gap-1">
+            <div className="text-sm" style={{ animation: 'graze 4s ease-in-out infinite' }}>🐑</div>
+            <div className="text-sm" style={{ animation: 'graze 4s ease-in-out infinite', animationDelay: '1s' }}>🐑</div>
+            <div className="text-xs mt-1" style={{ animation: 'graze 4s ease-in-out infinite', animationDelay: '2s' }}>🐑</div>
+          </div>
+        </div>
+
+        {/* Cattle in Distance */}
+        <div className="absolute bottom-28 left-[5%] z-5 hidden md:block opacity-70">
+          <div className="flex gap-2">
+            <div className="text-xs">🐄</div>
+            <div className="text-[10px] mt-1">🐄</div>
+            <div className="text-xs">🐂</div>
+          </div>
+        </div>
+
+        {/* Emus near Barn */}
+        <div className="absolute bottom-14 left-[22%] z-10 hidden lg:block">
+          <div className="flex gap-1">
+            <div className="text-lg" style={{ animation: 'emuWalk 5s ease-in-out infinite' }}>🦙</div>
+            <div className="text-lg" style={{ animation: 'emuWalk 5s ease-in-out infinite', animationDelay: '2s' }}>🦙</div>
+          </div>
+        </div>
+
+        {/* Pegasus Flying - Magical Easter Egg */}
+        <div className="absolute z-20 hidden sm:block" style={{ animation: 'pegasusFly 20s linear infinite' }}>
+          <div className="relative">
+            <div className="text-2xl drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]" style={{ animation: 'wingFlap 0.5s ease-in-out infinite' }}>🦄</div>
+            {/* Sparkle Trail */}
+            <div className="absolute -right-2 top-0 text-xs opacity-60" style={{ animation: 'sparkle 0.3s ease-in-out infinite' }}>✨</div>
+            <div className="absolute -right-4 top-1 text-[8px] opacity-40" style={{ animation: 'sparkle 0.3s ease-in-out infinite', animationDelay: '0.1s' }}>⭐</div>
+          </div>
+        </div>
+
+        {/* Chickens Pecking */}
+        <div className="absolute bottom-8 left-[18%] z-10 hidden lg:block">
+          <div className="flex gap-1">
+            <div className="text-xs" style={{ animation: 'peck 1.5s ease-in-out infinite' }}>🐔</div>
+            <div className="text-xs" style={{ animation: 'peck 1.5s ease-in-out infinite', animationDelay: '0.5s' }}>🐔</div>
+            <div className="text-[10px]" style={{ animation: 'peck 1.5s ease-in-out infinite', animationDelay: '1s' }}>🐥</div>
+          </div>
+        </div>
+
         {/* Main Content */}
         <div className="relative z-20 flex flex-col items-center justify-center min-h-[80vh] px-4 text-center">
           <div className="mb-8">
@@ -107,7 +232,7 @@ export default function Home() {
                 🗺️ Explore Map
               </PixelButton>
             </div>
-            <PixelButton href="/rentals" variant="orange" size="md">
+            <PixelButton href={AIRBNB_URL} variant="orange" size="md">
               🏨 Book Your Stay
             </PixelButton>
           </div>
@@ -143,24 +268,38 @@ export default function Home() {
             Choose Your Path
           </h2>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            <PixelCard title="⚔️ Treasure Hunt">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <PixelCard title="🎮 Prospector's Tale">
               <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed mb-4">
-                Embark on an epic quest through the ranch! Solve clues, discover secrets, and compete for the fastest time.
+                Play the prequel! Experience Tobias's 1852 Gold Rush journey in this browser RPG adventure.
               </p>
               <div className="text-[8px] font-[var(--font-pixel)] text-[var(--pixel-forest-light)] mb-4">
-                • 3 Difficulty Levels<br/>
-                • Hidden Treasures<br/>
-                • Real-time Leaderboard
+                • 5 Chapters<br/>
+                • Branching Story<br/>
+                • Earn Discounts
               </div>
-              <PixelButton href="/game" variant="gold" size="sm">
-                Begin Quest
+              <PixelButton href="/adventure" variant="blue" size="sm">
+                Play Now
               </PixelButton>
             </PixelCard>
 
-            <PixelCard title="🗺️ Gold Country Map">
+            <PixelCard title="⚔️ Mystery Hunt">
               <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed mb-4">
-                Explore the vast lands of Gold Country! Discover wine trails, ski slopes, historic caves, and more.
+                At the ranch: scan QR codes, solve riddles, and discover what Tobias left behind.
+              </p>
+              <div className="text-[8px] font-[var(--font-pixel)] text-[var(--pixel-forest-light)] mb-4">
+                • 14 Locations<br/>
+                • Hidden Treasures<br/>
+                • Up to 27% Off
+              </div>
+              <PixelButton href="/game" variant="gold" size="sm">
+                Learn More
+              </PixelButton>
+            </PixelCard>
+
+            <PixelCard title="🗺️ Gold Country">
+              <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed mb-4">
+                Explore the area! Discover wine trails, ski slopes, historic caves, and more.
               </p>
               <div className="text-[8px] font-[var(--font-pixel)] text-[var(--pixel-forest-light)] mb-4">
                 • 20+ Locations<br/>
@@ -174,14 +313,14 @@ export default function Home() {
 
             <PixelCard title="🏨 The Inn">
               <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed mb-4">
-                Rest at our cozy mountain base camp. Hot tub, fire pit, and all the comfort you need for adventure.
+                Book your stay at our mountain retreat. Hot tub, game room, and more.
               </p>
               <div className="text-[8px] font-[var(--font-pixel)] text-[var(--pixel-forest-light)] mb-4">
-                • 6 Bedrooms<br/>
-                • Hot Tub & Fire Pit<br/>
+                • Sleeps 12<br/>
+                • Hot Tub & Games<br/>
                 • Book Direct & Save
               </div>
-              <PixelButton href="/rentals" variant="orange" size="sm">
+              <PixelButton href={AIRBNB_URL} variant="orange" size="sm">
                 Book Stay
               </PixelButton>
             </PixelCard>
@@ -228,6 +367,38 @@ export default function Home() {
         @keyframes twinkle {
           0%, 100% { opacity: 0.3; }
           50% { opacity: 1; }
+        }
+        @keyframes horseIdle {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-2px); }
+        }
+        @keyframes graze {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          25% { transform: translateY(2px) rotate(5deg); }
+          75% { transform: translateY(2px) rotate(-5deg); }
+        }
+        @keyframes emuWalk {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(8px); }
+        }
+        @keyframes peck {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(3px) rotate(15deg); }
+        }
+        @keyframes pegasusFly {
+          0% { left: -10%; top: 15%; }
+          25% { left: 25%; top: 8%; }
+          50% { left: 50%; top: 12%; }
+          75% { left: 75%; top: 6%; }
+          100% { left: 110%; top: 10%; }
+        }
+        @keyframes wingFlap {
+          0%, 100% { transform: scaleY(1); }
+          50% { transform: scaleY(0.9); }
+        }
+        @keyframes sparkle {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.2); }
         }
       `}</style>
     </div>

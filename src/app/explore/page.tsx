@@ -1,192 +1,1062 @@
 'use client'
-import { useState } from 'react'
+
+import { useState, useCallback, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+import {
+  ExplorerProvider,
+  useExplorer,
+  XPBar,
+  BadgeDisplay,
+  ChallengeCard,
+  type Town,
+  type Attraction,
+  type AttractionCategory,
+  EXPLORER_LEVELS,
+  COLLECTION_BADGES,
+} from './explorerContext'
 
-type Location = {
-  id: string
-  name: string
-  icon: string
-  type: 'attraction' | 'food' | 'adventure' | 'nature' | 'ranch'
-  description: string
-  distance: string
-  x: number
-  y: number
-}
+// ============================================
+// TOWN & ATTRACTION DATA
+// ============================================
 
-const locations: Location[] = [
-  { id: 'ranch', name: 'BOBR Ranch', icon: '🏠', type: 'ranch', description: 'Your base camp for adventure!', distance: 'You are here', x: 50, y: 50 },
-  { id: 'kirkwood', name: 'Kirkwood Ski', icon: '⛷️', type: 'adventure', description: 'Epic ski slopes and snowboarding', distance: '25 min', x: 30, y: 25 },
-  { id: 'bear-valley', name: 'Bear Valley', icon: '🐻', type: 'adventure', description: 'Family-friendly ski resort', distance: '35 min', x: 70, y: 20 },
-  { id: 'wine-caves', name: 'Wine Caves', icon: '🍷', type: 'food', description: 'Underground wine tasting', distance: '20 min', x: 75, y: 60 },
-  { id: 'gold-mine', name: 'Gold Mine Tours', icon: '⛏️', type: 'attraction', description: 'Historic gold rush tunnels', distance: '15 min', x: 25, y: 65 },
-  { id: 'lake', name: 'Caples Lake', icon: '🏞️', type: 'nature', description: 'Pristine alpine lake fishing', distance: '30 min', x: 20, y: 35 },
-  { id: 'brewery', name: 'Gold Country Brewery', icon: '🍺', type: 'food', description: 'Local craft beers', distance: '10 min', x: 60, y: 75 },
-  { id: 'caves', name: 'Moaning Caverns', icon: '🦇', type: 'attraction', description: 'Massive underground cavern', distance: '40 min', x: 85, y: 40 },
-  { id: 'rafting', name: 'River Rafting', icon: '🚣', type: 'adventure', description: 'White water adventure', distance: '45 min', x: 15, y: 80 },
-  { id: 'hot-springs', name: 'Hot Springs', icon: '♨️', type: 'nature', description: 'Natural thermal pools', distance: '50 min', x: 40, y: 15 },
+const TOWNS: Town[] = [
+  {
+    id: 'volcano',
+    name: 'Volcano',
+    tagline: 'The Town That Wouldn\'t Die',
+    description: 'Once home to 17,000 souls during the Gold Rush, now a charming ghost town with 85 residents and countless secrets.',
+    townStory: 'Founded in 1848, Volcano was named for the volcanic-like appearance of its gold-bearing quartz. It was briefly considered for California\'s capital and housed the state\'s first lending library, astronomical observatory, and little theatre.',
+    coordinates: { lat: 38.4413, lng: -120.6294 },
+    attractions: [
+      {
+        id: 'vol_st_george',
+        name: 'St. George Hotel',
+        icon: '👻',
+        category: 'history',
+        description: 'Historic hotel haunted since 1862. Original Gold Rush ambiance with reported ghost sightings.',
+        funFact: 'The hotel\'s "resident ghost" Armand is said to appear on rainy nights, still searching for his lost gold claim.',
+        insiderTip: 'Ask for Room 14 - it has the most paranormal activity according to ghost hunters.',
+        duration: '1-2 hours',
+        xp: 25,
+      },
+      {
+        id: 'vol_theatre',
+        name: 'Cobblestone Theatre',
+        icon: '🎭',
+        category: 'entertainment',
+        description: 'California\'s oldest continuously operating theatre (1856). Live performances in a Gold Rush-era setting.',
+        funFact: 'Mark Twain reportedly attended a performance here during his time in the Gold Country.',
+        insiderTip: 'Summer shows sell out fast - book tickets at least 2 weeks in advance.',
+        duration: '2-3 hours',
+        xp: 20,
+        coordinates: { lat: 38.4420, lng: -120.6280 },
+      },
+      {
+        id: 'vol_observatory',
+        name: 'Old Observatory Site',
+        icon: '🔭',
+        category: 'history',
+        description: 'Site of California\'s first astronomical observatory (1860). Built by Gold Rush miners hungry for knowledge.',
+        funFact: 'The observatory was built by the Volcano Blues, a local literary society that valued education.',
+        insiderTip: 'Visit at dusk for atmospheric photos with the Sierra Nevada backdrop.',
+        duration: '30 min',
+        xp: 15,
+      },
+      {
+        id: 'vol_cemetery',
+        name: 'Pioneer Cemetery',
+        icon: '🪦',
+        category: 'mystery',
+        description: 'Final resting place of Gold Rush pioneers. Weathered headstones tell tales of hope and tragedy.',
+        funFact: 'Several graves are marked simply "Unknown" - miners who struck it rich often changed their names.',
+        insiderTip: 'Look for the graves dated 1850-1860 - the earliest settlers\' stories are etched in stone.',
+        duration: '45 min',
+        xp: 20,
+      },
+      {
+        id: 'vol_cannon',
+        name: 'Old Abe Cannon',
+        icon: '💣',
+        category: 'history',
+        description: 'Civil War cannon that was smuggled to Volcano but never fired in battle.',
+        funFact: 'Old Abe was hidden in a mine shaft to prevent Confederates from seizing it during the Civil War.',
+        insiderTip: 'The cannon is near the General Store - perfect for a historic photo op.',
+        duration: '15 min',
+        xp: 10,
+      },
+    ],
+    secretAttractions: [
+      {
+        id: 'vol_tunnels',
+        name: 'Chinese Tunnels',
+        icon: '🕳️',
+        category: 'mystery',
+        description: 'Secret underground tunnels built by Chinese miners. Most are sealed, but traces remain.',
+        funFact: 'Chinese miners were forced to work claims white miners had abandoned - and sometimes found rich deposits.',
+        insiderTip: 'Ask locals about the old Chinese camp near the creek - some stone walls still stand.',
+        secretUnlock: 'Reach Level 3 (Forty-Niner)',
+        duration: '30 min',
+        xp: 50,
+        badge: { id: 'tunnel_explorer', name: 'Tunnel Explorer', icon: '🕳️', description: 'Discovered the Chinese tunnels', rarity: 'rare' },
+      },
+    ],
+  },
+  {
+    id: 'angels_camp',
+    name: 'Angels Camp',
+    tagline: 'Home of the Jumping Frog',
+    description: 'Where Mark Twain heard the story that launched his career. Every year, frogs compete for glory at the Frog Jump Jubilee.',
+    townStory: 'Founded by George Angel in 1848, Angels Camp became famous after Mark Twain\'s 1865 short story "The Celebrated Jumping Frog of Calaveras County" put it on the literary map.',
+    coordinates: { lat: 38.0684, lng: -120.5394 },
+    attractions: [
+      {
+        id: 'ac_frog_jubilee',
+        name: 'Frog Jump Jubilee',
+        icon: '🐸',
+        category: 'entertainment',
+        description: 'Annual frog jumping competition held every May since 1928. Rent a frog and compete!',
+        funFact: 'The current record is 21 feet 5 3/4 inches, set by Rosie the Ribeter in 1986.',
+        insiderTip: 'Come in May for the real competition, but you can see the arena year-round.',
+        duration: 'Full day (during festival)',
+        xp: 30,
+      },
+      {
+        id: 'ac_twain_cabin',
+        name: 'Mark Twain Cabin Site',
+        icon: '📚',
+        category: 'history',
+        description: 'Near where Twain stayed when he heard the jumping frog story from bartender Ben Coon.',
+        funFact: 'Twain was actually broke and hiding from creditors when he came to Gold Country - the frog story saved his career.',
+        insiderTip: 'The original cabin is gone, but the museum has artifacts from Twain\'s time here.',
+        duration: '1 hour',
+        xp: 25,
+        badge: { id: 'twain_pilgrim', name: 'Twain Pilgrim', icon: '📚', description: 'Walked in Mark Twain\'s footsteps', rarity: 'uncommon' },
+      },
+      {
+        id: 'ac_museum',
+        name: 'Angels Camp Museum',
+        icon: '🏛️',
+        category: 'history',
+        description: 'Extensive collection of Gold Rush artifacts, mining equipment, and local history.',
+        funFact: 'The museum has a massive collection of horse-drawn carriages from the Gold Rush era.',
+        insiderTip: 'Ask about the guided tour of the outdoor mining exhibits - worth the extra time.',
+        duration: '2 hours',
+        xp: 20,
+      },
+      {
+        id: 'ac_sutter_mine',
+        name: 'Sutter Gold Mine',
+        icon: '⛏️',
+        category: 'adventure',
+        description: 'Underground mine tour through actual gold-bearing quartz veins. Pan for gold!',
+        funFact: 'Gold is still present in the mine - the tour lets you see it glittering in the quartz.',
+        insiderTip: 'The underground portion is 58°F year-round - bring a jacket even in summer.',
+        duration: '1.5 hours',
+        xp: 35,
+      },
+      {
+        id: 'ac_main_street',
+        name: 'Historic Main Street',
+        icon: '🏘️',
+        category: 'history',
+        description: 'Preserved Gold Rush-era buildings, antique shops, and local cafes.',
+        funFact: 'Many of the storefronts have maintained their original 1850s architecture.',
+        insiderTip: 'Check out the historic markers embedded in the sidewalks - each tells a story.',
+        duration: '1-2 hours',
+        xp: 15,
+      },
+    ],
+    secretAttractions: [
+      {
+        id: 'ac_carson_hill',
+        name: 'Carson Hill Nugget Site',
+        icon: '🏆',
+        category: 'mystery',
+        description: 'Where California\'s largest gold nugget (195 lbs) was discovered in 1854.',
+        funFact: 'The nugget was worth $43,534 in 1854 - over $1.5 million in today\'s money.',
+        insiderTip: 'The exact spot is unmarked but locals know. The hill overlooks the valley.',
+        secretUnlock: 'Visit all Angels Camp attractions',
+        duration: '1 hour',
+        xp: 75,
+        badge: { id: 'nugget_hunter', name: 'Nugget Hunter', icon: '🏆', description: 'Found the largest nugget site', rarity: 'legendary' },
+      },
+    ],
+  },
+  {
+    id: 'west_point',
+    name: 'West Point',
+    tagline: 'Crossroads of the Mother Lode',
+    description: 'Named by Kit Carson during his 1840s exploration. A vital supply town for miners heading to the high Sierra claims.',
+    townStory: 'West Point sits at the crossroads of ancient Native American trading routes. Kit Carson named it during an 1844 expedition, and it became a critical supply point for Gold Rush miners.',
+    coordinates: { lat: 38.3965, lng: -120.5269 },
+    attractions: [
+      {
+        id: 'wp_main_street',
+        name: 'Main Street Walk',
+        icon: '🚶',
+        category: 'history',
+        description: 'Preserved historic district with original Gold Rush-era buildings and wooden boardwalks.',
+        funFact: 'The town\'s population swelled to 10,000 during the Gold Rush - now it\'s under 1,000.',
+        insiderTip: 'Visit on a weekday morning for the quietest, most atmospheric experience.',
+        duration: '1 hour',
+        xp: 15,
+      },
+      {
+        id: 'wp_cynthias_inn',
+        name: 'Cynthia\'s Inn',
+        icon: '🏨',
+        category: 'dining',
+        description: 'Historic inn serving travelers since 1851. Same location, same hospitality, new adventures.',
+        funFact: 'This inn appears in both "The Prospector\'s Tale" game AND real life - a crossover experience!',
+        insiderTip: 'Try the Miner\'s Breakfast - it\'s been on the menu for over 150 years.',
+        duration: '1-2 hours',
+        xp: 25,
+        badge: { id: 'inn_guest', name: 'Welcome Guest', icon: '🏨', description: 'Visited Cynthia\'s Inn (game + real life)', rarity: 'rare' },
+      },
+      {
+        id: 'wp_kit_carson',
+        name: 'Kit Carson Marker',
+        icon: '🧭',
+        category: 'history',
+        description: 'Historical marker where Kit Carson camped and named the town in 1844.',
+        funFact: 'Carson was a famous scout, trapper, and Indian agent. He couldn\'t read or write.',
+        insiderTip: 'The marker is easy to miss - it\'s near the cemetery on the west edge of town.',
+        duration: '15 min',
+        xp: 10,
+      },
+      {
+        id: 'wp_general_store',
+        name: 'Historic General Store',
+        icon: '🏪',
+        category: 'history',
+        description: 'Working general store with authentic Gold Rush goods and local products.',
+        funFact: 'The original store sold mining supplies - picks, pans, and pack mules.',
+        insiderTip: 'They sell actual gold panning kits - perfect souvenirs.',
+        duration: '30 min',
+        xp: 10,
+      },
+    ],
+    secretAttractions: [
+      {
+        id: 'wp_sandy_gulch',
+        name: 'Sandy Gulch Mine',
+        icon: '🕳️',
+        category: 'adventure',
+        description: 'Abandoned mine shaft visible from a hiking trail. The entrance is fenced but dramatic.',
+        funFact: 'This mine operated from 1852-1890 and produced over $2 million in gold.',
+        insiderTip: 'The trail to Sandy Gulch starts behind the cemetery. Bring sturdy shoes.',
+        secretUnlock: 'Reach Level 4 (Gold Country Guide)',
+        duration: '2 hours (hike)',
+        xp: 60,
+      },
+    ],
+  },
+  {
+    id: 'mokelumne_hill',
+    name: 'Mokelumne Hill',
+    tagline: 'The Murder Capital',
+    description: 'Once the deadliest town in the Gold Country. A murder a week was common in 1851. Now peacefully haunted.',
+    townStory: 'At its peak, "Moke Hill" had 10,000 residents and was so lawless that it earned the nickname "Murder Capital of Gold Country." The Hotel Leger is said to be haunted by victims.',
+    coordinates: { lat: 38.2993, lng: -120.7091 },
+    attractions: [
+      {
+        id: 'mh_hotel_leger',
+        name: 'Hotel Leger',
+        icon: '👻',
+        category: 'mystery',
+        description: 'California\'s oldest continuously operating hotel. Haunted by George Leger and others.',
+        funFact: 'Ghost hunters from TV shows have documented over 20 distinct spirits at the hotel.',
+        insiderTip: 'Book a night if you dare - the haunted room tours are available to non-guests too.',
+        duration: '1-2 hours (tour)',
+        xp: 35,
+        badge: { id: 'ghost_hunter', name: 'Ghost Hunter', icon: '👻', description: 'Braved the haunted Hotel Leger', rarity: 'rare' },
+      },
+      {
+        id: 'mh_courthouse',
+        name: 'Historic Courthouse',
+        icon: '⚖️',
+        category: 'history',
+        description: 'Where frontier justice was served swiftly. Many outlaws met their fate here.',
+        funFact: 'The courthouse now houses a museum with actual hanging records and outlaw photos.',
+        insiderTip: 'The old jail cells in the basement are open for viewing - bring a flashlight.',
+        duration: '1 hour',
+        xp: 20,
+      },
+      {
+        id: 'mh_gallows',
+        name: 'Old Gallows Site',
+        icon: '💀',
+        category: 'mystery',
+        description: 'Where public executions were held. Marked but not well-known.',
+        funFact: 'At least 17 men were hanged here between 1851 and 1862.',
+        insiderTip: 'The site is on a hill behind the town - ask at the hotel for directions.',
+        duration: '30 min',
+        xp: 25,
+      },
+      {
+        id: 'mh_french_cemetery',
+        name: 'French Cemetery',
+        icon: '🪦',
+        category: 'history',
+        description: 'Separate cemetery for French miners who formed their own community in the 1850s.',
+        funFact: 'Many French miners came from Paris during a gold fever that swept France in 1849.',
+        insiderTip: 'The ironwork gates and fences are original - beautiful examples of 1850s French craftsmanship.',
+        duration: '45 min',
+        xp: 20,
+      },
+      {
+        id: 'mh_ioof_hall',
+        name: 'I.O.O.F. Hall',
+        icon: '🏛️',
+        category: 'history',
+        description: 'Historic Odd Fellows hall, one of many fraternal organizations in Gold Rush towns.',
+        funFact: 'Fraternal organizations provided insurance and community support when government couldn\'t.',
+        insiderTip: 'The building is often open during town events - check for local festivals.',
+        duration: '30 min',
+        xp: 15,
+      },
+    ],
+    secretAttractions: [
+      {
+        id: 'mh_chinese_walls',
+        name: 'Chinese Walls',
+        icon: '🧱',
+        category: 'mystery',
+        description: 'Remnants of rock walls built by Chinese miners, hidden in the hills outside town.',
+        funFact: 'Chinese miners built these walls to mark claims and divert water for hydraulic mining.',
+        insiderTip: 'Take the trail north of town past the French Cemetery - look for stacked stones.',
+        secretUnlock: 'Complete the Black Bart Mystery Trail',
+        duration: '2 hours (hike)',
+        xp: 65,
+      },
+    ],
+  },
+  {
+    id: 'san_andreas',
+    name: 'San Andreas',
+    tagline: 'Where Black Bart Was Caught',
+    description: 'County seat where the notorious Black Bart was finally captured, thanks to a laundry mark.',
+    townStory: 'San Andreas became the Calaveras County seat in 1866. In 1883, it gained fame when Black Bart was captured here after a dropped handkerchief led detectives to his San Francisco laundry.',
+    coordinates: { lat: 38.1960, lng: -120.6807 },
+    attractions: [
+      {
+        id: 'sa_courthouse',
+        name: 'Historic Courthouse',
+        icon: '⚖️',
+        category: 'history',
+        description: 'Where Black Bart was tried and convicted. The courtroom is preserved as a museum.',
+        funFact: 'Black Bart served only 4 years of a 6-year sentence for good behavior.',
+        insiderTip: 'The museum has the actual laundry mark that led to Bart\'s capture: F.X.O.7',
+        duration: '1.5 hours',
+        xp: 30,
+        badge: { id: 'detective', name: 'Amateur Detective', icon: '🔍', description: 'Solved the Black Bart case', rarity: 'uncommon' },
+      },
+      {
+        id: 'sa_museum',
+        name: 'Calaveras County Museum',
+        icon: '🏛️',
+        category: 'history',
+        description: 'Comprehensive museum of Gold Country history, Native American artifacts, and mining equipment.',
+        funFact: 'The museum has a complete recreated 1850s gold assay office.',
+        insiderTip: 'Don\'t miss the underground mine replica in the basement.',
+        duration: '2 hours',
+        xp: 25,
+      },
+      {
+        id: 'sa_frog_park',
+        name: 'Jumping Frog Park',
+        icon: '🐸',
+        category: 'nature',
+        description: 'Small park with frog statues celebrating the famous Twain story. Perfect for families.',
+        funFact: 'The park has a bronze frog that tourists rub for luck.',
+        insiderTip: 'Great picnic spot - there\'s often a food truck nearby on weekends.',
+        duration: '30 min',
+        xp: 10,
+      },
+      {
+        id: 'sa_main_street',
+        name: 'Historic Main Street',
+        icon: '🏘️',
+        category: 'history',
+        description: 'Well-preserved downtown with Gold Rush architecture and local shops.',
+        funFact: 'Several buildings survived the fires that destroyed most Gold Rush towns.',
+        insiderTip: 'The best antique shops are on the south end of Main Street.',
+        duration: '1-2 hours',
+        xp: 15,
+      },
+    ],
+    secretAttractions: [
+      {
+        id: 'sa_bart_capture',
+        name: 'Black Bart Capture Site',
+        icon: '🎭',
+        category: 'mystery',
+        description: 'The exact spot where Wells Fargo detective James Hume arrested Black Bart.',
+        funFact: 'Bart was living as a respectable mining engineer named Charles Bolton when arrested.',
+        insiderTip: 'The site is unmarked but locals know - ask at the museum.',
+        secretUnlock: 'Visit the courthouse AND complete 5 history sites',
+        duration: '30 min',
+        xp: 50,
+        badge: { id: 'bart_tracker', name: 'Bart Tracker', icon: '🎭', description: 'Found Black Bart\'s capture site', rarity: 'legendary' },
+      },
+    ],
+  },
+  {
+    id: 'bobr_ranch',
+    name: 'BOBR Ranch',
+    tagline: 'Your Base Camp',
+    description: 'Your adventure headquarters in Gold Country. Where the games begin and the real explorations start.',
+    townStory: 'BOBR Ranch combines the best of Gold Country hospitality with modern amenities. Your staging point for both virtual adventures and real-world exploration.',
+    coordinates: { lat: 38.4000, lng: -120.5000 },
+    attractions: [
+      {
+        id: 'bobr_cabin',
+        name: 'The Main Cabin',
+        icon: '🏠',
+        category: 'adventure',
+        description: 'Your home base. Cozy accommodations with modern amenities and Gold Rush character.',
+        funFact: 'The cabin was built using reclaimed timber from actual Gold Rush-era buildings.',
+        insiderTip: 'Book the loft room for the best stargazing through the skylight.',
+        duration: 'As long as you stay!',
+        xp: 50,
+      },
+      {
+        id: 'bobr_treasure',
+        name: 'Treasure Hunt Trail',
+        icon: '🗺️',
+        category: 'adventure',
+        description: 'Multi-stage treasure hunt across the ranch property. Clues hidden everywhere.',
+        funFact: 'The treasure hunt changes seasonally - return visits have new puzzles!',
+        insiderTip: 'Start at the old oak tree and follow the compass directions.',
+        duration: '2-3 hours',
+        xp: 40,
+      },
+      {
+        id: 'bobr_campfire',
+        name: 'Campfire Circle',
+        icon: '🔥',
+        category: 'entertainment',
+        description: 'Evening gathering spot for stories, s\'mores, and stargazing.',
+        funFact: 'On clear nights, you can see the Milky Way - no light pollution here.',
+        insiderTip: 'Sunset to 9pm is the magic hour. Bring a blanket.',
+        duration: '1-2 hours',
+        xp: 15,
+      },
+      {
+        id: 'bobr_gold_pan',
+        name: 'Gold Panning Station',
+        icon: '⛏️',
+        category: 'adventure',
+        description: 'Learn to pan for gold like a real Forty-Niner. Keep what you find!',
+        funFact: 'The gravel is seeded with real gold flakes - success is guaranteed.',
+        insiderTip: 'Morning is best - the gold shows up better in angled sunlight.',
+        duration: '1 hour',
+        xp: 25,
+      },
+    ],
+    secretAttractions: [
+      {
+        id: 'bobr_secret',
+        name: 'Tobias\'s Hidden Stash',
+        icon: '💎',
+        category: 'mystery',
+        description: 'A geocache hidden by "Tobias" somewhere on the ranch. Coordinates change yearly.',
+        funFact: 'Tobias is the fictional prospector from the BOBR games - or is he fictional?',
+        insiderTip: 'The clue is hidden in one of the games. Pay attention to the dialogue.',
+        secretUnlock: 'Complete the prologue game AND stay at the ranch',
+        duration: '1-2 hours',
+        xp: 100,
+        badge: { id: 'tobias_heir', name: 'Tobias\'s Heir', icon: '💎', description: 'Found the hidden stash', rarity: 'legendary' },
+      },
+    ],
+  },
 ]
 
-const typeColors = {
-  ranch: 'var(--pixel-gold-light)',
-  attraction: 'var(--pixel-fire-orange)',
-  food: 'var(--pixel-forest-light)',
-  adventure: 'var(--pixel-sky-light)',
-  nature: 'var(--pixel-forest-mid)',
+// Category color mapping
+const categoryColors: Record<AttractionCategory, string> = {
+  history: 'text-amber-400 border-amber-500 bg-amber-900/40',
+  dining: 'text-green-400 border-green-500 bg-green-900/40',
+  adventure: 'text-blue-400 border-blue-500 bg-blue-900/40',
+  nature: 'text-emerald-400 border-emerald-500 bg-emerald-900/40',
+  mystery: 'text-purple-400 border-purple-500 bg-purple-900/40',
+  entertainment: 'text-pink-400 border-pink-500 bg-pink-900/40',
 }
 
-export default function ExplorePage() {
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
-  const [filter, setFilter] = useState<string>('all')
+const categoryIcons: Record<AttractionCategory, string> = {
+  history: '📜',
+  dining: '🍽️',
+  adventure: '⚔️',
+  nature: '🌲',
+  mystery: '🔮',
+  entertainment: '🎭',
+}
 
-  const filteredLocations = filter === 'all'
-    ? locations
-    : locations.filter(l => l.type === filter)
+// ============================================
+// COMPONENTS
+// ============================================
+
+// Bottom sheet for town details (mobile-first)
+function TownDrawer({
+  town,
+  isOpen,
+  onClose,
+}: {
+  town: Town | null
+  isOpen: boolean
+  onClose: () => void
+}) {
+  const {
+    progress,
+    currentLevel,
+    visitAttraction,
+    visitTown,
+    unlockSecret,
+    isAttractionVisited,
+    isSecretUnlocked,
+    getTownCompletionPercent,
+    toggleFavorite,
+    isFavorite,
+  } = useExplorer()
+
+  const [selectedCategory, setSelectedCategory] = useState<AttractionCategory | 'all'>('all')
+  const [expandedAttraction, setExpandedAttraction] = useState<string | null>(null)
+
+  if (!town) return null
+
+  const completionPercent = getTownCompletionPercent(town.id)
+  const allAttractions = selectedCategory === 'all'
+    ? town.attractions
+    : town.attractions.filter(a => a.category === selectedCategory)
+
+  // Filter secrets by unlock status and level
+  const availableSecrets = town.secretAttractions.filter(s => {
+    if (isSecretUnlocked(s.id)) return true
+    // Check if player meets unlock requirements
+    if (s.secretUnlock?.includes('Level 3') && currentLevel.level >= 3) return true
+    if (s.secretUnlock?.includes('Level 4') && currentLevel.level >= 4) return true
+    // Check other unlock conditions...
+    return false
+  })
+
+  const handleVisitAttraction = (attraction: Attraction) => {
+    if (!isAttractionVisited(attraction.id)) {
+      visitTown(town.id)
+      const result = visitAttraction(attraction.id, town.id)
+      // Could show a toast/notification here
+    }
+    setExpandedAttraction(expandedAttraction === attraction.id ? null : attraction.id)
+  }
+
+  return (
+    <div
+      className={`fixed inset-x-0 bottom-0 z-50 transform transition-transform duration-300 ${
+        isOpen ? 'translate-y-0' : 'translate-y-full'
+      }`}
+    >
+      {/* Backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 -z-10"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Drawer Content */}
+      <div className="bg-slate-900 border-t-4 border-amber-500 rounded-t-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        {/* Handle */}
+        <div className="flex justify-center py-2">
+          <div className="w-12 h-1 bg-slate-600 rounded-full" />
+        </div>
+
+        {/* Header */}
+        <div className="px-4 pb-4 border-b border-slate-700">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="font-[var(--font-pixel)] text-amber-200 text-lg">{town.name}</h2>
+              <p className="text-amber-500 text-xs italic">{town.tagline}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Completion Bar */}
+          <div className="mt-3">
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-slate-400">Completion</span>
+              <span className="text-amber-300">{Math.round(completionPercent)}%</span>
+            </div>
+            <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-600 to-amber-400 transition-all duration-500"
+                style={{ width: `${completionPercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Category Filters */}
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
+                selectedCategory === 'all'
+                  ? 'bg-amber-600 text-white'
+                  : 'bg-slate-700 text-slate-300'
+              }`}
+            >
+              All
+            </button>
+            {Object.entries(categoryIcons).map(([cat, icon]) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat as AttractionCategory)}
+                className={`px-3 py-1 rounded-full text-xs whitespace-nowrap ${
+                  selectedCategory === cat
+                    ? categoryColors[cat as AttractionCategory]
+                    : 'bg-slate-700 text-slate-300'
+                }`}
+              >
+                {icon} {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Town Story */}
+        <div className="px-4 py-3 bg-slate-800/50">
+          <p className="text-slate-300 text-xs leading-relaxed">{town.description}</p>
+        </div>
+
+        {/* Attractions List */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+          {allAttractions.map(attraction => {
+            const visited = isAttractionVisited(attraction.id)
+            const expanded = expandedAttraction === attraction.id
+            const favorite = isFavorite(attraction.id)
+
+            return (
+              <div
+                key={attraction.id}
+                className={`border-2 rounded-lg overflow-hidden transition-all ${
+                  visited ? 'border-green-600 bg-green-900/20' : 'border-slate-600 bg-slate-800/50'
+                }`}
+              >
+                <button
+                  onClick={() => handleVisitAttraction(attraction)}
+                  className="w-full p-3 text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{attraction.icon}</span>
+                      <div>
+                        <h3 className={`font-[var(--font-pixel)] text-sm ${visited ? 'text-green-300' : 'text-white'}`}>
+                          {attraction.name}
+                          {visited && <span className="ml-2 text-green-400">✓</span>}
+                        </h3>
+                        <span className={`text-[10px] px-2 py-0.5 rounded border ${categoryColors[attraction.category]}`}>
+                          {attraction.category}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-400 text-xs">+{attraction.xp} XP</span>
+                      <span className="text-slate-400">{expanded ? '▼' : '▶'}</span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Expanded Details */}
+                {expanded && (
+                  <div className="px-3 pb-3 space-y-3">
+                    <p className="text-slate-300 text-xs">{attraction.description}</p>
+
+                    {/* Fun Fact */}
+                    <div className="bg-amber-900/30 border border-amber-600/50 rounded p-2">
+                      <span className="text-amber-400 text-[10px] font-bold">Did you know?</span>
+                      <p className="text-amber-200 text-xs mt-1">{attraction.funFact}</p>
+                    </div>
+
+                    {/* Insider Tip (only if visited or high level) */}
+                    {(visited || currentLevel.level >= 2) && (
+                      <div className="bg-purple-900/30 border border-purple-600/50 rounded p-2">
+                        <span className="text-purple-400 text-[10px] font-bold">Insider Tip</span>
+                        <p className="text-purple-200 text-xs mt-1">{attraction.insiderTip}</p>
+                      </div>
+                    )}
+
+                    {/* Duration & Actions */}
+                    <div className="flex items-center justify-between">
+                      {attraction.duration && (
+                        <span className="text-slate-400 text-xs">⏱️ {attraction.duration}</span>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleFavorite(attraction.id)
+                          }}
+                          className={`px-2 py-1 rounded text-xs ${
+                            favorite ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'
+                          }`}
+                        >
+                          {favorite ? '❤️' : '🤍'}
+                        </button>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(attraction.name + ', ' + town.name + ', California')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2 py-1 bg-blue-700 text-white rounded text-xs"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          📍 Directions
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Badge Preview */}
+                    {attraction.badge && (
+                      <div className="flex items-center gap-2 bg-slate-700/50 rounded p-2">
+                        <span className="text-xl">{attraction.badge.icon}</span>
+                        <div>
+                          <span className="text-amber-300 text-xs font-bold">{attraction.badge.name}</span>
+                          <p className="text-slate-400 text-[10px]">{attraction.badge.description}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {/* Secret Attractions */}
+          {availableSecrets.length > 0 && (
+            <div className="mt-6">
+              <h3 className="font-[var(--font-pixel)] text-purple-300 text-sm mb-3 flex items-center gap-2">
+                🔮 Secret Locations
+              </h3>
+              {availableSecrets.map(secret => {
+                const unlocked = isSecretUnlocked(secret.id)
+                return (
+                  <div
+                    key={secret.id}
+                    className={`border-2 rounded-lg p-3 ${
+                      unlocked ? 'border-purple-500 bg-purple-900/30' : 'border-slate-600 bg-slate-800/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{unlocked ? secret.icon : '❓'}</span>
+                      <div>
+                        <h4 className="text-purple-200 text-sm">{unlocked ? secret.name : '???'}</h4>
+                        {!unlocked && (
+                          <p className="text-purple-400 text-[10px]">Unlock: {secret.secretUnlock}</p>
+                        )}
+                      </div>
+                      <span className="ml-auto text-amber-400 text-xs">+{secret.xp} XP</span>
+                    </div>
+                    {unlocked && (
+                      <p className="text-purple-300 text-xs mt-2">{secret.description}</p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Progress HUD
+function ExplorerHUD() {
+  const { progress, currentLevel, xpToNextLevel, progressPercent, getRandomTobiasTip, checkStreak } = useExplorer()
+  const [showTip, setShowTip] = useState(false)
+  const [tip, setTip] = useState('')
+  const [showBadges, setShowBadges] = useState(false)
+
+  // Check streak on mount
+  useEffect(() => {
+    checkStreak()
+  }, [checkStreak])
+
+  const handleTobiasTip = () => {
+    setTip(getRandomTobiasTip())
+    setShowTip(true)
+    setTimeout(() => setShowTip(false), 5000)
+  }
+
+  return (
+    <div className="bg-slate-900/95 border-2 border-amber-600 rounded-lg p-4 mb-6">
+      {/* XP Bar */}
+      <XPBar
+        currentXP={progress.totalXP}
+        currentLevel={currentLevel}
+        nextLevelXP={EXPLORER_LEVELS[currentLevel.level]?.xpRequired || progress.totalXP}
+        progressPercent={progressPercent}
+      />
+
+      {/* Stats Row */}
+      <div className="flex items-center justify-between mt-3 text-xs">
+        <div className="flex gap-4">
+          <span className="text-slate-400">
+            <span className="text-amber-300">{progress.visitedAttractions.length}</span> Attractions
+          </span>
+          <span className="text-slate-400">
+            <span className="text-amber-300">{progress.visitedTowns.length}</span> Towns
+          </span>
+          <span className="text-slate-400">
+            <span className="text-purple-300">{progress.unlockedSecrets.length}</span> Secrets
+          </span>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowBadges(!showBadges)}
+            className="px-2 py-1 bg-amber-700 text-amber-100 rounded text-xs hover:bg-amber-600"
+          >
+            🏅 {progress.badges.length}
+          </button>
+          <button
+            onClick={handleTobiasTip}
+            className="px-2 py-1 bg-purple-700 text-purple-100 rounded text-xs hover:bg-purple-600"
+          >
+            💡 Tip
+          </button>
+        </div>
+      </div>
+
+      {/* Streak */}
+      {progress.streakDays > 1 && (
+        <div className="mt-2 text-center">
+          <span className="text-orange-400 text-xs">🔥 {progress.streakDays} day streak!</span>
+        </div>
+      )}
+
+      {/* Tobias Tip Popup */}
+      {showTip && (
+        <div className="mt-3 p-3 bg-amber-900/50 border border-amber-500 rounded animate-fade-in">
+          <p className="text-amber-200 text-xs italic">"{tip}"</p>
+          <p className="text-amber-500 text-[10px] mt-1">— Tobias, Ghost of Gold Country</p>
+        </div>
+      )}
+
+      {/* Badge Display */}
+      {showBadges && (
+        <div className="mt-3 p-3 bg-slate-800 rounded border border-slate-600">
+          <h4 className="text-amber-300 text-xs font-bold mb-2">Your Badges</h4>
+          {progress.badges.length > 0 ? (
+            <BadgeDisplay badges={progress.badges} />
+          ) : (
+            <p className="text-slate-400 text-xs">Visit attractions to earn badges!</p>
+          )}
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(-5px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  )
+}
+
+// Main Map Component
+function ExplorerMap() {
+  const [selectedTown, setSelectedTown] = useState<Town | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const { progress, isTownVisited, getTownCompletionPercent } = useExplorer()
+
+  const handleTownClick = (town: Town) => {
+    setSelectedTown(town)
+    setDrawerOpen(true)
+  }
 
   return (
     <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
       <PixelNavigation />
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Title */}
         <h1 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-lg sm:text-xl text-center mb-2">
-          🗺️ Gold Country Map
+          Gold Country Explorer
         </h1>
-        <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] text-center mb-8">
-          Click locations to discover adventures
+        <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] text-center mb-6">
+          Discover historic Gold Rush towns, earn XP, and unlock secrets!
         </p>
 
-        {/* Filter Buttons */}
-        <div className="flex flex-wrap justify-center gap-2 mb-8">
-          {['all', 'adventure', 'food', 'attraction', 'nature'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setFilter(type)}
-              className={`font-[var(--font-pixel)] text-[8px] px-3 py-2 border-2 transition-colors ${
-                filter === type
-                  ? 'bg-[var(--pixel-gold-mid)] border-[var(--pixel-gold-dark)] text-[var(--pixel-bg-dark)]'
-                  : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:bg-[var(--pixel-bg-light)]'
-              }`}
-            >
-              {type === 'all' ? '🌟 All' : type === 'adventure' ? '⚔️ Adventure' : type === 'food' ? '🍽️ Food' : type === 'attraction' ? '🎭 Attractions' : '🌲 Nature'}
-            </button>
-          ))}
+        {/* Explorer HUD */}
+        <ExplorerHUD />
+
+        {/* Map */}
+        <div className="relative bg-gradient-to-b from-[var(--pixel-forest-dark)] to-[var(--pixel-earth-dark)] border-4 border-[var(--pixel-ui-border)] aspect-[4/3] overflow-hidden rounded-lg">
+          {/* Grid overlay */}
+          <div className="absolute inset-0 opacity-10">
+            {[...Array(10)].map((_, i) => (
+              <div key={`h-${i}`} className="absolute w-full h-px bg-[var(--pixel-ui-text)]" style={{ top: `${i * 10}%` }} />
+            ))}
+            {[...Array(10)].map((_, i) => (
+              <div key={`v-${i}`} className="absolute h-full w-px bg-[var(--pixel-ui-text)]" style={{ left: `${i * 10}%` }} />
+            ))}
+          </div>
+
+          {/* Mountain silhouette */}
+          <svg className="absolute top-0 w-full h-1/4 fill-[var(--pixel-earth-mid)] opacity-20" viewBox="0 0 100 25">
+            <polygon points="0,25 15,10 25,18 35,5 50,15 65,8 80,20 90,12 100,25" />
+          </svg>
+
+          {/* Town markers */}
+          {TOWNS.map((town, index) => {
+            const visited = isTownVisited(town.id)
+            const completion = getTownCompletionPercent(town.id)
+            // Arrange towns in a rough geographic pattern
+            const positions: Record<string, { x: number; y: number }> = {
+              volcano: { x: 35, y: 35 },
+              angels_camp: { x: 25, y: 65 },
+              west_point: { x: 55, y: 40 },
+              mokelumne_hill: { x: 20, y: 50 },
+              san_andreas: { x: 35, y: 75 },
+              bobr_ranch: { x: 50, y: 50 },
+            }
+            const pos = positions[town.id] || { x: 50, y: 50 }
+
+            return (
+              <button
+                key={town.id}
+                onClick={() => handleTownClick(town)}
+                className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200 hover:scale-125 z-10 group"
+                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+              >
+                <div className="relative">
+                  {/* Glow effect for unvisited */}
+                  {!visited && (
+                    <div className="absolute inset-0 animate-pulse">
+                      <div className="w-8 h-8 rounded-full bg-amber-500/30 blur-md" />
+                    </div>
+                  )}
+
+                  {/* Completion ring */}
+                  <svg className="absolute -inset-1 w-10 h-10" viewBox="0 0 36 36">
+                    <circle
+                      cx="18" cy="18" r="16"
+                      fill="none"
+                      stroke={visited ? '#22c55e' : '#64748b'}
+                      strokeWidth="2"
+                      strokeDasharray={`${completion} ${100 - completion}`}
+                      strokeDashoffset="25"
+                      className="transition-all duration-500"
+                    />
+                  </svg>
+
+                  {/* Icon */}
+                  <span className="text-2xl sm:text-3xl drop-shadow-lg relative z-10">
+                    {town.id === 'bobr_ranch' ? '🏠' :
+                     town.id === 'volcano' ? '👻' :
+                     town.id === 'angels_camp' ? '🐸' :
+                     town.id === 'west_point' ? '🧭' :
+                     town.id === 'mokelumne_hill' ? '💀' :
+                     town.id === 'san_andreas' ? '⚖️' : '📍'}
+                  </span>
+
+                  {/* Label */}
+                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="font-[var(--font-pixel)] text-[8px] text-white bg-black/70 px-2 py-1 rounded">
+                      {town.name}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            )
+          })}
+
+          {/* Compass */}
+          <div className="absolute top-4 right-4 font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+            <div className="text-center">N</div>
+            <div className="flex">
+              <span>W</span>
+              <span className="mx-2">✦</span>
+              <span>E</span>
+            </div>
+            <div className="text-center">S</div>
+          </div>
+
+          {/* Legend */}
+          <div className="absolute bottom-4 left-4 bg-black/60 rounded p-2">
+            <p className="font-[var(--font-pixel)] text-[6px] text-amber-300 mb-1">Legend</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[6px] font-[var(--font-pixel)] text-slate-300">
+              <span>🏠 Base Camp</span>
+              <span>👻 Haunted</span>
+              <span>🐸 Literary</span>
+              <span>💀 Notorious</span>
+            </div>
+          </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Map Area */}
-          <div className="lg:col-span-2">
-            <div className="relative bg-gradient-to-b from-[var(--pixel-forest-dark)] to-[var(--pixel-earth-dark)] border-4 border-[var(--pixel-ui-border)] aspect-[4/3] overflow-hidden">
-              {/* Grid overlay */}
-              <div className="absolute inset-0 opacity-10">
-                {[...Array(10)].map((_, i) => (
-                  <div key={`h-${i}`} className="absolute w-full h-px bg-[var(--pixel-ui-text)]" style={{ top: `${i * 10}%` }} />
-                ))}
-                {[...Array(10)].map((_, i) => (
-                  <div key={`v-${i}`} className="absolute h-full w-px bg-[var(--pixel-ui-text)]" style={{ left: `${i * 10}%` }} />
-                ))}
-              </div>
-
-              {/* Terrain features */}
-              <svg className="absolute bottom-0 w-full h-1/3 fill-[var(--pixel-forest-mid)] opacity-30" viewBox="0 0 100 30">
-                <polygon points="0,30 10,20 25,25 40,15 60,22 75,18 90,24 100,20 100,30" />
-              </svg>
-
-              {/* Location markers */}
-              {filteredLocations.map((location) => (
-                <button
-                  key={location.id}
-                  onClick={() => setSelectedLocation(location)}
-                  className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200 hover:scale-125 ${
-                    selectedLocation?.id === location.id ? 'scale-125 z-20' : 'z-10'
-                  }`}
-                  style={{ left: `${location.x}%`, top: `${location.y}%` }}
-                >
-                  <div className="relative">
-                    <span className="text-2xl sm:text-3xl drop-shadow-lg">{location.icon}</span>
-                    {selectedLocation?.id === location.id && (
-                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-[var(--pixel-gold-light)] rounded-full animate-ping opacity-50" />
-                    )}
-                  </div>
-                </button>
-              ))}
-
-              {/* Compass */}
-              <div className="absolute top-4 right-4 font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
-                <div className="text-center">N</div>
-                <div className="flex">
-                  <span>W</span>
-                  <span className="mx-2">✦</span>
-                  <span>E</span>
-                </div>
-                <div className="text-center">S</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Info Panel */}
-          <div>
-            {selectedLocation ? (
-              <PixelCard title={`${selectedLocation.icon} ${selectedLocation.name}`}>
-                <div className="space-y-4">
-                  <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed">
-                    {selectedLocation.description}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-forest-light)]">
-                      📍 {selectedLocation.distance}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="font-[var(--font-pixel)] text-[8px] px-2 py-1 border-2"
-                      style={{
-                        borderColor: typeColors[selectedLocation.type],
-                        color: typeColors[selectedLocation.type]
-                      }}
-                    >
-                      {selectedLocation.type.toUpperCase()}
-                    </span>
-                  </div>
-                  {selectedLocation.id !== 'ranch' && (
-                    <PixelButton variant="green" size="sm">
-                      Get Directions
-                    </PixelButton>
-                  )}
-                </div>
-              </PixelCard>
-            ) : (
-              <PixelCard title="📍 Select a Location">
-                <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed">
-                  Click on any icon on the map to learn more about that location and get directions.
-                </p>
-                <div className="mt-4 space-y-2">
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)]">Legend:</p>
-                  <div className="grid grid-cols-2 gap-2 text-[8px] font-[var(--font-pixel)]">
-                    <span>🏠 Ranch</span>
-                    <span>⚔️ Adventure</span>
-                    <span>🍽️ Food</span>
-                    <span>🎭 Attraction</span>
-                    <span>🌲 Nature</span>
-                  </div>
-                </div>
-              </PixelCard>
-            )}
-
-            {/* Quick Links */}
-            <div className="mt-6">
-              <PixelCard title="🎯 Quick Actions">
-                <div className="space-y-3">
-                  <PixelButton href="/game" variant="gold" size="sm">
-                    Start Treasure Hunt
-                  </PixelButton>
-                  <PixelButton href="/rentals" variant="orange" size="sm">
-                    Book Your Stay
-                  </PixelButton>
-                </div>
-              </PixelCard>
-            </div>
-          </div>
+        {/* Quick Actions */}
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Link href="/oregon-trail" className="block">
+            <PixelButton variant="orange" size="sm" className="w-full">
+              🤠 Play Prospector&apos;s Tale
+            </PixelButton>
+          </Link>
+          <Link href="/game" className="block">
+            <PixelButton variant="gold" size="sm" className="w-full">
+              🗺️ Ranch Treasure Hunt
+            </PixelButton>
+          </Link>
+          <Link href="/adventure" className="block">
+            <PixelButton variant="green" size="sm" className="w-full">
+              ⚔️ Play the Prologue
+            </PixelButton>
+          </Link>
+          <Link href="/rentals" className="block">
+            <PixelButton variant="blue" size="sm" className="w-full">
+              🏠 Book Your Stay
+            </PixelButton>
+          </Link>
         </div>
       </div>
+
+      {/* Town Drawer */}
+      <TownDrawer
+        town={selectedTown}
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
+  )
+}
+
+// ============================================
+// MAIN EXPORT
+// ============================================
+
+export default function ExplorePage() {
+  return (
+    <ExplorerProvider
+      towns={TOWNS}
+      onLevelUp={(level) => {
+        console.log(`Level up! Now ${level.title}`)
+        // Could show a toast notification here
+      }}
+      onBadgeEarned={(badge) => {
+        console.log(`Badge earned: ${badge.name}`)
+        // Could show a celebration animation here
+      }}
+      onSecretUnlocked={(attraction) => {
+        console.log(`Secret unlocked: ${attraction.name}`)
+        // Could show a special reveal animation here
+      }}
+    >
+      <ExplorerMap />
+    </ExplorerProvider>
   )
 }

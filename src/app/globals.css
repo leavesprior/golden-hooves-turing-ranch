@@ -76,6 +76,111 @@ body {
   50% { opacity: 1; }
 }
 
+/* 16-bit RPG tile animations */
+@keyframes water-shimmer {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes gold-glow {
+  0%, 100% {
+    filter: brightness(1) saturate(1);
+    box-shadow: 0 0 4px #ffd700;
+  }
+  50% {
+    filter: brightness(1.2) saturate(1.2);
+    box-shadow: 0 0 12px #ffd700, 0 0 20px #ffa500;
+  }
+}
+
+@keyframes water-wave {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes campfire-flicker {
+  0%, 100% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  25% {
+    filter: brightness(1.1);
+    transform: scale(1.02);
+  }
+  50% {
+    filter: brightness(0.95);
+    transform: scale(0.98);
+  }
+  75% {
+    filter: brightness(1.15);
+    transform: scale(1.01);
+  }
+}
+
+/* Fog of War Animations */
+@keyframes fog-dissolve {
+  0% {
+    filter: grayscale(0.8) brightness(0.4);
+    opacity: 0.7;
+  }
+  50% {
+    filter: grayscale(0.4) brightness(0.7);
+    opacity: 0.5;
+  }
+  100% {
+    filter: grayscale(0) brightness(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fog-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Fogged tile styling */
+.tile-fog {
+  filter: grayscale(0.8) brightness(0.4) !important;
+  pointer-events: none;
+  position: relative;
+}
+
+.tile-fog::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(15, 15, 27, 0.6) 0%,
+    rgba(26, 28, 44, 0.4) 50%,
+    rgba(15, 15, 27, 0.6) 100%
+  );
+  animation: fog-pulse 3s ease-in-out infinite;
+}
+
+/* Hidden tile styling */
+.tile-hidden {
+  visibility: hidden !important;
+  pointer-events: none;
+}
+
+/* Revealed with animation */
+.tile-revealed-animated {
+  animation: fog-dissolve 1.5s ease-out forwards;
+}
+
 /* Glow effect */
 .pixel-glow {
   text-shadow: 0 0 10px var(--pixel-gold-mid), 0 0 20px var(--pixel-gold-light);
@@ -102,4 +207,195 @@ body {
 ::selection {
   background: var(--pixel-gold-mid);
   color: var(--pixel-bg-dark);
+}
+
+/* ================================================
+   32-BIT SEGA CHAPTER-SPECIFIC ENVIRONMENTAL EFFECTS
+   ================================================ */
+
+/* Chapter 1: Oregon Trail - Floating dust motes in sunset */
+@keyframes float-dust {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateY(-8px) translateX(4px);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(-4px) translateX(-3px);
+    opacity: 0.4;
+  }
+  75% {
+    transform: translateY(-12px) translateX(2px);
+    opacity: 0.35;
+  }
+}
+
+.animate-float-dust {
+  animation: float-dust 3s ease-in-out infinite;
+}
+
+/* Chapter 2: Gold Rush Town - Lantern flicker effect */
+@keyframes lantern-flicker {
+  0%, 100% {
+    opacity: 1;
+  }
+  10% {
+    opacity: 0.85;
+  }
+  20% {
+    opacity: 0.95;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.75;
+  }
+  90% {
+    opacity: 0.95;
+  }
+}
+
+.animate-lantern-flicker {
+  animation: lantern-flicker 2s ease-in-out infinite;
+}
+
+/* Chapter 2: Smoke wisps rising */
+@keyframes smoke-rise {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-40px) scale(1.3);
+    opacity: 0.15;
+  }
+  100% {
+    transform: translateY(-80px) scale(1.6);
+    opacity: 0;
+  }
+}
+
+.animate-smoke-rise {
+  animation: smoke-rise 4s ease-out infinite;
+}
+
+/* Chapter 3: Mining Camp - Gold dust sparkles */
+@keyframes gold-sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  40% {
+    opacity: 0.8;
+    transform: scale(1.2);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.9);
+  }
+  80% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+.animate-gold-sparkle {
+  animation: gold-sparkle 2s ease-in-out infinite;
+}
+
+/* Chapter 4: Pastoral Ranch - Pollen drift */
+@keyframes pollen-drift {
+  0% {
+    transform: translateX(0) translateY(0);
+    opacity: 0.5;
+  }
+  25% {
+    transform: translateX(15px) translateY(-8px);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateX(8px) translateY(-15px);
+    opacity: 0.4;
+  }
+  75% {
+    transform: translateX(20px) translateY(-5px);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(30px) translateY(-10px);
+    opacity: 0;
+  }
+}
+
+.animate-pollen-drift {
+  animation: pollen-drift 5s linear infinite;
+}
+
+/* Chapter 5: Twilight Legacy - Fireflies */
+@keyframes firefly {
+  0%, 100% {
+    opacity: 0;
+    transform: translateX(0) translateY(0);
+  }
+  10% {
+    opacity: 0.8;
+  }
+  30% {
+    opacity: 1;
+    transform: translateX(10px) translateY(-15px);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateX(-5px) translateY(-25px);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(15px) translateY(-10px);
+  }
+  90% {
+    opacity: 0.4;
+    transform: translateX(5px) translateY(-20px);
+  }
+}
+
+.animate-firefly {
+  animation: firefly 4s ease-in-out infinite;
+}
+
+/* Chapter 5: Moonlit sparkles */
+@keyframes moonlit-sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  25% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+  75% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+}
+
+.animate-moonlit-sparkle {
+  animation: moonlit-sparkle 3s ease-in-out infinite;
 }
