@@ -462,7 +462,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
                     inputRef.current?.focus()
                   }}
                   disabled={isStreaming}
-                  className="px-3 py-1 text-xs bg-gray-800 text-gray-300 rounded hover:bg-gray-700 disabled:opacity-50"
+                  className="px-4 py-2.5 md:px-3 md:py-1 text-sm md:text-xs bg-gray-800 text-gray-300 rounded hover:bg-gray-700 active:bg-gray-600 disabled:opacity-50"
                 >
                   {q.text}
                 </button>
@@ -479,12 +479,12 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
                 onKeyDown={(e) => e.key === 'Enter' && handleDynamicInput()}
                 placeholder="Ask something..."
                 disabled={isStreaming}
-                className="flex-1 px-3 py-2 bg-gray-800 text-gray-200 border border-gray-700 rounded focus:border-amber-600 outline-none disabled:opacity-50"
+                className="flex-1 px-4 py-3 md:px-3 md:py-2 text-base md:text-sm bg-gray-800 text-gray-200 border border-gray-700 rounded focus:border-amber-600 outline-none disabled:opacity-50"
               />
               <button
                 onClick={handleDynamicInput}
                 disabled={isStreaming || !customInput.trim()}
-                className="px-4 py-2 bg-amber-700 text-amber-100 rounded hover:bg-amber-600 disabled:opacity-50"
+                className="px-5 py-3 md:px-4 md:py-2 text-base md:text-sm bg-amber-700 text-amber-100 rounded hover:bg-amber-600 active:bg-amber-500 disabled:opacity-50"
               >
                 {isStreaming ? '...' : 'Ask'}
               </button>
@@ -494,7 +494,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
             <button
               onClick={handleClose}
               disabled={isStreaming}
-              className="w-full py-2 bg-gray-800 text-gray-400 rounded hover:bg-gray-700 text-sm"
+              className="w-full py-3 md:py-2 bg-gray-800 text-gray-400 rounded hover:bg-gray-700 active:bg-gray-600 text-base md:text-sm"
             >
               End Conversation
             </button>
@@ -512,14 +512,14 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
                 <button
                   key={response.id}
                   onClick={() => handleSelectResponse(response)}
-                  className={`w-full p-3 text-left rounded transition-colors ${
+                  className={`w-full p-4 md:p-3 text-left rounded transition-colors active:scale-[0.99] ${
                     meetsRequirement
-                      ? 'bg-gray-800 text-gray-200 hover:bg-gray-700'
+                      ? 'bg-gray-800 text-gray-200 hover:bg-gray-700 active:bg-gray-600'
                       : 'bg-gray-900 text-gray-600 cursor-not-allowed'
                   }`}
                   disabled={!meetsRequirement}
                 >
-                  <span className="text-sm">{response.displayText || response.text}</span>
+                  <span className="text-base md:text-sm">{response.displayText || response.text}</span>
                   {response.skillCheck && (
                     <span className={`ml-2 text-xs ${
                       meetsRequirement ? 'text-amber-400' : 'text-gray-600'
@@ -550,7 +550,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
           <div className="border-t border-gray-700 p-4">
             <button
               onClick={handleClose}
-              className="w-full py-2 bg-amber-700 text-amber-100 rounded hover:bg-amber-600"
+              className="w-full py-3 md:py-2 bg-amber-700 text-amber-100 rounded hover:bg-amber-600 active:bg-amber-500 text-base md:text-sm"
             >
               End Conversation
             </button>

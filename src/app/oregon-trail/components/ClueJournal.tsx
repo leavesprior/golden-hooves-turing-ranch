@@ -28,7 +28,7 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
             <h2 className="text-amber-200 text-xl tracking-wide">Detective's Journal</h2>
             <button
               onClick={onClose}
-              className="px-3 py-1 bg-amber-950 text-amber-300 rounded hover:bg-amber-800"
+              className="px-4 py-2.5 md:px-3 md:py-1 bg-amber-950 text-amber-300 rounded hover:bg-amber-800 active:bg-amber-700 text-base md:text-sm"
             >
               Close
             </button>
@@ -38,7 +38,7 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
           <div className="flex gap-2 mt-4">
             <button
               onClick={() => setActiveTab('clues')}
-              className={`px-3 py-1 rounded-t text-sm ${
+              className={`px-4 py-2.5 md:px-3 md:py-1 rounded-t text-base md:text-sm active:scale-[0.98] ${
                 activeTab === 'clues'
                   ? 'bg-amber-200/20 text-amber-200 border-b-2 border-amber-400'
                   : 'text-amber-400/60 hover:text-amber-300'
@@ -48,7 +48,7 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
             </button>
             <button
               onClick={() => setActiveTab('evidence')}
-              className={`px-3 py-1 rounded-t text-sm ${
+              className={`px-4 py-2.5 md:px-3 md:py-1 rounded-t text-base md:text-sm active:scale-[0.98] ${
                 activeTab === 'evidence'
                   ? 'bg-amber-200/20 text-amber-200 border-b-2 border-amber-400'
                   : 'text-amber-400/60 hover:text-amber-300'
@@ -58,7 +58,7 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
             </button>
             <button
               onClick={() => setActiveTab('suspects')}
-              className={`px-3 py-1 rounded-t text-sm ${
+              className={`px-4 py-2.5 md:px-3 md:py-1 rounded-t text-base md:text-sm active:scale-[0.98] ${
                 activeTab === 'suspects'
                   ? 'bg-amber-200/20 text-amber-200 border-b-2 border-amber-400'
                   : 'text-amber-400/60 hover:text-amber-300'
@@ -199,15 +199,15 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-amber-950/50 p-3 border-t border-amber-900 flex justify-between">
-          <div className="text-amber-700 text-xs">
+        <div className="bg-amber-950/50 p-3 border-t border-amber-900 flex flex-col md:flex-row justify-between gap-2">
+          <div className="text-amber-700 text-sm md:text-xs">
             Investigation Time: {mysteryState.investigationTime} hours
           </div>
           <div className="flex gap-2">
             {onOpenDossier && (
               <button
                 onClick={onOpenDossier}
-                className="px-3 py-1 bg-amber-900 text-amber-300 text-sm rounded hover:bg-amber-800"
+                className="px-4 py-2.5 md:px-3 md:py-1 bg-amber-900 text-amber-300 text-base md:text-sm rounded hover:bg-amber-800 active:bg-amber-700"
               >
                 View Dossiers
               </button>
@@ -215,7 +215,7 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
             {onOpenTelegraph && possible.length === 1 && (
               <button
                 onClick={onOpenTelegraph}
-                className="px-3 py-1 bg-emerald-900 text-emerald-300 text-sm rounded hover:bg-emerald-800"
+                className="px-4 py-2.5 md:px-3 md:py-1 bg-emerald-900 text-emerald-300 text-base md:text-sm rounded hover:bg-emerald-800 active:bg-emerald-700"
               >
                 Issue Warrant
               </button>

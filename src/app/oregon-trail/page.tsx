@@ -328,20 +328,20 @@ function CharacterCreationScreen() {
         {/* Background Selection */}
         <div className="bg-gray-900/80 border-2 border-purple-600 rounded-lg p-4 mb-6">
           <h2 className="font-pixel text-purple-300 text-sm mb-4">Choose Background</h2>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {backgrounds.map(bg => (
               <button
                 key={bg.id}
                 onClick={() => setSelectedBackground(bg.id)}
-                className={`p-3 rounded border-2 text-left transition-all ${
+                className={`p-4 md:p-3 rounded border-2 text-left transition-all active:scale-[0.98] ${
                   selectedBackground === bg.id
                     ? 'bg-purple-900/60 border-purple-400 text-purple-200'
                     : 'bg-gray-800/60 border-gray-600 text-gray-400 hover:border-gray-500'
                 }`}
               >
-                <span className="text-lg mr-2">{bg.icon}</span>
-                <span className="font-pixel text-xs">{bg.name}</span>
-                <p className="text-[10px] mt-1 opacity-70">{bg.description}</p>
+                <span className="text-2xl md:text-lg mr-2">{bg.icon}</span>
+                <span className="font-pixel text-sm md:text-xs">{bg.name}</span>
+                <p className="text-xs md:text-[10px] mt-1 opacity-70">{bg.description}</p>
               </button>
             ))}
           </div>
@@ -362,7 +362,7 @@ function CharacterCreationScreen() {
             <button
               onClick={rollDice}
               disabled={isRolling}
-              className={`flex-1 py-2 font-pixel text-sm rounded border-2 transition-all ${
+              className={`flex-1 py-4 md:py-2 font-pixel text-base md:text-sm rounded border-2 transition-all active:scale-[0.98] ${
                 isRolling
                   ? 'bg-amber-800 border-amber-600 text-amber-300 animate-pulse'
                   : 'bg-amber-700 border-amber-500 text-amber-100 hover:bg-amber-600'
@@ -431,18 +431,18 @@ function CharacterCreationScreen() {
               const baseValue = hasRolled ? baseStats[stat] : 3
 
               return (
-                <div key={stat} className="flex items-center gap-3">
-                  <div className="w-24">
-                    <span className="text-purple-200 text-xs font-pixel">{stat.charAt(0)}</span>
-                    <span className="text-gray-400 text-xs">. {stat.slice(1)}</span>
+                <div key={stat} className="flex items-center gap-2 md:gap-3">
+                  <div className="w-20 md:w-24">
+                    <span className="text-purple-200 text-sm md:text-xs font-pixel">{stat.charAt(0)}</span>
+                    <span className="text-gray-400 text-sm md:text-xs">. {stat.slice(1)}</span>
                   </div>
                   <div className="flex-1 flex items-center gap-2">
                     <button
                       onClick={() => adjustStat(stat, -1)}
                       disabled={value <= baseValue}
-                      className="w-6 h-6 bg-purple-800 text-purple-200 rounded disabled:opacity-30"
+                      className="w-11 h-11 md:w-6 md:h-6 text-lg md:text-base bg-purple-800 text-purple-200 rounded disabled:opacity-30 active:bg-purple-600"
                     >-</button>
-                    <div className="flex-1 h-2 bg-gray-700 rounded overflow-hidden relative">
+                    <div className="flex-1 h-3 md:h-2 bg-gray-700 rounded overflow-hidden relative">
                       {/* Base value indicator */}
                       {hasRolled && (
                         <div
@@ -455,11 +455,11 @@ function CharacterCreationScreen() {
                         style={{ width: `${(value / 18) * 100}%` }}
                       />
                     </div>
-                    <span className="w-8 text-center text-purple-200 text-sm font-pixel">{value}</span>
+                    <span className="w-8 text-center text-purple-200 text-base md:text-sm font-pixel">{value}</span>
                     <button
                       onClick={() => adjustStat(stat, 1)}
                       disabled={value >= 18 || pointsRemaining <= 0}
-                      className="w-6 h-6 bg-purple-800 text-purple-200 rounded disabled:opacity-30"
+                      className="w-11 h-11 md:w-6 md:h-6 text-lg md:text-base bg-purple-800 text-purple-200 rounded disabled:opacity-30 active:bg-purple-600"
                     >+</button>
                   </div>
                   <span className="w-32 text-gray-500 text-[10px] hidden md:block">{statDescriptions[stat]}</span>
@@ -473,7 +473,7 @@ function CharacterCreationScreen() {
         <button
           onClick={handleFinalize}
           disabled={pointsRemaining !== 0 || !selectedBackground}
-          className="w-full py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 font-pixel text-sm rounded border-4 border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full py-4 md:py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 font-pixel text-base md:text-sm rounded border-4 border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
         >
           {!selectedBackground ? 'Select a background' : pointsRemaining > 0 ? `Assign ${pointsRemaining} more points` : 'Begin the Hunt'}
         </button>

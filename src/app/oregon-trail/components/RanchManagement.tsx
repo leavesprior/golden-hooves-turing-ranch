@@ -58,7 +58,7 @@ export function RanchManagement({ onClose }: RanchManagementProps) {
             <SeasonBar season={seasonProgress.current} daysRemaining={seasonProgress.daysRemaining} day={state.gameDay} />
             <button
               onClick={onClose}
-              className="px-3 py-1 bg-gray-700 text-gray-300 rounded hover:bg-gray-600"
+              className="px-4 py-2.5 md:px-3 md:py-1 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 active:bg-gray-500 text-base md:text-sm"
             >
               Back to Trail
             </button>
@@ -71,7 +71,7 @@ export function RanchManagement({ onClose }: RanchManagementProps) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              className={`flex-1 py-4 md:py-3 text-base md:text-sm font-medium transition-colors active:scale-[0.98] ${
                 activeTab === tab.id
                   ? 'bg-gray-800 text-amber-400 border-b-2 border-amber-500'
                   : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
@@ -216,13 +216,13 @@ function OverviewTab({
         <div className="flex gap-2">
           <button
             onClick={onAdvanceDay}
-            className="px-4 py-2 bg-amber-700 text-amber-100 rounded hover:bg-amber-600"
+            className="px-5 py-3 md:px-4 md:py-2 bg-amber-700 text-amber-100 rounded hover:bg-amber-600 active:bg-amber-500 text-base md:text-sm"
           >
             Next Day
           </button>
           <button
             onClick={onAdvanceWeek}
-            className="px-4 py-2 bg-gray-700 text-gray-300 rounded hover:bg-gray-600"
+            className="px-5 py-3 md:px-4 md:py-2 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 active:bg-gray-500 text-base md:text-sm"
           >
             +7 Days
           </button>
@@ -276,16 +276,16 @@ function MarketTab({
         <h3 className="text-amber-400 font-medium mb-4">Buy Feed</h3>
         <p className="text-gray-500 text-sm mb-4">Current stock: {feedStock} units</p>
 
-        <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center gap-2 md:gap-4 mb-4 flex-wrap">
           <span className="text-gray-400">Amount:</span>
           {[10, 25, 50, 100].map(amt => (
             <button
               key={amt}
               onClick={() => setBuyAmount(amt)}
-              className={`px-3 py-1 rounded ${
+              className={`px-4 py-2.5 md:px-3 md:py-1 rounded text-base md:text-sm active:scale-[0.98] ${
                 buyAmount === amt
                   ? 'bg-amber-700 text-amber-100'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600 active:bg-gray-500'
               }`}
             >
               {amt}
@@ -293,7 +293,7 @@ function MarketTab({
           ))}
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {Object.values(FEED_TYPES).map(feed => {
             const cost = feed.neutralKarmaCost * Math.ceil(buyAmount / feed.unitsProvided)
             const canAfford = balance.neutral >= cost
@@ -303,9 +303,9 @@ function MarketTab({
                 key={feed.type}
                 onClick={() => onBuyFeed(feed.type, buyAmount)}
                 disabled={!canAfford}
-                className={`p-4 rounded-lg text-left transition-colors ${
+                className={`p-5 md:p-4 rounded-lg text-left transition-colors active:scale-[0.99] ${
                   canAfford
-                    ? 'bg-gray-700 hover:bg-gray-600'
+                    ? 'bg-gray-700 hover:bg-gray-600 active:bg-gray-500'
                     : 'bg-gray-800 opacity-50 cursor-not-allowed'
                 }`}
               >
@@ -331,7 +331,7 @@ function MarketTab({
         {Object.entries(products).filter(([, amt]) => amt >= 1).length === 0 ? (
           <p className="text-gray-500">No products to sell. Raise livestock to produce goods!</p>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {Object.entries(products)
               .filter(([, amt]) => amt >= 1)
               .map(([name, amount]) => {
@@ -352,7 +352,7 @@ function MarketTab({
                   <button
                     key={name}
                     onClick={() => onSellProducts(name, sellAmount)}
-                    className="p-4 bg-gray-700 rounded-lg hover:bg-gray-600 text-left"
+                    className="p-5 md:p-4 bg-gray-700 rounded-lg hover:bg-gray-600 active:bg-gray-500 text-left active:scale-[0.99]"
                   >
                     <div className="flex justify-between items-center">
                       <span className="text-amber-400">{name}</span>

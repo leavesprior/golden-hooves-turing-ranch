@@ -410,7 +410,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
             <button
               key={tab}
               onClick={() => setSelectedTab(tab as any)}
-              className={`flex-1 py-2 text-sm font-bold capitalize ${
+              className={`flex-1 py-3 md:py-2 text-base md:text-sm font-bold capitalize active:scale-[0.98] ${
                 selectedTab === tab
                   ? 'bg-amber-800 text-amber-200'
                   : 'bg-amber-950 text-amber-500 hover:text-amber-300'
@@ -596,10 +596,10 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
           )}
           <button
             onClick={onClose}
-            className={`w-full py-2 rounded font-bold ${
+            className={`w-full py-3 md:py-2 rounded font-bold text-base md:text-sm active:scale-[0.99] ${
               isWestPoint
-                ? 'bg-emerald-700 text-emerald-100 hover:bg-emerald-600'
-                : 'bg-amber-700 text-amber-100 hover:bg-amber-600'
+                ? 'bg-emerald-700 text-emerald-100 hover:bg-emerald-600 active:bg-emerald-500'
+                : 'bg-amber-700 text-amber-100 hover:bg-amber-600 active:bg-amber-500'
             }`}
           >
             {isWestPoint ? "Thank Cynthia & Leave" : "Leave Inn"}

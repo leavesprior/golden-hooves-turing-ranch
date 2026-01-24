@@ -407,7 +407,7 @@ export function TownShop({ onClose }: TownShopProps) {
                       <div className="mt-2 flex justify-between items-center">
                         <span className="text-amber-500 text-xs">You have: {stock} {item.unit}</span>
                         {selectedItem?.id === item.id && (
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-2 md:gap-2 flex-wrap">
                             {/* Standard +/- controls */}
                             <button
                               onClick={(e) => {
@@ -418,11 +418,11 @@ export function TownShop({ onClose }: TownShopProps) {
                                   setQuantity(q => Math.max(1, q - 1))
                                 }
                               }}
-                              className="w-6 h-6 bg-amber-700 rounded text-amber-200"
+                              className="w-10 h-10 md:w-6 md:h-6 text-lg md:text-base bg-amber-700 rounded text-amber-200 active:bg-amber-600"
                             >
                               -
                             </button>
-                            <span className="text-amber-200 w-12 text-center">
+                            <span className="text-amber-200 w-12 text-center text-base md:text-sm">
                               {quantity}
                             </span>
                             <button
@@ -435,14 +435,14 @@ export function TownShop({ onClose }: TownShopProps) {
                                   setQuantity(q => q + 1)
                                 }
                               }}
-                              className="w-6 h-6 bg-amber-700 rounded text-amber-200"
+                              className="w-10 h-10 md:w-6 md:h-6 text-lg md:text-base bg-amber-700 rounded text-amber-200 active:bg-amber-600"
                             >
                               +
                             </button>
 
                             {/* Quick-set buttons for sell mode */}
                             {mode === 'sell' && (
-                              <div className="flex items-center gap-1 ml-1 border-l border-amber-600 pl-2">
+                              <div className="flex items-center gap-1 md:gap-1 ml-1 border-l border-amber-600 pl-2">
                                 {[1, 10, 100].map(amt => (
                                   <button
                                     key={amt}
@@ -451,7 +451,7 @@ export function TownShop({ onClose }: TownShopProps) {
                                       setQuantity(Math.min(amt, stock))
                                     }}
                                     disabled={stock < 1}
-                                    className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                    className={`px-3 py-2 md:px-2 md:py-0.5 rounded text-sm md:text-xs font-bold active:scale-95 ${
                                       quantity === Math.min(amt, stock) && amt <= stock
                                         ? 'bg-green-600 text-green-100'
                                         : amt <= stock
@@ -469,7 +469,7 @@ export function TownShop({ onClose }: TownShopProps) {
                                     setQuantity(stock)
                                   }}
                                   disabled={stock < 1}
-                                  className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                  className={`px-3 py-2 md:px-2 md:py-0.5 rounded text-sm md:text-xs font-bold active:scale-95 ${
                                     quantity === stock
                                       ? 'bg-green-600 text-green-100'
                                       : 'bg-amber-700 text-amber-100 hover:bg-amber-600'
@@ -481,7 +481,7 @@ export function TownShop({ onClose }: TownShopProps) {
                             )}
 
                             {/* Show total karma to be earned/spent */}
-                            <span className={`text-xs ${mode === 'sell' ? 'text-green-400' : 'text-yellow-300'}`}>
+                            <span className={`text-sm md:text-xs ${mode === 'sell' ? 'text-green-400' : 'text-yellow-300'}`}>
                               {mode === 'sell'
                                 ? `+${Math.floor(item.sellPrice * quantity)}🪙`
                                 : `-${Math.ceil(getPrice(item, false) * item.quantity * quantity)}🪙`
@@ -495,7 +495,7 @@ export function TownShop({ onClose }: TownShopProps) {
                                 setSelectedItem(null)
                                 setQuantity(1)
                               }}
-                              className={`px-3 py-1 rounded text-sm font-bold ${
+                              className={`px-4 py-2 md:px-3 md:py-1 rounded text-base md:text-sm font-bold active:scale-95 ${
                                 mode === 'buy'
                                   ? 'bg-green-700 text-green-100 hover:bg-green-600'
                                   : 'bg-blue-700 text-blue-100 hover:bg-blue-600'
