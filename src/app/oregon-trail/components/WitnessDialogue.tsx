@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { type WitnessType, WITNESS_PERSONALITIES } from '../data/clueTemplates'
 import { type DialogueTree, type DialogueNode, type DialogueResponse, getDialogueTree } from '../data/dialogueTrees'
 import { useCharacter, type StatName, type SkillCheckResult } from '../characterContext'
@@ -8,6 +8,8 @@ import { useReputation, type FactionId } from '../reputationContext'
 import { useNarrator } from '../narratorContext'
 import { useMystery, type CollectedClue } from '../mysteryContext'
 import { useKarmaWallet } from '../karmaWalletContext'
+import { useNPC } from '../npcContext'
+import type { NPCPersonality } from '../data/npcPersonalities'
 import { SkillCheck } from './SkillCheck'
 
 interface WitnessDialogueProps {
@@ -18,16 +20,39 @@ interface WitnessDialogueProps {
   onClueObtained?: (clue: CollectedClue) => void
 }
 
+type DialogueMode = 'checking' | 'dynamic' | 'scripted'
+
 export function WitnessDialogue({ witnessType, location, clue, onClose, onClueObtained }: WitnessDialogueProps) {
   const { getStat, rollSkillCheck } = useCharacter()
   const { modifyReputation, getInteractionBonus } = useReputation()
-  const { comment, recordPlayerAction, setMood } = useNarrator()
+  const { comment, recordPlayerAction, setMood, state: narratorState } = useNarrator()
   const { addClue } = useMystery()
   const { canAfford, spendNeutral, earnGood, addBadKarma } = useKarmaWallet()
 
+  // NPC context for dynamic dialogue
+  const {
+    state: npcState,
+    checkOllamaHealth,
+    isOllamaReady,
+    startConversation,
+    endConversation,
+    sendMessage,
+    sendMessageStream,
+    adjustTrust,
+    getPersonalityFor,
+    generateNameFor,
+  } = useNPC()
+
+  // Dialogue mode state
+  const [dialogueMode, setDialogueMode] = useState<DialogueMode>('checking')
+  const [customInput, setCustomInput] = useState('')
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [streamingText, setStreamingText] = useState('')
+
+  // Scripted dialogue state
   const [dialogueTree] = useState<DialogueTree>(getDialogueTree(witnessType))
   const [currentNodeId, setCurrentNodeId] = useState(dialogueTree.startNode)
-  const [dialogueHistory, setDialogueHistory] = useState<Array<{ speaker: string; text: string }>>([])
+  const [dialogueHistory, setDialogueHistory] = useState<Array<{ speaker: string; text: string; isStreaming?: boolean }>>([])
   const [showSkillCheck, setShowSkillCheck] = useState<{
     stat: StatName
     difficulty: number
@@ -38,19 +63,181 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
   const [clueObtained, setClueObtained] = useState(false)
   const [isEnded, setIsEnded] = useState(false)
 
+  const historyEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   const witness = WITNESS_PERSONALITIES[witnessType]
   const currentNode = dialogueTree.nodes[currentNodeId]
+  const personality = getPersonalityFor(witnessType)
+  const npcName = generateNameFor(witnessType, location)
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    historyEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [dialogueHistory, streamingText])
+
+  // Check Ollama availability on mount
+  useEffect(() => {
+    async function checkMode() {
+      const status = await checkOllamaHealth()
+      if (status.available) {
+        setDialogueMode('dynamic')
+        // Start NPC conversation with clue info
+        startConversation(
+          witnessType,
+          location,
+          clue ? { trait: clue.trait || 'unknown', value: clue.value || '' } : undefined
+        )
+        // Add initial greeting
+        const greeting = getInitialGreeting(personality, witnessType)
+        addToHistory(npcName, greeting)
+      } else {
+        setDialogueMode('scripted')
+        // Process initial node for scripted mode
+        if (currentNode) {
+          processNodeEffects(currentNode)
+        }
+      }
+    }
+    checkMode()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Add dialogue line to history
-  const addToHistory = useCallback((speaker: string, text: string) => {
-    setDialogueHistory(prev => [...prev, { speaker, text }])
+  const addToHistory = useCallback((speaker: string, text: string, isStreaming?: boolean) => {
+    setDialogueHistory(prev => [...prev, { speaker, text, isStreaming }])
   }, [])
 
-  // Process node effects
+  // Update last history item (for streaming)
+  const updateLastHistory = useCallback((text: string) => {
+    setDialogueHistory(prev => {
+      const updated = [...prev]
+      if (updated.length > 0) {
+        updated[updated.length - 1] = { ...updated[updated.length - 1], text, isStreaming: false }
+      }
+      return updated
+    })
+  }, [])
+
+  // Generate initial greeting based on personality and visit history
+  function getInitialGreeting(personality: NPCPersonality | null, witnessType: WitnessType): string {
+    // Use first speech pattern + archetype flavor
+    const patterns = personality?.speechPatterns || []
+    const traits = personality?.coreTraits || []
+
+    const greetings: Record<WitnessType, string> = {
+      bartender: "*sigh* Another one. What'll it be?",
+      shopkeeper: "Oh! A customer! I mean, can I help you? *nervous glance*",
+      stable_hand: "*continues brushing horse* ...You need somethin'?",
+      traveler: "*looks up from dusty boots* Just passing through... like everyone.",
+      settler: "*pauses work* We don't get many visitors. What do you want?",
+      native_trader: "*long pause* ...The wind brought you here.",
+      telegraph_operator: "Ah! *taps desk* Breaking news! ...Well, not really. What can I do for you?",
+      sheriff_deputy: "*touches badge* Official business, I hope. We got enough trouble.",
+      prostitute: "Well, hello there, sugar. *knowing look* You look like you need information... or something.",
+      preacher: "Blessings upon you, traveler! Have you come seeking salvation... or something else?",
+      drunk: "*hiccup* Heyyy... you look familiar. Or... wait, do I know you?",
+      child: "*peeks out from hiding spot* ...You're not gonna tell my Ma, are you?"
+    }
+
+    return greetings[witnessType] || "Yes? What do you want?"
+  }
+
+  // Handle dynamic dialogue input
+  const handleDynamicInput = useCallback(async () => {
+    if (!customInput.trim() || isStreaming) return
+
+    const message = customInput.trim()
+    setCustomInput('')
+    addToHistory('YOU', message)
+    setIsStreaming(true)
+    setStreamingText('')
+
+    // Add placeholder for NPC response
+    addToHistory(npcName, '', true)
+
+    try {
+      // Try streaming first
+      let fullResponse = ''
+      const result = await sendMessageStream(
+        message,
+        (chunk) => {
+          fullResponse += chunk
+          setStreamingText(fullResponse)
+        },
+        {
+          characterStats: {
+            diplomacy: getStat('Diplomacy'),
+            shrewdness: getStat('Shrewdness'),
+            luck: getStat('Luck'),
+          },
+          narratorMood: narratorState.mood,
+        }
+      )
+
+      if (result) {
+        // Update the placeholder with final response
+        updateLastHistory(result.response)
+
+        // Check if clue was revealed
+        if (result.clueRevealed && clue && !clueObtained) {
+          addClue(clue)
+          setClueObtained(true)
+          onClueObtained?.(clue)
+          comment("Interesting... they let something slip.", 'observation')
+        }
+
+        // Narrator might comment
+        if (Math.random() < 0.2) {
+          comment(getRandomNarratorComment(), 'observation')
+        }
+      } else {
+        // Fallback to non-streaming
+        const nonStreamResult = await sendMessage(message, {
+          characterStats: {
+            diplomacy: getStat('Diplomacy'),
+            shrewdness: getStat('Shrewdness'),
+            luck: getStat('Luck'),
+          },
+          narratorMood: narratorState.mood,
+        })
+
+        if (nonStreamResult) {
+          updateLastHistory(nonStreamResult.response)
+
+          if (nonStreamResult.clueRevealed && clue && !clueObtained) {
+            addClue(clue)
+            setClueObtained(true)
+            onClueObtained?.(clue)
+          }
+        } else {
+          // Total fallback - switch to scripted mode
+          updateLastHistory("*clears throat* I... I've said enough. *turns away*")
+          setDialogueMode('scripted')
+          setIsEnded(true)
+        }
+      }
+    } catch (error) {
+      console.error('[WitnessDialogue] Error:', error)
+      updateLastHistory("*looks away nervously* I... I don't know anything else.")
+    }
+
+    setIsStreaming(false)
+    setStreamingText('')
+    recordPlayerAction('dynamic_dialogue')
+  }, [customInput, isStreaming, npcName, sendMessage, sendMessageStream, getStat, narratorState.mood, clue, clueObtained, addClue, onClueObtained, comment, addToHistory, updateLastHistory, recordPlayerAction])
+
+  // Quick question buttons for dynamic mode
+  const quickQuestions = [
+    { text: "See any strangers?", question: "Have you seen any strangers pass through here recently?" },
+    { text: "Tell me about the crime", question: "What do you know about the recent crime?" },
+    { text: "Describe them", question: "Can you describe what they looked like?" },
+    { text: "Where'd they go?", question: "Which direction did they head?" },
+  ]
+
+  // Process node effects (scripted mode)
   const processNodeEffects = useCallback((node: DialogueNode) => {
     if (node.effect) {
       if (node.effect.grantClue && clue && !clueObtained) {
-        // Replace placeholder with actual clue
         const clueText = node.text.replace('[CLUE_PLACEHOLDER]', clue.text)
         addToHistory(getWitnessLabel(witnessType), clueText)
         addClue(clue)
@@ -69,7 +256,6 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
         )
       }
     } else {
-      // Handle clue placeholder for nodes without explicit effect
       let text = node.text
       if (text.includes('[CLUE_PLACEHOLDER]') && clue) {
         text = text.replace('[CLUE_PLACEHOLDER]', clue.text)
@@ -82,29 +268,25 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
       addToHistory(node.speaker === 'witness' ? getWitnessLabel(witnessType) : 'NARRATOR', text)
     }
 
-    // Show narrator comment if present
     if (node.narratorComment) {
       setTimeout(() => {
         comment(node.narratorComment!, 'observation')
       }, 500)
     }
 
-    // Auto-advance if no responses
     if (node.nextNode && !node.responses) {
       setTimeout(() => {
         setCurrentNodeId(node.nextNode!)
       }, 1000)
     }
 
-    // Check if dialogue ended
     if (!node.responses && !node.nextNode) {
       setIsEnded(true)
     }
   }, [clue, clueObtained, witnessType, location, addClue, onClueObtained, modifyReputation, comment, addToHistory])
 
-  // Handle selecting a response
+  // Handle selecting a response (scripted mode)
   const handleSelectResponse = useCallback(async (response: DialogueResponse) => {
-    // Handle karma cost (bribes, etc.) - check affordability first
     const karmaCost = response.goldCost || response.karmaCost || 0
     if (karmaCost > 0) {
       if (!canAfford('neutral', karmaCost)) {
@@ -114,21 +296,16 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
       await spendNeutral(karmaCost, `Dialogue: ${response.text.substring(0, 30)}...`)
     }
 
-    // Add player's response to history
     addToHistory('YOU', response.displayText || response.text)
     recordPlayerAction(`dialogue_${response.id}`)
 
-    // Handle karma rewards/consequences
     if (response.karmaGood && response.karmaGood > 0) {
-      // Virtuous choice earns Good Karma
       await earnGood(response.karmaGood, `Virtuous: ${response.text.substring(0, 20)}...`)
     }
     if (response.karmaGood && response.karmaGood < 0) {
-      // Evil choice earns Bad Karma
       await addBadKarma(Math.abs(response.karmaGood), `Dark choice: ${response.text.substring(0, 20)}...`)
     }
 
-    // Handle reputation
     if (response.reputationEffect) {
       modifyReputation(
         response.reputationEffect.faction,
@@ -138,7 +315,6 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
       )
     }
 
-    // Handle skill check
     if (response.skillCheck) {
       const interactionBonus = witnessType === 'settler' ? getInteractionBonus('settlers') :
                                witnessType === 'native_trader' ? getInteractionBonus('natives') : 0
@@ -164,7 +340,6 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
               setTimeout(() => processNodeEffects(failNode), 300)
             }
           } else {
-            // Default failure - witness clams up
             addToHistory(getWitnessLabel(witnessType), "I... I don't think I want to say anything more.")
             setIsEnded(true)
           }
@@ -173,27 +348,18 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
       return
     }
 
-    // Grant clue if response does so
     if (response.grantsClue && clue && !clueObtained) {
       addClue(clue)
       setClueObtained(true)
       onClueObtained?.(clue)
     }
 
-    // Move to next node
     setCurrentNodeId(response.nextNode)
     const nextNode = dialogueTree.nodes[response.nextNode]
     if (nextNode) {
       setTimeout(() => processNodeEffects(nextNode), 300)
     }
   }, [dialogueTree.nodes, witnessType, location, clue, clueObtained, addClue, onClueObtained, modifyReputation, getInteractionBonus, recordPlayerAction, addToHistory, processNodeEffects, canAfford, spendNeutral, earnGood, addBadKarma])
-
-  // Process initial node on mount
-  React.useEffect(() => {
-    if (currentNode) {
-      processNodeEffects(currentNode)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle skill check result
   const handleSkillCheckResult = useCallback((result: SkillCheckResult) => {
@@ -208,6 +374,24 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
     }
   }, [showSkillCheck, setMood])
 
+  // Handle close
+  const handleClose = useCallback(() => {
+    endConversation()
+    onClose()
+  }, [endConversation, onClose])
+
+  // Get random narrator comment
+  function getRandomNarratorComment(): string {
+    const comments = [
+      "The witness seems nervous...",
+      "Something about their tone suggests they know more.",
+      "You notice their eyes dart to the door.",
+      "They're holding something back.",
+      "An interesting choice of words...",
+    ]
+    return comments[Math.floor(Math.random() * comments.length)]
+  }
+
   return (
     <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-900 border-2 border-amber-700 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
@@ -216,13 +400,23 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
           <div className="flex items-center gap-3">
             <span className="text-2xl">{getWitnessEmoji(witnessType)}</span>
             <div>
-              <h2 className="text-amber-300">{getWitnessLabel(witnessType)}</h2>
-              <p className="text-gray-500 text-xs">{location}</p>
+              <h2 className="text-amber-300">
+                {dialogueMode === 'dynamic' ? npcName : getWitnessLabel(witnessType)}
+              </h2>
+              <p className="text-gray-500 text-xs">
+                {location}
+                {dialogueMode === 'dynamic' && npcState.ollamaModel && (
+                  <span className="ml-2 text-emerald-600">✨ AI</span>
+                )}
+              </p>
             </div>
           </div>
           <div className="text-right">
             {clueObtained && (
-              <span className="text-emerald-400 text-xs">\u2713 Clue Obtained</span>
+              <span className="text-emerald-400 text-xs">✓ Clue Obtained</span>
+            )}
+            {dialogueMode === 'checking' && (
+              <span className="text-gray-500 text-xs animate-pulse">Connecting...</span>
             )}
           </div>
         </div>
@@ -242,14 +436,73 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
                   : 'bg-gray-800 text-gray-200'
               }`}>
                 <p className="text-xs text-gray-500 mb-1">{line.speaker}</p>
-                <p className="text-sm">{line.text}</p>
+                <p className="text-sm">
+                  {line.isStreaming ? (
+                    <span className="animate-pulse">{streamingText || '...'}</span>
+                  ) : (
+                    line.text
+                  )}
+                </p>
               </div>
             </div>
           ))}
+          <div ref={historyEndRef} />
         </div>
 
-        {/* Response Options */}
-        {!isEnded && currentNode?.responses && !showSkillCheck && (
+        {/* Dynamic Mode Input */}
+        {dialogueMode === 'dynamic' && !isEnded && (
+          <div className="border-t border-gray-700 p-4 space-y-3">
+            {/* Quick questions */}
+            <div className="flex flex-wrap gap-2">
+              {quickQuestions.map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setCustomInput(q.question)
+                    inputRef.current?.focus()
+                  }}
+                  disabled={isStreaming}
+                  className="px-3 py-1 text-xs bg-gray-800 text-gray-300 rounded hover:bg-gray-700 disabled:opacity-50"
+                >
+                  {q.text}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom input */}
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleDynamicInput()}
+                placeholder="Ask something..."
+                disabled={isStreaming}
+                className="flex-1 px-3 py-2 bg-gray-800 text-gray-200 border border-gray-700 rounded focus:border-amber-600 outline-none disabled:opacity-50"
+              />
+              <button
+                onClick={handleDynamicInput}
+                disabled={isStreaming || !customInput.trim()}
+                className="px-4 py-2 bg-amber-700 text-amber-100 rounded hover:bg-amber-600 disabled:opacity-50"
+              >
+                {isStreaming ? '...' : 'Ask'}
+              </button>
+            </div>
+
+            {/* End conversation button */}
+            <button
+              onClick={handleClose}
+              disabled={isStreaming}
+              className="w-full py-2 bg-gray-800 text-gray-400 rounded hover:bg-gray-700 text-sm"
+            >
+              End Conversation
+            </button>
+          </div>
+        )}
+
+        {/* Scripted Mode Response Options */}
+        {dialogueMode === 'scripted' && !isEnded && currentNode?.responses && !showSkillCheck && (
           <div className="border-t border-gray-700 p-4 space-y-2">
             {currentNode.responses.map(response => {
               const statValue = response.skillCheck ? getStat(response.skillCheck.stat as StatName) : 0
@@ -292,15 +545,22 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
           </div>
         )}
 
-        {/* End of Dialogue - show when explicitly ended OR when no responses available */}
-        {(isEnded || (!currentNode?.responses && !showSkillCheck)) && (
+        {/* End of Dialogue */}
+        {(isEnded || (dialogueMode === 'scripted' && !currentNode?.responses && !showSkillCheck)) && (
           <div className="border-t border-gray-700 p-4">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full py-2 bg-amber-700 text-amber-100 rounded hover:bg-amber-600"
             >
               End Conversation
             </button>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {dialogueMode === 'checking' && (
+          <div className="border-t border-gray-700 p-4 text-center text-gray-500">
+            <p className="animate-pulse">Connecting to witness...</p>
           </div>
         )}
       </div>
@@ -343,20 +603,20 @@ function getWitnessLabel(type: WitnessType): string {
 
 function getWitnessEmoji(type: WitnessType): string {
   const emojis: Record<WitnessType, string> = {
-    bartender: '\ud83c\udf7a',
-    shopkeeper: '\ud83c\udfea',
-    stable_hand: '\ud83d\udc34',
-    traveler: '\ud83e\udded',
-    settler: '\ud83c\udfe0',
-    native_trader: '\ud83e\udeb6',
-    telegraph_operator: '\u26a1',
-    sheriff_deputy: '\u2b50',
-    prostitute: '\ud83c\udf39',
-    preacher: '\u271d\ufe0f',
-    drunk: '\ud83c\udf7b',
-    child: '\ud83d\udc66'
+    bartender: '🍺',
+    shopkeeper: '🏪',
+    stable_hand: '🐴',
+    traveler: '🧭',
+    settler: '🏠',
+    native_trader: '🪶',
+    telegraph_operator: '⚡',
+    sheriff_deputy: '⭐',
+    prostitute: '🌹',
+    preacher: '✝️',
+    drunk: '🍻',
+    child: '👦'
   }
-  return emojis[type] || '\ud83d\udde3\ufe0f'
+  return emojis[type] || '🗣️'
 }
 
 export default WitnessDialogue

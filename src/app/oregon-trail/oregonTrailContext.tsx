@@ -8,6 +8,8 @@ export type Pace = 'steady' | 'strenuous' | 'grueling'
 export type Rations = 'filling' | 'meager' | 'bare_bones'
 export type Weather = 'fair' | 'rain' | 'storm' | 'snow'
 export type GamePhase =
+  | 'title'               // NEW: Title screen with scenic backdrop
+  | 'chapter_intro'       // NEW: Chapter narrative introduction
   | 'menu'
   | 'character_creation'  // NEW: S.A.D.D.L.E. stats selection
   | 'outfitting'
@@ -22,6 +24,7 @@ export type GamePhase =
   | 'telegraph'           // NEW: Warrant issuing
   | 'journal'             // NEW: Clue journal
   | 'world_map'           // NEW: Fallout-style world map
+  | 'ranch_management'    // NEW: Lords II-style ranch building
   | 'complete'
   | 'game_over'
 
@@ -124,6 +127,7 @@ export interface OregonTrailState {
 
   // Game state
   phase: GamePhase
+  currentChapter: number
   currentEvent: RandomEvent | null
   message: string | null
 
@@ -437,6 +441,231 @@ export const RANDOM_EVENTS: RandomEvent[] = [
       },
     ],
   },
+  // === HITCHHIKER'S GUIDE STYLE EVENTS ===
+  {
+    id: 'philosophical_stranger',
+    title: 'The Philosophical Stranger',
+    description: 'A disheveled traveler blocks your path, seemingly lost in deep thought. "Tell me," he says without introduction, "if a wagon wheel falls in the desert and no one is around to hear it, does it still ruin your day?"',
+    choices: [
+      {
+        id: 'engage',
+        text: 'Engage in philosophical debate',
+        outcome: {
+          message: 'Two hours later, you have solved nothing but somehow feel enlightened. The stranger vanishes with a knowing smile.',
+          daysLost: 0,
+          goodKarmaDelta: 5,
+        },
+        karmaLawful: 0,
+        karmaGood: -5,
+      },
+      {
+        id: 'practical',
+        text: '"Yes. Obviously yes."',
+        outcome: {
+          message: 'He nods sagely. "A practical soul. The frontier needs more of you." He gives you a spare part from nowhere.',
+          spareParts: 1,
+        },
+        karmaLawful: -2,
+        karmaGood: 0,
+      },
+      {
+        id: 'ignore',
+        text: 'Edge around him slowly',
+        outcome: {
+          message: '"Ah, the silent treatment," he calls after you. "Also valid!" You travel on, slightly unsettled.',
+        },
+        karmaLawful: 0,
+        karmaGood: 0,
+      },
+    ],
+  },
+  {
+    id: 'suspiciously_helpful_map',
+    title: 'The Suspiciously Helpful Map',
+    description: 'You find a map tacked to a tree. It shows a shortcut that would save three days. It is labeled, in beautiful calligraphy, "NOT A TRAP."',
+    choices: [
+      {
+        id: 'trust',
+        text: 'Take the shortcut (it probably isn\'t a trap)',
+        outcome: {
+          message: 'Against all logic, the shortcut works perfectly. You find supplies hidden along the way by... someone. The universe may have a sense of humor.',
+          foodDelta: 30,
+          neutralKarmaDelta: 15,
+        },
+        karmaLawful: 5,
+        karmaGood: 0,
+      },
+      {
+        id: 'distrust',
+        text: 'Ignore it (because it definitely IS a trap)',
+        outcome: {
+          message: 'You stick to the main trail. That night, you hear distant screaming from the direction of the "shortcut." You made the right call.',
+        },
+        karmaLawful: -5,
+        karmaGood: 0,
+      },
+    ],
+  },
+  {
+    id: 'singing_wheel',
+    title: 'The Singing Wheel',
+    description: 'One of your wagon wheels has developed a squeak that sounds uncannily like a song. Party morale is divided: half find it charming, half want to burn the wagon.',
+    choices: [
+      {
+        id: 'grease',
+        text: 'Grease the wheel (silence the song)',
+        outcome: {
+          message: 'The squeak stops. The silence somehow feels judgmental. Party morale stabilizes.',
+          spareParts: -1,
+        },
+        karmaLawful: 0,
+        karmaGood: 0,
+      },
+      {
+        id: 'sing_along',
+        text: 'Teach everyone the lyrics',
+        outcome: {
+          message: 'By day three, you have a traveling chorus. Other wagons give you strange looks but your morale soars.',
+          healthDelta: 5,
+          goodKarmaDelta: 3,
+        },
+        karmaLawful: 3,
+        karmaGood: -3,
+      },
+    ],
+  },
+  {
+    id: 'competitive_snake',
+    title: 'The Competitive Snake',
+    description: 'A rattlesnake appears on the trail. Rather than striking, it seems to be challenging your lead ox to a staring contest.',
+    choices: [
+      {
+        id: 'wait',
+        text: 'Wait for the ox to win',
+        outcome: {
+          message: 'After 47 minutes, the snake blinks first. Your ox has never looked more proud. Snake reputation: damaged.',
+          healthDelta: 5,
+        },
+        karmaLawful: 0,
+        karmaGood: 0,
+      },
+      {
+        id: 'intervene',
+        text: 'Break up the contest',
+        outcome: {
+          message: 'Both participants look disappointed in you. The snake slithers off. Your ox refuses to make eye contact for the next ten miles.',
+          healthDelta: -5,
+        },
+        karmaLawful: 0,
+        karmaGood: 0,
+      },
+      {
+        id: 'bet',
+        text: 'Place bets',
+        outcome: {
+          message: 'You organize a gambling ring around the staring contest. Word spreads. You make a small fortune before authorities ask questions.',
+          neutralKarmaDelta: 25,
+          badKarmaDelta: 3,
+        },
+        karmaLawful: 5,
+        karmaGood: 3,
+      },
+    ],
+  },
+  {
+    id: 'over_prepared_traveler',
+    title: 'The Over-Prepared Traveler',
+    description: 'A fellow traveler approaches with a wagon so laden with supplies it has carved a rut three inches deep. "I brought EVERYTHING," they announce proudly. "Want to trade?"',
+    choices: [
+      {
+        id: 'trade_food',
+        text: 'Trade for food',
+        outcome: {
+          message: '"Food? I have seventeen varieties!" You leave with more provisions than your wagon can reasonably hold.',
+          foodDelta: 60,
+          neutralKarmaDelta: -20,
+        },
+        karmaLawful: 0,
+        karmaGood: 0,
+      },
+      {
+        id: 'trade_advice',
+        text: 'Trade advice for medicine',
+        outcome: {
+          message: 'You explain that they don\'t need three butter churns. In gratitude, they share medical supplies.',
+          medicineDelta: 3,
+        },
+        karmaLawful: 0,
+        karmaGood: -3,
+      },
+      {
+        id: 'decline_politely',
+        text: 'Decline politely (their wagon is a cautionary tale)',
+        outcome: {
+          message: '"Your loss!" They trundle on. You notice their oxen weeping.',
+        },
+        karmaLawful: 0,
+        karmaGood: 0,
+      },
+    ],
+  },
+  {
+    id: 'prophetic_child',
+    title: 'The Prophetic Child',
+    description: 'A child from a passing wagon points at you and declares, "The trail knows your name." Their parents apologize and hurry on. You are left with questions.',
+    choices: [
+      {
+        id: 'ponder',
+        text: 'Ponder the meaning deeply',
+        outcome: {
+          message: 'You spend the day in contemplation. No answers come, but you feel... prepared for something.',
+          goodKarmaDelta: 5,
+        },
+        karmaLawful: 0,
+        karmaGood: -5,
+      },
+      {
+        id: 'dismiss',
+        text: 'Children say strange things',
+        outcome: {
+          message: 'You shrug it off. Probably nothing. The wind whispers your name once, but that could be coincidence.',
+        },
+        karmaLawful: 0,
+        karmaGood: 0,
+      },
+    ],
+  },
+  {
+    id: 'ghost_town_shortcut',
+    title: 'The Unusually Quiet Settlement',
+    description: 'You pass through a town that exists on no map. The buildings are well-maintained but the streets are empty. A sign reads: "WELCOME. PLEASE DON\'T STAY."',
+    choices: [
+      {
+        id: 'take_supplies',
+        text: 'Help yourself to obviously abandoned supplies',
+        outcome: {
+          message: 'You grab what you can. As you leave, every window suddenly has a face watching. You do not look back.',
+          foodDelta: 40,
+          ammoDelta: 15,
+          badKarmaDelta: 10,
+        },
+        karmaLawful: 10,
+        karmaGood: 10,
+      },
+      {
+        id: 'respect_wishes',
+        text: 'Leave immediately (respect their wishes)',
+        outcome: {
+          message: 'You hurry through. At the edge of town, you find a package with your name on it containing supplies. Best not to question it.',
+          foodDelta: 20,
+          medicineDelta: 2,
+          goodKarmaDelta: 10,
+        },
+        karmaLawful: -5,
+        karmaGood: -10,
+      },
+    ],
+  },
 ]
 
 // Default investigation state
@@ -470,7 +699,8 @@ const DEFAULT_STATE: OregonTrailState = {
   rations: 'filling',
   weather: 'fair',
   temperature: 70,
-  phase: 'menu',
+  phase: 'title',
+  currentChapter: 1,
   currentEvent: null,
   message: null,
   totalMilesTraveled: 0,
@@ -528,6 +758,14 @@ interface OregonTrailContextValue {
   setPhase: (phase: GamePhase) => void
   setCurrentLandmark: (landmark: string) => void
   openWorldMap: () => void
+
+  // Title and Chapter flow
+  startFromTitle: () => void
+  completeChapterIntro: () => void
+
+  // Ranch management (Lords II-style building)
+  openRanchManagement: () => void
+  closeRanchManagement: () => void
 }
 
 const OregonTrailContext = createContext<OregonTrailContextValue | null>(null)
@@ -1108,6 +1346,38 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     }))
   }, [])
 
+  // Title and Chapter flow methods
+  const startFromTitle = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: 'chapter_intro',
+    }))
+  }, [])
+
+  const completeChapterIntro = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: 'menu',
+    }))
+  }, [])
+
+  // Ranch management methods (Lords II-style building)
+  const openRanchManagement = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: 'ranch_management',
+      previousPhase: prev.phase,
+    }))
+  }, [])
+
+  const closeRanchManagement = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: prev.previousPhase || 'town',
+      previousPhase: null,
+    }))
+  }, [])
+
   const value: OregonTrailContextValue = {
     state,
     startGame,
@@ -1147,6 +1417,12 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     setPhase,
     setCurrentLandmark,
     openWorldMap,
+    // Title and Chapter flow
+    startFromTitle,
+    completeChapterIntro,
+    // Ranch management
+    openRanchManagement,
+    closeRanchManagement,
   }
 
   return (

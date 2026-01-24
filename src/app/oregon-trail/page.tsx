@@ -51,6 +51,21 @@ import { WorldMap, MiniMap } from './components/WorldMap'
 import { getAllLocations, getLocationById, type ChapterType } from './data/worldMaps'
 import { getRandomTwainQuote, getEasterEggsForLocation } from './data/easterEggs'
 
+// Ranch Management System (Lords II-style)
+import { RanchProvider, useRanch } from './ranchContext'
+import { RanchManagement } from './components/RanchManagement'
+
+// Title Screen and Chapter System
+import { TitleScreen } from './components/TitleScreen'
+import { ChapterIntro, CHAPTERS } from './components/ChapterIntro'
+
+// Travel Observations - Hitchhiker's Guide Style Commentary
+import { TravelObservations } from './components/TravelObservations'
+import { type WeatherMood } from './data/travelObservations'
+
+// NPC Context for Ollama-powered dialogue
+import { NPCProvider } from './npcContext'
+
 function GameMenu() {
   const { state, startGame } = useOregonTrail()
   const [leaderName, setLeaderName] = useState('')
@@ -165,6 +180,20 @@ function CharacterCreationScreen() {
   const { state: charState, createCharacter, modifyStat, getStat } = useCharacter()
   const { comment } = useNarrator()
 
+  // Dice roll state
+  const [hasRolled, setHasRolled] = useState(false)
+  const [rollCount, setRollCount] = useState(0)
+  const [baseStats, setBaseStats] = useState({
+    Shrewdness: 3,
+    Agility: 3,
+    Durability: 3,
+    Diplomacy: 3,
+    Luck: 3,
+    Expertise: 3,
+  })
+  const [lastRolls, setLastRolls] = useState<Record<string, number[]>>({})
+  const [isRolling, setIsRolling] = useState(false)
+
   // Local state for character creation
   const [selectedBackground, setSelectedBackground] = useState<CharacterBackground | null>(null)
   const [statPoints, setStatPoints] = useState({
@@ -176,6 +205,50 @@ function CharacterCreationScreen() {
     Expertise: 3,
   })
   const [pointsRemaining, setPointsRemaining] = useState(12)
+
+  // Roll 3d6 for each stat (like classic D&D)
+  const rollDice = () => {
+    setIsRolling(true)
+    setRollCount(prev => prev + 1)
+
+    // Animate the roll
+    let iterations = 0
+    const maxIterations = 10
+    const interval = setInterval(() => {
+      const tempStats: Record<string, number> = {}
+      const tempRolls: Record<string, number[]> = {}
+
+      const statNames = ['Shrewdness', 'Agility', 'Durability', 'Diplomacy', 'Luck', 'Expertise']
+      statNames.forEach(stat => {
+        const dice = [
+          Math.floor(Math.random() * 6) + 1,
+          Math.floor(Math.random() * 6) + 1,
+          Math.floor(Math.random() * 6) + 1,
+        ]
+        tempRolls[stat] = dice
+        tempStats[stat] = dice.reduce((a, b) => a + b, 0)
+      })
+
+      setLastRolls(tempRolls)
+      setBaseStats(tempStats as typeof baseStats)
+
+      iterations++
+      if (iterations >= maxIterations) {
+        clearInterval(interval)
+        setIsRolling(false)
+        setHasRolled(true)
+
+        // Reset bonus points to 0 (base stats from roll are the foundation)
+        setStatPoints(tempStats as typeof statPoints)
+        setPointsRemaining(6) // Fewer bonus points when rolling (6 instead of 12)
+      }
+    }, 80)
+  }
+
+  // Calculate total stat value
+  const getTotalStats = () => {
+    return Object.values(statPoints).reduce((a, b) => a + b, 0)
+  }
 
   // Convert BACKGROUND_DESCRIPTIONS to array format
   const backgrounds = Object.entries(BACKGROUND_DESCRIPTIONS).map(([id, data]) => ({
@@ -192,11 +265,13 @@ function CharacterCreationScreen() {
 
   const adjustStat = (stat: StatName, delta: number) => {
     const currentValue = statPoints[stat]
+    const minValue = hasRolled ? baseStats[stat] : 1
+    const maxValue = 18  // Max stat value (like D&D)
     const newValue = currentValue + delta
 
-    if (newValue < 1 || newValue > 10) return
+    if (newValue < minValue || newValue > maxValue) return
     if (delta > 0 && pointsRemaining <= 0) return
-    if (delta < 0 && currentValue <= 1) return
+    if (delta < 0 && currentValue <= minValue) return
 
     setStatPoints(prev => ({ ...prev, [stat]: newValue }))
     setPointsRemaining(prev => prev - delta)
@@ -209,15 +284,24 @@ function CharacterCreationScreen() {
     const leaderName = trailState.party.find(m => m.id === 'leader')?.name || 'Agent'
     createCharacter(leaderName, selectedBackground)
 
-    // Apply stat adjustments (difference from default 3)
+    // Apply stat adjustments
+    // - Standard allocation: diff from base 3 (UI display value)
+    // - Rolled stats: diff from BASE_STATS (5) since we're replacing the base entirely
     Object.entries(statPoints).forEach(([stat, value]) => {
-      const diff = value - 3
+      const base = hasRolled ? 5 : 3  // BASE_STATS is 5, UI default is 3
+      const diff = value - base
       if (diff !== 0) {
         modifyStat(stat as StatName, diff)
       }
     })
 
-    comment("Another hero setting off to bring justice to the frontier. How... optimistic.", 'observation')
+    if (hasRolled && getTotalStats() >= 70) {
+      comment("The dice favor the bold. Or perhaps just the persistent.", 'observation')
+    } else if (hasRolled) {
+      comment("The frontier accepts all rolls. Some just have to work harder.", 'observation')
+    } else {
+      comment("Another hero setting off to bring justice to the frontier. How... optimistic.", 'observation')
+    }
     beginJourney()
   }
 
@@ -263,18 +347,88 @@ function CharacterCreationScreen() {
           </div>
         </div>
 
+        {/* Dice Roll Section */}
+        <div className="bg-gray-900/80 border-2 border-amber-600 rounded-lg p-4 mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="font-pixel text-amber-300 text-sm">🎲 Roll for Stats</h2>
+            {hasRolled && (
+              <span className="text-amber-400 text-xs">
+                Total: {getTotalStats()} | Rolls: {rollCount}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 mb-3">
+            <button
+              onClick={rollDice}
+              disabled={isRolling}
+              className={`flex-1 py-2 font-pixel text-sm rounded border-2 transition-all ${
+                isRolling
+                  ? 'bg-amber-800 border-amber-600 text-amber-300 animate-pulse'
+                  : 'bg-amber-700 border-amber-500 text-amber-100 hover:bg-amber-600'
+              }`}
+            >
+              {isRolling ? '🎲 Rolling...' : hasRolled ? '🎲 Reroll Stats (3d6)' : '🎲 Roll Stats (3d6 each)'}
+            </button>
+            {!hasRolled && (
+              <div className="text-amber-500 text-xs">
+                or use standard allocation →
+              </div>
+            )}
+          </div>
+
+          {/* Show dice results */}
+          {hasRolled && Object.keys(lastRolls).length > 0 && (
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {(['Shrewdness', 'Agility', 'Durability', 'Diplomacy', 'Luck', 'Expertise'] as StatName[]).map(stat => {
+                const dice = lastRolls[stat] || [0, 0, 0]
+                const total = dice.reduce((a, b) => a + b, 0)
+                const isGoodRoll = total >= 12
+                const isBadRoll = total <= 8
+
+                return (
+                  <div key={stat} className={`flex items-center gap-2 px-2 py-1 rounded ${
+                    isGoodRoll ? 'bg-green-900/40' : isBadRoll ? 'bg-red-900/40' : 'bg-gray-800/40'
+                  }`}>
+                    <span className="text-purple-300 w-8">{stat.charAt(0)}.</span>
+                    <span className="text-gray-400">
+                      [{dice.map((d, i) => (
+                        <span key={i} className={d === 6 ? 'text-green-400' : d === 1 ? 'text-red-400' : ''}>
+                          {d}{i < 2 ? '+' : ''}
+                        </span>
+                      ))}]
+                    </span>
+                    <span className={`font-pixel ml-auto ${
+                      isGoodRoll ? 'text-green-400' : isBadRoll ? 'text-red-400' : 'text-amber-300'
+                    }`}>
+                      = {total}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {!hasRolled && (
+            <p className="text-gray-500 text-xs text-center">
+              Standard: 3 base + 12 bonus points | Rolled: 3d6 base + 6 bonus points
+            </p>
+          )}
+        </div>
+
         {/* Stat Distribution */}
         <div className="bg-gray-900/80 border-2 border-purple-600 rounded-lg p-4 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-pixel text-purple-300 text-sm">S.A.D.D.L.E. Stats</h2>
             <span className={`font-pixel text-sm ${pointsRemaining > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-              Points: {pointsRemaining}
+              Bonus Points: {pointsRemaining}
             </span>
           </div>
 
           <div className="space-y-3">
             {(['Shrewdness', 'Agility', 'Durability', 'Diplomacy', 'Luck', 'Expertise'] as StatName[]).map(stat => {
               const value = statPoints[stat]
+              const baseValue = hasRolled ? baseStats[stat] : 3
 
               return (
                 <div key={stat} className="flex items-center gap-3">
@@ -285,19 +439,26 @@ function CharacterCreationScreen() {
                   <div className="flex-1 flex items-center gap-2">
                     <button
                       onClick={() => adjustStat(stat, -1)}
-                      disabled={value <= 1}
+                      disabled={value <= baseValue}
                       className="w-6 h-6 bg-purple-800 text-purple-200 rounded disabled:opacity-30"
                     >-</button>
-                    <div className="flex-1 h-2 bg-gray-700 rounded overflow-hidden">
+                    <div className="flex-1 h-2 bg-gray-700 rounded overflow-hidden relative">
+                      {/* Base value indicator */}
+                      {hasRolled && (
+                        <div
+                          className="absolute h-full bg-amber-700/50"
+                          style={{ width: `${(baseValue / 18) * 100}%` }}
+                        />
+                      )}
                       <div
-                        className="h-full bg-purple-500 transition-all"
-                        style={{ width: `${(value / 10) * 100}%` }}
+                        className="h-full bg-purple-500 transition-all relative"
+                        style={{ width: `${(value / 18) * 100}%` }}
                       />
                     </div>
-                    <span className="w-6 text-center text-purple-200 text-sm font-pixel">{value}</span>
+                    <span className="w-8 text-center text-purple-200 text-sm font-pixel">{value}</span>
                     <button
                       onClick={() => adjustStat(stat, 1)}
-                      disabled={value >= 10 || pointsRemaining <= 0}
+                      disabled={value >= 18 || pointsRemaining <= 0}
                       className="w-6 h-6 bg-purple-800 text-purple-200 rounded disabled:opacity-30"
                     >+</button>
                   </div>
@@ -730,7 +891,7 @@ function OutfittingScreen() {
 }
 
 function TravelScreen() {
-  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap } = useOregonTrail()
+  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement } = useOregonTrail()
   const { balance, canAfford, spendNeutral, earnNeutral, earnGood, addBadKarma } = useKarmaWallet()
   const { getStat } = useCharacter()
   const { comment } = useNarrator()
@@ -1162,7 +1323,7 @@ function TravelScreen() {
           </div>
 
           {/* Town Actions */}
-          <div className="grid grid-cols-3 md:grid-cols-7 gap-2 mb-6">
+          <div className={`grid gap-2 mb-6 ${isWestPoint ? 'grid-cols-4 md:grid-cols-8' : 'grid-cols-3 md:grid-cols-7'}`}>
             <button
               onClick={() => setShowShop(true)}
               className="p-3 bg-yellow-900/60 hover:bg-yellow-800/60 border-2 border-yellow-600 rounded-lg text-center"
@@ -1220,6 +1381,16 @@ function TravelScreen() {
               <span className="text-2xl">🦌</span>
               <p className="text-green-200 text-xs mt-1">Hunt</p>
             </button>
+            {/* Ranch button - only at West Point */}
+            {isWestPoint && (
+              <button
+                onClick={openRanchManagement}
+                className="p-3 bg-lime-900/60 hover:bg-lime-800/60 border-2 border-lime-600 rounded-lg text-center"
+              >
+                <span className="text-2xl">🌾</span>
+                <p className="text-lime-200 text-xs mt-1">Ranch</p>
+              </button>
+            )}
             <button
               onClick={leaveTown}
               className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-600 rounded-lg text-center"
@@ -1366,6 +1537,18 @@ function TravelScreen() {
             <p className="text-amber-200 text-sm">{state.message}</p>
           </div>
         )}
+
+        {/* Trail Observations - Hitchhiker's Guide Style Commentary */}
+        <div className="mb-6">
+          <TravelObservations
+            terrain={getTerrain()}
+            weather={state.weather as WeatherMood}
+            daysTraveled={state.daysOnTrail}
+            nearLandmark={state.milesUntilNextLandmark < 50 ? state.nextLandmark : undefined}
+            gameHour={gameHour}
+            isMoving={state.phase === 'traveling'}
+          />
+        </div>
 
         {/* Controls and Status */}
         <div className="grid md:grid-cols-3 gap-4 mb-6">
@@ -1816,8 +1999,36 @@ function WorldMapScreen() {
   )
 }
 
+// Ranch Management Screen (Lords II-style building)
+function RanchManagementScreen() {
+  const { closeRanchManagement } = useOregonTrail()
+
+  return (
+    <RanchManagement onClose={closeRanchManagement} />
+  )
+}
+
 function OregonTrailGame() {
-  const { state } = useOregonTrail()
+  const { state, startFromTitle, completeChapterIntro } = useOregonTrail()
+
+  // Title screen phase
+  if (state.phase === 'title') {
+    return <TitleScreen onStart={startFromTitle} />
+  }
+
+  // Chapter intro phase
+  if (state.phase === 'chapter_intro') {
+    const chapter = CHAPTERS[state.currentChapter as keyof typeof CHAPTERS] || CHAPTERS[1]
+    return (
+      <ChapterIntro
+        chapterNumber={chapter.number}
+        title={chapter.title}
+        subtitle={chapter.subtitle}
+        narrative={chapter.narrative}
+        onComplete={completeChapterIntro}
+      />
+    )
+  }
 
   // Menu phase
   if (state.phase === 'menu') {
@@ -1864,6 +2075,11 @@ function OregonTrailGame() {
     return <WorldMapScreen />
   }
 
+  // Ranch Management phase (Lords II-style building)
+  if (state.phase === 'ranch_management') {
+    return <RanchManagementScreen />
+  }
+
   // Default to travel screen (handles traveling, town, river, event, complete, game_over)
   return <TravelScreen />
 }
@@ -1881,15 +2097,19 @@ export default function OregonTrailPage() {
             console.log(`Easter egg found: ${egg.title}`)
           }}
         >
-          <CharacterProvider>
-            <ReputationProvider>
-              <NarratorProvider>
-                <MysteryProvider>
-                  <OregonTrailGame />
-                </MysteryProvider>
-              </NarratorProvider>
-            </ReputationProvider>
-          </CharacterProvider>
+          <RanchProvider>
+            <CharacterProvider>
+              <ReputationProvider>
+                <NarratorProvider>
+                  <MysteryProvider>
+                    <NPCProvider>
+                      <OregonTrailGame />
+                    </NPCProvider>
+                  </MysteryProvider>
+                </NarratorProvider>
+              </ReputationProvider>
+            </CharacterProvider>
+          </RanchProvider>
         </ChapterProvider>
       </OregonTrailProvider>
     </KarmaWalletProvider>

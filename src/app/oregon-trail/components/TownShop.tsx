@@ -407,12 +407,12 @@ export function TownShop({ onClose }: TownShopProps) {
                       <div className="mt-2 flex justify-between items-center">
                         <span className="text-amber-500 text-xs">You have: {stock} {item.unit}</span>
                         {selectedItem?.id === item.id && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Standard +/- controls */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 if (mode === 'sell') {
-                                  // In sell mode, use step of 10 for food (per-unit)
                                   setQuantity(q => Math.max(1, q - (item.resource === 'food' ? 10 : 1)))
                                 } else {
                                   setQuantity(q => Math.max(1, q - 1))
@@ -423,13 +423,12 @@ export function TownShop({ onClose }: TownShopProps) {
                               -
                             </button>
                             <span className="text-amber-200 w-12 text-center">
-                              {mode === 'sell' ? quantity : quantity}
+                              {quantity}
                             </span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 if (mode === 'sell') {
-                                  // In sell mode, cap at stock and use step of 10 for food
                                   const step = item.resource === 'food' ? 10 : 1
                                   setQuantity(q => Math.min(stock, q + step))
                                 } else {
@@ -440,6 +439,47 @@ export function TownShop({ onClose }: TownShopProps) {
                             >
                               +
                             </button>
+
+                            {/* Quick-set buttons for sell mode */}
+                            {mode === 'sell' && (
+                              <div className="flex items-center gap-1 ml-1 border-l border-amber-600 pl-2">
+                                {[1, 10, 100].map(amt => (
+                                  <button
+                                    key={amt}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setQuantity(Math.min(amt, stock))
+                                    }}
+                                    disabled={stock < 1}
+                                    className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                      quantity === Math.min(amt, stock) && amt <= stock
+                                        ? 'bg-green-600 text-green-100'
+                                        : amt <= stock
+                                          ? 'bg-amber-600 text-amber-100 hover:bg-amber-500'
+                                          : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    {amt}
+                                  </button>
+                                ))}
+                                {/* Sell All button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setQuantity(stock)
+                                  }}
+                                  disabled={stock < 1}
+                                  className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                    quantity === stock
+                                      ? 'bg-green-600 text-green-100'
+                                      : 'bg-amber-700 text-amber-100 hover:bg-amber-600'
+                                  }`}
+                                >
+                                  All
+                                </button>
+                              </div>
+                            )}
+
                             {/* Show total karma to be earned/spent */}
                             <span className={`text-xs ${mode === 'sell' ? 'text-green-400' : 'text-yellow-300'}`}>
                               {mode === 'sell'
