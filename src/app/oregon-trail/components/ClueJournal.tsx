@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useMystery, type CollectedClue } from '../mysteryContext'
-import { type OutlawTraits, TRAIT_DISPLAY_NAMES, TRAIT_VALUE_DISPLAY, OUTLAWS, findOutlawsByTraits } from '../data/outlaws'
+import { type OutlawTraits, type Outlaw, TRAIT_DISPLAY_NAMES, TRAIT_VALUE_DISPLAY, OUTLAWS, findOutlawsByTraits, getOutlaw } from '../data/outlaws'
 
 interface ClueJournalProps {
   onClose: () => void
@@ -10,9 +10,22 @@ interface ClueJournalProps {
   onOpenTelegraph?: () => void
 }
 
+// Helper to group clues by outlaw ID
+function groupCluesByOutlaw(clues: CollectedClue[]): Record<string, CollectedClue[]> {
+  return clues.reduce((acc, clue) => {
+    const outlawId = clue.outlawId || 'unknown'
+    if (!acc[outlawId]) acc[outlawId] = []
+    acc[outlawId].push(clue)
+    return acc
+  }, {} as Record<string, CollectedClue[]>)
+}
+
 export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJournalProps) {
   const { state: mysteryState, getNarrowedDown } = useMystery()
-  const [activeTab, setActiveTab] = useState<'clues' | 'evidence' | 'suspects'>('clues')
+  const [activeTab, setActiveTab] = useState<'bounties' | 'clues' | 'evidence' | 'suspects'>('bounties')
+
+  // Group clues by outlaw for bounty hunter mode
+  const cluesByOutlaw = useMemo(() => groupCluesByOutlaw(mysteryState.collectedClues), [mysteryState.collectedClues])
 
   const { possible, eliminated } = getNarrowedDown()
   const cluesByLocation = groupCluesByLocation(mysteryState.collectedClues)
@@ -22,10 +35,16 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
       <div className="bg-gray-900 border-2 border-amber-700 rounded-lg w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
         style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 40L40 0H20L0 20V40zM40 40V20L20 40H40z\' fill=\'%23000\' fill-opacity=\'0.1\'/%3E%3C/svg%3E")', backgroundColor: '#1a1612' }}
       >
-        {/* Header - Leather journal style */}
+        {/* Header - Bounty Hunter style */}
         <div className="bg-amber-900/80 p-4 border-b-4 border-amber-950">
           <div className="flex justify-between items-center">
-            <h2 className="text-amber-200 text-xl tracking-wide">Detective's Journal</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🎯</span>
+              <div>
+                <h2 className="text-amber-200 text-xl tracking-wide">Bounty Hunter's Journal</h2>
+                <p className="text-amber-600 text-xs">Track outlaws across the frontier</p>
+              </div>
+            </div>
             <button
               onClick={onClose}
               className="px-4 py-2.5 md:px-3 md:py-1 bg-amber-950 text-amber-300 rounded hover:bg-amber-800 active:bg-amber-700 text-base md:text-sm"
@@ -35,7 +54,17 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-1 mt-4 flex-wrap">
+            <button
+              onClick={() => setActiveTab('bounties')}
+              className={`px-4 py-2.5 md:px-3 md:py-1 rounded-t text-base md:text-sm active:scale-[0.98] ${
+                activeTab === 'bounties'
+                  ? 'bg-amber-200/20 text-amber-200 border-b-2 border-amber-400'
+                  : 'text-amber-400/60 hover:text-amber-300'
+              }`}
+            >
+              🎯 Bounties ({Object.keys(cluesByOutlaw).length})
+            </button>
             <button
               onClick={() => setActiveTab('clues')}
               className={`px-4 py-2.5 md:px-3 md:py-1 rounded-t text-base md:text-sm active:scale-[0.98] ${
@@ -71,6 +100,125 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
+          {/* BOUNTIES TAB - Main bounty hunter view */}
+          {activeTab === 'bounties' && (
+            <div className="space-y-4">
+              {Object.keys(cluesByOutlaw).length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">🎯</div>
+                  <p className="text-amber-300 text-lg">No bounties tracked yet</p>
+                  <p className="text-amber-700 text-sm mt-2">
+                    Talk to witnesses in towns to gather intel on Black Bart's Gang.
+                  </p>
+                  <p className="text-amber-600 text-xs mt-4">
+                    Tip: Bartenders, shopkeepers, and stable hands often see passing strangers.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Bounty Summary */}
+                  <div className="bg-gradient-to-r from-amber-900/40 to-red-900/30 border border-amber-600 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-amber-300 font-medium">Black Bart's Gang</h3>
+                        <p className="text-amber-600 text-sm">
+                          Tracking {Object.keys(cluesByOutlaw).length} of {OUTLAWS.length} known outlaws
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-yellow-400 text-lg font-bold">
+                          ${OUTLAWS.reduce((sum, o) => sum + o.bounty, 0).toLocaleString()}
+                        </span>
+                        <p className="text-amber-600 text-xs">Total bounty</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Individual Bounty Cards */}
+                  <div className="grid gap-4">
+                    {Object.entries(cluesByOutlaw).map(([outlawId, clues]) => {
+                      const outlaw = getOutlaw(outlawId)
+                      if (!outlaw) return null
+
+                      // Calculate traits discovered for this outlaw
+                      const traitsFound = new Set(clues.filter(c => c.trait).map(c => c.trait))
+                      const totalTraits = Object.keys(outlaw.traits).length
+
+                      return (
+                        <div
+                          key={outlawId}
+                          className="bg-gray-800/80 border border-amber-700 rounded-lg overflow-hidden"
+                        >
+                          {/* Wanted Poster Header */}
+                          <div className="bg-gradient-to-r from-amber-800 to-amber-900 px-4 py-3 border-b border-amber-600">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">🤠</span>
+                                <div>
+                                  <h4 className="text-amber-200 font-bold">{outlaw.alias}</h4>
+                                  <p className="text-amber-500 text-xs">{outlaw.realName}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-yellow-400 font-bold">${outlaw.bounty}</span>
+                                <p className="text-amber-600 text-xs">REWARD</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Progress & Clues */}
+                          <div className="p-4">
+                            {/* Progress Bar */}
+                            <div className="mb-3">
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className="text-amber-400">Traits Identified</span>
+                                <span className="text-amber-300">{traitsFound.size}/{totalTraits}</span>
+                              </div>
+                              <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-amber-600 to-yellow-500 transition-all"
+                                  style={{ width: `${(traitsFound.size / totalTraits) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Clues List */}
+                            <div className="space-y-2">
+                              {clues.slice(0, 3).map(clue => (
+                                <div key={clue.id} className="text-sm">
+                                  <p className="text-gray-300 italic">"{clue.text}"</p>
+                                  {clue.trait && (
+                                    <span className="text-emerald-400 text-xs">
+                                      → {TRAIT_DISPLAY_NAMES[clue.trait]}: {TRAIT_VALUE_DISPLAY[clue.value!] || clue.value}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                              {clues.length > 3 && (
+                                <p className="text-amber-600 text-xs">+{clues.length - 3} more clues...</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Unknown Outlaws */}
+                  {Object.keys(cluesByOutlaw).length < OUTLAWS.length && (
+                    <div className="mt-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
+                      <h4 className="text-gray-400 text-sm mb-2">Unknown Gang Members</h4>
+                      <p className="text-gray-500 text-xs">
+                        {OUTLAWS.length - Object.keys(cluesByOutlaw).length} outlaws still untracked.
+                        Keep interviewing witnesses to discover more of Black Bart's Gang.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {activeTab === 'clues' && (
             <div className="space-y-6">
               {mysteryState.collectedClues.length === 0 ? (
@@ -81,7 +229,22 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
                   </p>
                 </div>
               ) : (
-                Object.entries(cluesByLocation).map(([location, clues]) => (
+                <>
+                  {/* Clue Summary */}
+                  <div className="bg-amber-900/30 border border-amber-700 rounded p-3 mb-4">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-amber-300">
+                        {mysteryState.collectedClues.length} clues collected
+                      </span>
+                      <span className="text-emerald-400">
+                        {mysteryState.collectedClues.filter(c => c.trait && c.value).length} revealed evidence
+                      </span>
+                    </div>
+                    <p className="text-amber-600 text-xs mt-1">
+                      Clues with green highlights have revealed outlaw traits. Check the Evidence tab to see your deductions.
+                    </p>
+                  </div>
+                  {Object.entries(cluesByLocation).map(([location, clues]) => (
                   <div key={location} className="border-b border-amber-900/50 pb-4">
                     <h3 className="text-amber-400 text-sm mb-2 uppercase tracking-wider">{location}</h3>
                     <div className="space-y-2">
@@ -90,7 +253,8 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
                       ))}
                     </div>
                   </div>
-                ))
+                ))}
+                </>
               )}
             </div>
           )}
@@ -229,16 +393,17 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
 
 // Individual clue entry component
 function ClueEntry({ clue }: { clue: CollectedClue }) {
+  const hasTrait = clue.trait && clue.value
   return (
-    <div className="pl-3 border-l-2 border-amber-800">
+    <div className={`pl-3 border-l-2 ${hasTrait ? 'border-emerald-600 bg-emerald-900/20' : 'border-amber-800'} rounded-r`}>
       <p className="text-amber-200 text-sm italic">"{clue.text}"</p>
-      <div className="flex gap-3 mt-1 text-xs">
+      <div className="flex flex-wrap gap-3 mt-1 text-xs">
         <span className="text-amber-600">
           \u2014 {clue.witnessType.replace(/_/g, ' ')}
         </span>
-        {clue.trait && clue.value && (
-          <span className="text-emerald-600">
-            \u2192 {TRAIT_DISPLAY_NAMES[clue.trait]}: {TRAIT_VALUE_DISPLAY[clue.value] || clue.value}
+        {hasTrait && (
+          <span className="text-emerald-400 font-medium bg-emerald-900/40 px-2 py-0.5 rounded">
+            Evidence: {TRAIT_DISPLAY_NAMES[clue.trait!]}: {TRAIT_VALUE_DISPLAY[clue.value!] || clue.value}
           </span>
         )}
         <span className="text-amber-800">

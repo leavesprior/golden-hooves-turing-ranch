@@ -55,6 +55,11 @@ import { getRandomTwainQuote, getEasterEggsForLocation } from './data/easterEggs
 import { RanchProvider, useRanch } from './ranchContext'
 import { RanchManagement } from './components/RanchManagement'
 
+// Settlement System (Gold Country Endgame)
+import { SettlementProvider, useSettlement } from './settlementContext'
+import { SettlementHub } from './components/SettlementHub'
+import { SettlementVictory } from './components/SettlementVictory'
+
 // Title Screen and Chapter System
 import { TitleScreen } from './components/TitleScreen'
 import { ChapterIntro, CHAPTERS } from './components/ChapterIntro'
@@ -528,7 +533,7 @@ function InvestigationScreen() {
             onClick={openJournal}
             className="px-3 py-1 bg-amber-800/60 text-amber-200 rounded text-xs hover:bg-amber-700/60"
           >
-            📔 Journal ({mysteryState.collectedClues.length})
+            📔 Journal ({mysteryState.collectedClues.length} clues, {Object.keys(mysteryState.knownTraits).length} traits)
           </button>
           <button
             onClick={openDossier}
@@ -893,6 +898,7 @@ function OutfittingScreen() {
 function TravelScreen() {
   const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement } = useOregonTrail()
   const { balance, canAfford, spendNeutral, earnNeutral, earnGood, addBadKarma } = useKarmaWallet()
+  const { state: mysteryState } = useMystery()
   const { getStat } = useCharacter()
   const { comment } = useNarrator()
 
@@ -1258,7 +1264,7 @@ function TravelScreen() {
               onClick={openJournal}
               className="px-3 py-1 bg-amber-800/60 text-amber-200 rounded text-xs hover:bg-amber-700/60"
             >
-              📔 Journal
+              📔 Journal ({mysteryState.collectedClues.length} clues, {Object.keys(mysteryState.knownTraits).length} traits)
             </button>
             <button
               onClick={openDossier}
@@ -1671,10 +1677,8 @@ function WitnessScreen() {
     return null
   }
 
-  // Generate a clue for this witness (would be done more sophisticatedly in real implementation)
-  const witnessClue = mysteryState.collectedClues.length < 10
-    ? generateClueForWitness(witnessType, state.currentLandmark)
-    : undefined
+  // Generate a clue for this witness (Bounty Hunter mode - always available)
+  const witnessClue = generateClueForWitness(witnessType, state.currentLandmark)
 
   return (
     <WitnessDialogue
@@ -2008,6 +2012,110 @@ function RanchManagementScreen() {
   )
 }
 
+// Gold Country Arrival Screen - Choose to settle or continue
+function GoldCountryArrivalScreen() {
+  const { state, enterSettlement, leaveSettlement, resetGame } = useOregonTrail()
+  const { balance } = useKarmaWallet()
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-yellow-950 via-amber-900 to-amber-950 flex items-center justify-center p-4">
+      <KarmaToastContainer />
+      <div className="max-w-lg w-full">
+        {/* Welcome Banner */}
+        <div className="text-center mb-8">
+          <div className="text-8xl mb-4">🏔️</div>
+          <h1 className="font-pixel text-yellow-300 text-3xl mb-2">Gold Country!</h1>
+          <p className="text-amber-300 text-lg mb-4">You've reached the end of the trail!</p>
+          <p className="text-amber-500 text-sm">
+            After {state.daysOnTrail} days on the trail, you and your party of{' '}
+            {state.party.filter(m => m.health > 0).length} have arrived.
+          </p>
+        </div>
+
+        {/* Stats Summary */}
+        <div className="bg-gray-900/80 border-2 border-amber-600 rounded-lg p-4 mb-6">
+          <h2 className="text-amber-400 font-pixel text-sm mb-3 text-center">Your Resources</h2>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-amber-200 font-pixel text-lg">{balance.neutral}🪙</p>
+              <p className="text-gray-500 text-xs">Coins</p>
+            </div>
+            <div>
+              <p className="text-green-200 font-pixel text-lg">{balance.good}🍪</p>
+              <p className="text-gray-500 text-xs">Good Karma</p>
+            </div>
+            <div>
+              <p className="text-amber-200 font-pixel text-lg">{state.food}</p>
+              <p className="text-gray-500 text-xs">Food (lbs)</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Choice */}
+        <div className="bg-gray-900/80 border-2 border-amber-600 rounded-lg p-6 mb-6">
+          <p className="text-amber-300 text-center mb-6">
+            The frontier awaits. Will you stake your claim and build a life here in Gold Country,
+            or move on to new adventures?
+          </p>
+
+          <div className="space-y-4">
+            <button
+              onClick={enterSettlement}
+              className="w-full py-4 bg-amber-700 hover:bg-amber-600 text-amber-100 font-pixel text-lg rounded border-4 border-amber-500 transition-colors"
+            >
+              🏠 Stake Your Claim
+            </button>
+            <p className="text-gray-500 text-xs text-center">
+              Build a ranch, mine for gold, and become a legend of Gold Country
+            </p>
+
+            <button
+              onClick={leaveSettlement}
+              className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 font-pixel text-sm rounded border-2 border-gray-500 transition-colors"
+            >
+              🚶 Continue Your Journey
+            </button>
+            <p className="text-gray-500 text-xs text-center">
+              You've reached your destination - claim victory and move on
+            </p>
+          </div>
+        </div>
+
+        {/* Back to Hub */}
+        <div className="text-center">
+          <button
+            onClick={resetGame}
+            className="text-amber-500 hover:text-amber-300 text-xs font-pixel transition-colors"
+          >
+            Start Over
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Settlement Hub Screen - Main settlement building interface
+function SettlementScreen() {
+  const { leaveSettlement, completeSettlement, resetGame } = useOregonTrail()
+
+  return (
+    <SettlementHub
+      onLeave={leaveSettlement}
+      onComplete={completeSettlement}
+    />
+  )
+}
+
+// Settlement Victory Screen - Final ending display
+function SettlementVictoryScreen() {
+  const { resetGame } = useOregonTrail()
+
+  return (
+    <SettlementVictory onPlayAgain={resetGame} />
+  )
+}
+
 function OregonTrailGame() {
   const { state, startFromTitle, completeChapterIntro } = useOregonTrail()
 
@@ -2080,6 +2188,21 @@ function OregonTrailGame() {
     return <RanchManagementScreen />
   }
 
+  // Gold Country Arrival phase - choose to settle or continue
+  if (state.phase === 'gold_country_arrival') {
+    return <GoldCountryArrivalScreen />
+  }
+
+  // Settlement phase - main settlement building (Fallout-inspired)
+  if (state.phase === 'settlement') {
+    return <SettlementScreen />
+  }
+
+  // Settlement Victory phase - final ending screen
+  if (state.phase === 'settlement_victory') {
+    return <SettlementVictoryScreen />
+  }
+
   // Default to travel screen (handles traveling, town, river, event, complete, game_over)
   return <TravelScreen />
 }
@@ -2098,17 +2221,19 @@ export default function OregonTrailPage() {
           }}
         >
           <RanchProvider>
-            <CharacterProvider>
-              <ReputationProvider>
-                <NarratorProvider>
-                  <MysteryProvider>
-                    <NPCProvider>
-                      <OregonTrailGame />
-                    </NPCProvider>
-                  </MysteryProvider>
-                </NarratorProvider>
-              </ReputationProvider>
-            </CharacterProvider>
+            <SettlementProvider>
+              <CharacterProvider>
+                <ReputationProvider>
+                  <NarratorProvider>
+                    <MysteryProvider>
+                      <NPCProvider>
+                        <OregonTrailGame />
+                      </NPCProvider>
+                    </MysteryProvider>
+                  </NarratorProvider>
+                </ReputationProvider>
+              </CharacterProvider>
+            </SettlementProvider>
           </RanchProvider>
         </ChapterProvider>
       </OregonTrailProvider>

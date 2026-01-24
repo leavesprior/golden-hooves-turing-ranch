@@ -25,6 +25,9 @@ export type GamePhase =
   | 'journal'             // NEW: Clue journal
   | 'world_map'           // NEW: Fallout-style world map
   | 'ranch_management'    // NEW: Lords II-style ranch building
+  | 'gold_country_arrival' // NEW: Arrival at Gold Country - settlement choice
+  | 'settlement'          // NEW: Settlement building phase (Fallout-inspired)
+  | 'settlement_victory'  // NEW: Settlement completion/ending screen
   | 'complete'
   | 'game_over'
 
@@ -766,6 +769,11 @@ interface OregonTrailContextValue {
   // Ranch management (Lords II-style building)
   openRanchManagement: () => void
   closeRanchManagement: () => void
+
+  // Settlement system (Gold Country endgame)
+  enterSettlement: () => void
+  leaveSettlement: () => void
+  completeSettlement: () => void
 }
 
 const OregonTrailContext = createContext<OregonTrailContextValue | null>(null)
@@ -868,14 +876,14 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
       const newDistance = prev.distance + dailyDistance
       const newMilesUntil = prev.milesUntilNextLandmark - dailyDistance
 
-      // Check if reached destination
+      // Check if reached destination - trigger Gold Country arrival
       if (newDistance >= 2000) {
         return {
           ...prev,
-          phase: 'complete' as GamePhase,
+          phase: 'gold_country_arrival' as GamePhase,
           distance: 2000,
           party: survivors,
-          message: 'You have reached Gold Country! Congratulations!',
+          message: 'You have reached Gold Country! The frontier awaits...',
         }
       }
 
@@ -1378,6 +1386,31 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     }))
   }, [])
 
+  // Settlement system (Gold Country endgame)
+  const enterSettlement = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: 'settlement' as GamePhase,
+      message: 'Welcome to Gold Country! Stake your claim and build your future.',
+    }))
+  }, [])
+
+  const leaveSettlement = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: 'complete' as GamePhase,
+      message: 'You chose to move on from Gold Country.',
+    }))
+  }, [])
+
+  const completeSettlement = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: 'settlement_victory' as GamePhase,
+      message: 'Your journey in Gold Country has come to an end.',
+    }))
+  }, [])
+
   const value: OregonTrailContextValue = {
     state,
     startGame,
@@ -1423,6 +1456,10 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     // Ranch management
     openRanchManagement,
     closeRanchManagement,
+    // Settlement system
+    enterSettlement,
+    leaveSettlement,
+    completeSettlement,
   }
 
   return (

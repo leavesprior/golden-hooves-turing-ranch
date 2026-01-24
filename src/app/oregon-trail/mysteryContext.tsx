@@ -53,6 +53,7 @@ export interface CollectedClue {
   location: string
   timestamp: number  // Game time when collected
   isTrue?: boolean   // Whether this clue is accurate (based on witness reliability)
+  outlawId?: string  // Which outlaw this clue is about (for bounty hunter mode)
 }
 
 export interface Crime {
@@ -440,11 +441,25 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
   }, [state.currentCrime, state.collectedClues])
 
   // Generate a clue for a witness at a location (used by WitnessDialogue)
+  // BOUNTY HUNTER MODE: If no active outlaw, pick a random one from the gang
   const generateClueForWitness = useCallback((witnessType: WitnessType, location: string): CollectedClue | undefined => {
-    // If no outlaw is being pursued, return undefined
-    if (!state.currentOutlaw) return undefined
+    let outlaw: Outlaw | undefined
 
-    const outlaw = getOutlawById(state.currentOutlaw)
+    if (state.currentOutlaw) {
+      // Active case - use the current target
+      outlaw = getOutlawById(state.currentOutlaw)
+    } else {
+      // BOUNTY HUNTER MODE: Pick a random outlaw to give clues about
+      // Prefer outlaws we haven't caught yet
+      const unidentifiedOutlaws = OUTLAWS.filter(o => {
+        const status = state.outlawStatuses[o.id]
+        return !status || !status.captured
+      })
+      if (unidentifiedOutlaws.length > 0) {
+        outlaw = unidentifiedOutlaws[Math.floor(Math.random() * unidentifiedOutlaws.length)]
+      }
+    }
+
     if (!outlaw) return undefined
 
     // Get a random identity clue based on the outlaw's traits
@@ -530,15 +545,26 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
       value: traitValue,
       isTrue: Math.random() < (reliabilityMap[witnessType] || 0.5),
       timestamp: Date.now(),
+      outlawId: outlaw.id,  // Track which outlaw this clue is about
     }
-  }, [state.currentOutlaw])
+  }, [state.currentOutlaw, state.outlawStatuses])
 
-  // Add a clue manually
+  // Add a clue manually (also extracts traits if present)
   const addClue = useCallback((clue: CollectedClue) => {
-    setState(prev => ({
-      ...prev,
-      collectedClues: [...prev.collectedClues, clue]
-    }))
+    setState(prev => {
+      const newState = {
+        ...prev,
+        collectedClues: [...prev.collectedClues, clue]
+      }
+      // Also extract trait information if the clue has it
+      if (clue.trait && clue.value) {
+        newState.knownTraits = {
+          ...prev.knownTraits,
+          [clue.trait]: clue.value
+        }
+      }
+      return newState
+    })
   }, [])
 
   // Process a clue to extract trait information
