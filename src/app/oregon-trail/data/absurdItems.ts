@@ -386,6 +386,134 @@ export const ABSURD_ITEMS: AbsurdItem[] = [
         karmaEffect: { lawful: -5, good: -5 }
       }
     ]
+  },
+
+  // === HITCHHIKER'S GUIDE SPECIAL ITEMS ===
+  {
+    id: 'hoopy_towel',
+    name: 'A Perfectly Ordinary Towel',
+    category: 'physical',
+    description: 'A towel is about the most massively useful thing you can have. Any man who can hitch the length of Gold Country and still know where his towel is, is clearly a man to be reckoned with.',
+    narratorDescription: 'The narrator notes that this is, in fact, the most sensible thing in your entire inventory.',
+    obtainedFrom: 'Purchased with good karma (cookies) or found by true hoopy froods',
+    weight: 0.5,
+    tradeable: true,
+    sellValue: 'priceless',
+    uses: [
+      {
+        context: 'Any skill check',
+        effect: '+5% success chance. A towel has immense psychological value.',
+        consumesItem: false
+      },
+      {
+        context: 'At Cynthia\'s Inn (Back of Beyond Ranch)',
+        effect: '10% discount. Cynthia recognizes a fellow traveler.',
+        consumesItem: false,
+        karmaEffect: { lawful: 0, good: 5 }
+      },
+      {
+        context: 'River crossing',
+        effect: 'Can be used to wave for help if stranded.',
+        consumesItem: false
+      },
+      {
+        context: 'Sleeping outdoors',
+        effect: 'Restores extra health. Proper rest matters.',
+        consumesItem: false
+      }
+    ]
+  },
+  {
+    id: 'electronic_thumb',
+    name: 'Electronic Thumb',
+    category: 'paradoxical',
+    description: 'A small device for hailing passing starships. In 1849 Gold Country, it seems to attract helpful wagon drivers instead.',
+    narratorDescription: 'This device should not work. The narrator chooses not to investigate why it does.',
+    obtainedFrom: 'Whiskey Pete, for those who know to ask',
+    weight: 0.1,
+    tradeable: false,
+    sellValue: 'worthless',
+    uses: [
+      {
+        context: 'Stranded on the trail',
+        effect: '50% chance a friendly wagon appears. They will not explain where they came from.',
+        consumesItem: false
+      }
+    ]
+  },
+  {
+    id: 'guide_entry_gold_country',
+    name: 'Guide Entry: Gold Country',
+    category: 'meta',
+    description: '"Gold Country: Mostly Harmless." A single page torn from a larger work. Underwhelming but surprisingly accurate.',
+    narratorDescription: 'The narrator has opinions about this entry. They are not flattering.',
+    obtainedFrom: 'Saying the right words to the right bartender',
+    weight: 0,
+    tradeable: false,
+    uses: [
+      {
+        context: 'Viewing map',
+        effect: 'Reveals one hidden location. The entry was updated recently.',
+        consumesItem: false,
+        unlocks: 'hidden_location'
+      }
+    ]
+  },
+  {
+    id: 'pan_galactic_gargle_blaster',
+    name: 'Pan Galactic Gargle Blaster (Approximation)',
+    category: 'physical',
+    description: 'The effect is like having your brains smashed out by a slice of lemon wrapped round a large gold brick. This is a reasonable approximation.',
+    narratorDescription: 'The narrator strongly advises against consuming this. The narrator is being ignored.',
+    obtainedFrom: 'Whiskey Pete, for those brave or foolish enough',
+    weight: 0.3,
+    tradeable: false,
+    sellValue: 'depends_on_buyer',
+    uses: [
+      {
+        context: 'Consumption',
+        effect: 'Vision becomes... interesting. -3 to all checks for 1 hour. +10 to courage. Reveals hidden dialogue options.',
+        consumesItem: true,
+        karmaEffect: { lawful: -5, good: 0 }
+      }
+    ]
+  },
+  {
+    id: 'holy_hand_grenade',
+    name: 'Holy Hand Grenade of Antioch',
+    category: 'physical',
+    description: 'First shalt thou take out the Holy Pin. Then shalt thou count to three, no more, no less.',
+    narratorDescription: 'The narrator would like to remind you: three. Not five. Not four. Three.',
+    obtainedFrom: 'A mysterious monk near the river crossings',
+    weight: 1,
+    tradeable: false,
+    sellValue: 'priceless',
+    uses: [
+      {
+        context: 'Combat encounter',
+        effect: 'Automatic victory. Single use. Count to three first.',
+        consumesItem: true,
+        karmaEffect: { lawful: 0, good: -10 }
+      }
+    ]
+  },
+  {
+    id: 'shrubbery',
+    name: 'One Small Shrubbery',
+    category: 'physical',
+    description: 'A nice one. Not too expensive. The kind the Knights would approve of.',
+    narratorDescription: 'Ni.',
+    obtainedFrom: 'Purchased or found in the wild',
+    weight: 2,
+    tradeable: true,
+    sellValue: 5,
+    uses: [
+      {
+        context: 'Certain eccentric NPCs',
+        effect: 'Appeases them immediately. They will stop saying that word.',
+        consumesItem: true
+      }
+    ]
   }
 ]
 

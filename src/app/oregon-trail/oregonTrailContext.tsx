@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react'
 import { useKarma } from '@/lib/karmaContext'
+import { type CrossingOutcome } from './data/riverCrossings'
 
 // Types
 export type Pace = 'steady' | 'strenuous' | 'grueling'
@@ -730,6 +731,7 @@ interface OregonTrailContextValue {
   handleEventChoice: (choiceId: string) => void
   hunt: () => void
   crossRiver: (method: 'ford' | 'ferry' | 'caulk') => void
+  applyRiverCrossingEffects: (effects: CrossingOutcome['effects'], message: string) => void
   visitTown: () => void
   leaveTown: () => void
   resetGame: () => void
@@ -774,6 +776,9 @@ interface OregonTrailContextValue {
   enterSettlement: () => void
   leaveSettlement: () => void
   completeSettlement: () => void
+
+  // Save/Load support
+  loadState: (savedState: OregonTrailState) => void
 }
 
 const OregonTrailContext = createContext<OregonTrailContextValue | null>(null)
@@ -1088,6 +1093,69 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
       }
     })
   }, [applyKarma])
+
+  // Apply river crossing effects from enhanced RiverCrossing component
+  const applyRiverCrossingEffects = useCallback((
+    effects: CrossingOutcome['effects'],
+    message: string
+  ) => {
+    setState(prev => {
+      // Update party health
+      let updatedParty = prev.party.map(member => ({
+        ...member,
+        health: Math.max(0, Math.min(100, member.health + (effects.healthDelta || 0)))
+      }))
+
+      // Handle specific injury
+      if (effects.specificInjury) {
+        const targetId = effects.specificInjury.memberId ||
+          updatedParty[Math.floor(Math.random() * updatedParty.length)]?.id
+
+        updatedParty = updatedParty.map(member => {
+          if (member.id === targetId) {
+            const newHealth = Math.max(0, member.health - effects.specificInjury!.damage)
+            const isDead = newHealth <= 0
+            const injuryType = effects.specificInjury!.injuryType
+
+            return {
+              ...member,
+              health: newHealth,
+              isSick: !isDead && (injuryType === 'hypothermia' || injuryType === 'broken_limb'),
+              sicknessType: injuryType === 'broken_limb' ? 'broken_leg' : undefined,
+              daysUntilRecovery: injuryType === 'broken_limb' ? 14 : (injuryType === 'hypothermia' ? 5 : undefined)
+            }
+          }
+          return member
+        })
+      }
+
+      return {
+        ...prev,
+        // Resources
+        food: Math.max(0, prev.food - (effects.foodLost || 0)),
+        ammunition: Math.max(0, prev.ammunition - (effects.ammoLost || 0)),
+        medicine: Math.max(0, prev.medicine - (effects.medicineUsed || 0)),
+        spareParts: Math.max(0, prev.spareParts - (effects.sparePartsUsed || 0)),
+        oxen: Math.max(0, prev.oxen - (effects.oxenLost || 0)),
+
+        // Wagon and morale
+        wagonCondition: Math.max(0, prev.wagonCondition - (effects.wagonDamage || 0)),
+        morale: Math.max(0, Math.min(100, prev.morale + (effects.moraleChange || 0))),
+
+        // Party
+        party: updatedParty,
+
+        // Time
+        day: prev.day + (effects.daysLost || 0),
+        daysOnTrail: prev.daysOnTrail + (effects.daysLost || 0),
+
+        // Progress
+        riversCrossed: prev.riversCrossed + 1,
+        phase: 'traveling' as GamePhase,
+        message,
+      }
+    })
+  }, [])
 
   // Town interactions
   const visitTown = useCallback(() => {
@@ -1411,6 +1479,11 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     }))
   }, [])
 
+  // Load saved state (for save/load system)
+  const loadState = useCallback((savedState: OregonTrailState) => {
+    setState(savedState)
+  }, [])
+
   const value: OregonTrailContextValue = {
     state,
     startGame,
@@ -1422,6 +1495,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     handleEventChoice,
     hunt,
     crossRiver,
+    applyRiverCrossingEffects,
     visitTown,
     leaveTown,
     resetGame,
@@ -1460,6 +1534,8 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     enterSettlement,
     leaveSettlement,
     completeSettlement,
+    // Save/Load
+    loadState,
   }
 
   return (

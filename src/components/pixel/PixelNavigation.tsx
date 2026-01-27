@@ -18,8 +18,9 @@ export default function PixelNavigation() {
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-gold-light)] hover:text-[var(--pixel-gold-mid)] transition-colors">
-            BOBR
+          <Link href="/" className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-gold-light)] hover:text-[var(--pixel-gold-mid)] transition-colors flex items-center gap-1">
+            <span>🐸</span>
+            <span>GOLDEN FROG</span>
           </Link>
 
           {/* Desktop Nav */}

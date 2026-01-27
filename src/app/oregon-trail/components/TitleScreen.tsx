@@ -177,10 +177,10 @@ export function TitleScreen({ onStart }: TitleScreenProps) {
       <div className="absolute inset-x-0 top-[15%] text-center z-10">
         <div className="inline-block bg-black/40 backdrop-blur-sm px-8 py-6 rounded-lg border-2 border-amber-600/50">
           <h1 className="font-pixel text-amber-200 text-4xl md:text-5xl mb-2 drop-shadow-lg tracking-wide">
-            BOBR TRAIL
+            GOLDEN FROG TRAIL
           </h1>
           <h2 className="font-pixel text-amber-400 text-xl md:text-2xl mb-4">
-            The Journey West
+            The Journey to Gold Country
           </h2>
           <div className="flex items-center justify-center gap-2 text-amber-500 text-sm">
             <span>Oregon Trail</span>
@@ -213,7 +213,7 @@ export function TitleScreen({ onStart }: TitleScreenProps) {
       {/* Copyright / credits */}
       <div className="absolute inset-x-0 bottom-4 text-center z-10">
         <p className="text-amber-600/60 text-xs">
-          A BOBR Production • Inspired by the classics
+          A Golden Frog Production • Inspired by the classics
         </p>
       </div>
     </div>

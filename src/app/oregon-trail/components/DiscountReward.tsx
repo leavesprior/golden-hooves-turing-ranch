@@ -192,7 +192,7 @@ export function DiscountReward({
             <span className="text-3xl">🎉</span>
             <div>
               <h2 className="text-amber-200 font-bold">Congratulations, {getTierTitle(discountCode.tier)}!</h2>
-              <p className="text-amber-400 text-sm">You've earned a BOBR discount code</p>
+              <p className="text-amber-400 text-sm">You've earned a Golden Frog discount code</p>
             </div>
           </div>
         </div>
@@ -276,7 +276,7 @@ export function DiscountReward({
           <div className="bg-cyan-900/30 border border-cyan-700 rounded-lg p-3">
             <p className="text-cyan-300 text-sm">
               <span className="font-bold">How to use:</span> Enter this code when booking your
-              BOBR cabin stay to receive your discount.
+              stay at Back of Beyond Ranch to receive your discount.
             </p>
           </div>
         </div>

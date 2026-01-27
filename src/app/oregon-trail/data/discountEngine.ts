@@ -210,7 +210,7 @@ export function validateDiscountCode(code: string, caseId: string = 'default'): 
   return {
     ...parsed,
     valid: true,
-    message: `${parsed.discount}% off your BOBR stay!`
+    message: `${parsed.discount}% off your stay at Back of Beyond Ranch!`
   }
 }
 

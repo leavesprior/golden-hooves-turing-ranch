@@ -4,6 +4,8 @@ import "./globals.css";
 import { GameProvider } from "@/lib/gameContext";
 import { RPGProvider } from "@/lib/rpgContext";
 import { KarmaProvider } from "@/lib/karmaContext";
+import { AuthProvider } from "@/lib/authContext";
+import { SaveLoadProvider } from "@/lib/saveLoadContext";
 
 const pressStart2P = Press_Start_2P({
   weight: "400",
@@ -12,9 +14,9 @@ const pressStart2P = Press_Start_2P({
 });
 
 export const metadata: Metadata = {
-  title: "Back of Beyond Ranch | Gold Country Adventure",
-  description: "Embark on a 16-bit adventure at Back of Beyond Ranch. Explore Gold Country, hunt for treasure, and book your mountain retreat.",
-  keywords: ["vacation rental", "Gold Country", "Kirkwood", "cabin", "adventure", "treasure hunt"],
+  title: "Golden Frog Trail | Gold Country Adventure",
+  description: "Embark on a 16-bit adventure at Back of Beyond Ranch. Play the Golden Frog Trail, explore Gold Country, hunt for treasure, and book your mountain retreat.",
+  keywords: ["vacation rental", "Gold Country", "Kirkwood", "cabin", "adventure", "treasure hunt", "Golden Frog Trail"],
 };
 
 export default function RootLayout({
@@ -25,13 +27,17 @@ export default function RootLayout({
   return (
     <html lang="en" className={pressStart2P.variable}>
       <body className="antialiased">
-        <KarmaProvider>
-          <GameProvider>
-            <RPGProvider>
-              {children}
-            </RPGProvider>
-          </GameProvider>
-        </KarmaProvider>
+        <AuthProvider>
+          <KarmaProvider>
+            <SaveLoadProvider>
+              <GameProvider>
+                <RPGProvider>
+                  {children}
+                </RPGProvider>
+              </GameProvider>
+            </SaveLoadProvider>
+          </KarmaProvider>
+        </AuthProvider>
       </body>
     </html>
   );

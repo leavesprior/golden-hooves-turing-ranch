@@ -68,8 +68,35 @@ import { ChapterIntro, CHAPTERS } from './components/ChapterIntro'
 import { TravelObservations } from './components/TravelObservations'
 import { type WeatherMood } from './data/travelObservations'
 
+// NEW: Enhanced River Crossing System (Classic Oregon Trail 5-choice)
+import { RiverCrossing } from './components/RiverCrossing'
+import { type CrossingOutcome } from './data/riverCrossings'
+
+// NEW: Colorful Event Messages (Fallout-style)
+import { getHuntingMessage, getDramaticOutcome } from './data/eventMessages'
+
+// NEW: Occupation System (Oregon Trail-style scoring)
+import {
+  type Occupation,
+  getOccupationList,
+  getOccupation,
+  getOccupationDifficulty,
+  getOccupationFlavor,
+  getStartingSupplies
+} from './data/occupations'
+
 // NPC Context for Ollama-powered dialogue
 import { NPCProvider } from './npcContext'
+
+// Authentication & Save/Load System
+import { AuthSavePanel } from '@/components/game/AuthSavePanel'
+import { useSaveLoad } from '@/lib/saveLoadContext'
+import { useAuth } from '@/lib/authContext'
+
+// NEW: Golden Hooves Enhancements
+import HunkerDown from './components/HunkerDown'
+import GoldCountryBooking from './components/GoldCountryBooking'
+import * as AudioManager from './lib/audioManager'
 
 function GameMenu() {
   const { state, startGame } = useOregonTrail()
@@ -896,7 +923,7 @@ function OutfittingScreen() {
 }
 
 function TravelScreen() {
-  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement } = useOregonTrail()
+  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, applyRiverCrossingEffects, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement } = useOregonTrail()
   const { balance, canAfford, spendNeutral, earnNeutral, earnGood, addBadKarma } = useKarmaWallet()
   const { state: mysteryState } = useMystery()
   const { getStat } = useCharacter()
@@ -1171,48 +1198,45 @@ function TravelScreen() {
     )
   }
 
-  // River crossing screen
+  // River crossing screen - NEW: Enhanced 5-choice Oregon Trail style crossing
   if (state.phase === 'river') {
+    const handleRiverCrossingComplete = async (success: boolean, effects: CrossingOutcome['effects']) => {
+      // Apply karma changes from crossing (handled via KarmaWallet context)
+      if (effects.karmaChange) {
+        if (effects.karmaChange.neutral && effects.karmaChange.neutral > 0) {
+          await earnNeutral(effects.karmaChange.neutral, 'River crossing bonus')
+        }
+        if (effects.karmaChange.good && effects.karmaChange.good > 0) {
+          await earnGood(effects.karmaChange.good, 'River crossing virtue')
+        }
+        if (effects.karmaChange.bad && effects.karmaChange.bad > 0) {
+          await addBadKarma(effects.karmaChange.bad, 'River crossing mishap')
+        }
+      }
+
+      // Narrator comment based on outcome
+      if (success) {
+        comment("The river is behind you. The frontier doesn't offer many such clean victories.", 'observation')
+      } else {
+        comment("The river extracts its toll. It always does, one way or another.", 'warning')
+      }
+
+      // Generate outcome message
+      const outcomeMessage = success
+        ? 'Crossed safely! The journey continues.'
+        : 'The crossing took its toll. Some supplies were lost.'
+
+      // Apply all effects to game state and return to traveling
+      applyRiverCrossingEffects(effects, outcomeMessage)
+    }
+
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-950 via-blue-900 to-amber-950 flex items-center justify-center p-4">
-        <KarmaToastContainer />
-        <div className="max-w-md w-full bg-blue-900/80 border-4 border-blue-600 rounded-lg p-6">
-          <div className="text-5xl text-center mb-4">\ud83c\udf0a</div>
-          <h2 className="font-pixel text-blue-200 text-lg mb-2 text-center">
-            River Crossing
-          </h2>
-          <p className="text-blue-300 text-sm mb-6 text-center">
-            {state.currentLandmark}
-          </p>
-          <div className="space-y-3">
-            <button
-              onClick={() => crossRiver('ford')}
-              className="w-full p-3 bg-red-800/60 hover:bg-red-700/60 border-2 border-red-600 rounded text-red-200 font-pixel text-xs"
-            >
-              Ford the river (Risky, Free)
-              <span className="block text-[10px] text-red-400 mt-1">+Chaotic karma</span>
-            </button>
-            <button
-              onClick={() => crossRiver('caulk')}
-              className="w-full p-3 bg-amber-800/60 hover:bg-amber-700/60 border-2 border-amber-600 rounded text-amber-200 font-pixel text-xs"
-            >
-              Caulk wagon and float (Moderate risk, Free)
-            </button>
-            <button
-              onClick={async () => {
-                if (canAfford('neutral', 20)) {
-                  await spendNeutral(20, 'Ferry crossing')
-                  crossRiver('ferry')
-                }
-              }}
-              disabled={!canAfford('neutral', 20)}
-              className="w-full p-3 bg-green-800/60 hover:bg-green-700/60 border-2 border-green-600 rounded text-green-200 font-pixel text-xs disabled:opacity-50"
-            >
-              Take the ferry (Safe, 20🪙)
-            </button>
-          </div>
-        </div>
-      </div>
+      <RiverCrossing
+        riverName={state.currentLandmark}
+        weather={state.weather}
+        dayOfYear={state.day % 365}
+        onComplete={handleRiverCrossingComplete}
+      />
     )
   }
 
@@ -1323,7 +1347,7 @@ function TravelScreen() {
 
             {/* Discount Progress */}
             <div className="bg-amber-900/60 border-2 border-amber-600 rounded-lg p-4">
-              <h3 className="font-pixel text-amber-200 text-sm mb-3 border-b border-amber-600 pb-2">BOBR Rewards</h3>
+              <h3 className="font-pixel text-amber-200 text-sm mb-3 border-b border-amber-600 pb-2">Golden Frog Rewards</h3>
               <DiscountProgressBar onShowReward={() => setShowDiscountReward(true)} />
             </div>
           </div>
@@ -1645,7 +1669,7 @@ function TravelScreen() {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center flex-wrap">
           <button
             onClick={travel}
             className="px-8 py-3 bg-green-700 hover:bg-green-600 text-green-100 font-pixel text-sm rounded border-4 border-green-500 transition-colors"
@@ -1659,6 +1683,18 @@ function TravelScreen() {
           >
             Hunt
           </button>
+          {/* Hunker Down - Vacation Rental Option */}
+          <HunkerDown
+            currentLandmark={state.currentLandmark}
+            milesRemaining={state.milesRemaining}
+            partySize={state.party.length}
+            onHunkerDown={(days) => {
+              // Rest the party for specified days (heal and consume food)
+              // This is a simple integration - could be expanded
+              console.log(`Hunkering down for ${days} days`)
+            }}
+            graphicsTier={state.graphicsTier}
+          />
         </div>
       </div>
     </div>
@@ -2016,6 +2052,11 @@ function RanchManagementScreen() {
 function GoldCountryArrivalScreen() {
   const { state, enterSettlement, leaveSettlement, resetGame } = useOregonTrail()
   const { balance } = useKarmaWallet()
+  const [showBooking, setShowBooking] = useState(false)
+
+  // Calculate karma score and outlaws caught for discount tier
+  const karmaScore = balance.good + Math.floor(balance.neutral / 2)
+  const outlawsCaught = state.outlawsCaught || 0
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-yellow-950 via-amber-900 to-amber-950 flex items-center justify-center p-4">
@@ -2048,6 +2089,22 @@ function GoldCountryArrivalScreen() {
               <p className="text-amber-200 font-pixel text-lg">{state.food}</p>
               <p className="text-gray-500 text-xs">Food (lbs)</p>
             </div>
+          </div>
+        </div>
+
+        {/* NEW: Back of Beyond Ranch Booking Offer */}
+        <div className="bg-yellow-900/40 border-2 border-yellow-600 rounded-lg p-4 mb-6">
+          <div className="text-center">
+            <p className="text-yellow-300 font-pixel text-sm mb-2">🏆 Special Reward Unlocked!</p>
+            <p className="text-yellow-200 text-xs mb-3">
+              Your journey has earned you a discount at Back of Beyond Ranch
+            </p>
+            <button
+              onClick={() => setShowBooking(true)}
+              className="px-6 py-2 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-bold rounded border-2 border-yellow-400 transition-all"
+            >
+              🔗 Claim Your Reward
+            </button>
           </div>
         </div>
 
@@ -2091,6 +2148,22 @@ function GoldCountryArrivalScreen() {
           </button>
         </div>
       </div>
+
+      {/* Gold Country Booking Modal */}
+      {showBooking && (
+        <GoldCountryBooking
+          playerName={state.party[0]?.name || 'Traveler'}
+          partySize={state.party.filter(m => m.health > 0).length}
+          karmaScore={karmaScore}
+          outlawsCaught={outlawsCaught}
+          daysOnTrail={state.daysOnTrail}
+          onClose={() => setShowBooking(false)}
+          onBookingIntent={(code) => {
+            console.log('Booking intent with code:', code)
+          }}
+          graphicsTier={state.graphicsTier}
+        />
+      )}
     </div>
   )
 }
@@ -2116,12 +2189,69 @@ function SettlementVictoryScreen() {
   )
 }
 
+// Save/Load Integration Wrapper
+function SaveLoadIntegration() {
+  const { state, loadState } = useOregonTrail()
+  const { user } = useAuth()
+  const { setGameDataCollector, setGameDataLoader, setMetadataCollector } = useSaveLoad()
+  const { balance, getAlignmentDisplayName } = useKarmaWallet()
+
+  // Set up save data collector
+  React.useEffect(() => {
+    if (!user) return
+
+    setGameDataCollector(() => ({
+      oregonTrail: state,
+      karmaBalance: balance,
+    }))
+
+    setMetadataCollector(() => ({
+      dayNumber: state.day,
+      distance: state.distance,
+      currentLocation: state.currentLandmark,
+      partySize: state.party.length,
+      karmaAlignment: getAlignmentDisplayName(),
+      playTime: state.daysOnTrail * 24, // Rough estimate
+    }))
+
+    // Set up game data loader for restoring saved games
+    setGameDataLoader((data) => {
+      if (data.oregonTrail) {
+        loadState(data.oregonTrail as typeof state)
+      }
+      // Note: Karma balance restoration would need karma context support
+    })
+  }, [user, state, balance, setGameDataCollector, setGameDataLoader, setMetadataCollector, getAlignmentDisplayName, loadState])
+
+  return null
+}
+
 function OregonTrailGame() {
   const { state, startFromTitle, completeChapterIntro } = useOregonTrail()
+  const [audioInitialized, setAudioInitialized] = useState(false)
+
+  // Initialize audio and start music on game start (user interaction required)
+  const handleGameStart = useCallback(async () => {
+    if (!audioInitialized) {
+      await AudioManager.initAudio()
+      setAudioInitialized(true)
+    }
+    // Start electro swing playlist (shuffled 12 tracks with crossfade)
+    AudioManager.playPlaylist()
+    startFromTitle()
+  }, [audioInitialized, startFromTitle])
+
+  // Playlist auto-cycles tracks via AudioManager - no manual switching needed
 
   // Title screen phase
   if (state.phase === 'title') {
-    return <TitleScreen onStart={startFromTitle} />
+    return (
+      <>
+        <TitleScreen onStart={handleGameStart} />
+        <AuthSavePanel />
+        <SaveLoadIntegration />
+      </>
+    )
   }
 
   // Chapter intro phase
@@ -2204,7 +2334,13 @@ function OregonTrailGame() {
   }
 
   // Default to travel screen (handles traveling, town, river, event, complete, game_over)
-  return <TravelScreen />
+  return (
+    <>
+      <TravelScreen />
+      <AuthSavePanel />
+      <SaveLoadIntegration />
+    </>
+  )
 }
 
 // Main page export with all providers
