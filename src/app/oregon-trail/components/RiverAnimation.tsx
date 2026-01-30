@@ -11,9 +11,9 @@ import React, { useEffect, useState, useMemo } from 'react'
 
 interface RiverAnimationProps {
   riverCondition: 'low' | 'normal' | 'high' | 'flood'
-  weather: 'clear' | 'rain' | 'storm'
+  weather: 'clear' | 'rain' | 'storm' | 'fair' | 'snow'  // Accepts all game Weather types
   isCrossing: boolean
-  crossingMethod?: 'ford' | 'caulk' | 'ferry' | 'bridge' | 'wait'
+  crossingMethod?: 'ford' | 'caulk' | 'ferry' | 'bridge' | 'wait' | 'guide'  // All crossing methods
   crossingProgress?: number  // 0-100
   crossingSuccess?: boolean | null  // null = in progress
 }
@@ -210,17 +210,202 @@ export function RiverAnimation({
               transform: 'translate(-50%, -50%)',
             }}
           >
-            {/* Wagon body */}
-            <div className="relative">
-              {/* Canvas top */}
-              {crossingMethod === 'caulk' && (
-                <div className="absolute -top-4 left-1 w-8 h-4 bg-amber-100 rounded-t-full border-2 border-amber-700" />
-              )}
-              {/* Wagon base */}
-              <div className="w-10 h-4 bg-amber-700 rounded border border-amber-900" />
-              {/* Wheels */}
-              <div className="absolute -bottom-2 left-0 w-3 h-3 bg-amber-900 rounded-full border border-amber-950" />
-              <div className="absolute -bottom-2 right-0 w-3 h-3 bg-amber-900 rounded-full border border-amber-950" />
+            <div className="relative flex items-end" style={{ gap: '1px' }}>
+              {/* === Oxen Team (2 pair) === */}
+              <div className="relative flex items-end" style={{ gap: '2px', marginRight: '2px' }}>
+                {/* Lead pair of oxen */}
+                {[0, 1].map((ox) => (
+                  <div key={`lead-${ox}`} className="relative" style={{ width: '6px', height: '8px' }}>
+                    {/* Ox head */}
+                    <div
+                      className="absolute rounded-sm"
+                      style={{
+                        width: '3px', height: '3px',
+                        top: '0px', left: '0px',
+                        backgroundColor: '#78350f',
+                      }}
+                    />
+                    {/* Ox horns */}
+                    <div
+                      className="absolute"
+                      style={{
+                        width: '5px', height: '1px',
+                        top: '-1px', left: '-1px',
+                        backgroundColor: '#d6d3d1',
+                        borderRadius: '1px',
+                      }}
+                    />
+                    {/* Ox body */}
+                    <div
+                      className="absolute rounded-sm"
+                      style={{
+                        width: '6px', height: '4px',
+                        top: '2px', left: '0px',
+                        backgroundColor: '#92400e',
+                        borderTop: '1px solid #78350f',
+                      }}
+                    />
+                    {/* Ox legs (front and back) */}
+                    <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '0px', backgroundColor: '#6b3a10' }} />
+                    <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '2px', backgroundColor: '#6b3a10' }} />
+                    <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '4px', backgroundColor: '#6b3a10' }} />
+                    <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '5px', backgroundColor: '#6b3a10' }} />
+                  </div>
+                ))}
+                {/* Rear pair of oxen */}
+                {[0, 1].map((ox) => (
+                  <div key={`rear-${ox}`} className="relative" style={{ width: '6px', height: '8px' }}>
+                    {/* Ox head */}
+                    <div
+                      className="absolute rounded-sm"
+                      style={{
+                        width: '3px', height: '3px',
+                        top: '0px', left: '0px',
+                        backgroundColor: '#78350f',
+                      }}
+                    />
+                    {/* Ox horns */}
+                    <div
+                      className="absolute"
+                      style={{
+                        width: '5px', height: '1px',
+                        top: '-1px', left: '-1px',
+                        backgroundColor: '#d6d3d1',
+                        borderRadius: '1px',
+                      }}
+                    />
+                    {/* Ox body */}
+                    <div
+                      className="absolute rounded-sm"
+                      style={{
+                        width: '6px', height: '4px',
+                        top: '2px', left: '0px',
+                        backgroundColor: '#7c2d12',
+                        borderTop: '1px solid #6b3a10',
+                      }}
+                    />
+                    {/* Ox legs */}
+                    <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '0px', backgroundColor: '#5c2d0e' }} />
+                    <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '2px', backgroundColor: '#5c2d0e' }} />
+                    <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '4px', backgroundColor: '#5c2d0e' }} />
+                    <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '5px', backgroundColor: '#5c2d0e' }} />
+                  </div>
+                ))}
+                {/* Yoke / harness line connecting oxen to wagon */}
+                <div
+                  className="absolute"
+                  style={{
+                    width: '8px', height: '1px',
+                    bottom: '4px', right: '-9px',
+                    backgroundColor: '#78350f',
+                  }}
+                />
+              </div>
+
+              {/* === Covered Wagon === */}
+              <div className="relative" style={{ width: '16px' }}>
+                {/* Canvas cover - prairie schooner arch */}
+                <div
+                  className="absolute"
+                  style={{
+                    width: '16px', height: '9px',
+                    top: '-12px', left: '0px',
+                    backgroundColor: '#fef3c7',
+                    borderRadius: '8px 8px 0 0',
+                    border: '1px solid #d6d3d1',
+                    borderBottom: 'none',
+                  }}
+                />
+                {/* Canvas hoop ribs (3 ribs across the arch) */}
+                <div
+                  className="absolute"
+                  style={{
+                    width: '1px', height: '8px',
+                    top: '-11px', left: '4px',
+                    backgroundColor: '#a8a29e',
+                    borderRadius: '50%',
+                  }}
+                />
+                <div
+                  className="absolute"
+                  style={{
+                    width: '1px', height: '9px',
+                    top: '-12px', left: '8px',
+                    backgroundColor: '#a8a29e',
+                    borderRadius: '50%',
+                  }}
+                />
+                <div
+                  className="absolute"
+                  style={{
+                    width: '1px', height: '8px',
+                    top: '-11px', left: '12px',
+                    backgroundColor: '#a8a29e',
+                    borderRadius: '50%',
+                  }}
+                />
+                {/* Wagon bed */}
+                <div
+                  style={{
+                    width: '16px', height: '5px',
+                    backgroundColor: '#92400e',
+                    border: '1px solid #78350f',
+                    borderRadius: '1px',
+                  }}
+                />
+                {/* Side boards (taller on sides) */}
+                <div
+                  className="absolute"
+                  style={{
+                    width: '1px', height: '7px',
+                    top: '-3px', left: '0px',
+                    backgroundColor: '#78350f',
+                  }}
+                />
+                <div
+                  className="absolute"
+                  style={{
+                    width: '1px', height: '7px',
+                    top: '-3px', right: '0px',
+                    backgroundColor: '#78350f',
+                  }}
+                />
+                {/* Wood slat detail on wagon bed */}
+                <div
+                  className="absolute"
+                  style={{
+                    width: '14px', height: '1px',
+                    top: '2px', left: '1px',
+                    backgroundColor: '#78350f',
+                    opacity: 0.5,
+                  }}
+                />
+                {/* Front wheel - spoked style */}
+                <div
+                  className="absolute"
+                  style={{
+                    width: '6px', height: '6px',
+                    bottom: '-4px', left: '-1px',
+                    borderRadius: '50%',
+                    border: '2px solid #78350f',
+                    backgroundColor: 'transparent',
+                    boxShadow: 'inset 0 0 0 1px #92400e',
+                  }}
+                />
+                {/* Rear wheel - spoked style */}
+                <div
+                  className="absolute"
+                  style={{
+                    width: '6px', height: '6px',
+                    bottom: '-4px', right: '-1px',
+                    borderRadius: '50%',
+                    border: '2px solid #78350f',
+                    backgroundColor: 'transparent',
+                    boxShadow: 'inset 0 0 0 1px #92400e',
+                  }}
+                />
+              </div>
+
               {/* Water splash effect */}
               {riverCondition !== 'low' && (
                 <>
@@ -241,14 +426,53 @@ export function RiverAnimation({
         {/* Ferry if that method is chosen */}
         {crossingMethod === 'ferry' && isCrossing && (
           <div
-            className="absolute w-16 h-6 bg-amber-800 border-2 border-amber-900 rounded"
+            className="absolute rounded"
             style={{
               left: `${wagonX - 5}%`,
-              top: '40%',
+              top: '35%',
+              width: '64px',
+              height: '10px',
+              backgroundColor: '#92400e',
+              border: '2px solid #78350f',
             }}
           >
-            <div className="absolute -top-8 left-1/2 w-1 h-8 bg-amber-700" />
-            <div className="absolute -top-6 left-1/2 w-6 h-4 bg-white/80 rounded-sm" style={{ transform: 'translateX(-50%)' }} />
+            {/* Ferry pole */}
+            <div className="absolute" style={{ width: '2px', height: '16px', top: '-16px', left: '50%', backgroundColor: '#78350f' }} />
+            {/* Ferry sail/flag */}
+            <div className="absolute" style={{ width: '10px', height: '6px', top: '-14px', left: 'calc(50% + 2px)', backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: '1px' }} />
+            {/* Mini wagon on raft */}
+            <div className="absolute flex items-end" style={{ bottom: '4px', left: '10px', gap: '1px' }}>
+              {/* Mini oxen pair */}
+              {[0, 1].map((ox) => (
+                <div key={`ferry-ox-${ox}`} className="relative" style={{ width: '4px', height: '5px' }}>
+                  <div className="absolute rounded-sm" style={{ width: '4px', height: '3px', top: '0px', backgroundColor: '#92400e' }} />
+                  <div className="absolute" style={{ width: '1px', height: '2px', top: '3px', left: '0px', backgroundColor: '#6b3a10' }} />
+                  <div className="absolute" style={{ width: '1px', height: '2px', top: '3px', left: '3px', backgroundColor: '#6b3a10' }} />
+                </div>
+              ))}
+              {/* Mini yoke */}
+              <div className="absolute" style={{ width: '3px', height: '1px', bottom: '2px', left: '9px', backgroundColor: '#78350f' }} />
+              {/* Mini wagon */}
+              <div className="relative" style={{ width: '12px', marginLeft: '2px' }}>
+                {/* Mini canvas cover */}
+                <div
+                  className="absolute"
+                  style={{
+                    width: '12px', height: '6px',
+                    top: '-7px', left: '0px',
+                    backgroundColor: '#fef3c7',
+                    borderRadius: '6px 6px 0 0',
+                    border: '1px solid #d6d3d1',
+                    borderBottom: 'none',
+                  }}
+                />
+                {/* Mini wagon bed */}
+                <div style={{ width: '12px', height: '3px', backgroundColor: '#92400e', border: '1px solid #78350f', borderRadius: '1px' }} />
+                {/* Mini wheels */}
+                <div className="absolute" style={{ width: '4px', height: '4px', bottom: '-2px', left: '-1px', borderRadius: '50%', border: '1px solid #78350f' }} />
+                <div className="absolute" style={{ width: '4px', height: '4px', bottom: '-2px', right: '-1px', borderRadius: '50%', border: '1px solid #78350f' }} />
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -278,10 +502,155 @@ export function RiverAnimation({
 
         {/* Waiting wagon if not crossing */}
         {!isCrossing && (
-          <div className="absolute bottom-4 left-4">
-            <div className="w-10 h-4 bg-amber-700 rounded border border-amber-900" />
-            <div className="absolute -bottom-2 left-0 w-3 h-3 bg-amber-900 rounded-full border border-amber-950" />
-            <div className="absolute -bottom-2 right-0 w-3 h-3 bg-amber-900 rounded-full border border-amber-950" />
+          <div className="absolute bottom-4 left-4 flex items-end" style={{ gap: '1px' }}>
+            {/* === Oxen Team (waiting on shore) === */}
+            <div className="relative flex items-end" style={{ gap: '2px', marginRight: '2px' }}>
+              {/* Lead pair of oxen */}
+              {[0, 1].map((ox) => (
+                <div key={`wait-lead-${ox}`} className="relative" style={{ width: '6px', height: '8px' }}>
+                  {/* Ox head */}
+                  <div
+                    className="absolute rounded-sm"
+                    style={{
+                      width: '3px', height: '3px',
+                      top: '0px', left: '0px',
+                      backgroundColor: '#78350f',
+                    }}
+                  />
+                  {/* Ox horns */}
+                  <div
+                    className="absolute"
+                    style={{
+                      width: '5px', height: '1px',
+                      top: '-1px', left: '-1px',
+                      backgroundColor: '#d6d3d1',
+                      borderRadius: '1px',
+                    }}
+                  />
+                  {/* Ox body */}
+                  <div
+                    className="absolute rounded-sm"
+                    style={{
+                      width: '6px', height: '4px',
+                      top: '2px', left: '0px',
+                      backgroundColor: '#92400e',
+                      borderTop: '1px solid #78350f',
+                    }}
+                  />
+                  {/* Ox legs */}
+                  <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '0px', backgroundColor: '#6b3a10' }} />
+                  <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '2px', backgroundColor: '#6b3a10' }} />
+                  <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '4px', backgroundColor: '#6b3a10' }} />
+                  <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '5px', backgroundColor: '#6b3a10' }} />
+                </div>
+              ))}
+              {/* Rear pair of oxen */}
+              {[0, 1].map((ox) => (
+                <div key={`wait-rear-${ox}`} className="relative" style={{ width: '6px', height: '8px' }}>
+                  {/* Ox head */}
+                  <div
+                    className="absolute rounded-sm"
+                    style={{
+                      width: '3px', height: '3px',
+                      top: '0px', left: '0px',
+                      backgroundColor: '#78350f',
+                    }}
+                  />
+                  {/* Ox horns */}
+                  <div
+                    className="absolute"
+                    style={{
+                      width: '5px', height: '1px',
+                      top: '-1px', left: '-1px',
+                      backgroundColor: '#d6d3d1',
+                      borderRadius: '1px',
+                    }}
+                  />
+                  {/* Ox body */}
+                  <div
+                    className="absolute rounded-sm"
+                    style={{
+                      width: '6px', height: '4px',
+                      top: '2px', left: '0px',
+                      backgroundColor: '#7c2d12',
+                      borderTop: '1px solid #6b3a10',
+                    }}
+                  />
+                  {/* Ox legs */}
+                  <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '0px', backgroundColor: '#5c2d0e' }} />
+                  <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '2px', backgroundColor: '#5c2d0e' }} />
+                  <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '4px', backgroundColor: '#5c2d0e' }} />
+                  <div className="absolute" style={{ width: '1px', height: '3px', top: '6px', left: '5px', backgroundColor: '#5c2d0e' }} />
+                </div>
+              ))}
+              {/* Yoke / harness line connecting oxen to wagon */}
+              <div
+                className="absolute"
+                style={{
+                  width: '8px', height: '1px',
+                  bottom: '4px', right: '-9px',
+                  backgroundColor: '#78350f',
+                }}
+              />
+            </div>
+
+            {/* === Covered Wagon (waiting) === */}
+            <div className="relative" style={{ width: '16px' }}>
+              {/* Canvas cover - prairie schooner arch */}
+              <div
+                className="absolute"
+                style={{
+                  width: '16px', height: '9px',
+                  top: '-12px', left: '0px',
+                  backgroundColor: '#fef3c7',
+                  borderRadius: '8px 8px 0 0',
+                  border: '1px solid #d6d3d1',
+                  borderBottom: 'none',
+                }}
+              />
+              {/* Canvas hoop ribs */}
+              <div className="absolute" style={{ width: '1px', height: '8px', top: '-11px', left: '4px', backgroundColor: '#a8a29e', borderRadius: '50%' }} />
+              <div className="absolute" style={{ width: '1px', height: '9px', top: '-12px', left: '8px', backgroundColor: '#a8a29e', borderRadius: '50%' }} />
+              <div className="absolute" style={{ width: '1px', height: '8px', top: '-11px', left: '12px', backgroundColor: '#a8a29e', borderRadius: '50%' }} />
+              {/* Wagon bed */}
+              <div
+                style={{
+                  width: '16px', height: '5px',
+                  backgroundColor: '#92400e',
+                  border: '1px solid #78350f',
+                  borderRadius: '1px',
+                }}
+              />
+              {/* Side boards */}
+              <div className="absolute" style={{ width: '1px', height: '7px', top: '-3px', left: '0px', backgroundColor: '#78350f' }} />
+              <div className="absolute" style={{ width: '1px', height: '7px', top: '-3px', right: '0px', backgroundColor: '#78350f' }} />
+              {/* Wood slat detail */}
+              <div className="absolute" style={{ width: '14px', height: '1px', top: '2px', left: '1px', backgroundColor: '#78350f', opacity: 0.5 }} />
+              {/* Front wheel - spoked style */}
+              <div
+                className="absolute"
+                style={{
+                  width: '6px', height: '6px',
+                  bottom: '-4px', left: '-1px',
+                  borderRadius: '50%',
+                  border: '2px solid #78350f',
+                  backgroundColor: 'transparent',
+                  boxShadow: 'inset 0 0 0 1px #92400e',
+                }}
+              />
+              {/* Rear wheel - spoked style */}
+              <div
+                className="absolute"
+                style={{
+                  width: '6px', height: '6px',
+                  bottom: '-4px', right: '-1px',
+                  borderRadius: '50%',
+                  border: '2px solid #78350f',
+                  backgroundColor: 'transparent',
+                  boxShadow: 'inset 0 0 0 1px #92400e',
+                }}
+              />
+            </div>
           </div>
         )}
       </div>

@@ -24,9 +24,12 @@ interface WorldMapProps {
   onTravelStart?: (fromId: string, toId: string) => void
   onTravelComplete?: (locationId: string) => void
   onRandomEncounter?: (zone: RandomEncounterZone) => void
+  onScout?: (locationId: string) => void
   playerPosition?: { x: number; y: number }
   isMoving?: boolean
   graphicsTier?: 'retro_4bit' | 'classic_8bit' | 'enhanced_16bit' | 'modern_32bit' | 'ultra_64bit'
+  expertiseStat?: number  // Expertise stat for scouting range bonus
+  scoutingCostHours?: number  // Investigation hours scouting costs (default: 2)
 }
 
 interface Tooltip {
@@ -94,9 +97,12 @@ export function WorldMap({
   onTravelStart,
   onTravelComplete,
   onRandomEncounter,
+  onScout,
   playerPosition: externalPlayerPosition,
   isMoving = false,
   graphicsTier = 'classic_8bit',
+  expertiseStat = 0,
+  scoutingCostHours = 2,
 }: WorldMapProps) {
   const [tooltip, setTooltip] = useState<Tooltip>({ visible: false, x: 0, y: 0, location: null })
   const [hoveredLocationId, setHoveredLocationId] = useState<string | null>(null)
@@ -110,6 +116,62 @@ export function WorldMap({
     targetLocationId: '',
   })
   const [encounterFlash, setEncounterFlash] = useState(false)
+  const [scoutingLocation, setScoutingLocation] = useState<string | null>(null)
+  const [scoutAnimation, setScoutAnimation] = useState(false)
+
+  // Scouting range: adjacent locations + bonus from Expertise
+  // Base: only immediate neighbors. With Expertise 5+: can see 2 hops away
+  const scoutRange = expertiseStat >= 8 ? 3 : expertiseStat >= 5 ? 2 : 1
+
+  // Locations visible as "?" (adjacent to discovered but not discovered)
+  const scoutableLocations = useMemo(() => {
+    const scoutable = new Set<string>()
+    const discovered = discoveredLocations
+
+    // BFS from discovered locations up to scoutRange hops
+    const visited = new Set<string>()
+    const queue: Array<{ id: string; depth: number }> = []
+
+    discovered.forEach(locId => {
+      queue.push({ id: locId, depth: 0 })
+      visited.add(locId)
+    })
+
+    while (queue.length > 0) {
+      const { id, depth } = queue.shift()!
+      if (depth >= scoutRange) continue
+
+      const loc = getLocationById(id)
+      if (!loc) continue
+
+      for (const connId of loc.connectedTo) {
+        if (!visited.has(connId)) {
+          visited.add(connId)
+          if (!discovered.has(connId)) {
+            scoutable.add(connId)
+          }
+          queue.push({ id: connId, depth: depth + 1 })
+        }
+      }
+    }
+
+    return scoutable
+  }, [discoveredLocations, scoutRange])
+
+  // Handle scouting action
+  const handleScout = useCallback((locationId: string) => {
+    setScoutingLocation(locationId)
+    setScoutAnimation(true)
+
+    // Animate scouting effect
+    setTimeout(() => {
+      setScoutAnimation(false)
+      setScoutingLocation(null)
+      if (onScout) {
+        onScout(locationId)
+      }
+    }, 1200)
+  }, [onScout])
 
   // Get locations for current chapter
   const chapterLocations = useMemo(() => {
@@ -226,22 +288,34 @@ export function WorldMap({
   }, [])
 
   // Render fog of war overlay
+  // Enhanced: scoutable locations get lighter fog, fully hidden get dark fog
   const renderFogOfWar = () => {
     return (
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
         {chapterLocations.map(location => {
           if (discoveredLocations.has(location.id)) return null
+
+          const isScoutable = scoutableLocations.has(location.id)
+          const isBeingScouted = scoutingLocation === location.id
+
+          // Scoutable locations get lighter fog (can see outline)
+          // Hidden locations get full dark fog
           return (
             <div
               key={`fog-${location.id}`}
-              className="absolute rounded-full"
+              className="absolute rounded-full transition-all duration-700"
               style={{
                 left: `${location.x - 5}%`,
                 top: `${location.y - 5}%`,
                 width: '10%',
                 height: '10%',
-                background: 'radial-gradient(circle, rgba(0,0,0,0.9) 30%, transparent 70%)',
-                filter: 'blur(10px)',
+                background: isBeingScouted
+                  ? 'radial-gradient(circle, rgba(212,168,67,0.3) 20%, rgba(0,0,0,0.2) 60%, transparent 80%)'
+                  : isScoutable
+                  ? 'radial-gradient(circle, rgba(0,0,0,0.5) 20%, rgba(0,0,0,0.3) 50%, transparent 75%)'
+                  : 'radial-gradient(circle, rgba(0,0,0,0.9) 30%, transparent 70%)',
+                filter: isBeingScouted ? 'blur(5px)' : 'blur(10px)',
+                opacity: isBeingScouted ? 0.5 : 1,
               }}
             />
           )
@@ -264,11 +338,20 @@ export function WorldMap({
         rendered.add(connectionKey)
 
         const connected = getLocationById(connectedId)
-        if (!connected || !discoveredLocations.has(connectedId)) return
+        if (!connected) return
+
+        const connectedDiscovered = discoveredLocations.has(connectedId)
+        const connectedScoutable = scoutableLocations.has(connectedId)
+
+        // Skip if target is neither discovered nor scoutable
+        if (!connectedDiscovered && !connectedScoutable) return
 
         const isCurrentPath =
           (currentLocationId === location.id && hoveredLocationId === connectedId) ||
           (currentLocationId === connectedId && hoveredLocationId === location.id)
+
+        // Faint dashed lines to scoutable (undiscovered) locations
+        const isToUndiscovered = !connectedDiscovered && connectedScoutable
 
         connections.push(
           <line
@@ -277,10 +360,16 @@ export function WorldMap({
             y1={`${location.y}%`}
             x2={`${connected.x}%`}
             y2={`${connected.y}%`}
-            stroke={isCurrentPath ? 'var(--pixel-gold-light)' : 'var(--pixel-ui-border)'}
+            stroke={
+              isCurrentPath
+                ? 'var(--pixel-gold-light)'
+                : isToUndiscovered
+                ? '#8b6914'
+                : 'var(--pixel-ui-border)'
+            }
             strokeWidth={isCurrentPath ? 3 : 1}
-            strokeDasharray={isCurrentPath ? 'none' : '5,5'}
-            opacity={isCurrentPath ? 1 : 0.5}
+            strokeDasharray={isToUndiscovered ? '3,6' : isCurrentPath ? 'none' : '5,5'}
+            opacity={isToUndiscovered ? 0.3 : isCurrentPath ? 1 : 0.5}
             className="transition-all duration-300"
           />
         )
@@ -327,9 +416,13 @@ export function WorldMap({
       const isHovered = location.id === hoveredLocationId
       const isConnected = getLocationById(currentLocationId)?.connectedTo.includes(location.id)
       const canTravel = isDiscovered && isConnected && !isCurrent && !travelAnimation.active
+      const isScoutable = scoutableLocations.has(location.id)
+      const isBeingScouted = scoutingLocation === location.id
 
-      // Undiscovered but adjacent locations show as "?" markers
-      const showQuestionMark = !isDiscovered && isConnected
+      // Undiscovered but scoutable locations show as "?" markers
+      const showQuestionMark = !isDiscovered && isScoutable
+      // Adjacent undiscovered can be scouted
+      const canScout = !isDiscovered && isConnected && onScout && !travelAnimation.active && !scoutAnimation
 
       if (!isDiscovered && !showQuestionMark) return null
 
@@ -339,25 +432,37 @@ export function WorldMap({
           className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200
             ${isCurrent ? 'z-30' : 'z-20'}
             ${isHovered || isCurrent ? 'scale-125' : 'scale-100'}
-            ${canTravel ? 'cursor-pointer hover:scale-125' : showQuestionMark ? 'cursor-help' : 'cursor-default'}
+            ${canTravel ? 'cursor-pointer hover:scale-125' : canScout ? 'cursor-crosshair hover:scale-110' : showQuestionMark ? 'cursor-help' : 'cursor-default'}
           `}
           style={{
             left: `${location.x}%`,
             top: `${location.y}%`,
           }}
-          onClick={() => canTravel ? handleTravel(location.id) : onLocationClick(location.id)}
+          onClick={() => {
+            if (canTravel) {
+              handleTravel(location.id)
+            } else if (canScout) {
+              handleScout(location.id)
+            } else {
+              onLocationClick(location.id)
+            }
+          }}
           onMouseEnter={(e) => isDiscovered && handleLocationHover(location, e)}
           onMouseLeave={handleLocationLeave}
-          disabled={!isDiscovered && !showQuestionMark}
+          disabled={!isDiscovered && !showQuestionMark && !canScout}
         >
           <div className="relative">
             {/* Location icon */}
             <span
               className={`text-2xl sm:text-3xl drop-shadow-lg transition-all ${
                 showQuestionMark ? 'grayscale opacity-50' : ''
-              }`}
+              } ${isBeingScouted ? 'animate-pulse' : ''}`}
               style={{
-                filter: isCurrent ? 'drop-shadow(0 0 8px gold)' : undefined,
+                filter: isCurrent
+                  ? 'drop-shadow(0 0 8px gold)'
+                  : isBeingScouted
+                  ? 'drop-shadow(0 0 6px rgba(212,168,67,0.8)) brightness(1.3)'
+                  : undefined,
               }}
             >
               {showQuestionMark ? '❓' : (location.icon || LOCATION_ICONS[location.type])}
@@ -366,6 +471,14 @@ export function WorldMap({
             {/* Current location pulse */}
             {isCurrent && (
               <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-[var(--pixel-gold-light)] rounded-full animate-ping opacity-50" />
+            )}
+
+            {/* Scouting pulse effect */}
+            {isBeingScouted && (
+              <div
+                className="absolute -inset-2 rounded-full animate-ping"
+                style={{ backgroundColor: 'rgba(212, 168, 67, 0.3)' }}
+              />
             )}
 
             {/* Danger indicator */}
@@ -380,6 +493,20 @@ export function WorldMap({
             {canTravel && !showQuestionMark && (
               <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-xs text-[var(--pixel-gold-light)] whitespace-nowrap">
                 Click to travel
+              </div>
+            )}
+
+            {/* Scout indicator for undiscovered adjacent */}
+            {canScout && !isBeingScouted && (
+              <div
+                className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap px-1 rounded"
+                style={{
+                  color: '#d4a843',
+                  backgroundColor: 'rgba(42, 31, 20, 0.85)',
+                  border: '1px solid #8b6914',
+                }}
+              >
+                Scout ({scoutingCostHours}hr)
               </div>
             )}
           </div>
@@ -515,6 +642,11 @@ export function WorldMap({
         <div className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
           {discoveredLocations.size} / {chapterLocations.length} locations discovered
         </div>
+        {expertiseStat > 0 && (
+          <div className="font-[var(--font-pixel)] text-[7px] mt-0.5" style={{ color: '#8b6914' }}>
+            Scout range: {scoutRange} {scoutRange > 1 ? '(Expertise bonus)' : ''}
+          </div>
+        )}
       </div>
     )
   }
@@ -602,6 +734,11 @@ export function WorldMap({
         @keyframes wagonBob {
           0%, 100% { transform: translate(-50%, -50%) translateY(0); }
           50% { transform: translate(-50%, -50%) translateY(-3px); }
+        }
+        @keyframes scoutReveal {
+          0% { opacity: 0.3; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.1); }
+          100% { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>

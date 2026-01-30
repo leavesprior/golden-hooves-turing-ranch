@@ -94,7 +94,7 @@ export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
               <KarmaWallet compact />
               <div className="text-right">
                 <p className="text-amber-400 text-xs">Net Worth</p>
-                <p className="text-amber-200 font-pixel">{netWorth}🪙</p>
+                <p className="text-amber-200 font-pixel">{netWorth}🌮</p>
               </div>
             </div>
           </div>
@@ -148,7 +148,7 @@ export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
               {miningResult !== null && (
                 <div className="p-4 bg-yellow-900/60 border border-yellow-500 rounded-lg text-center animate-pulse">
                   <span className="text-yellow-300 font-pixel text-lg">
-                    Mining yield: +{miningResult}🪙
+                    Mining yield: +{miningResult}🌮
                   </span>
                 </div>
               )}
@@ -173,7 +173,7 @@ export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
                 <StatCard
                   icon="💰"
                   label="Net Worth"
-                  value={`${netWorth}🪙`}
+                  value={`${netWorth}🌮`}
                 />
               </div>
 
@@ -239,7 +239,7 @@ export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
                 <div className="bg-gray-800 rounded-lg p-4">
                   <span className="text-gray-400 text-sm">Ranch Value</span>
                   <p className="text-amber-200 font-pixel text-xl">
-                    {ranch?.getRanchValue?.() || 0}🪙
+                    {ranch?.getRanchValue?.() || 0}🌮
                   </p>
                 </div>
               </div>

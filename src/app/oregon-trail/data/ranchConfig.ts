@@ -378,7 +378,7 @@ export function canAffordFenceUpgrade(
   const config = FENCE_TIERS[nextTier];
 
   if (neutralKarma < config.neutralKarmaCost) {
-    return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🪙 (have ${neutralKarma})` };
+    return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🌮 (have ${neutralKarma})` };
   }
 
   if (goodKarma < config.goodKarmaRequired) {

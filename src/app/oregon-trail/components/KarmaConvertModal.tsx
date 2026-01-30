@@ -17,10 +17,10 @@ interface KarmaConvertModalProps {
  * ┌─────────────────────────────────────┐
  * │ ⚠️ Insufficient Neutral Karma       │
  * │                                     │
- * │ You need 20🪙 but only have 5🪙     │
+ * │ You need 20🌮 but only have 5🌮     │
  * │                                     │
  * │ Options:                            │
- * │ ○ Convert Good Karma (30🍪 → 15🪙)  │
+ * │ ○ Convert Good Karma (30🍪 → 15🌮)  │
  * │ ○ Take Debt (+15🪨)                 │
  * │                                     │
  * │ [Convert] [Take Debt] [Cancel]      │
@@ -76,7 +76,7 @@ export function KarmaConvertModal({
 
   if (!isOpen) return null
 
-  const karmaEmoji = karmaType === 'neutral' ? '🪙' : '🍪'
+  const karmaEmoji = karmaType === 'neutral' ? '🌮' : '🍪'
   const karmaName = karmaType === 'neutral' ? 'Neutral' : 'Good'
 
   return (
@@ -127,7 +127,7 @@ export function KarmaConvertModal({
                   )}
                 </div>
                 <p className="text-gray-400 text-xs mt-1">
-                  Sacrifice {goodKarmaToConvert}🍪 to receive {Math.floor(goodKarmaToConvert / 2)}🪙
+                  Sacrifice {goodKarmaToConvert}🍪 to receive {Math.floor(goodKarmaToConvert / 2)}🌮
                 </p>
                 <p className="text-amber-500 text-xs mt-1">
                   You have {Math.floor(balance.good)}🍪 Good Karma
@@ -159,7 +159,7 @@ export function KarmaConvertModal({
                   <span className="text-red-200 font-bold">Take Debt</span>
                 </div>
                 <p className="text-gray-400 text-xs mt-1">
-                  Receive {shortfall}🪙 now, but gain {shortfall}🪨 Bad Karma
+                  Receive {shortfall}🌮 now, but gain {shortfall}🪨 Bad Karma
                 </p>
                 <p className="text-red-400 text-xs mt-1">
                   Current Bad Karma: {Math.floor(balance.bad)}🪨
@@ -183,7 +183,7 @@ export function KarmaConvertModal({
             <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-3">
               <p className="text-amber-300 text-xs">
                 Good Karma converts at 2:1 ratio. You'll sacrifice {goodKarmaToConvert}🍪
-                and receive {Math.floor(goodKarmaToConvert / 2)}🪙.
+                and receive {Math.floor(goodKarmaToConvert / 2)}🌮.
               </p>
             </div>
           )}
@@ -240,7 +240,7 @@ export function InsufficientKarmaPrompt({
   karmaType,
   onOpenConvertModal,
 }: InsufficientKarmaPromptProps) {
-  const karmaEmoji = karmaType === 'neutral' ? '🪙' : '🍪'
+  const karmaEmoji = karmaType === 'neutral' ? '🌮' : '🍪'
 
   return (
     <div className="bg-red-900/30 border border-red-600 rounded p-3 text-center">

@@ -241,7 +241,7 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
     }
 
     if (balance.neutral < config.neutralKarmaCost) {
-      return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🪙 (have ${balance.neutral})` }
+      return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🌮 (have ${balance.neutral})` }
     }
 
     if (balance.good < config.goodKarmaRequired) {
@@ -292,7 +292,7 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
     }
 
     if (balance.neutral < config.neutralKarmaCost) {
-      return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🪙` }
+      return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🌮` }
     }
 
     if (balance.good < config.goodKarmaRequired) {
@@ -330,7 +330,7 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
     }
 
     if (balance.neutral < HORSE_CONFIG.neutralKarmaCost) {
-      return { canAfford: false, reason: `Need ${HORSE_CONFIG.neutralKarmaCost}🪙` }
+      return { canAfford: false, reason: `Need ${HORSE_CONFIG.neutralKarmaCost}🌮` }
     }
 
     if (balance.good < HORSE_CONFIG.goodKarmaRequired) {
@@ -368,7 +368,7 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
     }
 
     if (balance.neutral < config.neutralKarmaCost) {
-      return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🪙` }
+      return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🌮` }
     }
 
     if (balance.good < config.goodKarmaRequired) {
@@ -404,7 +404,7 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
     }
 
     if (balance.neutral < config.neutralKarmaCost) {
-      return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🪙` }
+      return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🌮` }
     }
 
     if (balance.good < config.goodKarmaRequired) {
@@ -438,7 +438,7 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
     }
 
     if (balance.neutral < MINING_CLAIM.neutralKarmaCost) {
-      return { canAfford: false, reason: `Need ${MINING_CLAIM.neutralKarmaCost}🪙` }
+      return { canAfford: false, reason: `Need ${MINING_CLAIM.neutralKarmaCost}🌮` }
     }
 
     return { canAfford: true }
@@ -464,7 +464,7 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
     }
 
     if (balance.neutral < totalCost) {
-      return { canAfford: false, reason: `Need ${totalCost}🪙 for ${acres} acres` }
+      return { canAfford: false, reason: `Need ${totalCost}🌮 for ${acres} acres` }
     }
 
     return { canAfford: true }

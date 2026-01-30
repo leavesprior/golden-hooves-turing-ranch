@@ -83,6 +83,9 @@ interface KarmaWalletContextValue {
   recordGoodAction: (magnitude?: number) => void
   recordEvilAction: (magnitude?: number) => void
 
+  // Save/Load support
+  loadKarmaState: (savedBalance: KarmaBalance, savedAlignment?: AlignmentAxes) => void
+
   // Modal controls
   showConvertModal: boolean
   setShowConvertModal: (show: boolean) => void
@@ -392,7 +395,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       type: 'convert',
       karmaType: 'good',
       amount: -goodAmount,
-      memo: `Converted to ${neutralReceived}🪙`,
+      memo: `Converted to ${neutralReceived}🌮`,
     })
 
     oregonTrailKarma.convertGoodToNeutral(goodAmount).catch(() => {})
@@ -415,7 +418,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       type: 'debt',
       karmaType: 'neutral',
       amount: amount,
-      memo: `Debt: +${amount}🪨`,
+      memo: `Debt: +${amount}🪨 / +${amount}🌮`,
     })
 
     oregonTrailKarma.takeDebt(amount).catch(() => {})
@@ -530,6 +533,16 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     }))
   }, [])
 
+  // Load karma state from a saved game
+  const loadKarmaState = useCallback((savedBalance: KarmaBalance, savedAlignment?: AlignmentAxes): void => {
+    setState(prev => ({
+      ...prev,
+      balance: savedBalance,
+      alignment: savedAlignment || prev.alignment,
+      isInitialized: true,
+    }))
+  }, [])
+
   // Record an evil action (harming others, selfish)
   const recordEvilAction = useCallback((magnitude: number = 10): void => {
     setState(prev => ({
@@ -580,6 +593,9 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     recordChaoticAction,
     recordGoodAction,
     recordEvilAction,
+
+    // Save/Load support
+    loadKarmaState,
 
     // Modal controls
     showConvertModal,

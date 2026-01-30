@@ -289,7 +289,7 @@ export function RanchProvider({ children }: { children: ReactNode }) {
       totalKarmaEarned: prev.totalKarmaEarned + earnings,
       eventLog: [
         ...prev.eventLog,
-        { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Sold ${count} ${config.namePlural} for ${earnings}🪙`, type: 'sale' as const },
+        { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Sold ${count} ${config.namePlural} for ${earnings}🌮`, type: 'sale' as const },
       ],
     }))
 
@@ -314,7 +314,7 @@ export function RanchProvider({ children }: { children: ReactNode }) {
       totalKarmaEarned: prev.totalKarmaEarned + earnings,
       eventLog: [
         ...prev.eventLog,
-        { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Slaughtered ${count} ${config.namePlural} for ${earnings}🪙`, type: 'death' as const },
+        { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Slaughtered ${count} ${config.namePlural} for ${earnings}🌮`, type: 'death' as const },
       ],
     }))
 
@@ -398,7 +398,7 @@ export function RanchProvider({ children }: { children: ReactNode }) {
       totalKarmaEarned: prev.totalKarmaEarned + earnings,
       eventLog: [
         ...prev.eventLog,
-        { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Sold ${amount} ${productName} for ${earnings}🪙`, type: 'sale' as const },
+        { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Sold ${amount} ${productName} for ${earnings}🌮`, type: 'sale' as const },
       ],
     }))
 

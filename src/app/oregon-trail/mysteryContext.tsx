@@ -960,8 +960,8 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
     const tier = getQualifyingTier(correct)
 
     // Calculate clues needed for next tier
-    const tierThresholds = { recruit: 3, detective: 5, inspector: 7, chief: 10 }
-    const tierOrder: (DiscountTier | null)[] = [null, 'recruit', 'detective', 'inspector', 'chief']
+    const tierThresholds: Record<DiscountTier, number> = { bronze: 3, silver: 5, gold: 7, platinum: 10 }
+    const tierOrder: (DiscountTier | null)[] = [null, 'bronze', 'silver', 'gold', 'platinum']
     const currentTierIndex = tier ? tierOrder.indexOf(tier) : 0
     const nextTier = tierOrder[currentTierIndex + 1]
     const nextTierClues = nextTier ? tierThresholds[nextTier] - correct : 0

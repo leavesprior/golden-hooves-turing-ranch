@@ -81,7 +81,7 @@ export function LiveryStable() {
       <div className="bg-gray-800 rounded-lg p-3 flex justify-between items-center">
         <span className="text-gray-400">Your Balance:</span>
         <div className="flex gap-3">
-          <span className="text-amber-400">{balance.neutral}🪙</span>
+          <span className="text-amber-400">{balance.neutral}🌮</span>
           <span className="text-green-400">{balance.good}🍪</span>
         </div>
       </div>
@@ -148,7 +148,7 @@ export function LiveryStable() {
                   <div className="flex-1">
                     <div className="flex justify-between">
                       <h4 className="text-amber-200 font-medium">{config.name}</h4>
-                      <span className="text-amber-400">{config.neutralKarmaCost}🪙</span>
+                      <span className="text-amber-400">{config.neutralKarmaCost}🌮</span>
                     </div>
                     <p className="text-gray-400 text-xs">{config.description}</p>
                     <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
@@ -203,7 +203,7 @@ export function LiveryStable() {
             <div className="flex-1">
               <div className="flex justify-between">
                 <h4 className="text-amber-200 font-medium">{HORSE_CONFIG.name}</h4>
-                <span className="text-amber-400">{HORSE_CONFIG.neutralKarmaCost}🪙</span>
+                <span className="text-amber-400">{HORSE_CONFIG.neutralKarmaCost}🌮</span>
               </div>
               <p className="text-gray-400 text-xs">{HORSE_CONFIG.description}</p>
               <div className="mt-2 text-xs text-gray-500">
@@ -265,7 +265,7 @@ export function LiveryStable() {
                   <div className="flex-1">
                     <div className="flex justify-between">
                       <h4 className="text-amber-200 font-medium">{config.name}</h4>
-                      <span className="text-amber-400">{config.neutralKarmaCost}🪙</span>
+                      <span className="text-amber-400">{config.neutralKarmaCost}🌮</span>
                     </div>
                     <p className="text-gray-400 text-xs">{config.description}</p>
                     <div className="mt-1 text-xs text-gray-500">

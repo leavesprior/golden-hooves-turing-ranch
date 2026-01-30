@@ -31,7 +31,7 @@ export function Gunsmith() {
   const handleBuyAmmo = async () => {
     const cost = Math.ceil(ammoAmount * 0.5) // 0.5 karma per round
     if (balance.neutral < cost) {
-      showMessage(`Need ${cost}🪙 for ${ammoAmount} rounds`, 'error')
+      showMessage(`Need ${cost}🌮 for ${ammoAmount} rounds`, 'error')
       return
     }
 
@@ -67,7 +67,7 @@ export function Gunsmith() {
       <div className="bg-gray-800 rounded-lg p-3 flex justify-between items-center">
         <span className="text-gray-400">Your Balance:</span>
         <div className="flex gap-3">
-          <span className="text-amber-400">{balance.neutral}🪙</span>
+          <span className="text-amber-400">{balance.neutral}🌮</span>
           <span className="text-green-400">{balance.good}🍪</span>
         </div>
       </div>
@@ -133,7 +133,7 @@ export function Gunsmith() {
                         )}
                       </div>
                       <div className="text-right">
-                        <span className="text-amber-400 font-medium">{config.neutralKarmaCost}🪙</span>
+                        <span className="text-amber-400 font-medium">{config.neutralKarmaCost}🌮</span>
                         {config.goodKarmaRequired > 0 && (
                           <span className="text-green-400 text-sm ml-2">+{config.goodKarmaRequired}🍪</span>
                         )}
@@ -192,7 +192,7 @@ export function Gunsmith() {
         </h3>
 
         <p className="text-gray-400 text-sm mb-4">
-          Stock up on ammunition for hunting and protection. 0.5🪙 per round.
+          Stock up on ammunition for hunting and protection. 0.5🌮 per round.
         </p>
 
         <div className="flex gap-2 mb-4">
@@ -213,7 +213,7 @@ export function Gunsmith() {
 
         <div className="flex justify-between items-center mb-4">
           <span className="text-gray-400">{ammoAmount} rounds</span>
-          <span className="text-amber-400">{Math.ceil(ammoAmount * 0.5)}🪙</span>
+          <span className="text-amber-400">{Math.ceil(ammoAmount * 0.5)}🌮</span>
         </div>
 
         <button

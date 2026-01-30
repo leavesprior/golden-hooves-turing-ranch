@@ -4,6 +4,65 @@
 import { type StatName } from '../characterContext'
 import { type Weather } from '../oregonTrailContext'
 
+// Trait bonuses that affect river crossings
+export interface RiverTraitBonus {
+  traitId: string
+  effect: string           // Display text
+  crossingBonus?: {
+    methods: CrossingMethod[]
+    luckBonus: number       // Added to luck roll
+  }
+  riskReduction?: CrossingMethod[]  // Methods where risk is reduced one level
+}
+
+export const RIVER_TRAIT_BONUSES: RiverTraitBonus[] = [
+  {
+    traitId: 'trail_hardened',
+    effect: '+2 to ford/guide rolls',
+    crossingBonus: { methods: ['ford', 'guide'], luckBonus: 2 },
+  },
+  {
+    traitId: 'iron_constitution',
+    effect: 'Reduced injury severity',
+    // Applied in outcome resolution - no direct roll bonus
+  },
+  {
+    traitId: 'born_lucky',
+    effect: '+1 to all crossing rolls',
+    crossingBonus: { methods: ['ford', 'caulk', 'ferry', 'guide'], luckBonus: 1 },
+  },
+  {
+    traitId: 'quick_draw',
+    effect: 'Ford risk reduced one level',
+    riskReduction: ['ford'],
+  },
+  {
+    traitId: 'iron_horse',
+    effect: '+2 to ford rolls from travel experience',
+    crossingBonus: { methods: ['ford'], luckBonus: 2 },
+  },
+  {
+    traitId: 'bridge_keepers_bane',
+    effect: 'Bridge Keeper always appears',
+    // Handled in RiverCrossing component
+  },
+]
+
+// Get active trait bonuses for a player's traits
+export function getActiveTraitBonuses(playerTraits: string[]): RiverTraitBonus[] {
+  return RIVER_TRAIT_BONUSES.filter(b => playerTraits.includes(b.traitId))
+}
+
+// Calculate total luck bonus from traits for a crossing method
+export function getTraitLuckBonus(playerTraits: string[], method: CrossingMethod): number {
+  return getActiveTraitBonuses(playerTraits).reduce((total, bonus) => {
+    if (bonus.crossingBonus?.methods.includes(method)) {
+      return total + bonus.crossingBonus.luckBonus
+    }
+    return total
+  }, 0)
+}
+
 export type RiverCondition = 'low' | 'normal' | 'high' | 'flood'
 export type CrossingMethod = 'ford' | 'caulk' | 'ferry' | 'wait' | 'guide'
 
@@ -172,11 +231,11 @@ export function getCrossingChoices(river: RiverState, hasKarma: number): Crossin
   choices.push({
     id: 'ferry',
     name: 'Take the Ferry',
-    description: `Pay ${river.ferryCost}🪙 for safe crossing`,
+    description: `Pay ${river.ferryCost}🌮 for safe crossing`,
     icon: '⛴️',
     available: river.ferryAvailable && hasKarma >= river.ferryCost,
     unavailableReason: !river.ferryAvailable ? 'No ferry service available' :
-                       hasKarma < river.ferryCost ? `Need ${river.ferryCost}🪙 (have ${hasKarma})` : undefined,
+                       hasKarma < river.ferryCost ? `Need ${river.ferryCost}🌮 (have ${hasKarma})` : undefined,
     riskLevel: 'low',
     cost: river.ferryCost
   })
@@ -198,11 +257,11 @@ export function getCrossingChoices(river: RiverState, hasKarma: number): Crossin
   choices.push({
     id: 'guide',
     name: 'Hire a Guide',
-    description: `Pay ${river.guideCost}🪙 for local expertise`,
+    description: `Pay ${river.guideCost}🌮 for local expertise`,
     icon: '🧭',
     available: river.guideAvailable && hasKarma >= river.guideCost,
     unavailableReason: !river.guideAvailable ? 'No guides available here' :
-                       hasKarma < river.guideCost ? `Need ${river.guideCost}🪙 (have ${hasKarma})` : undefined,
+                       hasKarma < river.guideCost ? `Need ${river.guideCost}🌮 (have ${hasKarma})` : undefined,
     riskLevel: 'low',
     cost: river.guideCost
   })

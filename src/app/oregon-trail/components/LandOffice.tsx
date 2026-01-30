@@ -97,7 +97,7 @@ export function LandOffice() {
       <div className="bg-gray-800 rounded-lg p-3 flex justify-between items-center">
         <span className="text-gray-400">Your Balance:</span>
         <div className="flex gap-3">
-          <span className="text-amber-400">{balance.neutral}🪙</span>
+          <span className="text-amber-400">{balance.neutral}🌮</span>
           <span className="text-green-400">{balance.good}🍪</span>
         </div>
       </div>
@@ -127,7 +127,7 @@ export function LandOffice() {
           <div className="bg-gray-700/50 rounded-lg p-3 mb-3">
             <div className="flex justify-between items-center mb-2">
               <span className="text-amber-300">Next: {nextTierConfig.name}</span>
-              <span className="text-amber-400">{nextTierConfig.neutralKarmaCost}🪙</span>
+              <span className="text-amber-400">{nextTierConfig.neutralKarmaCost}🌮</span>
             </div>
             <p className="text-gray-400 text-xs mb-2">{nextTierConfig.description}</p>
             <div className="text-xs text-gray-500 space-y-1">
@@ -222,7 +222,7 @@ export function LandOffice() {
                       }`}
                     >
                       {buildCheck.canAfford
-                        ? `Build (${config.neutralKarmaCost}🪙, ${config.buildDays} days)`
+                        ? `Build (${config.neutralKarmaCost}🌮, ${config.buildDays} days)`
                         : buildCheck.reason}
                     </button>
                   )}
@@ -245,7 +245,7 @@ export function LandOffice() {
             <h4 className="text-amber-200">{MINING_CLAIM.name}</h4>
             <p className="text-gray-400 text-xs">{MINING_CLAIM.description}</p>
             <p className="text-gray-500 text-xs mt-1">
-              Daily yield: {MINING_CLAIM.dailyGoldRange[0]}-{MINING_CLAIM.dailyGoldRange[1]}🪙
+              Daily yield: {MINING_CLAIM.dailyGoldRange[0]}-{MINING_CLAIM.dailyGoldRange[1]}🌮
             </p>
           </div>
         </div>
@@ -254,7 +254,7 @@ export function LandOffice() {
           <span className="text-gray-400">
             Owned: {state.miningClaims}/{MINING_CLAIM.maxOwned}
           </span>
-          <span className="text-amber-400">{MINING_CLAIM.neutralKarmaCost}🪙 each</span>
+          <span className="text-amber-400">{MINING_CLAIM.neutralKarmaCost}🌮 each</span>
         </div>
 
         {(() => {
@@ -287,7 +287,7 @@ export function LandOffice() {
             <h4 className="text-amber-200">{FARMLAND.name}</h4>
             <p className="text-gray-400 text-xs">{FARMLAND.description}</p>
             <p className="text-gray-500 text-xs mt-1">
-              Yield: {FARMLAND.yieldPerAcre}🪙 per acre per season
+              Yield: {FARMLAND.yieldPerAcre}🌮 per acre per season
             </p>
           </div>
         </div>
@@ -296,7 +296,7 @@ export function LandOffice() {
           <span className="text-gray-400">
             Owned: {state.farmAcres}/{FARMLAND.maxAcres} acres
           </span>
-          <span className="text-amber-400">{FARMLAND.costPerAcre}🪙 per acre</span>
+          <span className="text-amber-400">{FARMLAND.costPerAcre}🌮 per acre</span>
         </div>
 
         <div className="flex gap-2 mb-3">
@@ -329,7 +329,7 @@ export function LandOffice() {
               }`}
             >
               {check.canAfford
-                ? `Purchase ${farmAcresAmount} acres (${cost}🪙)`
+                ? `Purchase ${farmAcresAmount} acres (${cost}🌮)`
                 : check.reason}
             </button>
           )

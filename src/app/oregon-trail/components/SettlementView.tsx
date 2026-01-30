@@ -228,7 +228,7 @@ export function SettlementView({ compact = false }: SettlementViewProps) {
         </div>
         <div className="bg-gray-800 rounded p-2">
           <span className="text-gray-400 text-[10px] block">Gold Mined</span>
-          <span className="text-amber-200 font-pixel text-sm">{state.goldMined}🪙</span>
+          <span className="text-amber-200 font-pixel text-sm">{state.goldMined}🌮</span>
         </div>
       </div>
     </div>

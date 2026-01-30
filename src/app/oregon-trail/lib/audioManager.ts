@@ -1395,3 +1395,364 @@ function playTone(ctx: AudioContext, dest: AudioNode, freq: number, volume: numb
 
 export function getCurrentStyle(): MusicStyle { return state.currentStyle }
 export function isInitialized(): boolean { return state.context !== null }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FALLOUT 2 SOUNDTRACK - File-based MP3 playback
+// ═══════════════════════════════════════════════════════════════════════════════
+// 19 tracks from the Fallout 2 OST, mapped to game contexts.
+// Uses HTML Audio elements for MP3 playback with crossfading.
+
+export interface FalloutTrack {
+  id: string
+  title: string
+  file: string           // URL path under /rpg/sounds/fallout/
+  context: FalloutTrackContext[]  // When this track fits best
+}
+
+export type FalloutTrackContext =
+  | 'title'       // Title screen / menu
+  | 'town'        // In town, shopping, talking to NPCs
+  | 'travel'      // On the trail between locations
+  | 'wilderness'  // Wilderness, hunting, exploration
+  | 'danger'      // Combat, outlaw encounters, dangerous areas
+  | 'mystery'     // Investigation, clue gathering, dossier
+  | 'saloon'      // Saloon, gambling, social
+  | 'settlement'  // Ranch, settlement building
+  | 'ambient'     // General ambient, any context
+
+export const FALLOUT_TRACKS: FalloutTrack[] = [
+  {
+    id: 'kiss_to_build_a_dream_on',
+    title: 'A Kiss To Build A Dream On',
+    file: '/rpg/sounds/fallout/00__A_Kiss_To_Build_A_Dream_On.mp3',
+    context: ['title', 'saloon'],
+  },
+  {
+    id: 'traders_life',
+    title: "Trader's Life",
+    file: '/rpg/sounds/fallout/01_Traders_Life.mp3',
+    context: ['town', 'settlement'],
+  },
+  {
+    id: 'moribund_world',
+    title: 'Moribund World',
+    file: '/rpg/sounds/fallout/02_Moribund_World.mp3',
+    context: ['wilderness', 'travel', 'ambient'],
+  },
+  {
+    id: 'khans_of_new_california',
+    title: 'Khans of New California',
+    file: '/rpg/sounds/fallout/03__Khans_of_New_California.mp3',
+    context: ['danger', 'wilderness'],
+  },
+  {
+    id: 'desert_wind',
+    title: 'Desert Wind',
+    file: '/rpg/sounds/fallout/04_Desert_Wind.mp3',
+    context: ['travel', 'wilderness', 'ambient'],
+  },
+  {
+    id: 'vats_of_goo',
+    title: 'Vats of Goo',
+    file: '/rpg/sounds/fallout/05__Vats_of_Goo.mp3',
+    context: ['danger', 'mystery'],
+  },
+  {
+    id: 'city_of_lost_angels',
+    title: 'City of Lost Angels',
+    file: '/rpg/sounds/fallout/06_City_of_Lost_Angels.mp3',
+    context: ['town', 'mystery', 'ambient'],
+  },
+  {
+    id: 'industrial_junk',
+    title: 'Industrial Junk',
+    file: '/rpg/sounds/fallout/07_Industrial_Junk.mp3',
+    context: ['danger', 'settlement'],
+  },
+  {
+    id: 'underground_troubles',
+    title: 'Underground Troubles',
+    file: '/rpg/sounds/fallout/08_Underground_Troubles.mp3',
+    context: ['mystery', 'danger'],
+  },
+  {
+    id: 'city_of_the_dead',
+    title: 'City of the Dead',
+    file: '/rpg/sounds/fallout/09_City_of_the_Dead.mp3',
+    context: ['danger', 'wilderness'],
+  },
+  {
+    id: 'followers_credo',
+    title: "Follower's Credo",
+    file: '/rpg/sounds/fallout/10_Followers_Credo.mp3',
+    context: ['town', 'ambient', 'settlement'],
+  },
+  {
+    id: 'beyond_the_canyon',
+    title: 'Beyond the Canyon',
+    file: '/rpg/sounds/fallout/11_Beyond_the_Canyon.mp3',
+    context: ['travel', 'wilderness', 'ambient'],
+  },
+  {
+    id: 'dream_town',
+    title: 'Dream Town',
+    file: '/rpg/sounds/fallout/12_Dream_Town.mp3',
+    context: ['town', 'saloon', 'settlement'],
+  },
+  {
+    id: 'biggest_little_city',
+    title: 'Biggest Little City in the World',
+    file: '/rpg/sounds/fallout/13_Biggest_Little_City_in_the_World.mp3',
+    context: ['town', 'saloon'],
+  },
+  {
+    id: 'my_chrysalis_highwayman',
+    title: 'My Chrysalis Highwayman',
+    file: '/rpg/sounds/fallout/14_My_Chrysalis_Highwayman.mp3',
+    context: ['travel', 'ambient'],
+  },
+  {
+    id: 'many_contrasts',
+    title: 'Many Contrasts',
+    file: '/rpg/sounds/fallout/15_Many_Contrasts.mp3',
+    context: ['mystery', 'ambient', 'town'],
+  },
+  {
+    id: 'all_clear_signal',
+    title: 'All-Clear Signal',
+    file: '/rpg/sounds/fallout/16_All-Clear_Signal.mp3',
+    context: ['settlement', 'ambient'],
+  },
+  {
+    id: 'california_revisited',
+    title: 'California Revisited',
+    file: '/rpg/sounds/fallout/17_California_Revisited.mp3',
+    context: ['travel', 'wilderness'],
+  },
+  {
+    id: 'gold_slouch',
+    title: 'Gold Slouch',
+    file: '/rpg/sounds/fallout/18_Gold_Slouch.mp3',
+    context: ['settlement', 'ambient', 'town'],
+  },
+]
+
+// Fallout playback state
+interface FalloutState {
+  mode: 'synth' | 'fallout'  // Which soundtrack is active
+  audioElement: HTMLAudioElement | null
+  nextAudioElement: HTMLAudioElement | null  // For crossfading
+  currentTrackId: string | null
+  trackQueue: FalloutTrack[]
+  queueIndex: number
+  isPlaying: boolean
+  currentContext: FalloutTrackContext
+}
+
+const falloutState: FalloutState = {
+  mode: 'synth',
+  audioElement: null,
+  nextAudioElement: null,
+  currentTrackId: null,
+  trackQueue: [],
+  queueIndex: 0,
+  isPlaying: false,
+  currentContext: 'ambient',
+}
+
+// Get the active soundtrack mode
+export function getSoundtrackMode(): 'synth' | 'fallout' {
+  return falloutState.mode
+}
+
+// Get current Fallout track info
+export function getCurrentFalloutTrack(): FalloutTrack | null {
+  if (falloutState.mode !== 'fallout' || !falloutState.currentTrackId) return null
+  return FALLOUT_TRACKS.find(t => t.id === falloutState.currentTrackId) || null
+}
+
+// Switch soundtrack mode
+export function setSoundtrackMode(mode: 'synth' | 'fallout'): void {
+  if (falloutState.mode === mode) return
+
+  // Stop whatever is playing
+  if (falloutState.mode === 'synth') {
+    stopMusic()
+  } else {
+    stopFalloutMusic()
+  }
+
+  falloutState.mode = mode
+
+  // Start the new mode
+  if (mode === 'synth') {
+    playPlaylist()
+  } else {
+    playFalloutPlaylist()
+  }
+
+  // Persist preference
+  try {
+    localStorage.setItem('golden-hooves-soundtrack-mode', mode)
+  } catch {}
+}
+
+// Load saved soundtrack preference
+export function loadSoundtrackPreference(): 'synth' | 'fallout' {
+  try {
+    const saved = localStorage.getItem('golden-hooves-soundtrack-mode')
+    if (saved === 'fallout' || saved === 'synth') return saved
+  } catch {}
+  return 'synth'
+}
+
+// Build a context-aware shuffled queue
+function buildFalloutQueue(context: FalloutTrackContext): FalloutTrack[] {
+  // Prioritize tracks matching context, then fill with others
+  const contextTracks = FALLOUT_TRACKS.filter(t => t.context.includes(context))
+  const otherTracks = FALLOUT_TRACKS.filter(t => !t.context.includes(context))
+
+  const shuffled = [
+    ...shuffleArray([...contextTracks]),
+    ...shuffleArray([...otherTracks]),
+  ]
+
+  return shuffled
+}
+
+// Play the Fallout 2 soundtrack as a shuffled playlist
+export function playFalloutPlaylist(context: FalloutTrackContext = 'ambient'): void {
+  if (!initAudio()) return
+  falloutState.mode = 'fallout'
+  falloutState.currentContext = context
+  falloutState.trackQueue = buildFalloutQueue(context)
+  falloutState.queueIndex = 0
+  falloutState.isPlaying = true
+
+  playFalloutTrack(falloutState.trackQueue[0])
+}
+
+// Play a specific Fallout track
+function playFalloutTrack(track: FalloutTrack): void {
+  if (!state.context || !state.musicGain) return
+
+  const crossfadeDuration = 2000 // 2 seconds crossfade
+
+  // Create new audio element
+  const audio = new Audio(track.file)
+  audio.volume = 0 // Start silent for fade-in
+
+  // Connect to Web Audio for volume control via musicGain
+  // Use a MediaElementSource so master/music volume sliders work
+  try {
+    const source = state.context.createMediaElementSource(audio)
+    source.connect(state.musicGain!)
+  } catch {
+    // If context already has this element, just set volume directly
+    audio.volume = state.musicGain.gain.value * (state.masterGain?.gain.value ?? 1)
+  }
+
+  // Crossfade: fade out old, fade in new
+  if (falloutState.audioElement) {
+    const oldAudio = falloutState.audioElement
+    const startVol = oldAudio.volume
+    const fadeSteps = 20
+    const fadeInterval = crossfadeDuration / fadeSteps
+    let step = 0
+
+    const fadeOut = setInterval(() => {
+      step++
+      oldAudio.volume = Math.max(0, startVol * (1 - step / fadeSteps))
+      if (step >= fadeSteps) {
+        clearInterval(fadeOut)
+        oldAudio.pause()
+        oldAudio.src = ''
+      }
+    }, fadeInterval)
+  }
+
+  // Fade in new track
+  audio.play().then(() => {
+    const targetVol = 0.8
+    const fadeSteps = 20
+    const fadeInterval = crossfadeDuration / fadeSteps
+    let step = 0
+
+    const fadeIn = setInterval(() => {
+      step++
+      audio.volume = Math.min(targetVol, targetVol * (step / fadeSteps))
+      if (step >= fadeSteps) {
+        clearInterval(fadeIn)
+      }
+    }, fadeInterval)
+  }).catch(err => {
+    console.warn('AudioManager: Fallout track play failed (user interaction required?):', err.message)
+  })
+
+  // When track ends, advance to next
+  audio.addEventListener('ended', () => {
+    if (falloutState.isPlaying) {
+      advanceFalloutTrack()
+    }
+  })
+
+  falloutState.audioElement = audio
+  falloutState.currentTrackId = track.id
+  state.currentStyle = 'silent' // Clear synth style indicator
+  state.isPlaying = true
+
+  console.log(`AudioManager: Fallout 2 - Now playing: ${track.title}`)
+}
+
+function advanceFalloutTrack(): void {
+  if (!falloutState.isPlaying) return
+
+  falloutState.queueIndex++
+  if (falloutState.queueIndex >= falloutState.trackQueue.length) {
+    // Reshuffle and restart
+    falloutState.trackQueue = buildFalloutQueue(falloutState.currentContext)
+    falloutState.queueIndex = 0
+  }
+
+  playFalloutTrack(falloutState.trackQueue[falloutState.queueIndex])
+}
+
+// Stop Fallout music
+export function stopFalloutMusic(): void {
+  if (falloutState.audioElement) {
+    falloutState.audioElement.pause()
+    falloutState.audioElement.src = ''
+    falloutState.audioElement = null
+  }
+  if (falloutState.nextAudioElement) {
+    falloutState.nextAudioElement.pause()
+    falloutState.nextAudioElement.src = ''
+    falloutState.nextAudioElement = null
+  }
+  falloutState.isPlaying = false
+  falloutState.currentTrackId = null
+}
+
+// Change Fallout context (e.g., entering a town vs traveling)
+export function setFalloutContext(context: FalloutTrackContext): void {
+  if (falloutState.mode !== 'fallout') return
+  if (falloutState.currentContext === context) return
+
+  falloutState.currentContext = context
+
+  // Rebuild queue with new context priority, but finish current track
+  // Queue will use new context on next advance
+  const remaining = falloutState.trackQueue.slice(falloutState.queueIndex + 1)
+  const newQueue = buildFalloutQueue(context).filter(
+    t => !remaining.some(r => r.id === t.id)
+  )
+  falloutState.trackQueue = [
+    ...falloutState.trackQueue.slice(0, falloutState.queueIndex + 1),
+    ...shuffleArray([...newQueue]),
+  ]
+}
+
+// Get tracks for a specific context (for UI display)
+export function getFalloutTracksForContext(context: FalloutTrackContext): FalloutTrack[] {
+  return FALLOUT_TRACKS.filter(t => t.context.includes(context))
+}

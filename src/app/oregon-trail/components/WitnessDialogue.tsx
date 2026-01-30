@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { type WitnessType, WITNESS_PERSONALITIES } from '../data/clueTemplates'
-import { type DialogueTree, type DialogueNode, type DialogueResponse, getDialogueTree } from '../data/dialogueTrees'
+import { type DialogueTree, type DialogueNode, type DialogueResponse, getDialogueTree, type DialogueEffect } from '../data/dialogueTrees'
 import { useCharacter, type StatName, type SkillCheckResult } from '../characterContext'
 import { useReputation, type FactionId } from '../reputationContext'
 import { useNarrator } from '../narratorContext'
@@ -11,6 +11,9 @@ import { useKarmaWallet } from '../karmaWalletContext'
 import { useNPC } from '../npcContext'
 import type { NPCPersonality } from '../data/npcPersonalities'
 import { SkillCheck } from './SkillCheck'
+import { ConversationStore, generateNPCId } from '../lib/conversationStore'
+import { detectAdamsKeyword } from '../data/adamsEasterEggs'
+import { getMoodEntry, trustToMoodLevel, MOOD_SCALE, type MoodLevel } from '../data/npcMoodScale'
 
 interface WitnessDialogueProps {
   witnessType: WitnessType
@@ -44,7 +47,9 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
   } = useNPC()
 
   // Dialogue mode state
-  const [dialogueMode, setDialogueMode] = useState<DialogueMode>('checking')
+  const [dialogueMode, setDialogueMode] = useState<DialogueMode>('scripted')
+  const [ollamaAvailable, setOllamaAvailable] = useState(false)
+  const [freeformUnlocked, setFreeformUnlocked] = useState(false)
   const [customInput, setCustomInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState('')
@@ -71,36 +76,82 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
   const personality = getPersonalityFor(witnessType)
   const npcName = generateNameFor(witnessType, location)
 
+  // Check rapport/trust to determine if freeform conversation is unlocked
+  const npcId = generateNPCId(witnessType, location)
+  const conversationSummary = ConversationStore.getConversationSummary(npcId)
+  const visitCount = conversationSummary.visitCount
+  const trustLevel = conversationSummary.trustLevel
+
   // Scroll to bottom on new messages
   useEffect(() => {
     historyEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [dialogueHistory, streamingText])
 
-  // Check Ollama availability on mount
+  // Check Ollama availability on mount, but always start scripted
   useEffect(() => {
     async function checkMode() {
       const status = await checkOllamaHealth()
-      if (status.available) {
-        setDialogueMode('dynamic')
-        // Start NPC conversation with clue info
+      setOllamaAvailable(status.available)
+
+      // Check if freeform is already unlocked by rapport
+      const rapportUnlocked = trustLevel >= 7 || (visitCount >= 3 && trustLevel >= 5)
+      setFreeformUnlocked(rapportUnlocked)
+
+      if (status.available && rapportUnlocked) {
+        // Pre-initialize conversation for when player unlocks freeform
         startConversation(
           witnessType,
           location,
           clue ? { trait: clue.trait || 'unknown', value: clue.value || '' } : undefined
         )
-        // Add initial greeting
-        const greeting = getInitialGreeting(personality, witnessType)
-        addToHistory(npcName, greeting)
-      } else {
-        setDialogueMode('scripted')
-        // Process initial node for scripted mode
-        if (currentNode) {
-          processNodeEffects(currentNode)
-        }
       }
+
+      // Always start with scripted dialogue tree
+      setDialogueMode('scripted')
+      // Process initial node for scripted mode
+      // (handled below since currentNode may not be ready in this tick)
     }
     checkMode()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Process initial scripted node once mode is set
+  useEffect(() => {
+    if (dialogueMode === 'scripted' && currentNode && dialogueHistory.length === 0) {
+      processNodeEffects(currentNode)
+    }
+  }, [dialogueMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Unlock freeform when an easter egg keyword is detected or trust threshold met
+  const checkFreeformUnlock = useCallback((playerText: string) => {
+    if (freeformUnlocked) return
+    // Easter egg keywords unlock conversation
+    const adamsRef = detectAdamsKeyword(playerText)
+    if (adamsRef) {
+      setFreeformUnlocked(true)
+      if (ollamaAvailable) {
+        startConversation(
+          witnessType,
+          location,
+          clue ? { trait: clue.trait || 'unknown', value: clue.value || '' } : undefined
+        )
+      }
+      return
+    }
+  }, [freeformUnlocked, ollamaAvailable, witnessType, location, clue, startConversation])
+
+  // Switch to dynamic/freeform mode
+  const enterFreeformMode = useCallback(() => {
+    if (!ollamaAvailable) return
+    setDialogueMode('dynamic')
+    if (!npcState.activeConversation) {
+      startConversation(
+        witnessType,
+        location,
+        clue ? { trait: clue.trait || 'unknown', value: clue.value || '' } : undefined
+      )
+    }
+    addToHistory('NARRATOR', `${npcName} seems willing to talk openly...`)
+  }, [ollamaAvailable, npcState.activeConversation, witnessType, location, clue, startConversation, npcName]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Add dialogue line to history
   const addToHistory = useCallback((speaker: string, text: string, isStreaming?: boolean) => {
@@ -290,7 +341,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
     const karmaCost = response.goldCost || response.karmaCost || 0
     if (karmaCost > 0) {
       if (!canAfford('neutral', karmaCost)) {
-        addToHistory('NARRATOR', `You need ${karmaCost}🪙 to do that.`)
+        addToHistory('NARRATOR', `You need ${karmaCost}🌮 to do that.`)
         return
       }
       await spendNeutral(karmaCost, `Dialogue: ${response.text.substring(0, 30)}...`)
@@ -411,9 +462,47 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
               </p>
             </div>
           </div>
+          {/* Mood Indicator */}
+          {dialogueMode !== 'checking' && npcState.activeConversation && (() => {
+            const trust = npcState.activeConversation.trustLevel
+            const moodLevel = trustToMoodLevel(trust)
+            const moodInfo = MOOD_SCALE[moodLevel]
+            return (
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-500"
+                style={{
+                  backgroundColor: moodInfo.bgColor,
+                  border: `1px solid ${moodInfo.borderColor}`,
+                }}
+                title={moodInfo.description}
+              >
+                <span className="text-lg">{moodInfo.face}</span>
+                <div className="text-right">
+                  <p className="text-xs font-bold" style={{ color: moodInfo.color }}>
+                    {moodInfo.label}
+                  </p>
+                  {/* 5-pip mood bar */}
+                  <div className="flex gap-0.5 mt-0.5">
+                    {([1, 2, 3, 4, 5] as MoodLevel[]).map(level => (
+                      <div
+                        key={level}
+                        className="w-2 h-1.5 rounded-sm transition-colors duration-300"
+                        style={{
+                          backgroundColor: level <= moodLevel
+                            ? moodInfo.color
+                            : 'rgba(90, 64, 32, 0.3)',
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
           <div className="text-right">
             {clueObtained && (
-              <span className="text-emerald-400 text-xs">✓ Clue Obtained</span>
+              <span className="text-emerald-400 text-xs">&#10003; Clue Obtained</span>
             )}
             {dialogueMode === 'checking' && (
               <span className="text-gray-500 text-xs animate-pulse">Connecting...</span>
@@ -507,41 +596,88 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
             {currentNode.responses.map(response => {
               const statValue = response.skillCheck ? getStat(response.skillCheck.stat as StatName) : 0
               const meetsRequirement = !response.skillCheck || statValue >= response.skillCheck.difficulty
+              const karmaCost = response.goldCost || response.karmaCost || 0
+              const canAffordCost = karmaCost <= 0 || canAfford('neutral', karmaCost)
+              const isAvailable = meetsRequirement && canAffordCost
+
+              // Determine alignment label for this option
+              const alignmentLabel = getAlignmentLabel(response)
+
+              // Build Fallout-style skill label prefix
+              const skillLabel = response.skillCheck
+                ? `[${response.skillCheck.stat} ${response.skillCheck.difficulty}] `
+                : ''
 
               return (
                 <button
                   key={response.id}
-                  onClick={() => handleSelectResponse(response)}
+                  onClick={() => {
+                    checkFreeformUnlock(response.text)
+                    handleSelectResponse(response)
+                  }}
                   className={`w-full p-4 md:p-3 text-left rounded transition-colors active:scale-[0.99] ${
-                    meetsRequirement
+                    isAvailable
                       ? 'bg-gray-800 text-gray-200 hover:bg-gray-700 active:bg-gray-600'
-                      : 'bg-gray-900 text-gray-600 cursor-not-allowed'
+                      : 'bg-gray-900/60 text-gray-600 cursor-not-allowed opacity-75'
                   }`}
-                  disabled={!meetsRequirement}
+                  disabled={!isAvailable}
                 >
-                  <span className="text-base md:text-sm">{response.displayText || response.text}</span>
-                  {response.skillCheck && (
-                    <span className={`ml-2 text-xs ${
-                      meetsRequirement ? 'text-amber-400' : 'text-gray-600'
-                    }`}>
-                      [{response.skillCheck.stat} {response.skillCheck.difficulty}]
-                      {!meetsRequirement && ` (You have ${statValue})`}
-                    </span>
-                  )}
-                  {(response.goldCost || response.karmaCost) && (
-                    <span className={`ml-2 text-xs ${canAfford('neutral', response.goldCost || response.karmaCost || 0) ? 'text-yellow-400' : 'text-red-400'}`}>
-                      {response.goldCost || response.karmaCost}🪙
-                    </span>
-                  )}
-                  {response.karmaGood && response.karmaGood > 0 && (
-                    <span className="ml-2 text-amber-400 text-xs">[+{response.karmaGood}🍪]</span>
-                  )}
-                  {response.karmaGood && response.karmaGood < 0 && (
-                    <span className="ml-2 text-red-400 text-xs">[+{Math.abs(response.karmaGood)}🪨]</span>
-                  )}
+                  <div className="flex items-start gap-2">
+                    {/* Alignment icon */}
+                    {alignmentLabel && (
+                      <span className="text-xs mt-0.5 opacity-70 shrink-0">{alignmentLabel}</span>
+                    )}
+                    {/* Lock icon for unavailable options */}
+                    {!isAvailable && (
+                      <span className="text-xs mt-0.5 shrink-0 text-gray-600">🔒</span>
+                    )}
+                    <div className="flex-1">
+                      {/* Skill check label in Fallout style - before the text */}
+                      {response.skillCheck && (
+                        <span className={`font-mono text-xs mr-1 ${
+                          meetsRequirement ? 'text-amber-400' : 'text-red-500'
+                        }`}>
+                          [{response.skillCheck.stat} {response.skillCheck.difficulty}]
+                        </span>
+                      )}
+                      <span className="text-base md:text-sm">
+                        {response.displayText || response.text}
+                      </span>
+                      {/* Stat gap indicator for failed checks */}
+                      {response.skillCheck && !meetsRequirement && (
+                        <span className="ml-2 text-xs text-red-500/70 italic">
+                          (Need {response.skillCheck.difficulty}, have {statValue})
+                        </span>
+                      )}
+                    </div>
+                    {/* Cost indicators on the right */}
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      {karmaCost > 0 && (
+                        <span className={`text-xs ${canAffordCost ? 'text-yellow-400' : 'text-red-400'}`}>
+                          {karmaCost}🌮
+                        </span>
+                      )}
+                      {response.karmaGood && response.karmaGood > 0 && (
+                        <span className="text-amber-400 text-xs">+{response.karmaGood}🍪</span>
+                      )}
+                      {response.karmaGood && response.karmaGood < 0 && (
+                        <span className="text-red-400 text-xs">+{Math.abs(response.karmaGood)}🪨</span>
+                      )}
+                    </div>
+                  </div>
                 </button>
               )
             })}
+            {/* Speak freely option — unlocked via rapport or easter egg */}
+            {freeformUnlocked && ollamaAvailable && (
+              <button
+                onClick={enterFreeformMode}
+                className="w-full p-4 md:p-3 text-left rounded transition-colors active:scale-[0.99] bg-indigo-900/50 text-indigo-200 hover:bg-indigo-800/50 active:bg-indigo-700/50 border border-indigo-600/30"
+              >
+                <span className="text-xs mr-2 opacity-70">✨</span>
+                <span className="text-base md:text-sm italic">[Speak freely...]</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -580,6 +716,24 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
       )}
     </div>
   )
+}
+
+// Get alignment label emoji for a dialogue response
+function getAlignmentLabel(response: DialogueResponse): string {
+  const lawful = response.karmaLawful || 0
+  const good = response.karmaGood || 0
+
+  // Determine alignment flavor
+  if (lawful > 0 && good > 0) return '⚖️😇' // Lawful Good
+  if (lawful > 0 && good < 0) return '⚖️😈' // Lawful Evil
+  if (lawful > 0 && good === 0) return '⚖️' // Lawful
+  if (lawful < 0 && good > 0) return '🎲😇' // Chaotic Good
+  if (lawful < 0 && good < 0) return '🎲😈' // Chaotic Evil
+  if (lawful < 0 && good === 0) return '🎲' // Chaotic
+  if (good > 0) return '😇' // Good
+  if (good < 0) return '😈' // Evil
+  if (response.skillCheck) return '🎯' // Skill check
+  return '🌮' // Neutral (taco)
 }
 
 // Helper functions

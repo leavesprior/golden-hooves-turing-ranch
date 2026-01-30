@@ -1,26 +1,76 @@
 /**
- * BOBR Discount Engine - TypeScript Port
- * Creates HMAC-signed, self-validating discount codes
+ * BOBR Discount Engine - Enhanced with Unified Tiers & Occupation Multiplier
  *
- * Code format: BOBR-{TIER}{DISCOUNT}-{TIMESTAMP}-{SIGNATURE}
- * Example: BOBR-D08-1705708800-A3F2
+ * Tier System (per plan):
+ *   Bronze:   3 clues            -> 8% base  (max 12% w/ multiplier)
+ *   Silver:   5 clues + 1 case   -> 12% base (max 17% w/ multiplier)
+ *   Gold:     7 clues + 2 cases  -> 16% base (max 22% w/ multiplier)
+ *   Platinum: 10 clues + all cases + outlaw caught -> 20% base (max 27% w/ multiplier)
+ *
+ * Code format: TOBIAS-{TIER}{DISCOUNT}-{TIMESTAMP}-{SIGNATURE}
+ * Example: TOBIAS-G16-1705708800-A3F2 (Gold tier, 16% base)
  */
 
-// Discount tiers based on clues collected
-export type DiscountTier = 'recruit' | 'detective' | 'inspector' | 'chief'
+// Updated discount tiers matching the plan
+export type DiscountTier = 'bronze' | 'silver' | 'gold' | 'platinum'
 
 export interface TierInfo {
   minClues: number
-  discount: number
+  minCasesSolved: number
+  requiresOutlawCaught: boolean
+  discount: number        // Base discount percentage
+  maxDiscount: number     // Maximum with all multipliers
   validDays: number
   prefix: string
+  displayName: string
+  badge: string
 }
 
 export const DISCOUNT_TIERS: Record<DiscountTier, TierInfo> = {
-  recruit: { minClues: 3, discount: 5, validDays: 30, prefix: 'R' },
-  detective: { minClues: 5, discount: 8, validDays: 30, prefix: 'D' },
-  inspector: { minClues: 7, discount: 10, validDays: 60, prefix: 'I' },
-  chief: { minClues: 10, discount: 15, validDays: 90, prefix: 'C' }
+  bronze: {
+    minClues: 3,
+    minCasesSolved: 0,
+    requiresOutlawCaught: false,
+    discount: 8,
+    maxDiscount: 12,
+    validDays: 30,
+    prefix: 'B',
+    displayName: 'Bronze Deputy',
+    badge: '\u{1F949}'
+  },
+  silver: {
+    minClues: 5,
+    minCasesSolved: 1,
+    requiresOutlawCaught: false,
+    discount: 12,
+    maxDiscount: 17,
+    validDays: 45,
+    prefix: 'S',
+    displayName: 'Silver Detective',
+    badge: '\u{1F948}'
+  },
+  gold: {
+    minClues: 7,
+    minCasesSolved: 2,
+    requiresOutlawCaught: false,
+    discount: 16,
+    maxDiscount: 22,
+    validDays: 60,
+    prefix: 'G',
+    displayName: 'Gold Inspector',
+    badge: '\u{1F947}'
+  },
+  platinum: {
+    minClues: 10,
+    minCasesSolved: 3,
+    requiresOutlawCaught: true,
+    discount: 20,
+    maxDiscount: 27,
+    validDays: 90,
+    prefix: 'P',
+    displayName: 'Platinum Chief',
+    badge: '\u{1F48E}'
+  }
 }
 
 // D&D-style alignment positions with karma multipliers
@@ -59,6 +109,66 @@ export const ALIGNMENT_DISPLAY_NAMES: Record<AlignmentPosition, string> = {
   chaotic_evil: 'Chaotic Evil'
 }
 
+// Occupation-based discount multipliers (Oregon Trail difficulty scaling)
+export type OccupationType =
+  | 'banker'
+  | 'carpenter'
+  | 'farmer'
+  | 'doctor'
+  | 'merchant'
+  | 'blacksmith'
+  | 'teacher'
+  | 'saddlemaker'
+
+export interface OccupationDiscountInfo {
+  discountMultiplier: number
+  difficultyLabel: string
+  flavorText: string
+}
+
+export const OCCUPATION_DISCOUNT_MULTIPLIERS: Record<OccupationType, OccupationDiscountInfo> = {
+  banker: {
+    discountMultiplier: 1.0,
+    difficultyLabel: 'Easy',
+    flavorText: 'The banker\'s wealth makes the journey easy. Standard reward.'
+  },
+  merchant: {
+    discountMultiplier: 1.1,
+    difficultyLabel: 'Moderate',
+    flavorText: 'The merchant\'s trade skills earn a modest bonus.'
+  },
+  doctor: {
+    discountMultiplier: 1.2,
+    difficultyLabel: 'Moderate',
+    flavorText: 'The doctor\'s care for others is rewarded.'
+  },
+  carpenter: {
+    discountMultiplier: 1.3,
+    difficultyLabel: 'Hard',
+    flavorText: 'The carpenter builds their fortune the hard way.'
+  },
+  teacher: {
+    discountMultiplier: 1.3,
+    difficultyLabel: 'Hard',
+    flavorText: 'The teacher\'s knowledge enriches the journey.'
+  },
+  blacksmith: {
+    discountMultiplier: 1.35,
+    difficultyLabel: 'Hard',
+    flavorText: 'The blacksmith forges their own destiny.'
+  },
+  saddlemaker: {
+    discountMultiplier: 1.35,
+    difficultyLabel: 'Hard',
+    flavorText: 'The saddlemaker\'s grit is rewarded in gold.'
+  },
+  farmer: {
+    discountMultiplier: 1.5,
+    difficultyLabel: 'Expert',
+    flavorText: 'The farmer\'s life is hard, but fortune favors the bold.'
+  }
+}
+
 // Client-side signature key (real validation happens server-side)
 const CLIENT_SECRET = 'bobr-gold-country-2026'
 
@@ -84,15 +194,20 @@ export interface GeneratedCode {
   expiresAt: string
   cluesRequired: number
   cluesCollected: number
+  casesSolved: number
+  outlawCaught: boolean
   generatedAt: string
 }
 
 export interface KarmaAdjustedCode extends GeneratedCode {
   baseDiscount: number
+  karmaMultiplier: number
+  occupationMultiplier: number
+  occupationName: string
   finalDiscount: number
   karmaPosition: AlignmentPosition
-  karmaMultiplier: number
   karmaMessage: string | null
+  occupationMessage: string | null
 }
 
 export interface ParsedCode {
@@ -108,21 +223,40 @@ export interface ParsedCode {
 }
 
 /**
- * Get qualifying tier based on clues collected
+ * Get qualifying tier based on clues, cases solved, and outlaw status
  */
-export function getQualifyingTier(cluesCollected: number): DiscountTier | null {
-  if (cluesCollected >= DISCOUNT_TIERS.chief.minClues) return 'chief'
-  if (cluesCollected >= DISCOUNT_TIERS.inspector.minClues) return 'inspector'
-  if (cluesCollected >= DISCOUNT_TIERS.detective.minClues) return 'detective'
-  if (cluesCollected >= DISCOUNT_TIERS.recruit.minClues) return 'recruit'
+export function getQualifyingTier(
+  cluesCollected: number,
+  casesSolved: number = 0,
+  outlawCaught: boolean = false
+): DiscountTier | null {
+  if (
+    cluesCollected >= DISCOUNT_TIERS.platinum.minClues &&
+    casesSolved >= DISCOUNT_TIERS.platinum.minCasesSolved &&
+    outlawCaught
+  ) return 'platinum'
+  if (
+    cluesCollected >= DISCOUNT_TIERS.gold.minClues &&
+    casesSolved >= DISCOUNT_TIERS.gold.minCasesSolved
+  ) return 'gold'
+  if (
+    cluesCollected >= DISCOUNT_TIERS.silver.minClues &&
+    casesSolved >= DISCOUNT_TIERS.silver.minCasesSolved
+  ) return 'silver'
+  if (cluesCollected >= DISCOUNT_TIERS.bronze.minClues) return 'bronze'
   return null
 }
 
 /**
  * Generate a discount code based on player progress
  */
-export function generateDiscountCode(cluesCollected: number, caseId: string = 'default'): GeneratedCode | null {
-  const tier = getQualifyingTier(cluesCollected)
+export function generateDiscountCode(
+  cluesCollected: number,
+  casesSolved: number = 0,
+  outlawCaught: boolean = false,
+  caseId: string = 'default'
+): GeneratedCode | null {
+  const tier = getQualifyingTier(cluesCollected, casesSolved, outlawCaught)
   if (!tier) return null
 
   const tierInfo = DISCOUNT_TIERS[tier]
@@ -133,7 +267,8 @@ export function generateDiscountCode(cluesCollected: number, caseId: string = 'd
   const payload = `${tierInfo.prefix}${tierInfo.discount.toString().padStart(2, '0')}-${timestamp}`
   const signature = simpleHash(payload + CLIENT_SECRET + caseId)
 
-  const code = `BOBR-${tierInfo.prefix}${tierInfo.discount.toString().padStart(2, '0')}-${timestamp}-${signature}`
+  // Use TOBIAS format (plan spec) for online codes
+  const code = `TOBIAS-${tierInfo.prefix}${tierInfo.discount.toString().padStart(2, '0')}-${timestamp}-${signature}`
 
   return {
     code,
@@ -143,6 +278,8 @@ export function generateDiscountCode(cluesCollected: number, caseId: string = 'd
     expiresAt: new Date(expiresAt * 1000).toISOString(),
     cluesRequired: tierInfo.minClues,
     cluesCollected,
+    casesSolved,
+    outlawCaught,
     generatedAt: new Date().toISOString()
   }
 }
@@ -151,7 +288,8 @@ export function generateDiscountCode(cluesCollected: number, caseId: string = 'd
  * Parse a discount code to extract its components
  */
 export function parseDiscountCode(code: string): ParsedCode {
-  const pattern = /^BOBR-([RDIC])(\d{2})-(\d+)-([A-F0-9]{4})$/
+  // Support both BOBR- and TOBIAS- prefixes
+  const pattern = /^(?:BOBR|TOBIAS)-([BSGP])(\d{2})-(\d+)-([A-F0-9]{4})$/
   const match = code.match(pattern)
 
   if (!match) {
@@ -237,62 +375,118 @@ export function calculateKarmaAdjustedDiscount(
 }
 
 /**
- * Generate discount code with karma adjustment
+ * Calculate occupation multiplier on discount
+ */
+export function calculateOccupationDiscount(
+  baseDiscount: number,
+  occupation: OccupationType
+): { adjustedDiscount: number; multiplier: number; message: string | null } {
+  const info = OCCUPATION_DISCOUNT_MULTIPLIERS[occupation]
+  const adjustedDiscount = Math.round(baseDiscount * info.discountMultiplier)
+
+  let message: string | null = null
+  if (info.discountMultiplier > 1.0) {
+    message = info.flavorText
+  }
+
+  return { adjustedDiscount, multiplier: info.discountMultiplier, message }
+}
+
+/**
+ * Generate discount code with karma AND occupation adjustments
  */
 export function generateKarmaDiscountCode(
   cluesCollected: number,
   karmaPosition: AlignmentPosition = 'true_neutral',
-  caseId: string = 'default'
+  caseId: string = 'default',
+  casesSolved: number = 0,
+  outlawCaught: boolean = false,
+  occupation: OccupationType = 'banker'
 ): KarmaAdjustedCode | null {
-  const baseCode = generateDiscountCode(cluesCollected, caseId)
+  const baseCode = generateDiscountCode(cluesCollected, casesSolved, outlawCaught, caseId)
   if (!baseCode) return null
 
+  // Apply karma multiplier first
   const karmaAdjustment = calculateKarmaAdjustedDiscount(baseCode.discount, karmaPosition)
+
+  // Apply occupation multiplier on top
+  const occupationInfo = OCCUPATION_DISCOUNT_MULTIPLIERS[occupation]
+  const withOccupation = Math.round(karmaAdjustment.adjustedDiscount * occupationInfo.discountMultiplier)
+
+  // Cap at tier max discount
+  const tierInfo = DISCOUNT_TIERS[baseCode.tier]
+  const finalDiscount = Math.min(tierInfo.maxDiscount, withOccupation)
+
+  const occupationMessage = occupationInfo.discountMultiplier > 1.0
+    ? `${occupationInfo.flavorText} (${occupationInfo.discountMultiplier}x)`
+    : null
 
   return {
     ...baseCode,
     baseDiscount: baseCode.discount,
-    finalDiscount: karmaAdjustment.adjustedDiscount,
-    karmaPosition,
     karmaMultiplier: KARMA_MULTIPLIERS[karmaPosition],
-    karmaMessage: karmaAdjustment.message
+    occupationMultiplier: occupationInfo.discountMultiplier,
+    occupationName: occupation,
+    finalDiscount,
+    karmaPosition,
+    karmaMessage: karmaAdjustment.message,
+    occupationMessage
   }
 }
 
 /**
  * Get next tier progress info
  */
-export function getNextTierProgress(cluesCollected: number): {
+export function getNextTierProgress(
+  cluesCollected: number,
+  casesSolved: number = 0,
+  outlawCaught: boolean = false
+): {
   maxed: boolean
   currentTier: DiscountTier | 'none'
   nextTier?: DiscountTier
   cluesNeeded?: number
+  casesNeeded?: number
+  needsOutlaw?: boolean
   nextDiscount?: number
   message: string
 } {
-  const currentTier = getQualifyingTier(cluesCollected)
-  const tiers: DiscountTier[] = ['recruit', 'detective', 'inspector', 'chief']
+  const currentTier = getQualifyingTier(cluesCollected, casesSolved, outlawCaught)
+  const tiers: DiscountTier[] = ['bronze', 'silver', 'gold', 'platinum']
   const currentIndex = currentTier ? tiers.indexOf(currentTier) : -1
 
   if (currentIndex >= tiers.length - 1) {
     return {
       maxed: true,
-      currentTier: 'chief',
-      message: 'You\'ve reached the highest rank!'
+      currentTier: 'platinum',
+      message: 'You\'ve reached Platinum Chief - the highest rank!'
     }
   }
 
   const nextTier = tiers[currentIndex + 1]
   const nextTierInfo = DISCOUNT_TIERS[nextTier]
-  const cluesNeeded = nextTierInfo.minClues - cluesCollected
+  const cluesNeeded = Math.max(0, nextTierInfo.minClues - cluesCollected)
+  const casesNeeded = Math.max(0, nextTierInfo.minCasesSolved - casesSolved)
+  const needsOutlaw = nextTierInfo.requiresOutlawCaught && !outlawCaught
+
+  const parts: string[] = []
+  if (cluesNeeded > 0) parts.push(`${cluesNeeded} more clue${cluesNeeded !== 1 ? 's' : ''}`)
+  if (casesNeeded > 0) parts.push(`${casesNeeded} more case${casesNeeded !== 1 ? 's' : ''} solved`)
+  if (needsOutlaw) parts.push('catch an outlaw')
+
+  const message = parts.length > 0
+    ? `${parts.join(', ')} to unlock ${nextTierInfo.displayName} (${nextTierInfo.discount}% off)!`
+    : `Ready for ${nextTierInfo.displayName}!`
 
   return {
     maxed: false,
     currentTier: currentTier || 'none',
     nextTier,
     cluesNeeded,
+    casesNeeded,
+    needsOutlaw,
     nextDiscount: nextTierInfo.discount,
-    message: `${cluesNeeded} more clue${cluesNeeded !== 1 ? 's' : ''} to unlock ${nextTierInfo.discount}% off!`
+    message
   }
 }
 
@@ -311,4 +505,11 @@ export function getAllTiers(): Array<{ name: DiscountTier } & TierInfo> {
  */
 export function getTierInfo(tier: DiscountTier): TierInfo {
   return DISCOUNT_TIERS[tier]
+}
+
+/**
+ * Get occupation discount info
+ */
+export function getOccupationDiscountInfo(occupation: OccupationType): OccupationDiscountInfo {
+  return OCCUPATION_DISCOUNT_MULTIPLIERS[occupation]
 }

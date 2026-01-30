@@ -21,7 +21,7 @@ export interface DialogueResponse {
   karmaLawful?: number
   karmaGood?: number  // Positive = earn Good Karma 🍪, Negative = earn Bad Karma 🪨
   reputationEffect?: { faction: FactionId; delta: number }
-  karmaCost?: number  // Cost in Neutral Karma 🪙 (bribes, purchases, etc.)
+  karmaCost?: number  // Cost in Neutral Karma 🌮 (bribes, purchases, etc.)
   goldCost?: number   // Legacy alias for karmaCost
   nextNode: string
   requiresItem?: string  // Absurd inventory item

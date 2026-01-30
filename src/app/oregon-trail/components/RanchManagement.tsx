@@ -7,7 +7,7 @@ import { RanchView } from './RanchView'
 import { FenceUpgradePanel } from './FenceUpgradePanel'
 import { LivestockPanel } from './LivestockPanel'
 import { SeasonBar } from './SeasonBar'
-import { LIVESTOCK_TYPES, FEED_TYPES, type LivestockType, type FeedType, type FenceConfig, type RanchEvent } from '../data/ranchConfig'
+import { LIVESTOCK_TYPES, FEED_TYPES, type LivestockType, type FeedType, type FenceConfig } from '../data/ranchConfig'
 
 interface RanchManagementProps {
   onClose: () => void
@@ -52,7 +52,7 @@ export function RanchManagement({ onClose }: RanchManagementProps) {
         <div className="bg-gray-800 p-4 border-b border-amber-700 flex justify-between items-center">
           <div>
             <h1 className="text-xl text-amber-300">🌾 {state.location} Ranch</h1>
-            <p className="text-gray-500 text-sm">{fence.name} • Value: {getRanchValue()}🪙</p>
+            <p className="text-gray-500 text-sm">{fence.name} • Value: {getRanchValue()}🌮</p>
           </div>
           <div className="flex items-center gap-4">
             <SeasonBar season={seasonProgress.current} daysRemaining={seasonProgress.daysRemaining} day={state.gameDay} />
@@ -150,11 +150,7 @@ function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Ranch Visual */}
-      <RanchView
-        fenceTier={state.fenceTier}
-        livestock={state.livestock}
-        upgradeInProgress={state.upgradeInProgress}
-      />
+      <RanchView />
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -177,7 +173,7 @@ function OverviewTab({
         <StatCard
           icon="💰"
           label="Balance"
-          value={`${balance.neutral}🪙`}
+          value={`${balance.neutral}🌮`}
           subtext={balance.good > 0 ? `+${balance.good}🍪` : undefined}
         />
         <StatCard
@@ -200,7 +196,7 @@ function OverviewTab({
               <div key={name} className="bg-gray-700 px-3 py-2 rounded">
                 <span className="text-gray-300">{name}</span>
                 <span className="text-amber-400 ml-2">+{amount.toFixed(1)}</span>
-                <span className="text-gray-500 text-xs ml-1">({value.toFixed(0)}🪙/day)</span>
+                <span className="text-gray-500 text-xs ml-1">({value.toFixed(0)}🌮/day)</span>
               </div>
             ))}
           </div>
@@ -313,7 +309,7 @@ function MarketTab({
                 <div className="text-gray-400 text-xs mt-1">{feed.description}</div>
                 <div className="mt-2 flex justify-between items-center">
                   <span className="text-sm text-gray-300">{buyAmount} units</span>
-                  <span className={canAfford ? 'text-yellow-400' : 'text-red-400'}>{cost}🪙</span>
+                  <span className={canAfford ? 'text-yellow-400' : 'text-red-400'}>{cost}🌮</span>
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
                   Health: {feed.healthBonus}x • Birth: {feed.birthBonus}x
@@ -359,7 +355,7 @@ function MarketTab({
                       <span className="text-gray-400">x{sellAmount}</span>
                     </div>
                     <div className="text-sm text-green-400 mt-1">
-                      Sell for {totalValue}🪙
+                      Sell for {totalValue}🌮
                     </div>
                   </button>
                 )

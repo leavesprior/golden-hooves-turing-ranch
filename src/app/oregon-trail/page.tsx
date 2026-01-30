@@ -21,6 +21,7 @@ import { DossierView } from './components/DossierView'
 import { TelegraphOffice } from './components/TelegraphOffice'
 import { WitnessDialogue } from './components/WitnessDialogue'
 import { ClueJournal } from './components/ClueJournal'
+import { JournalSouvenir } from './components/JournalSouvenir'
 import { ReputationBar } from './components/ReputationBar'
 import { NarratorOverlay, ReliabilityIndicator } from './components/NarratorOverlay'
 import { TownShop } from './components/TownShop'
@@ -75,6 +76,9 @@ import { type CrossingOutcome } from './data/riverCrossings'
 // NEW: Colorful Event Messages (Fallout-style)
 import { getHuntingMessage, getDramaticOutcome } from './data/eventMessages'
 
+// Critical Hit/Miss Descriptions (Fallout-style flavor text)
+import { getCriticalDescription } from './data/criticalDescriptions'
+
 // NEW: Occupation System (Oregon Trail-style scoring)
 import {
   type Occupation,
@@ -96,7 +100,17 @@ import { useAuth } from '@/lib/authContext'
 // NEW: Golden Hooves Enhancements
 import HunkerDown from './components/HunkerDown'
 import GoldCountryBooking from './components/GoldCountryBooking'
+import { VolumeControl } from './components/VolumeControl'
 import * as AudioManager from './lib/audioManager'
+
+// NEW: Specialty Shops & Hireable Guides
+import { SpecialtyShop } from './components/SpecialtyShop'
+import { GuideHire } from './components/GuideHire'
+import { getAvailableShops, getAvailableGuides, type SpecialtyShop as SpecialtyShopData, type HireableGuide } from './data/specialtyShops'
+
+// NEW: Character Sheet & Consumable Effects
+import { CharacterSheet } from './components/CharacterSheet'
+import { type ActiveEffect, applyConsumable, tickEffects, getConsumableItem, getInstantEffects } from './data/consumableEffects'
 
 function GameMenu() {
   const { state, startGame } = useOregonTrail()
@@ -827,7 +841,7 @@ function OutfittingScreen() {
               <div className="flex justify-between items-center mb-4">
                 <span className="text-amber-400 text-xs font-pixel">Total Cost:</span>
                 <span className={`font-pixel text-sm ${!canAfford('neutral', Math.ceil(totalCost)) ? 'text-red-400' : 'text-amber-200'}`}>
-                  {Math.ceil(totalCost)}🪙
+                  {Math.ceil(totalCost)}🌮
                 </span>
               </div>
               <button
@@ -923,11 +937,12 @@ function OutfittingScreen() {
 }
 
 function TravelScreen() {
-  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, applyRiverCrossingEffects, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement } = useOregonTrail()
+  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, applyRiverCrossingEffects, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, buySupplies, buyFood } = useOregonTrail()
   const { balance, canAfford, spendNeutral, earnNeutral, earnGood, addBadKarma } = useKarmaWallet()
   const { state: mysteryState } = useMystery()
   const { getStat } = useCharacter()
   const { comment } = useNarrator()
+  const { progress: chapterProgress } = useChapter()
 
   // Panning result state for showing roll results
   const [panningResult, setPanningResult] = useState<{
@@ -958,25 +973,26 @@ function TravelScreen() {
       if (roll === 20) {
         // Natural 20 - jackpot!
         reward = 100 + (luck * 5)
-        message = `JACKPOT! Natural 20! You strike a rich vein! (+${reward}🪙)`
+        const critDesc = getCriticalDescription(true, 'gambling', undefined, 'Luck')
+        message = `${critDesc} JACKPOT! Natural 20! You strike a rich vein! (+${reward}🌮)`
         comment("The narrator has witnessed many fortunes found and lost. This one sparkles with promise.", 'observation')
       } else if (total >= 18) {
         // Excellent find
         reward = 60 + Math.floor(Math.random() * 30)
-        message = `Excellent! You find several quality nuggets! (+${reward}🪙)`
+        message = `Excellent! You find several quality nuggets! (+${reward}🌮)`
       } else if (total >= 12) {
         // Decent find
         reward = 25 + Math.floor(Math.random() * 20)
-        message = `Not bad! You find some flakes and a small nugget. (+${reward}🪙)`
+        message = `Not bad! You find some flakes and a small nugget. (+${reward}🌮)`
       } else if (total >= 6) {
         // Poor find
         reward = 5 + Math.floor(Math.random() * 10)
-        message = `Slim pickings. Just a few flakes of color. (+${reward}🪙)`
+        message = `Slim pickings. Just a few flakes of color. (+${reward}🌮)`
       } else {
         // Nothing
         reward = 0
         message = roll === 1
-          ? `Critical fail! You slip and soak yourself. Nothing found.`
+          ? `${getCriticalDescription(false, 'gambling')} Critical fail! You slip and soak yourself. Nothing found.`
           : `The stream bed yields nothing but mud and disappointment.`
         comment("Fortune favors the bold, but today she merely watches.", 'observation')
       }
@@ -1021,6 +1037,12 @@ function TravelScreen() {
   const [showResearch, setShowResearch] = useState(false)
   const [showDiscountReward, setShowDiscountReward] = useState(false)
 
+  // Specialty shops and guides
+  const [showSpecialtyShop, setShowSpecialtyShop] = useState<SpecialtyShopData | null>(null)
+  const [showGuideHire, setShowGuideHire] = useState(false)
+  const [hiredGuide, setHiredGuide] = useState<HireableGuide | null>(null)
+  const [guideRemainingLandmarks, setGuideRemainingLandmarks] = useState(0)
+
   // Get Gold Country mystery context
   const { getCluesForLocation, getCorrectClueCount, getActiveCase } = useMystery()
   const activeCaseData = getActiveCase()
@@ -1032,6 +1054,81 @@ function TravelScreen() {
 
   // Check if current location has Cynthia's Inn
   const isWestPoint = hasCynthiasInn(state.currentLandmark)
+
+  // Specialty shops and guides at current location (seeded by day to be deterministic)
+  const earlyLandmarkData = LANDMARKS.find(l => l.name === state.currentLandmark)
+  const earlyLandmarkType = earlyLandmarkData?.type || 'town'
+  const availableSpecialtyShops = React.useMemo(
+    () => getAvailableShops(state.currentLandmark, earlyLandmarkType, state.day * 1000 + state.distance),
+    [state.currentLandmark, earlyLandmarkType, state.day, state.distance]
+  )
+  const availableGuides = React.useMemo(
+    () => getAvailableGuides(state.currentLandmark),
+    [state.currentLandmark]
+  )
+
+  // Handle guide hire
+  const handleHireGuide = useCallback((guide: HireableGuide) => {
+    setHiredGuide(guide)
+    setGuideRemainingLandmarks(guide.duration)
+    setShowGuideHire(false)
+  }, [])
+
+  // Character Sheet & Consumable Effects
+  const [showCharacterSheet, setShowCharacterSheet] = useState(false)
+  const [activeEffects, setActiveEffects] = useState<ActiveEffect[]>([])
+  const [lastTickDay, setLastTickDay] = useState(state.day)
+
+  // Tick consumable effects each travel day (only triggered by day change)
+  React.useEffect(() => {
+    if (state.day !== lastTickDay) {
+      setLastTickDay(state.day)
+      setActiveEffects(prev => {
+        if (prev.length === 0) return prev
+        const daysPassed = state.day - lastTickDay
+        let current = prev
+        for (let i = 0; i < daysPassed; i++) {
+          current = tickEffects(current)
+        }
+        return current
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.day, lastTickDay])
+
+  const handleUseConsumable = useCallback((itemId: string) => {
+    const item = getConsumableItem(itemId)
+    if (!item) return
+    // Update active effects (timed buffs/debuffs)
+    const updatedEffects = applyConsumable(itemId, activeEffects, state.day)
+    setActiveEffects(updatedEffects)
+    // Apply instant effects (heal, morale, cure)
+    const instant = getInstantEffects(itemId)
+    if (instant.healAmount > 0) {
+      buyFood(instant.healAmount, 0, 0, true)
+    }
+    if (instant.moraleAmount > 0) {
+      buyFood(0, instant.moraleAmount, 0, false)
+    }
+    comment(`Used ${item.emoji} ${item.name}.`, 'observation')
+  }, [activeEffects, state.day, buyFood, comment])
+
+  const handleApplyMedicine = useCallback((_memberId: string) => {
+    if (state.medicine > 0) {
+      buySupplies('medicine', -1, 0) // Consume one medicine kit
+      buyFood(15, 5, 0, true) // Heal party + small morale boost
+      comment('Medicine applied. The party feels better.', 'observation')
+    }
+  }, [state.medicine, buySupplies, buyFood, comment])
+
+  const handleRepairWagon = useCallback(() => {
+    if (state.spareParts > 0 && state.wagonCondition < 100) {
+      buySupplies('spareParts', -1, 0) // Consume one spare part
+      // Wagon condition boost is handled via spare parts addition trick
+      buySupplies('spareParts', 0, 0) // Trigger state update for wagon display
+      comment('Wagon repaired with a spare part. She rides smoother now.', 'observation')
+    }
+  }, [state.spareParts, state.wagonCondition, buySupplies, comment])
 
   // Weather emoji
   const weatherEmoji = {
@@ -1350,10 +1447,32 @@ function TravelScreen() {
               <h3 className="font-pixel text-amber-200 text-sm mb-3 border-b border-amber-600 pb-2">Golden Frog Rewards</h3>
               <DiscountProgressBar onShowReward={() => setShowDiscountReward(true)} />
             </div>
+
+            {/* Hired Guide Status */}
+            {hiredGuide && (
+              <div className="bg-indigo-900/40 border-2 border-indigo-600 rounded-lg p-4">
+                <h3 className="font-pixel text-indigo-200 text-sm mb-2 border-b border-indigo-600 pb-2">Trail Guide</h3>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{hiredGuide.emoji}</span>
+                  <div className="flex-1">
+                    <p className="text-indigo-200 text-sm font-bold">{hiredGuide.name}</p>
+                    <p className="text-indigo-400 text-xs">{hiredGuide.title}</p>
+                    <p className="text-indigo-300 text-xs mt-1">{guideRemainingLandmarks} landmarks remaining</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {hiredGuide.benefits.map((b, i) => (
+                    <span key={i} className="text-xs bg-indigo-800/50 text-indigo-300 px-1.5 py-0.5 rounded">
+                      {b.description}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Town Actions */}
-          <div className={`grid gap-2 mb-6 ${isWestPoint ? 'grid-cols-4 md:grid-cols-8' : 'grid-cols-3 md:grid-cols-7'}`}>
+          <div className="grid gap-2 mb-6 grid-cols-4 md:grid-cols-5 lg:grid-cols-8">
             <button
               onClick={() => setShowShop(true)}
               className="p-3 bg-yellow-900/60 hover:bg-yellow-800/60 border-2 border-yellow-600 rounded-lg text-center"
@@ -1421,6 +1540,55 @@ function TravelScreen() {
                 <p className="text-lime-200 text-xs mt-1">Ranch</p>
               </button>
             )}
+            {/* Specialty Shops - appear randomly at towns/forts */}
+            {availableSpecialtyShops.map(shop => (
+              <button
+                key={shop.type}
+                onClick={() => setShowSpecialtyShop(shop)}
+                className={`p-3 border-2 rounded-lg text-center ${
+                  shop.type === 'wagonwright' ? 'bg-orange-900/60 hover:bg-orange-800/60 border-orange-600' :
+                  shop.type === 'apothecary' ? 'bg-teal-900/60 hover:bg-teal-800/60 border-teal-600' :
+                  shop.type === 'outfitter' ? 'bg-sky-900/60 hover:bg-sky-800/60 border-sky-600' :
+                  shop.type === 'assayer' ? 'bg-yellow-900/60 hover:bg-yellow-800/60 border-yellow-600' :
+                  'bg-red-900/60 hover:bg-red-800/60 border-red-600'
+                }`}
+              >
+                <span className="text-2xl">{shop.emoji}</span>
+                <p className={`text-xs mt-1 ${
+                  shop.type === 'wagonwright' ? 'text-orange-200' :
+                  shop.type === 'apothecary' ? 'text-teal-200' :
+                  shop.type === 'outfitter' ? 'text-sky-200' :
+                  shop.type === 'assayer' ? 'text-yellow-200' :
+                  'text-red-200'
+                }`}>{shop.name.split(' ')[0]}</p>
+              </button>
+            ))}
+            {/* Guide Hire - when guides are available or one is hired */}
+            {(availableGuides.length > 0 || hiredGuide) && (
+              <button
+                onClick={() => setShowGuideHire(true)}
+                className="p-3 bg-indigo-900/60 hover:bg-indigo-800/60 border-2 border-indigo-600 rounded-lg text-center relative"
+              >
+                <span className="text-2xl">🧭</span>
+                <p className="text-indigo-200 text-xs mt-1">Guides</p>
+                {hiredGuide && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full" />
+                )}
+              </button>
+            )}
+            {/* Character Sheet - always available */}
+            <button
+              onClick={() => setShowCharacterSheet(true)}
+              className="p-3 bg-stone-800/60 hover:bg-stone-700/60 border-2 border-stone-500 rounded-lg text-center relative"
+            >
+              <span className="text-2xl">📋</span>
+              <p className="text-stone-200 text-xs mt-1">Character</p>
+              {activeEffects.length > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 bg-purple-500 rounded-full text-[9px] text-white flex items-center justify-center">
+                  {activeEffects.length}
+                </span>
+              )}
+            </button>
             <button
               onClick={leaveTown}
               className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-600 rounded-lg text-center"
@@ -1457,6 +1625,41 @@ function TravelScreen() {
 
         {/* Inn Modal */}
         {showInn && <TownInn onClose={() => setShowInn(false)} isWestPoint={isWestPoint} />}
+
+        {/* Specialty Shop Modal */}
+        {showSpecialtyShop && (
+          <SpecialtyShop shop={showSpecialtyShop} onClose={() => setShowSpecialtyShop(null)} />
+        )}
+
+        {/* Guide Hire Modal */}
+        {showGuideHire && (
+          <GuideHire
+            guides={availableGuides}
+            onHire={handleHireGuide}
+            onClose={() => setShowGuideHire(false)}
+            currentGuide={hiredGuide}
+          />
+        )}
+
+        {/* Character Sheet Modal */}
+        {showCharacterSheet && (
+          <CharacterSheet
+            onClose={() => setShowCharacterSheet(false)}
+            onUseConsumable={handleUseConsumable}
+            onApplyMedicine={handleApplyMedicine}
+            onRepairWagon={handleRepairWagon}
+            inventory={chapterProgress.easterEggsFound}
+            activeEffects={activeEffects.map(e => ({
+              id: e.id,
+              sourceName: e.sourceName,
+              type: e.type,
+              stat: e.stat,
+              value: e.value,
+              remainingTurns: e.remainingTurns,
+              stackCount: e.stackCount,
+            }))}
+          />
+        )}
 
         {/* Research Station Modal - Gold Country educational content */}
         {showResearch && currentGoldCountryLocation && currentLocationClues.length > 0 && (
@@ -1683,10 +1886,21 @@ function TravelScreen() {
           >
             Hunt
           </button>
+          <button
+            onClick={() => setShowCharacterSheet(true)}
+            className="px-4 py-3 bg-stone-700 hover:bg-stone-600 text-stone-100 font-pixel text-sm rounded border-4 border-stone-500 transition-colors relative"
+          >
+            Character
+            {activeEffects.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full text-[9px] text-white flex items-center justify-center">
+                {activeEffects.length}
+              </span>
+            )}
+          </button>
           {/* Hunker Down - Vacation Rental Option */}
           <HunkerDown
             currentLandmark={state.currentLandmark}
-            milesRemaining={state.milesRemaining}
+            milesRemaining={2000 - state.distance}
             partySize={state.party.length}
             onHunkerDown={(days) => {
               // Rest the party for specified days (heal and consume food)
@@ -1696,6 +1910,26 @@ function TravelScreen() {
             graphicsTier={state.graphicsTier}
           />
         </div>
+
+        {/* Character Sheet Modal (available during travel) */}
+        {showCharacterSheet && (
+          <CharacterSheet
+            onClose={() => setShowCharacterSheet(false)}
+            onUseConsumable={handleUseConsumable}
+            onApplyMedicine={handleApplyMedicine}
+            onRepairWagon={handleRepairWagon}
+            inventory={chapterProgress.easterEggsFound}
+            activeEffects={activeEffects.map(e => ({
+              id: e.id,
+              sourceName: e.sourceName,
+              type: e.type,
+              stat: e.stat,
+              value: e.value,
+              remainingTurns: e.remainingTurns,
+              stackCount: e.stackCount,
+            }))}
+          />
+        )}
       </div>
     </div>
     </Graphics64bitWrapper>
@@ -1770,13 +2004,26 @@ function TelegraphScreen() {
 // Journal Screen
 function JournalScreen() {
   const { closeJournal, openDossier, openTelegraph } = useOregonTrail()
+  const [showSouvenir, setShowSouvenir] = useState(false)
 
   return (
-    <ClueJournal
-      onClose={closeJournal}
-      onOpenDossier={openDossier}
-      onOpenTelegraph={openTelegraph}
-    />
+    <>
+      <ClueJournal
+        onClose={closeJournal}
+        onOpenDossier={openDossier}
+        onOpenTelegraph={openTelegraph}
+      />
+      {/* Export Journal / Souvenir button — fixed bottom-right */}
+      <button
+        onClick={() => setShowSouvenir(true)}
+        className="fixed bottom-4 right-4 z-50 px-4 py-2 bg-amber-900 text-amber-300 rounded-lg hover:bg-amber-800 active:bg-amber-700 text-sm font-bold shadow-lg border border-amber-700"
+      >
+        Export Journal
+      </button>
+      {showSouvenir && (
+        <JournalSouvenir onClose={() => setShowSouvenir(false)} />
+      )}
+    </>
   )
 }
 
@@ -2078,7 +2325,7 @@ function GoldCountryArrivalScreen() {
           <h2 className="text-amber-400 font-pixel text-sm mb-3 text-center">Your Resources</h2>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-amber-200 font-pixel text-lg">{balance.neutral}🪙</p>
+              <p className="text-amber-200 font-pixel text-lg">{balance.neutral}🌮</p>
               <p className="text-gray-500 text-xs">Coins</p>
             </div>
             <div>
@@ -2193,17 +2440,24 @@ function SettlementVictoryScreen() {
 function SaveLoadIntegration() {
   const { state, loadState } = useOregonTrail()
   const { user } = useAuth()
-  const { setGameDataCollector, setGameDataLoader, setMetadataCollector } = useSaveLoad()
-  const { balance, getAlignmentDisplayName } = useKarmaWallet()
+  const { setGameDataCollector, setGameDataLoader, setMetadataCollector, enableAutoSave } = useSaveLoad()
+  const { balance, alignment, getAlignmentDisplayName, loadKarmaState } = useKarmaWallet()
 
-  // Set up save data collector
+  // Set up save data collector — skip during title/chapter_intro phases
   React.useEffect(() => {
     if (!user) return
 
-    setGameDataCollector(() => ({
-      oregonTrail: state,
-      karmaBalance: balance,
-    }))
+    // Gate auto-save: don't collect data during invalid phases
+    const isValidPhase = state.phase !== 'title' && state.phase !== 'chapter_intro'
+
+    setGameDataCollector(() => {
+      if (!isValidPhase) return {} // Return empty — saveGame will still work but data is minimal
+      return {
+        oregonTrail: state,
+        karmaBalance: balance,
+        karmaAlignment: alignment,
+      }
+    })
 
     setMetadataCollector(() => ({
       dayNumber: state.day,
@@ -2219,9 +2473,15 @@ function SaveLoadIntegration() {
       if (data.oregonTrail) {
         loadState(data.oregonTrail as typeof state)
       }
-      // Note: Karma balance restoration would need karma context support
+      // Restore karma balance and alignment
+      if (data.karmaBalance) {
+        loadKarmaState(
+          data.karmaBalance as import('@/lib/karmaBlockchain').KarmaBalance,
+          data.karmaAlignment as { lawfulChaotic: number; goodEvil: number } | undefined,
+        )
+      }
     })
-  }, [user, state, balance, setGameDataCollector, setGameDataLoader, setMetadataCollector, getAlignmentDisplayName, loadState])
+  }, [user, state, balance, alignment, setGameDataCollector, setGameDataLoader, setMetadataCollector, getAlignmentDisplayName, loadState, loadKarmaState, enableAutoSave])
 
   return null
 }
@@ -2229,6 +2489,7 @@ function SaveLoadIntegration() {
 function OregonTrailGame() {
   const { state, startFromTitle, completeChapterIntro } = useOregonTrail()
   const [audioInitialized, setAudioInitialized] = useState(false)
+  const { saves, loadGame } = useSaveLoad()
 
   // Initialize audio and start music on game start (user interaction required)
   const handleGameStart = useCallback(async () => {
@@ -2241,13 +2502,31 @@ function OregonTrailGame() {
     startFromTitle()
   }, [audioInitialized, startFromTitle])
 
+  // Continue from most recent save
+  const handleContinue = useCallback(async () => {
+    if (!audioInitialized) {
+      await AudioManager.initAudio()
+      setAudioInitialized(true)
+    }
+    AudioManager.playPlaylist()
+    // Load most recent save
+    const sorted = [...saves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    if (sorted.length > 0) {
+      await loadGame(sorted[0].id)
+    }
+  }, [audioInitialized, saves, loadGame])
+
   // Playlist auto-cycles tracks via AudioManager - no manual switching needed
 
   // Title screen phase
   if (state.phase === 'title') {
     return (
       <>
-        <TitleScreen onStart={handleGameStart} />
+        <TitleScreen
+          onStart={handleGameStart}
+          hasSaves={saves.length > 0}
+          onContinue={handleContinue}
+        />
         <AuthSavePanel />
         <SaveLoadIntegration />
       </>
@@ -2364,6 +2643,7 @@ export default function OregonTrailPage() {
                     <MysteryProvider>
                       <NPCProvider>
                         <OregonTrailGame />
+                        <VolumeControl />
                       </NPCProvider>
                     </MysteryProvider>
                   </NarratorProvider>

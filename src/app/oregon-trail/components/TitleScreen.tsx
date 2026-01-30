@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react'
 
 interface TitleScreenProps {
   onStart: () => void
+  hasSaves?: boolean
+  onContinue?: () => void
 }
 
-export function TitleScreen({ onStart }: TitleScreenProps) {
+export function TitleScreen({ onStart, hasSaves, onContinue }: TitleScreenProps) {
   const [showPrompt, setShowPrompt] = useState(false)
   const [cloudOffset, setCloudOffset] = useState(0)
   const [horseFrame, setHorseFrame] = useState(0)
@@ -33,19 +35,20 @@ export function TitleScreen({ onStart }: TitleScreenProps) {
     return () => clearTimeout(timer)
   }, [])
 
-  // Handle any key press
+  // Handle any key press (only when no saves — otherwise buttons are shown)
   useEffect(() => {
+    if (hasSaves) return // Use buttons when saves exist
     const handleKeyPress = () => {
       if (showPrompt) onStart()
     }
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [showPrompt, onStart])
+  }, [showPrompt, onStart, hasSaves])
 
   return (
     <div
       className="min-h-screen relative overflow-hidden cursor-pointer"
-      onClick={() => showPrompt && onStart()}
+      onClick={() => showPrompt && !hasSaves && onStart()}
     >
       {/* Sky gradient - dawn/dusk feel */}
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-900 via-orange-400 to-amber-300" />
@@ -199,13 +202,24 @@ export function TitleScreen({ onStart }: TitleScreenProps) {
         </p>
       </div>
 
-      {/* Press any key prompt */}
+      {/* Start / Continue prompt */}
       {showPrompt && (
-        <div className="absolute inset-x-0 bottom-[20vh] text-center z-10 animate-pulse">
-          <div className="inline-block bg-black/60 px-6 py-3 rounded border border-amber-500/50">
-            <p className="font-pixel text-amber-400 text-lg">
-              Press any key to begin
-            </p>
+        <div className="absolute inset-x-0 bottom-[20vh] text-center z-10">
+          <div className="inline-flex flex-col gap-3 items-center">
+            {hasSaves && onContinue && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onContinue(); }}
+                className="bg-amber-700/90 hover:bg-amber-600 px-8 py-3 rounded border-2 border-amber-400/70 font-pixel text-amber-200 text-lg transition-colors"
+              >
+                Continue Game
+              </button>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onStart(); }}
+              className="bg-black/60 hover:bg-black/80 px-8 py-3 rounded border border-amber-500/50 font-pixel text-amber-400 text-lg animate-pulse transition-colors"
+            >
+              {hasSaves ? 'New Game' : 'Press any key to begin'}
+            </button>
           </div>
         </div>
       )}

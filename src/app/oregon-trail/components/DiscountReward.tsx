@@ -17,49 +17,58 @@ interface DiscountRewardProps {
   isOpen: boolean
   onClose: () => void
   caseId?: string
+  occupation?: string
 }
 
 /**
- * DiscountReward - Modal showing earned BOBR discount code
+ * DiscountReward - Gold Rush themed modal showing earned Tobias Gold discount code
  *
- * Displays the discount code earned from solving mysteries,
- * with karma alignment affecting the final discount percentage.
+ * Uses the enhanced discount engine with Bronze/Silver/Gold/Platinum tiers
+ * and occupation multiplier for difficulty-scaled rewards.
  *
- * ┌─────────────────────────────────────────┐
- * │ 🎉 Congratulations, Detective!          │
- * │                                         │
- * │ You've earned a discount code:          │
- * │                                         │
- * │ ┌─────────────────────────────────────┐ │
- * │ │   BOBR-D08-1705708800-A3F2          │ │
- * │ │              [📋 Copy]              │ │
- * │ └─────────────────────────────────────┘ │
- * │                                         │
- * │ 8% off your BOBR stay!                  │
- * │ Valid for 30 days                       │
- * │                                         │
- * │ Lawful Good alignment: 1.5x bonus!      │
- * │ Final discount: 12%                     │
- * │                                         │
- * │ [Close]                                 │
- * └─────────────────────────────────────────┘
+ * Tier Requirements:
+ *   Bronze:   3 clues                              -> 8% base
+ *   Silver:   5 clues + 1 case solved              -> 12% base
+ *   Gold:     7 clues + 2 cases solved             -> 16% base
+ *   Platinum: 10 clues + 3 cases + outlaw caught   -> 20% base
+ *
+ * Color palette: Sepia Gold Rush
+ *   Primary gold:   #d4a843
+ *   Dark gold:      #8b6914
+ *   Deep brown:     #2a1f14
+ *   Medium brown:   #3d2b18
+ *   Warm tan:       #a08050
+ *   Dusty bronze:   #6a5030
+ *   Shadow brown:   #5a4020
  */
 export function DiscountReward({
   isOpen,
   onClose,
   caseId = 'default',
+  occupation,
 }: DiscountRewardProps) {
   const { getKarmaAlignment, getAlignmentDisplayName, getDiscountMultiplier } = useKarmaWallet()
-  const { getCorrectClueCount } = useMystery()
+  const { state: mysteryState, getCorrectClueCount } = useMystery()
 
   const [copied, setCopied] = useState(false)
 
-  // Generate the discount code
+  // Derive progress values from mystery state
+  const casesSolved = mysteryState.casesSolved?.length || 0
+  const outlawCaught = (mysteryState.outlawsCaught ?? 0) > 0
+
+  // Generate the discount code with all multipliers
   const discountCode = useMemo((): KarmaAdjustedCode | null => {
     const cluesCollected = getCorrectClueCount()
     const alignment = getKarmaAlignment()
-    return generateKarmaDiscountCode(cluesCollected, alignment, caseId)
-  }, [getCorrectClueCount, getKarmaAlignment, caseId])
+    return generateKarmaDiscountCode(
+      cluesCollected,
+      alignment,
+      caseId,
+      casesSolved,
+      outlawCaught,
+      occupation as any
+    )
+  }, [getCorrectClueCount, getKarmaAlignment, caseId, casesSolved, outlawCaught, occupation])
 
   // Copy to clipboard
   const handleCopy = useCallback(async () => {
@@ -74,63 +83,69 @@ export function DiscountReward({
     }
   }, [discountCode])
 
-  // Get tier display info
-  const getTierEmoji = (tier: DiscountTier): string => {
-    switch (tier) {
-      case 'recruit': return '🔰'
-      case 'detective': return '🔍'
-      case 'inspector': return '🎖️'
-      case 'chief': return '👑'
-    }
-  }
-
-  const getTierTitle = (tier: DiscountTier): string => {
-    switch (tier) {
-      case 'recruit': return 'Recruit'
-      case 'detective': return 'Detective'
-      case 'inspector': return 'Inspector'
-      case 'chief': return 'Chief'
-    }
-  }
-
   if (!isOpen) return null
 
-  // No discount earned yet
+  // --- No discount earned yet ------------------------------------------------
   if (!discountCode) {
     const cluesCollected = getCorrectClueCount()
-    const progress = getNextTierProgress(cluesCollected)
+    const progress = getNextTierProgress(cluesCollected, casesSolved, outlawCaught)
 
     return (
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
-        <div className="bg-gray-900 border-2 border-gray-600 rounded-lg w-full max-w-md overflow-hidden">
+        <div
+          className="rounded-lg w-full max-w-md overflow-hidden border-2"
+          style={{ backgroundColor: '#2a1f14', borderColor: '#6a5030' }}
+        >
           {/* Header */}
-          <div className="bg-gray-800/60 p-4 border-b border-gray-700">
+          <div
+            className="p-4 border-b"
+            style={{ backgroundColor: '#3d2b18', borderColor: '#5a4020' }}
+          >
             <div className="flex items-center gap-3">
               <span className="text-3xl">📋</span>
               <div>
-                <h2 className="text-gray-200 font-bold">No Discount Yet</h2>
-                <p className="text-gray-400 text-sm">Keep investigating to earn rewards!</p>
+                <h2 className="font-bold" style={{ color: '#d4a843' }}>
+                  No Discount Yet
+                </h2>
+                <p className="text-sm" style={{ color: '#a08050' }}>
+                  Keep investigating to earn rewards!
+                </p>
               </div>
             </div>
           </div>
 
           {/* Progress */}
           <div className="p-4 space-y-4">
-            <div className="bg-gray-800/60 rounded-lg p-4">
-              <p className="text-gray-300 mb-2">
-                Clues collected: <span className="text-amber-300 font-bold">{cluesCollected}</span>
+            <div className="rounded-lg p-4" style={{ backgroundColor: '#3d2b18' }}>
+              <p className="mb-1" style={{ color: '#a08050' }}>
+                Clues collected:{' '}
+                <span className="font-bold" style={{ color: '#d4a843' }}>
+                  {cluesCollected}
+                </span>
+              </p>
+              <p className="mb-2" style={{ color: '#a08050' }}>
+                Cases solved:{' '}
+                <span className="font-bold" style={{ color: '#d4a843' }}>
+                  {casesSolved}
+                </span>
               </p>
               {!progress.maxed && progress.nextTier && (
                 <>
-                  <p className="text-gray-400 text-sm mb-2">
-                    {progress.cluesNeeded} more clue{progress.cluesNeeded !== 1 ? 's' : ''} to unlock{' '}
-                    <span className="text-amber-300">{DISCOUNT_TIERS[progress.nextTier].discount}% off</span>
+                  <p className="text-sm mb-2" style={{ color: '#a08050' }}>
+                    {progress.message}
                   </p>
-                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-2 rounded-full overflow-hidden"
+                    style={{ backgroundColor: '#5a4020' }}
+                  >
                     <div
-                      className="h-full bg-amber-500 transition-all duration-500"
+                      className="h-full transition-all duration-500"
                       style={{
-                        width: `${(cluesCollected / DISCOUNT_TIERS[progress.nextTier].minClues) * 100}%`,
+                        backgroundColor: '#d4a843',
+                        width: `${Math.min(
+                          100,
+                          (cluesCollected / DISCOUNT_TIERS[progress.nextTier].minClues) * 100
+                        )}%`,
                       }}
                     />
                   </div>
@@ -138,24 +153,38 @@ export function DiscountReward({
               )}
             </div>
 
-            {/* Tier breakdown */}
+            {/* Tier breakdown with requirements */}
             <div className="space-y-2">
-              <p className="text-gray-500 text-sm font-bold">Discount Tiers:</p>
-              {(['recruit', 'detective', 'inspector', 'chief'] as DiscountTier[]).map((tier) => {
+              <p className="text-sm font-bold" style={{ color: '#6a5030' }}>
+                Discount Tiers:
+              </p>
+              {(['bronze', 'silver', 'gold', 'platinum'] as DiscountTier[]).map((tier) => {
                 const tierInfo = DISCOUNT_TIERS[tier]
-                const isUnlocked = cluesCollected >= tierInfo.minClues
+                const meetsClues = cluesCollected >= tierInfo.minClues
+                const meetsCases = casesSolved >= tierInfo.minCasesSolved
+                const meetsOutlaw = !tierInfo.requiresOutlawCaught || outlawCaught
+                const isUnlocked = meetsClues && meetsCases && meetsOutlaw
                 return (
                   <div
                     key={tier}
-                    className={`flex items-center justify-between px-3 py-2 rounded ${
-                      isUnlocked ? 'bg-green-900/30 border border-green-700' : 'bg-gray-800/30'
-                    }`}
+                    className="flex items-center justify-between px-3 py-2 rounded"
+                    style={{
+                      backgroundColor: isUnlocked ? 'rgba(212, 168, 67, 0.15)' : 'rgba(90, 64, 32, 0.3)',
+                      border: isUnlocked ? '1px solid #8b6914' : '1px solid transparent',
+                    }}
                   >
-                    <span className={isUnlocked ? 'text-green-300' : 'text-gray-500'}>
-                      {getTierEmoji(tier)} {getTierTitle(tier)}
+                    <span style={{ color: isUnlocked ? '#d4a843' : '#6a5030' }}>
+                      {tierInfo.badge} {tierInfo.displayName}
                     </span>
-                    <span className={isUnlocked ? 'text-green-300' : 'text-gray-500'}>
-                      {tierInfo.minClues} clues = {tierInfo.discount}% off
+                    <span
+                      className="text-xs text-right"
+                      style={{ color: isUnlocked ? '#d4a843' : '#6a5030' }}
+                    >
+                      {tierInfo.minClues} clues
+                      {tierInfo.minCasesSolved > 0 && ` + ${tierInfo.minCasesSolved} case${tierInfo.minCasesSolved !== 1 ? 's' : ''}`}
+                      {tierInfo.requiresOutlawCaught && ' + outlaw'}
+                      {' = '}
+                      {tierInfo.discount}% off
                     </span>
                   </div>
                 )
@@ -164,10 +193,17 @@ export function DiscountReward({
           </div>
 
           {/* Actions */}
-          <div className="border-t border-gray-700 p-4">
+          <div className="p-4" style={{ borderTop: '1px solid #5a4020' }}>
             <button
               onClick={onClose}
-              className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded font-bold text-sm"
+              className="w-full py-2 rounded font-bold text-sm"
+              style={{ backgroundColor: '#5a4020', color: '#d4a843' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#6a5030'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#5a4020'
+              }}
             >
               Keep Investigating
             </button>
@@ -177,39 +213,65 @@ export function DiscountReward({
     )
   }
 
-  // Show discount code
+  // --- Show discount code ----------------------------------------------------
   const alignment = getKarmaAlignment()
   const multiplier = getDiscountMultiplier()
   const hasBonus = discountCode.finalDiscount > discountCode.baseDiscount
   const hasPenalty = discountCode.finalDiscount < discountCode.baseDiscount
+  const tierInfo = DISCOUNT_TIERS[discountCode.tier]
+  const tierTitle = tierInfo.displayName
+  const tierBadge = tierInfo.badge
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
-      <div className="bg-gray-900 border-2 border-amber-600 rounded-lg w-full max-w-md overflow-hidden">
+      <div
+        className="rounded-lg w-full max-w-md overflow-hidden border-2"
+        style={{ backgroundColor: '#2a1f14', borderColor: '#d4a843' }}
+      >
         {/* Header */}
-        <div className="bg-amber-900/60 p-4 border-b border-amber-700">
+        <div
+          className="p-4 border-b"
+          style={{ backgroundColor: '#3d2b18', borderColor: '#8b6914' }}
+        >
           <div className="flex items-center gap-3">
-            <span className="text-3xl">🎉</span>
+            <span className="text-3xl">{tierBadge}</span>
             <div>
-              <h2 className="text-amber-200 font-bold">Congratulations, {getTierTitle(discountCode.tier)}!</h2>
-              <p className="text-amber-400 text-sm">You've earned a Golden Frog discount code</p>
+              <h2 className="font-bold" style={{ color: '#d4a843' }}>
+                Congratulations, {tierTitle}!
+              </h2>
+              <p className="text-sm" style={{ color: '#a08050' }}>
+                You&apos;ve earned a Tobias Gold discount code
+              </p>
             </div>
           </div>
         </div>
 
         {/* Discount Code */}
         <div className="p-4 space-y-4">
-          <div className="bg-gray-800 border-2 border-dashed border-amber-500 rounded-lg p-4">
-            <p className="text-center text-2xl font-mono text-amber-200 tracking-wider mb-3">
+          <div
+            className="border-2 border-dashed rounded-lg p-4"
+            style={{ backgroundColor: '#3d2b18', borderColor: '#d4a843' }}
+          >
+            <p
+              className="text-center text-2xl font-mono tracking-wider mb-3"
+              style={{ color: '#d4a843' }}
+            >
               {discountCode.code}
             </p>
             <button
               onClick={handleCopy}
-              className="w-full py-2 bg-amber-700 hover:bg-amber-600 text-amber-100 rounded font-bold text-sm flex items-center justify-center gap-2"
+              className="w-full py-2 rounded font-bold text-sm flex items-center justify-center gap-2"
+              style={{ backgroundColor: '#8b6914', color: '#2a1f14' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#d4a843'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#8b6914'
+              }}
             >
               {copied ? (
                 <>
-                  <span>✓</span>
+                  <span>&#10003;</span>
                   <span>Copied!</span>
                 </>
               ) : (
@@ -222,36 +284,51 @@ export function DiscountReward({
           </div>
 
           {/* Discount Details */}
-          <div className="bg-gray-800/60 rounded-lg p-4 space-y-2">
+          <div className="rounded-lg p-4 space-y-2" style={{ backgroundColor: '#3d2b18' }}>
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Rank:</span>
-              <span className="text-amber-300 font-bold">
-                {getTierEmoji(discountCode.tier)} {getTierTitle(discountCode.tier)}
+              <span style={{ color: '#a08050' }}>Rank:</span>
+              <span className="font-bold" style={{ color: '#d4a843' }}>
+                {tierBadge} {tierTitle}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-400">Base Discount:</span>
-              <span className="text-gray-200">{discountCode.baseDiscount}%</span>
+              <span style={{ color: '#a08050' }}>Base Discount:</span>
+              <span style={{ color: '#d4a843' }}>{discountCode.baseDiscount}%</span>
             </div>
             {(hasBonus || hasPenalty) && (
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">Alignment:</span>
-                <span className={hasBonus ? 'text-green-400' : 'text-red-400'}>
+                <span style={{ color: '#a08050' }}>Alignment:</span>
+                <span style={{ color: hasBonus ? '#7cb87c' : '#c97070' }}>
                   {ALIGNMENT_DISPLAY_NAMES[alignment]} ({multiplier}x)
                 </span>
               </div>
             )}
-            <div className="flex items-center justify-between border-t border-gray-700 pt-2 mt-2">
-              <span className="text-gray-400 font-bold">Final Discount:</span>
-              <span className="text-amber-300 text-xl font-bold">{discountCode.finalDiscount}%</span>
+            {discountCode.occupationMultiplier > 1.0 && (
+              <div className="flex items-center justify-between">
+                <span style={{ color: '#a08050' }}>Occupation Bonus:</span>
+                <span style={{ color: '#d4a843' }}>
+                  {discountCode.occupationName} ({discountCode.occupationMultiplier}x)
+                </span>
+              </div>
+            )}
+            <div
+              className="flex items-center justify-between pt-2 mt-2"
+              style={{ borderTop: '1px solid #5a4020' }}
+            >
+              <span className="font-bold" style={{ color: '#a08050' }}>
+                Final Discount:
+              </span>
+              <span className="text-xl font-bold" style={{ color: '#d4a843' }}>
+                {discountCode.finalDiscount}%
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Valid for:</span>
-              <span className="text-gray-400">{discountCode.validDays} days</span>
+              <span style={{ color: '#6a5030' }}>Valid for:</span>
+              <span style={{ color: '#a08050' }}>{discountCode.validDays} days</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Expires:</span>
-              <span className="text-gray-400">
+              <span style={{ color: '#6a5030' }}>Expires:</span>
+              <span style={{ color: '#a08050' }}>
                 {new Date(discountCode.expiresAt).toLocaleDateString()}
               </span>
             </div>
@@ -260,21 +337,42 @@ export function DiscountReward({
           {/* Karma Message */}
           {discountCode.karmaMessage && (
             <div
-              className={`border rounded-lg p-3 ${
-                hasBonus
-                  ? 'bg-green-900/30 border-green-700'
-                  : 'bg-red-900/30 border-red-700'
-              }`}
+              className="rounded-lg p-3"
+              style={{
+                backgroundColor: hasBonus ? 'rgba(124, 184, 124, 0.12)' : 'rgba(201, 112, 112, 0.12)',
+                border: `1px solid ${hasBonus ? '#4a7a4a' : '#7a4a4a'}`,
+              }}
             >
-              <p className={hasBonus ? 'text-green-300 text-sm' : 'text-red-300 text-sm'}>
+              <p className="text-sm" style={{ color: hasBonus ? '#7cb87c' : '#c97070' }}>
                 {discountCode.karmaMessage}
               </p>
             </div>
           )}
 
+          {/* Occupation Message */}
+          {discountCode.occupationMessage && (
+            <div
+              className="rounded-lg p-3"
+              style={{
+                backgroundColor: 'rgba(212, 168, 67, 0.12)',
+                border: '1px solid #8b6914',
+              }}
+            >
+              <p className="text-sm" style={{ color: '#d4a843' }}>
+                {discountCode.occupationMessage}
+              </p>
+            </div>
+          )}
+
           {/* Usage Instructions */}
-          <div className="bg-cyan-900/30 border border-cyan-700 rounded-lg p-3">
-            <p className="text-cyan-300 text-sm">
+          <div
+            className="rounded-lg p-3"
+            style={{
+              backgroundColor: 'rgba(160, 128, 80, 0.12)',
+              border: '1px solid #6a5030',
+            }}
+          >
+            <p className="text-sm" style={{ color: '#a08050' }}>
               <span className="font-bold">How to use:</span> Enter this code when booking your
               stay at Back of Beyond Ranch to receive your discount.
             </p>
@@ -282,10 +380,17 @@ export function DiscountReward({
         </div>
 
         {/* Actions */}
-        <div className="border-t border-gray-700 p-4">
+        <div className="p-4" style={{ borderTop: '1px solid #5a4020' }}>
           <button
             onClick={onClose}
-            className="w-full py-2 bg-amber-700 hover:bg-amber-600 text-amber-100 rounded font-bold"
+            className="w-full py-2 rounded font-bold"
+            style={{ backgroundColor: '#8b6914', color: '#2a1f14' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#d4a843'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#8b6914'
+            }}
           >
             Continue Adventure
           </button>
@@ -297,60 +402,94 @@ export function DiscountReward({
 
 /**
  * DiscountProgressBar - Inline component showing discount tier progress
+ *
+ * Accepts optional casesSolved and outlawCaught props; otherwise
+ * derives them from the mystery context state.
  */
 interface DiscountProgressBarProps {
   onShowReward?: () => void
+  casesSolved?: number
+  outlawCaught?: boolean
 }
 
-export function DiscountProgressBar({ onShowReward }: DiscountProgressBarProps) {
-  const { getCorrectClueCount } = useMystery()
+export function DiscountProgressBar({
+  onShowReward,
+  casesSolved: casesSolvedProp,
+  outlawCaught: outlawCaughtProp,
+}: DiscountProgressBarProps) {
+  const { state: mysteryState, getCorrectClueCount } = useMystery()
   const cluesCollected = getCorrectClueCount()
-  const progress = getNextTierProgress(cluesCollected)
-  const currentTier = getQualifyingTier(cluesCollected)
 
-  const getTierEmoji = (tier: DiscountTier | null): string => {
+  // Use props if provided, otherwise derive from state
+  const casesSolved = casesSolvedProp ?? (mysteryState.casesSolved?.length || 0)
+  const outlawCaught = outlawCaughtProp ?? ((mysteryState.outlawsCaught ?? 0) > 0)
+
+  const progress = getNextTierProgress(cluesCollected, casesSolved, outlawCaught)
+  const currentTier = getQualifyingTier(cluesCollected, casesSolved, outlawCaught)
+
+  const getBadge = (tier: DiscountTier | null): string => {
     if (!tier) return '🔒'
-    switch (tier) {
-      case 'recruit': return '🔰'
-      case 'detective': return '🔍'
-      case 'inspector': return '🎖️'
-      case 'chief': return '👑'
-    }
+    return DISCOUNT_TIERS[tier].badge
   }
 
   return (
-    <div className="bg-gray-800/60 rounded-lg p-3">
+    <div className="rounded-lg p-3" style={{ backgroundColor: 'rgba(61, 43, 24, 0.6)' }}>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-gray-400 text-sm">Discount Progress</span>
+        <span className="text-sm" style={{ color: '#a08050' }}>
+          Discount Progress
+        </span>
         {currentTier && (
           <button
             onClick={onShowReward}
-            className="text-amber-400 hover:text-amber-300 text-sm underline"
+            className="text-sm underline"
+            style={{ color: '#d4a843' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#a08050'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#d4a843'
+            }}
           >
             View Code
           </button>
         )}
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-xl">{getTierEmoji(currentTier)}</span>
+        <span className="text-xl">{getBadge(currentTier)}</span>
         <div className="flex-1">
-          <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+          <div
+            className="h-2 rounded-full overflow-hidden"
+            style={{ backgroundColor: '#5a4020' }}
+          >
             <div
-              className="h-full bg-amber-500 transition-all duration-500"
+              className="h-full transition-all duration-500"
               style={{
+                backgroundColor: '#d4a843',
                 width: progress.maxed
                   ? '100%'
                   : progress.nextTier
-                  ? `${(cluesCollected / DISCOUNT_TIERS[progress.nextTier].minClues) * 100}%`
+                  ? `${Math.min(
+                      100,
+                      (cluesCollected / DISCOUNT_TIERS[progress.nextTier].minClues) * 100
+                    )}%`
                   : '0%',
               }}
             />
           </div>
-          <p className="text-gray-500 text-xs mt-1">
-            {progress.maxed ? '🏆 Maximum tier!' : progress.message}
+          <p className="text-xs mt-1" style={{ color: '#6a5030' }}>
+            {progress.maxed ? 'Maximum tier reached!' : progress.message}
           </p>
         </div>
-        <span className="text-amber-300 font-bold text-sm">{cluesCollected} clues</span>
+        <div className="text-right">
+          <span className="font-bold text-sm" style={{ color: '#d4a843' }}>
+            {cluesCollected} clues
+          </span>
+          {casesSolved > 0 && (
+            <span className="block text-xs" style={{ color: '#a08050' }}>
+              {casesSolved} case{casesSolved !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )

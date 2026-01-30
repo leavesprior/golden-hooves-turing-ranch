@@ -146,7 +146,7 @@ export function LivestockPanel() {
         <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
           <div className="bg-gray-700 p-3 rounded">
             <div className="text-gray-400">Cost per head</div>
-            <div className="text-amber-400">{selectedConfig.neutralKarmaCost}🪙</div>
+            <div className="text-amber-400">{selectedConfig.neutralKarmaCost}🌮</div>
           </div>
           <div className="bg-gray-700 p-3 rounded">
             <div className="text-gray-400">Feed/day</div>
@@ -154,7 +154,7 @@ export function LivestockPanel() {
           </div>
           <div className="bg-gray-700 p-3 rounded">
             <div className="text-gray-400">Slaughter value</div>
-            <div className="text-amber-400">{selectedConfig.slaughterValue}🪙</div>
+            <div className="text-amber-400">{selectedConfig.slaughterValue}🌮</div>
           </div>
         </div>
 
@@ -166,7 +166,7 @@ export function LivestockPanel() {
               {selectedConfig.produces.map(prod => (
                 <div key={prod.name} className="text-sm">
                   <span className="text-amber-300">{prod.name}</span>
-                  <span className="text-gray-500 ml-1">({prod.productionRate}/day @ {prod.karmaValue}🪙)</span>
+                  <span className="text-gray-500 ml-1">({prod.productionRate}/day @ {prod.karmaValue}🌮)</span>
                 </div>
               ))}
             </div>
@@ -192,7 +192,7 @@ export function LivestockPanel() {
             }`}
           >
             <div>Buy</div>
-            <div className="text-sm opacity-75">{buyPrice}🪙</div>
+            <div className="text-sm opacity-75">{buyPrice}🌮</div>
           </button>
 
           <button
@@ -205,7 +205,7 @@ export function LivestockPanel() {
             }`}
           >
             <div>Sell</div>
-            <div className="text-sm opacity-75">+{sellPrice}🪙</div>
+            <div className="text-sm opacity-75">+{sellPrice}🌮</div>
           </button>
 
           <button
@@ -218,7 +218,7 @@ export function LivestockPanel() {
             }`}
           >
             <div>Slaughter</div>
-            <div className="text-sm opacity-75">+{slaughterPrice}🪙</div>
+            <div className="text-sm opacity-75">+{slaughterPrice}🌮</div>
           </button>
         </div>
 
@@ -249,7 +249,7 @@ export function LivestockPanel() {
                 }}
                 className="flex-1 py-2 bg-red-700 text-red-100 rounded hover:bg-red-600"
               >
-                Slaughter (+{slaughterPrice}🪙)
+                Slaughter (+{slaughterPrice}🌮)
               </button>
               <button
                 onClick={() => setConfirmSlaughter(false)}

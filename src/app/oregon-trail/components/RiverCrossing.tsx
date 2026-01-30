@@ -6,10 +6,13 @@ import {
   getCrossingChoices,
   resolveCrossing,
   getRiverDescription,
+  getActiveTraitBonuses,
+  getTraitLuckBonus,
   type RiverState,
   type CrossingChoice,
   type CrossingMethod,
-  type CrossingOutcome
+  type CrossingOutcome,
+  type RiverTraitBonus,
 } from '../data/riverCrossings'
 import { useOregonTrail, type Weather } from '../oregonTrailContext'
 import { useCharacter, type StatName } from '../characterContext'
@@ -66,8 +69,13 @@ export function RiverCrossing({
   const [riverDescription, setRiverDescription] = useState('')
   const [crossingProgress, setCrossingProgress] = useState(0)
 
-  // NEW: Bridge Keeper easter egg - 15% chance to encounter at any river
-  const [showBridgeKeeper] = useState(() => Math.random() < 0.15)
+  // Trait bonuses for river crossings
+  const playerTraits = charState?.character?.traits || []
+  const activeTraitBonuses = useMemo(() => getActiveTraitBonuses(playerTraits), [playerTraits])
+
+  // Bridge Keeper: 15% chance normally, 100% if player has bridge_keepers_bane trait
+  const hasBridgeKeeperTrait = playerTraits.includes('bridge_keepers_bane')
+  const [showBridgeKeeper] = useState(() => hasBridgeKeeperTrait || Math.random() < 0.15)
 
   // Generate river state on mount
   useEffect(() => {
@@ -138,9 +146,16 @@ export function RiverCrossing({
     clearInterval(progressInterval)
     setCrossingProgress(100)
 
-    // Roll for outcome
-    const luck = Math.floor(Math.random() * 20) + 1  // d20 roll
+    // Roll for outcome - apply trait bonuses to luck
+    const baseLuck = Math.floor(Math.random() * 20) + 1  // d20 roll
+    const traitBonus = getTraitLuckBonus(playerTraits, selectedChoice)
+    const luck = Math.min(20, baseLuck + traitBonus)  // Cap at 20
     const result = resolveCrossing(selectedChoice, riverState, playerStats, luck)
+
+    // Note trait bonus in flavor text if it helped
+    if (traitBonus > 0 && result.success) {
+      result.flavorText += ` (Your traits gave you an edge: +${traitBonus} to your roll)`
+    }
 
     setOutcome(result)
     setAnimatingCrossing(false)
@@ -239,13 +254,26 @@ export function RiverCrossing({
             Weather: {weather.charAt(0).toUpperCase() + weather.slice(1)}
             {weather === 'storm' && ' ⚠️'}
           </div>
+
+          {/* Active trait bonuses */}
+          {activeTraitBonuses.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-cyan-800/50">
+              <div className="flex flex-wrap justify-center gap-2">
+                {activeTraitBonuses.map(bonus => (
+                  <span key={bonus.traitId} className="px-2 py-0.5 bg-amber-900/40 border border-amber-600/40 rounded text-amber-300 text-xs">
+                    {bonus.effect}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Phase-specific content */}
         {/* NEW: Bridge Keeper Easter Egg (Monty Python) */}
         {phase === 'bridge_keeper' && charState && (
           <BridgeKeeper
-            playerName={charState.name || 'Traveler'}
+            playerName={charState.character?.name || 'Traveler'}
             onSuccess={handleBridgeKeeperSuccess}
             onFailure={handleBridgeKeeperFailure}
             onCancel={handleBridgeKeeperCancel}
@@ -340,6 +368,16 @@ export function RiverCrossing({
                             Your {choice.statCheck.stat}: {playerStats[choice.statCheck.stat]}
                           </p>
                         )}
+
+                        {/* Trait bonuses for this crossing method */}
+                        {activeTraitBonuses.filter(b =>
+                          b.crossingBonus?.methods.includes(choice.id) ||
+                          b.riskReduction?.includes(choice.id)
+                        ).map(bonus => (
+                          <p key={bonus.traitId} className="text-amber-400 text-xs mt-1">
+                            Trait bonus: {bonus.effect}
+                          </p>
+                        ))}
                       </div>
                     </div>
                   </button>
@@ -470,7 +508,7 @@ export function RiverCrossing({
 
         {/* Karma Balance Display */}
         <div className="fixed bottom-4 right-4 bg-amber-900/80 border-2 border-amber-600 rounded-lg px-4 py-2">
-          <span className="text-amber-400 text-sm font-pixel">🪙 {karmaBalance}</span>
+          <span className="text-amber-400 text-sm font-pixel">🌮 {karmaBalance}</span>
         </div>
       </div>
     </div>

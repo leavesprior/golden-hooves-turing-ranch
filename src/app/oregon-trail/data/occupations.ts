@@ -23,7 +23,7 @@ export interface OccupationData {
 
   // Starting resources
   startingKarma: {
-    neutral: number   // 🪙 Starting karma coins
+    neutral: number   // 🌮 Starting karma coins
     good: number      // 🍪 Starting good karma
     bad: number       // 🪨 Starting karma debt
   }

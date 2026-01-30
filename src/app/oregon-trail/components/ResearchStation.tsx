@@ -195,7 +195,7 @@ export function ResearchStation({
                   disabled={!canAfford('neutral', 10)}
                   className="text-amber-400 hover:text-amber-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  💡 Need a hint? (-10🪙)
+                  💡 Need a hint? (-10🌮)
                 </button>
               )}
             </div>

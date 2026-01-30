@@ -119,7 +119,7 @@ export function FenceUpgradePanel() {
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400">Cost:</span>
                   <span className={balance.neutral >= nextFence.neutralKarmaCost ? 'text-yellow-400' : 'text-red-400'}>
-                    {nextFence.neutralKarmaCost}🪙
+                    {nextFence.neutralKarmaCost}🌮
                   </span>
                   {nextFence.goodKarmaRequired > 0 && (
                     <span className={balance.good >= nextFence.goodKarmaRequired ? 'text-amber-400' : 'text-red-400'}>
@@ -183,7 +183,7 @@ export function FenceUpgradePanel() {
                   </div>
                 </div>
                 <div className="text-sm text-gray-400">
-                  {tier.neutralKarmaCost}🪙
+                  {tier.neutralKarmaCost}🌮
                   {tier.goodKarmaRequired > 0 && <span className="ml-1">+{tier.goodKarmaRequired}🍪</span>}
                 </div>
               </div>

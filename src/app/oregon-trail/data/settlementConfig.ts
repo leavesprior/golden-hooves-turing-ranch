@@ -403,7 +403,10 @@ export type EndingType =
   | 'rancher'
   | 'prospector'
   | 'tycoon'
-  | 'legend';
+  | 'legend'
+  | 'detective'
+  | 'gambler'
+  | 'golden_hooves';
 
 export interface EndingConfig {
   type: EndingType;
@@ -412,6 +415,8 @@ export interface EndingConfig {
   requirements: EndingRequirements;
   badge: string;
   color: string;
+  ranchReference?: string;      // How this ending references the real Airbnb ranch
+  discountPresentation?: string; // How the discount code is thematically presented
 }
 
 export interface EndingRequirements {
@@ -424,6 +429,10 @@ export interface EndingRequirements {
   minMiningClaims?: number;
   minGoldMined?: number;
   mysterySolved?: boolean;
+  allCasesSolved?: boolean;
+  outlawCaught?: boolean;
+  minLuck?: number;
+  chaotic?: boolean;
 }
 
 export const ENDINGS: Record<EndingType, EndingConfig> = {
@@ -461,7 +470,7 @@ export const ENDINGS: Record<EndingType, EndingConfig> = {
   },
   rancher: {
     type: 'rancher',
-    name: 'Rancher',
+    name: 'The Rancher',
     description: 'Your ranch prospers with livestock and a proper homestead.',
     requirements: {
       minPropertyTier: 3,
@@ -471,6 +480,8 @@ export const ENDINGS: Record<EndingType, EndingConfig> = {
     },
     badge: '🤠',
     color: 'gold',
+    ranchReference: 'You can visit what Tobias built at airbnb.com/h/backofbeyondranch',
+    discountPresentation: 'property_deed',
   },
   prospector: {
     type: 'prospector',
@@ -509,6 +520,49 @@ export const ENDINGS: Record<EndingType, EndingConfig> = {
     badge: '👑',
     color: 'legendary',
   },
+  detective: {
+    type: 'detective',
+    name: 'The Detective',
+    description: 'Every case solved. Every outlaw identified. The Pinkerton Agency\'s finest.',
+    requirements: {
+      allCasesSolved: true,
+      outlawCaught: true,
+    },
+    badge: '🔍',
+    color: 'silver',
+    ranchReference: 'His case files are hidden at the ranch. Can you find them?',
+    discountPresentation: 'wanted_poster',
+  },
+  gambler: {
+    type: 'gambler',
+    name: 'The Gambler',
+    description: 'Fortune favored you at every turn. Chaos was your ally and luck your lover.',
+    requirements: {
+      minLuck: 12,
+      chaotic: true,
+    },
+    badge: '🎰',
+    color: 'gold',
+    ranchReference: 'Tobias won the ranch in a card game. Lady Luck still smiles there.',
+    discountPresentation: 'winning_hand',
+  },
+  golden_hooves: {
+    type: 'golden_hooves',
+    name: 'The Golden Hooves',
+    description: 'The real gold was never in the rivers. It\'s in the sunset painting the deer with golden coats.',
+    requirements: {
+      minPropertyTier: 5,
+      minDays: 365,
+      minReputation: 95,
+      requiredBuildings: ['house', 'barn', 'workshop', 'storehouse'],
+      mysterySolved: true,
+      allCasesSolved: true,
+    },
+    badge: '🦌',
+    color: 'legendary',
+    ranchReference: 'The golden hooves still dance at dusk. See them at Back of Beyond Ranch.',
+    discountPresentation: 'treasure_map',
+  },
 };
 
 // ============================================================
@@ -533,7 +587,7 @@ export function canAffordPropertyUpgrade(
   const config = PROPERTY_TIERS[nextTier];
 
   if (neutralKarma < config.neutralKarmaCost) {
-    return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🪙 (have ${neutralKarma})` };
+    return { canAfford: false, reason: `Need ${config.neutralKarmaCost}🌮 (have ${neutralKarma})` };
   }
 
   if (goodKarma < config.goodKarmaRequired) {
@@ -617,11 +671,28 @@ export function determineEnding(
   miningClaims: number,
   goldMined: number,
   mysterySolved: boolean,
-  leftSettlement: boolean
+  leftSettlement: boolean,
+  allCasesSolved: boolean = false,
+  outlawCaught: boolean = false,
+  luckStat: number = 5,
+  isChaotic: boolean = false
 ): EndingType {
   if (leftSettlement) return 'departed';
 
-  // Check from highest to lowest priority
+  // Check golden_hooves first (highest priority canonical ending)
+  const golden = ENDINGS.golden_hooves.requirements;
+  if (
+    propertyTier >= (golden.minPropertyTier || 0) &&
+    daysInSettlement >= (golden.minDays || 0) &&
+    reputation >= (golden.minReputation || 0) &&
+    golden.requiredBuildings?.every(b => buildings.includes(b)) &&
+    mysterySolved &&
+    allCasesSolved
+  ) {
+    return 'golden_hooves';
+  }
+
+  // Check legend
   const legend = ENDINGS.legend.requirements;
   if (
     propertyTier >= (legend.minPropertyTier || 0) &&
@@ -631,6 +702,16 @@ export function determineEnding(
     (!legend.mysterySolved || mysterySolved)
   ) {
     return 'legend';
+  }
+
+  // Check detective
+  if (allCasesSolved && outlawCaught) {
+    return 'detective';
+  }
+
+  // Check gambler
+  if (luckStat >= 12 && isChaotic) {
+    return 'gambler';
   }
 
   const tycoon = ENDINGS.tycoon.requirements;

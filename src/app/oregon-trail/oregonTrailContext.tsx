@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react'
 import { useKarma } from '@/lib/karmaContext'
 import { type CrossingOutcome } from './data/riverCrossings'
+import { getCriticalDescription } from './data/criticalDescriptions'
 
 // Types
 export type Pace = 'steady' | 'strenuous' | 'grueling'
@@ -81,7 +82,7 @@ export interface EventOutcome {
   }
   daysLost?: number
   // Karma Blockchain currency
-  neutralKarmaDelta?: number  // 🪙 Primary currency (replaces gold)
+  neutralKarmaDelta?: number  // 🌮 Primary currency (replaces gold)
   goodKarmaDelta?: number     // 🍪 Premium/special items
   badKarmaDelta?: number      // 🪨 Debt/consequences
 }
@@ -195,7 +196,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
           message: 'The traveler thanks you and recovers. Good karma flows.',
           foodDelta: -20,
           medicineDelta: -1,
-          neutralKarmaDelta: -20,  // Costs 20🪙
+          neutralKarmaDelta: -20,  // Costs 20🌮
           goodKarmaDelta: 15,      // Earns 15🍪
         },
         karmaLawful: 0,
@@ -236,7 +237,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         outcome: {
           message: 'They reluctantly agree. You profit from their misfortune.',
           spareParts: -1,
-          neutralKarmaDelta: 30,  // Earns 30🪙
+          neutralKarmaDelta: 30,  // Earns 30🌮
           badKarmaDelta: 5,       // Gains 5🪨 debt
         },
         karmaLawful: 5,
@@ -261,7 +262,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         text: 'Trade fairly for supplies',
         outcome: {
           message: 'The trade is mutually beneficial. You gain food and trust.',
-          neutralKarmaDelta: -15,  // Costs 15🪙
+          neutralKarmaDelta: -15,  // Costs 15🌮
           foodDelta: 50,
           goodKarmaDelta: 10,      // Earns 10🍪 for fair dealing
         },
@@ -282,7 +283,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
           message: 'You steal their supplies. It weighs on your conscience.',
           foodDelta: 80,
           ammoDelta: 20,
-          neutralKarmaDelta: 80,  // Ill-gotten gains 80🪙 worth
+          neutralKarmaDelta: 80,  // Ill-gotten gains 80🌮 worth
           badKarmaDelta: 20,      // Major bad karma 20🪨
         },
         karmaLawful: 10,
@@ -300,7 +301,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         text: 'Help the prospector and report to authorities',
         outcome: {
           message: 'Justice is served. The prospector rewards you.',
-          neutralKarmaDelta: 25,  // Reward 25🪙
+          neutralKarmaDelta: 25,  // Reward 25🌮
           goodKarmaDelta: 10,     // Earns 10🍪
           daysLost: 1,
         },
@@ -312,7 +313,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         text: 'Join the claim jumpers for a cut',
         outcome: {
           message: 'You share in ill-gotten gains.',
-          neutralKarmaDelta: 50,  // Ill-gotten 50🪙
+          neutralKarmaDelta: 50,  // Ill-gotten 50🌮
           badKarmaDelta: 15,      // Major bad karma 15🪨
         },
         karmaLawful: 15,
@@ -338,7 +339,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         outcome: {
           message: 'The family weeps with gratitude. Your heart feels light.',
           foodDelta: -40,
-          neutralKarmaDelta: -40,  // Costs 40🪙 worth
+          neutralKarmaDelta: -40,  // Costs 40🌮 worth
           goodKarmaDelta: 15,      // Earns 15🍪
         },
         karmaLawful: 0,
@@ -402,7 +403,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         text: 'Spend a day panning',
         outcome: {
           message: 'Lady luck smiles! You find a decent nugget.',
-          neutralKarmaDelta: 40,  // Earns 40🪙
+          neutralKarmaDelta: 40,  // Earns 40🌮
           daysLost: 1,
         },
         karmaLawful: -3,
@@ -438,7 +439,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         text: 'Offer them karma to leave',
         outcome: {
           message: 'They take the karma and disappear.',
-          neutralKarmaDelta: -25,  // Costs 25🪙
+          neutralKarmaDelta: -25,  // Costs 25🌮
         },
         karmaLawful: 5,
         karmaGood: 0,
@@ -816,12 +817,12 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
       phase: 'outfitting',
       party,
       wagonLeader: leaderName,
-      // Currency is now managed by KarmaWalletContext (starting with 400🪙)
+      // Currency is now managed by KarmaWalletContext (starting with 400🌮)
     })
   }, [])
 
   // Purchase supplies - updates resources only
-  // Cost (in 🪙) is returned and must be paid via KarmaWalletContext
+  // Cost (in 🌮) is returned and must be paid via KarmaWalletContext
   const purchaseSupplies = useCallback((supplies: { food: number; ammo: number; parts: number; medicine: number; oxen: number }) => {
     setState(prev => ({
       ...prev,
@@ -1024,24 +1025,38 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
         return { ...prev, message: 'Not enough ammunition to hunt!' }
       }
 
-      const success = Math.random() > 0.3
+      const roll = Math.random()
+      const success = roll > 0.3
+      const isCritSuccess = roll > 0.95  // Top 5% = critical hit
+      const isCritFailure = roll < 0.05  // Bottom 5% = critical miss
       const ammoUsed = Math.floor(Math.random() * 10) + 5
       const foodGained = success ? Math.floor(Math.random() * 200) + 50 : 0
+
+      let message = success
+        ? `You shot a deer! Gained ${foodGained} pounds of food.`
+        : 'The animals got away. Better luck next time.'
+
+      // Add critical description flavor text for extreme outcomes
+      if (isCritSuccess) {
+        const critDesc = getCriticalDescription(true, 'hunting', undefined, 'Agility')
+        message = `${critDesc} ${message}`
+      } else if (isCritFailure) {
+        const critDesc = getCriticalDescription(false, 'hunting')
+        message = `${critDesc} ${message}`
+      }
 
       return {
         ...prev,
         ammunition: prev.ammunition - ammoUsed,
         food: prev.food + foodGained,
         animalsKilled: prev.animalsKilled + (success ? 1 : 0),
-        message: success
-          ? `You shot a deer! Gained ${foodGained} pounds of food.`
-          : 'The animals got away. Better luck next time.',
+        message,
       }
     })
   }, [])
 
   // River crossing
-  // Ferry costs 20🪙 - caller must handle payment via KarmaWalletContext
+  // Ferry costs 20🌮 - caller must handle payment via KarmaWalletContext
   const crossRiver = useCallback((method: 'ford' | 'ferry' | 'caulk') => {
     // Apply karma OUTSIDE setState callback for ford method
     if (method === 'ford') {
@@ -1062,7 +1077,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
         case 'ferry':
           outcome = {
             message: 'You pay for the ferry crossing.',
-            karmaCost: 20,  // 20🪙 - handled by caller
+            karmaCost: 20,  // 20🌮 - handled by caller
             damageProbability: 0.05,
             damageAmount: 5,
           }
@@ -1173,7 +1188,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
 
   // ============================================
   // SHOP & INN METHODS
-  // Note: All costs are in 🪙 Neutral Karma, handled by KarmaWalletContext
+  // Note: All costs are in 🌮 Neutral Karma, handled by KarmaWalletContext
   // These methods only update game resources - caller must handle karma payment
   // ============================================
 

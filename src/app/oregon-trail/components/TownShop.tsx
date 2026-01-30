@@ -216,7 +216,7 @@ export function TownShop({ onClose }: TownShopProps) {
         timestamp: Date.now(),
       }
       setTransactions(prev => [tx, ...prev])
-      setMessage(`Bought ${totalAmount} ${item.unit}(s) of ${item.name} for ${totalCost}🪙`)
+      setMessage(`Bought ${totalAmount} ${item.unit}(s) of ${item.name} for ${totalCost}🌮`)
 
       // Build reputation with settlers for fair trade
       if (qty >= 3) {
@@ -255,7 +255,7 @@ export function TownShop({ onClose }: TownShopProps) {
       timestamp: Date.now(),
     }
     setTransactions(prev => [tx, ...prev])
-    setMessage(`Sold ${totalAmount} ${item.unit}(s) of ${item.name} for ${totalKarma}🪙`)
+    setMessage(`Sold ${totalAmount} ${item.unit}(s) of ${item.name} for ${totalKarma}🌮`)
   }, [getCurrentStock, sellSupplies, earnNeutral])
 
   const handleBuySpecial = useCallback(async (item: typeof SPECIAL_ITEMS[0]) => {
@@ -301,7 +301,7 @@ export function TownShop({ onClose }: TownShopProps) {
       }
       sellSupplies(tx.item.resource, tx.amount, 0) // Remove the supplies
       await earnNeutral(Math.abs(tx.karmaChange), `Refund: ${tx.item.name}`) // Refund karma
-      setMessage(`Undid purchase: +${Math.abs(tx.karmaChange)}🪙 returned`)
+      setMessage(`Undid purchase: +${Math.abs(tx.karmaChange)}🌮 returned`)
     } else {
       // Undo sell: restore supplies, take back karma
       const karmaToTakeBack = tx.karmaChange
@@ -397,7 +397,7 @@ export function TownShop({ onClose }: TownShopProps) {
                         </div>
                         <div className="text-right">
                           <p className={`font-bold ${mode === 'sell' ? 'text-green-400' : 'text-yellow-300'}`}>
-                            {mode === 'sell' ? displayPrice.toFixed(2) : displayPrice}🪙
+                            {mode === 'sell' ? displayPrice.toFixed(2) : displayPrice}🌮
                           </p>
                           <p className="text-amber-500 text-xs">
                             {mode === 'buy' ? `per ${item.quantity} ${item.unit}` : `per ${item.unit}`}
@@ -483,8 +483,8 @@ export function TownShop({ onClose }: TownShopProps) {
                             {/* Show total karma to be earned/spent */}
                             <span className={`text-sm md:text-xs ${mode === 'sell' ? 'text-green-400' : 'text-yellow-300'}`}>
                               {mode === 'sell'
-                                ? `+${Math.floor(item.sellPrice * quantity)}🪙`
-                                : `-${Math.ceil(getPrice(item, false) * item.quantity * quantity)}🪙`
+                                ? `+${Math.floor(item.sellPrice * quantity)}🌮`
+                                : `-${Math.ceil(getPrice(item, false) * item.quantity * quantity)}🌮`
                               }
                             </span>
                             <button
@@ -567,7 +567,7 @@ export function TownShop({ onClose }: TownShopProps) {
                       {tx.type === 'buy' ? 'Bought' : 'Sold'} {tx.amount} {tx.item.unit}
                     </span>
                     <span className={tx.karmaChange > 0 ? 'text-green-400' : 'text-red-400'}>
-                      {tx.karmaChange > 0 ? '+' : ''}{tx.karmaChange}🪙
+                      {tx.karmaChange > 0 ? '+' : ''}{tx.karmaChange}🌮
                     </span>
                   </div>
                   <button

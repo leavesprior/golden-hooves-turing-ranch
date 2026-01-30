@@ -14,7 +14,7 @@ interface KarmaWalletProps {
  *
  * Balance Display:
  * ┌─────────────────────────────────┐
- * │ 🪙 385 │ 🍪 15 │ 🪨 0          │
+ * │ 🌮 385 │ 🍪 15 │ 🪨 0          │
  * └─────────────────────────────────┘
  */
 export function KarmaWallet({ compact = false, showBadKarma = true, className = '' }: KarmaWalletProps) {
@@ -29,7 +29,7 @@ export function KarmaWallet({ compact = false, showBadKarma = true, className = 
         onMouseLeave={() => setShowTooltip(false)}
       >
         <span className="text-yellow-300 font-bold">
-          🪙 {Math.floor(balance.neutral)}
+          🌮 {Math.floor(balance.neutral)}
         </span>
         {balance.good > 0 && (
           <span className="text-amber-400">
@@ -64,7 +64,7 @@ export function KarmaWallet({ compact = false, showBadKarma = true, className = 
       >
         {/* Neutral Karma - Primary Currency */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xl">🪙</span>
+          <span className="text-xl">🌮</span>
           <div className="text-right">
             <span className="text-yellow-300 font-bold text-lg">{Math.floor(balance.neutral)}</span>
             {!compact && (
@@ -119,7 +119,7 @@ export function KarmaWallet({ compact = false, showBadKarma = true, className = 
           <h4 className="text-amber-200 font-bold text-sm mb-2">Karma Wallet</h4>
           <div className="space-y-2 text-xs">
             <div className="flex justify-between items-center">
-              <span className="text-yellow-400">🪙 Neutral Karma</span>
+              <span className="text-yellow-400">🌮 Neutral Karma</span>
               <span className="text-amber-200">{balance.neutral.toFixed(0)}</span>
             </div>
             <p className="text-gray-400 text-[10px]">Primary currency for supplies and services</p>
@@ -169,7 +169,7 @@ export function KarmaPrice({ amount, type = 'neutral', className = '' }: KarmaPr
   const { canAfford } = useKarmaWallet()
   const affordable = canAfford(type, amount)
 
-  const emoji = type === 'good' ? '🍪' : '🪙'
+  const emoji = type === 'good' ? '🍪' : '🌮'
   const colorClass = type === 'good'
     ? affordable ? 'text-amber-400' : 'text-red-400'
     : affordable ? 'text-yellow-300' : 'text-red-400'
@@ -199,7 +199,7 @@ export function KarmaChange({ neutralDelta = 0, goodDelta = 0, badDelta = 0, cla
     const color = neutralDelta > 0 ? 'text-green-400' : 'text-red-400'
     changes.push(
       <span key="neutral" className={color}>
-        {sign}{neutralDelta}🪙
+        {sign}{neutralDelta}🌮
       </span>
     )
   }
@@ -262,7 +262,7 @@ export function WalletModeSelector({ onSelect }: WalletModeSelectorProps) {
             <span className="text-3xl">🆕</span>
             <div>
               <h3 className="text-emerald-200 font-bold">New Wallet</h3>
-              <p className="text-emerald-400 text-xs">Start fresh with 400🪙 Neutral Karma</p>
+              <p className="text-emerald-400 text-xs">Start fresh with 400🌮 Neutral Karma</p>
             </div>
           </div>
         </button>
@@ -285,7 +285,7 @@ export function WalletModeSelector({ onSelect }: WalletModeSelectorProps) {
       <div className="mt-6 pt-4 border-t border-amber-700">
         <h4 className="text-amber-300 text-xs font-bold mb-2">Karma Types:</h4>
         <div className="space-y-1 text-xs text-amber-400">
-          <p>🪙 <span className="text-yellow-300">Neutral</span> - Primary currency for supplies</p>
+          <p>🌮 <span className="text-yellow-300">Neutral</span> - Primary currency for supplies</p>
           <p>🍪 <span className="text-amber-300">Good</span> - Earned by helping others, used for special items</p>
           <p>🪨 <span className="text-red-300">Bad</span> - Debt from dark choices</p>
         </div>

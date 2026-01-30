@@ -228,7 +228,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     const price = Math.ceil(room.price * priceModifier)
     const usesGoodKarma = room.usesGoodKarma || false
     const karmaType = usesGoodKarma ? 'good' : 'neutral'
-    const karmaEmoji = usesGoodKarma ? '🍪' : '🪙'
+    const karmaEmoji = usesGoodKarma ? '🍪' : '🌮'
 
     if (!canAfford(karmaType, price)) {
       if (usesGoodKarma) {
@@ -272,7 +272,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     const price = Math.ceil(foodItem.price * priceModifier)
     const usesGoodKarma = foodItem.usesGoodKarma || false
     const karmaType = usesGoodKarma ? 'good' : 'neutral'
-    const karmaEmoji = usesGoodKarma ? '🍪' : '🪙'
+    const karmaEmoji = usesGoodKarma ? '🍪' : '🌮'
 
     if (!canAfford(karmaType, price)) {
       if (usesGoodKarma) {
@@ -329,7 +329,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     }
 
     buyDrink(drink.moraleBonus, 0) // Pass 0 since karma already spent
-    setMessage(`You enjoy a ${drink.name}. ${drink.effect} (-${price}🪙)`)
+    setMessage(`You enjoy a ${drink.name}. ${drink.effect} (-${price}🌮)`)
     setPartyMorale(m => Math.min(100, m + drink.moraleBonus))
 
     // Apply stat effect if any
@@ -434,7 +434,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
                 const price = Math.ceil(room.price * priceModifier)
                 const usesGoodKarma = room.usesGoodKarma || false
                 const karmaType = usesGoodKarma ? 'good' : 'neutral'
-                const karmaEmoji = usesGoodKarma ? '🍪' : '🪙'
+                const karmaEmoji = usesGoodKarma ? '🍪' : '🌮'
                 const affordable = canAfford(karmaType, price)
                 const isSpecial = room.id === 'cabin'
 
@@ -484,7 +484,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
                 const price = Math.ceil(foodItem.price * priceModifier)
                 const usesGoodKarma = foodItem.usesGoodKarma || false
                 const karmaType = usesGoodKarma ? 'good' : 'neutral'
-                const karmaEmoji = usesGoodKarma ? '🍪' : '🪙'
+                const karmaEmoji = usesGoodKarma ? '🍪' : '🌮'
                 const affordable = canAfford(karmaType, price)
                 const isSpecial = foodItem.id.startsWith('cynthia') || foodItem.id === 'mountain_breakfast'
 
@@ -549,7 +549,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
                         <div className="flex justify-between">
                           <h3 className="text-amber-200 font-bold">{drink.name}</h3>
                           <p className={`font-bold ${affordable ? 'text-yellow-300' : 'text-red-400'}`}>
-                            {price}🪙
+                            {price}🌮
                           </p>
                         </div>
                         <p className="text-amber-400 text-xs">{drink.description}</p>

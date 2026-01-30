@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useCharacter, type StatName, type SkillCheckResult, formatSkillCheck } from '../characterContext'
+import { getCriticalDescription } from '../data/criticalDescriptions'
 
 interface SkillCheckProps {
   stat: StatName
@@ -137,6 +138,11 @@ export function SkillCheck({ stat, difficulty, description, onResult, onCancel }
               {result.margin !== 0 && (
                 <div className="text-sm text-gray-400 mt-1">
                   {result.success ? `Beat DC by ${result.margin}` : `Missed by ${Math.abs(result.margin)}`}
+                </div>
+              )}
+              {(result.criticalSuccess || result.criticalFailure) && (
+                <div className="text-xs text-amber-300/80 mt-2 italic max-w-xs mx-auto">
+                  {getCriticalDescription(!!result.criticalSuccess, 'general', undefined, stat)}
                 </div>
               )}
             </div>
