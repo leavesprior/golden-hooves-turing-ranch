@@ -7,7 +7,7 @@ export type CaseId = 'jumping_frog' | 'gold_rush_heist' | 'cave_secrets' | 'wine
 
 export interface EducationalClue {
   id: string
-  caseId: CaseId
+  caseId: CaseId | null  // null = trail clue (not bound to a case)
   locationId: string
   order: number
   text: string
@@ -367,17 +367,148 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
   }
 ]
 
+// ========== OREGON TRAIL LANDMARK CLUES (case-independent) ==========
+// These appear during travel and are NOT tied to a Gold Country case.
+
+export const TRAIL_CLUES: EducationalClue[] = [
+  {
+    id: 'trail_clue_01',
+    caseId: null,
+    locationId: 'fort_kearny',
+    order: 1,
+    text: 'A weathered signpost marks Fort Kearny, the first major military outpost on the Oregon Trail. Soldiers here protected emigrants from conflicts and helped maintain order on the frontier.',
+    hintLink: 'https://en.wikipedia.org/wiki/Fort_Kearny',
+    question: 'What was Fort Kearny\'s primary role on the Oregon Trail?',
+    answer: 'military outpost',
+    acceptedAnswers: ['military outpost', 'military post', 'protect emigrants', 'protecting travelers', 'army outpost', 'military'],
+    fact: 'Fort Kearny was established in 1848 to protect Oregon Trail emigrants. By 1850, over 50,000 travelers passed through annually. Soldiers stationed here also served as de facto postal workers, forwarding letters back east.',
+    suspectHint: 'The trail holds knowledge for those who seek it...'
+  },
+  {
+    id: 'trail_clue_02',
+    caseId: null,
+    locationId: 'chimney_rock',
+    order: 1,
+    text: 'Rising dramatically from the plains of western Nebraska, this natural landmark was the most mentioned site in pioneer journals. Travelers could see it for days before reaching it.',
+    hintLink: 'https://en.wikipedia.org/wiki/Chimney_Rock_(Nebraska)',
+    question: 'Approximately how tall does Chimney Rock rise above the North Platte River valley?',
+    answer: '300 feet',
+    acceptedAnswers: ['300 feet', '300', '325 feet', '325', 'about 300 feet', 'three hundred feet'],
+    fact: 'Chimney Rock rises about 300 feet above the surrounding terrain. It was so iconic that it appeared in more pioneer diaries, letters, and paintings than any other landmark on the Oregon Trail. Erosion has reduced its height over time.',
+    suspectHint: 'Even nature leaves clues for the observant traveler...'
+  },
+  {
+    id: 'trail_clue_03',
+    caseId: null,
+    locationId: 'fort_laramie',
+    order: 1,
+    text: 'Fort Laramie began as a fur trading post in 1834 before the U.S. Army purchased it in 1849. It became the most important resupply point on the entire trail.',
+    hintLink: 'https://en.wikipedia.org/wiki/Fort_Laramie',
+    question: 'What did travelers primarily trade for at Fort Laramie?',
+    answer: 'supplies',
+    acceptedAnswers: ['supplies', 'provisions', 'food', 'goods', 'food and supplies', 'trade goods'],
+    fact: 'Fort Laramie was where emigrants traded worn-out equipment, lightened their loads, and restocked provisions. The trail around the fort was littered with abandoned furniture, stoves, and heavy goods that travelers realized they couldn\'t carry further.',
+    suspectHint: 'A well-supplied traveler is a wise traveler...'
+  },
+  {
+    id: 'trail_clue_04',
+    caseId: null,
+    locationId: 'independence_rock',
+    order: 1,
+    text: 'This massive granite outcrop in central Wyoming served as a milestone for Oregon Trail travelers. Thousands carved their names into its surface, earning it the nickname "The Great Register of the Desert."',
+    hintLink: 'https://en.wikipedia.org/wiki/Independence_Rock_(Wyoming)',
+    question: 'Why was this granite outcrop called "Independence Rock"?',
+    answer: 'Travelers aimed to reach it by July 4th',
+    acceptedAnswers: ['july 4th', 'july 4', 'independence day', 'fourth of july', 'travelers aimed to reach it by july 4th', 'reach by july 4th', 'fourth of july deadline'],
+    fact: 'Emigrants aimed to reach Independence Rock by July 4th (Independence Day) to ensure they\'d cross the mountains before winter snows. Those arriving later risked the fate of the Donner Party. Over 5,000 names were carved into the rock.',
+    suspectHint: 'Timing is everything on the frontier...'
+  },
+  {
+    id: 'trail_clue_05',
+    caseId: null,
+    locationId: 'south_pass',
+    order: 1,
+    text: 'This broad, gentle valley through the Rocky Mountains was the key to the entire Oregon Trail. Without it, wagon travel to the Pacific would have been nearly impossible.',
+    hintLink: 'https://en.wikipedia.org/wiki/South_Pass_(Wyoming)',
+    question: 'What made South Pass unique among mountain crossings?',
+    answer: 'gentle slope',
+    acceptedAnswers: ['gentle slope', 'gradual slope', 'wagons could cross easily', 'easy crossing', 'wide and gentle', 'broad and gentle', 'not steep', 'gradual'],
+    fact: 'South Pass was so broad and gradual that many emigrants didn\'t even realize they were crossing the Continental Divide at 7,550 feet. Unlike narrow mountain passes, its 20-mile width allowed wagons to pass easily - making it the gateway to the West.',
+    suspectHint: 'The easiest path isn\'t always the most obvious...'
+  },
+  {
+    id: 'trail_clue_06',
+    caseId: null,
+    locationId: 'soda_springs',
+    order: 1,
+    text: 'Travelers were amazed by the naturally carbonated water bubbling from the ground here. Some called it "Beer Springs" and many compared it to soda water they knew from back east.',
+    hintLink: 'https://en.wikipedia.org/wiki/Soda_Springs,_Idaho',
+    question: 'What gives the springs their fizzy, carbonated water?',
+    answer: 'carbon dioxide',
+    acceptedAnswers: ['carbon dioxide', 'co2', 'volcanic activity', 'underground volcanic', 'volcanic', 'carbonic acid', 'natural carbonation'],
+    fact: 'The springs are naturally carbonated by carbon dioxide gas released from underground volcanic activity. Pioneer Brigham Young wrote that the water "tastes much like beer." Steamboat Spring, which shot water 15 feet high, was a particular attraction.',
+    suspectHint: 'Nature\'s wonders can teach us much...'
+  },
+  {
+    id: 'trail_clue_07',
+    caseId: null,
+    locationId: 'blue_mountains',
+    order: 1,
+    text: 'These forested mountains in eastern Oregon were one of the last major obstacles before the Willamette Valley. The steep terrain forced travelers to lock their wagon wheels and slide down slopes.',
+    hintLink: 'https://en.wikipedia.org/wiki/Blue_Mountains_(Oregon)',
+    question: 'What Native American people lived in and guided travelers through the Blue Mountains region?',
+    answer: 'Cayuse',
+    acceptedAnswers: ['cayuse', 'cayuse tribe', 'the cayuse', 'cayuse people', 'cayuse nation'],
+    fact: 'The Cayuse people had lived in the Blue Mountains region for thousands of years. They initially helped guide emigrants through the difficult terrain, but growing tensions over land and disease led to the Cayuse War of 1847-1850.',
+    suspectHint: 'Those who know the land best are its original people...'
+  },
+  {
+    id: 'trail_clue_08',
+    caseId: null,
+    locationId: 'the_dalles',
+    order: 1,
+    text: 'Here at The Dalles, travelers faced a terrible choice: risk the treacherous Columbia River rapids by raft, or pay to take the expensive Barlow Road over Mount Hood.',
+    hintLink: 'https://en.wikipedia.org/wiki/The_Dalles,_Oregon',
+    question: 'What dangerous water route did travelers face at The Dalles?',
+    answer: 'Columbia River rapids',
+    acceptedAnswers: ['columbia river rapids', 'columbia river', 'the rapids', 'river rapids', 'columbia rapids'],
+    fact: 'The Columbia River rapids at The Dalles were so dangerous that many families lost everything - wagons, supplies, even lives - trying to navigate them by raft. Sam Barlow built a toll road around Mount Hood in 1846, charging $5 per wagon.',
+    suspectHint: 'The most direct path is not always the safest...'
+  },
+  {
+    id: 'trail_clue_09',
+    caseId: null,
+    locationId: 'sacramento_valley',
+    order: 1,
+    text: 'You\'ve reached the Sacramento Valley! In January 1848, James Marshall discovered gold at Sutter\'s Mill, triggering the greatest mass migration in American history.',
+    hintLink: 'https://en.wikipedia.org/wiki/California_Gold_Rush',
+    question: 'In what year did the California Gold Rush begin after gold was found at Sutter\'s Mill?',
+    answer: '1848',
+    acceptedAnswers: ['1848', 'eighteen forty eight', '1848-1849', '1849'],
+    fact: 'James Marshall found gold at Sutter\'s Mill on January 24, 1848. By 1849, over 300,000 people ("Forty-Niners") had rushed to California. The Gold Rush transformed San Francisco from a small settlement to a booming city of 36,000 in just two years.',
+    suspectHint: 'Gold fever changes people - and nations...'
+  },
+]
+
+// Combine all clues for unified access
+export const ALL_CLUES: EducationalClue[] = [...EDUCATIONAL_CLUES, ...TRAIL_CLUES]
+
 // Helper functions
 export function getCluesByCaseId(caseId: CaseId): EducationalClue[] {
   return EDUCATIONAL_CLUES.filter(clue => clue.caseId === caseId).sort((a, b) => a.order - b.order)
 }
 
 export function getCluesByLocationId(locationId: string): EducationalClue[] {
-  return EDUCATIONAL_CLUES.filter(clue => clue.locationId === locationId)
+  return ALL_CLUES.filter(clue => clue.locationId === locationId)
+}
+
+/** Get trail-only clues for a location (case-independent) */
+export function getTrailCluesByLocationId(locationId: string): EducationalClue[] {
+  return TRAIL_CLUES.filter(clue => clue.locationId === locationId)
 }
 
 export function getClueById(id: string): EducationalClue | undefined {
-  return EDUCATIONAL_CLUES.find(clue => clue.id === id)
+  return ALL_CLUES.find(clue => clue.id === id)
 }
 
 export function checkAnswer(clueId: string, userAnswer: string): boolean {
@@ -389,7 +520,7 @@ export function checkAnswer(clueId: string, userAnswer: string): boolean {
   )
 }
 
-// Get clue count per case
+// Get clue count per case (excludes trail clues which have null caseId)
 export const CASE_CLUE_COUNTS: Record<CaseId, number> = {
   jumping_frog: 6,
   gold_rush_heist: 7,

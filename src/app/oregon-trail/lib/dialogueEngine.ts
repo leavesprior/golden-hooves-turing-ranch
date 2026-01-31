@@ -218,24 +218,26 @@ You saw the outlaw who committed a crime. You know this specific detail:
 export function buildConversationPrompt(
   playerMessage: string,
   history: ConversationTurn[],
-  maxTurns: number = 6
+  maxTurns: number = 6,
+  npcName: string = 'NPC'
 ): string {
   const recentHistory = history.slice(-maxTurns)
+  const tag = getPersonalityTag(npcName)
 
   if (recentHistory.length === 0) {
-    return `Player: ${playerMessage}\n${getPersonalityTag()}:`
+    return `Player: ${playerMessage}\n${tag}:`
   }
 
   const historyText = recentHistory
-    .map(turn => `${turn.speaker === 'player' ? 'Player' : getPersonalityTag()}: ${turn.text}`)
+    .map(turn => `${turn.speaker === 'player' ? 'Player' : tag}: ${turn.text}`)
     .join('\n')
 
-  return `${historyText}\nPlayer: ${playerMessage}\n${getPersonalityTag()}:`
+  return `${historyText}\nPlayer: ${playerMessage}\n${tag}:`
 }
 
 // Get tag for NPC responses
-function getPersonalityTag(): string {
-  return 'NPC'
+function getPersonalityTag(npcName: string = 'NPC'): string {
+  return npcName
 }
 
 /**

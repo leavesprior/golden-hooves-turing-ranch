@@ -10,6 +10,7 @@ import { LiveryStable } from './LiveryStable'
 import { Gunsmith } from './Gunsmith'
 import { RanchManagement } from './RanchManagement'
 import { KarmaWallet } from './KarmaWallet'
+import { BusinessHub } from './BusinessHub'
 import { ENDINGS } from '../data/settlementConfig'
 
 interface SettlementHubProps {
@@ -17,7 +18,7 @@ interface SettlementHubProps {
   onComplete: () => void
 }
 
-type Tab = 'overview' | 'ranch' | 'land_office' | 'livery' | 'gunsmith'
+type Tab = 'overview' | 'ranch' | 'land_office' | 'livery' | 'gunsmith' | 'business'
 
 export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
@@ -78,6 +79,7 @@ export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
     { id: 'land_office', label: 'Land Office', icon: '📜' },
     { id: 'livery', label: 'Livery', icon: '🐴' },
     { id: 'gunsmith', label: 'Gunsmith', icon: '🔫' },
+    { id: 'business', label: 'Business', icon: '🏪' },
   ]
 
   return (
@@ -249,6 +251,7 @@ export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
           {activeTab === 'land_office' && <LandOffice />}
           {activeTab === 'livery' && <LiveryStable />}
           {activeTab === 'gunsmith' && <Gunsmith />}
+          {activeTab === 'business' && <BusinessHub />}
         </div>
       </div>
 

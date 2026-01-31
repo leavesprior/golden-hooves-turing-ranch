@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react'
 import {
   PropertyTier,
   BuildingType,
@@ -21,6 +21,15 @@ import {
   calculateNetWorth,
   determineEnding,
 } from './data/settlementConfig'
+import {
+  type BusinessTier,
+  BUSINESSES,
+  canUnlockBusiness,
+  rollDailyBusinessIncome,
+  getDailyNetIncome,
+  getBusinessPriceDiscount,
+  getBusinessValue,
+} from './data/businessConfig'
 import { useKarmaWallet } from './karmaWalletContext'
 import { useRanch } from './ranchContext'
 
@@ -50,6 +59,11 @@ export interface SettlementState {
   goldMined: number
   daysInSettlement: number
   reputation: number
+
+  // Business system
+  businessTier: BusinessTier
+  businessInProgress: { tier: BusinessTier; daysRemaining: number } | null
+  businessDailyIncome: number  // tracked for ending calculations
 
   // State flags
   hasLeftSettlement: boolean
@@ -87,6 +101,11 @@ interface SettlementContextValue {
   // Time management
   advanceDay: (days?: number) => void
   workMiningClaims: () => Promise<number>
+
+  // Business system
+  canUpgradeBusiness: () => { canUnlock: boolean; reason?: string }
+  startBusinessUpgrade: () => Promise<boolean>
+  getBusinessPriceDiscount: () => number
 
   // Settlement completion
   getNetWorth: () => number
@@ -137,6 +156,9 @@ function getInitialState(): SettlementState {
     goldMined: 0,
     daysInSettlement: 0,
     reputation: 0,
+    businessTier: 0 as BusinessTier,
+    businessInProgress: null,
+    businessDailyIncome: 0,
     hasLeftSettlement: false,
     isSettlementComplete: false,
     finalEnding: null,
@@ -161,6 +183,16 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
   const ranch = useRanch()
 
   const [state, setState] = useState<SettlementState>(getInitialState)
+
+  // Track business income delta to earn via karma wallet
+  const prevBusinessDailyIncomeRef = useRef(state.businessDailyIncome)
+  useEffect(() => {
+    const delta = state.businessDailyIncome - prevBusinessDailyIncomeRef.current
+    prevBusinessDailyIncomeRef.current = state.businessDailyIncome
+    if (delta > 0) {
+      earnNeutral(delta, 'Business income')
+    }
+  }, [state.businessDailyIncome, earnNeutral])
 
   // Save to localStorage
   useEffect(() => {
@@ -484,6 +516,42 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
   }, [canBuyFarmland, spendNeutral])
 
   // ============================================================
+  // BUSINESS SYSTEM
+  // ============================================================
+
+  const canUpgradeBusinessFn = useCallback(() => {
+    const nextTier = (state.businessTier + 1) as BusinessTier
+    if (nextTier > 5) return { canUnlock: false, reason: 'Already at maximum tier' }
+    return canUnlockBusiness(nextTier, state.businessTier, balance.good, balance.neutral)
+  }, [state.businessTier, balance.good, balance.neutral])
+
+  const startBusinessUpgrade = useCallback(async () => {
+    const nextTier = (state.businessTier + 1) as BusinessTier
+    if (nextTier > 5) return false
+
+    const { canUnlock } = canUpgradeBusinessFn()
+    if (!canUnlock) return false
+
+    if (state.businessInProgress) return false // already building
+
+    const config = BUSINESSES[nextTier]
+
+    const neutralSuccess = await spendNeutral(config.neutralKarmaCost, `Business: ${config.name}`)
+    if (!neutralSuccess) return false
+
+    setState(prev => ({
+      ...prev,
+      businessInProgress: { tier: nextTier, daysRemaining: config.buildDays },
+    }))
+
+    return true
+  }, [state.businessTier, state.businessInProgress, canUpgradeBusinessFn, spendNeutral])
+
+  const getBusinessPriceDiscountFn = useCallback(() => {
+    return getBusinessPriceDiscount(state.businessTier, balance.good)
+  }, [state.businessTier, balance.good])
+
+  // ============================================================
   // TIME MANAGEMENT
   // ============================================================
 
@@ -497,13 +565,41 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
         .filter(b => b.daysRemaining - days <= 0)
         .map(b => b.type)
 
+      // Business construction progress
+      let newBusinessTier = prev.businessTier
+      let newBusinessInProgress = prev.businessInProgress
+      if (newBusinessInProgress) {
+        newBusinessInProgress = {
+          ...newBusinessInProgress,
+          daysRemaining: newBusinessInProgress.daysRemaining - days,
+        }
+        if (newBusinessInProgress.daysRemaining <= 0) {
+          newBusinessTier = newBusinessInProgress.tier
+          newBusinessInProgress = null
+        }
+      }
+
+      // Business daily operations (income - costs)
+      let businessIncomeToday = 0
+      const effectiveTier = newBusinessTier > prev.businessTier ? newBusinessTier : prev.businessTier
+      if (effectiveTier > 0) {
+        for (let d = 0; d < days; d++) {
+          const gross = rollDailyBusinessIncome(effectiveTier)
+          businessIncomeToday += getDailyNetIncome(effectiveTier, gross)
+        }
+      }
+
       return {
         ...prev,
         daysInSettlement: prev.daysInSettlement + days,
         buildingsInProgress: newBuildingsInProgress,
         buildings: [...prev.buildings, ...completedBuildings],
+        businessTier: newBusinessTier,
+        businessInProgress: newBusinessInProgress,
+        businessDailyIncome: prev.businessDailyIncome + businessIncomeToday,
       }
     })
+    // Business income earning is handled by the useEffect watching state.businessDailyIncome
   }, [])
 
   const workMiningClaims = useCallback(async () => {
@@ -537,9 +633,8 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
 
   const getNetWorth = useCallback(() => {
     const livestockValue = ranch?.getRanchValue?.() || 0
-    const totalLivestock = ranch?.getTotalLivestock?.() || 0
 
-    return calculateNetWorth(
+    const baseWorth = calculateNetWorth(
       balance.neutral,
       state.propertyTier,
       state.buildings,
@@ -552,6 +647,9 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
       state.goldMined,
       livestockValue
     )
+
+    // Add business value
+    return baseWorth + getBusinessValue(state.businessTier)
   }, [balance.neutral, state, ranch])
 
   const getCurrentEnding = useCallback(() => {
@@ -569,7 +667,12 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
       state.miningClaims,
       state.goldMined,
       mysterySolved,
-      state.hasLeftSettlement
+      state.hasLeftSettlement,
+      false, // allCasesSolved
+      false, // outlawCaught
+      5,     // luckStat
+      false, // isChaotic
+      state.businessTier,
     )
   }, [state, ranch, getNetWorth])
 
@@ -628,6 +731,10 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
 
     advanceDay,
     workMiningClaims,
+
+    canUpgradeBusiness: canUpgradeBusinessFn,
+    startBusinessUpgrade,
+    getBusinessPriceDiscount: getBusinessPriceDiscountFn,
 
     getNetWorth,
     getCurrentEnding,

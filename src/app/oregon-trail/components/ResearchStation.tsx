@@ -7,10 +7,18 @@ import type { EducationalClue } from '../data/educationalClues'
 import type { GoldCountryLocation } from '../data/goldCountryLocations'
 import { getNextTierProgress, getQualifyingTier, DISCOUNT_TIERS } from '../data/discountEngine'
 
+/** Minimal location info for trail landmarks (not Gold Country locations) */
+export interface TrailLandmarkInfo {
+  name: string
+  description: string
+  icon: string
+}
+
 interface ResearchStationProps {
   isOpen: boolean
   onClose: () => void
-  location: GoldCountryLocation
+  location?: GoldCountryLocation
+  trailLandmark?: TrailLandmarkInfo
   clue: EducationalClue
   onClueAnswered?: (correct: boolean) => void
 }
@@ -42,9 +50,16 @@ export function ResearchStation({
   isOpen,
   onClose,
   location,
+  trailLandmark,
   clue,
   onClueAnswered,
 }: ResearchStationProps) {
+  // Derive display info from either Gold Country location or trail landmark
+  const displayName = location?.name || trailLandmark?.name || 'Unknown Location'
+  const displayDescription = location?.description || trailLandmark?.description || ''
+  const displayLink = location?.externalLink || clue.hintLink
+  const displayLinkPrompt = location?.linkPrompt || 'Research this location'
+  const displayLinkHint = location?.linkHint || ''
   const { attemptEducationalClue, useHint, getEducationalProgress, getCorrectClueCount } = useMystery()
   const { earnGood, earnNeutral, recordGoodAction, spendNeutral, canAfford } = useKarmaWallet()
 
@@ -64,13 +79,13 @@ export function ResearchStation({
     if (!answer.trim() || isSubmitting) return
 
     setIsSubmitting(true)
-    const correct = attemptEducationalClue(clue.id, answer.trim())
+    const result = attemptEducationalClue(clue.id, answer.trim())
 
-    setShowResult(correct ? 'correct' : 'incorrect')
+    setShowResult(result.correct ? 'correct' : 'incorrect')
 
-    if (correct) {
+    if (result.correct) {
       // Reward for correct answer
-      await earnGood(5, `Learned about ${location.name}`)
+      await earnGood(5, `Learned about ${displayName}`)
       recordGoodAction(5) // Slight shift toward good alignment (learning is virtuous)
       onClueAnswered?.(true)
     } else {
@@ -78,20 +93,20 @@ export function ResearchStation({
     }
 
     setIsSubmitting(false)
-  }, [answer, clue.id, attemptEducationalClue, earnGood, recordGoodAction, location.name, onClueAnswered, isSubmitting])
+  }, [answer, clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered, isSubmitting])
 
   // Handle hint request
   const handleUseHint = useCallback(async () => {
     const hintCost = 10
     if (!canAfford('neutral', hintCost)) return
 
-    const success = await spendNeutral(hintCost, `Hint for ${location.name}`)
+    const success = await spendNeutral(hintCost, `Hint for ${displayName}`)
     if (success) {
       useHint(clue.id)
       setShowHint(true)
       setHintsUsed(prev => prev + 1)
     }
-  }, [canAfford, spendNeutral, useHint, clue.id, location.name])
+  }, [canAfford, spendNeutral, useHint, clue.id, displayName])
 
   // Handle closing and reset
   const handleClose = useCallback(() => {
@@ -117,10 +132,10 @@ export function ResearchStation({
         {/* Header */}
         <div className="bg-cyan-900/60 p-4 border-b border-cyan-700">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">📍</span>
+            <span className="text-3xl">{trailLandmark?.icon || '📍'}</span>
             <div className="flex-1">
-              <h2 className="text-cyan-200 font-bold text-lg">{location.name}</h2>
-              <p className="text-cyan-400 text-sm">{location.description}</p>
+              <h2 className="text-cyan-200 font-bold text-lg">{displayName}</h2>
+              <p className="text-cyan-400 text-sm">{displayDescription}</p>
             </div>
           </div>
         </div>
@@ -128,17 +143,17 @@ export function ResearchStation({
         {/* Research Link */}
         <div className="p-4 border-b border-gray-700">
           <a
-            href={location.externalLink}
+            href={displayLink}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
           >
             <span>🔗</span>
-            <span className="underline">{location.linkPrompt}</span>
+            <span className="underline">{displayLinkPrompt}</span>
             <span className="text-gray-500 text-xs">(opens new tab)</span>
           </a>
-          {location.linkHint && (
-            <p className="text-gray-500 text-xs mt-1 italic">{location.linkHint}</p>
+          {displayLinkHint && (
+            <p className="text-gray-500 text-xs mt-1 italic">{displayLinkHint}</p>
           )}
         </div>
 

@@ -44,6 +44,16 @@ export interface CharacterTrait {
   specialAbility?: string
 }
 
+// Investigation proficiency - improves with practice
+export type InvestigationCategory = 'witnessInterrogation' | 'crimeSceneAnalysis' | 'suspectIdentification'
+export type ProficiencyLevel = 'novice' | 'apprentice' | 'journeyman' | 'expert' | 'master'
+
+export interface InvestigationProficiency {
+  witnessInterrogation: number   // XP toward interview skills
+  crimeSceneAnalysis: number     // XP toward crime scene skills
+  suspectIdentification: number  // XP toward narrowing suspects
+}
+
 export interface Character {
   name: string
   background: CharacterBackground
@@ -52,6 +62,9 @@ export interface Character {
   level: number
   experience: number
   experienceToNextLevel: number
+  pendingStatPoints: number
+  levelUpPending: boolean
+  investigationProficiency: InvestigationProficiency
 }
 
 export interface CharacterState {
@@ -82,6 +95,13 @@ interface CharacterContextValue {
   levelUp: () => void
   addTrait: (traitId: string) => void
   hasTrait: (traitId: string) => boolean
+  allocateLevelUpPoints: (stat: StatName, points: number) => void
+  dismissLevelUp: () => void
+
+  // Investigation proficiency
+  addInvestigationXP: (category: InvestigationCategory, amount: number) => void
+  getInvestigationLevel: (category: InvestigationCategory) => ProficiencyLevel
+  getInvestigationBonus: (category: InvestigationCategory) => number
 
   // Helpers
   getBackgroundBonuses: (background: CharacterBackground) => Partial<SaddleStats>
@@ -153,6 +173,29 @@ const STAT_DESCRIPTIONS: Record<StatName, string> = {
   Luck: 'Fortune favors you. Better random events, finding gold, critical successes.',
   Expertise: 'Practical skills. Tracking, survival, wagon repair, trail knowledge.'
 }
+
+// XP reward constants
+export const XP_REWARDS = {
+  WITNESS_INTERVIEW: 15,
+  SKILL_CHECK_SUCCESS: 25,
+  SKILL_CHECK_CRITICAL: 50,
+  CLUE_OBTAINED: 20,
+  CRIME_SCENE_INVESTIGATED: 10,
+  WARRANT_ISSUED: 30,
+  OUTLAW_CAPTURED: 100,
+  WRONG_ACCUSATION: -10,
+  CASE_SOLVED: 150,
+  EDUCATIONAL_CLUE_CORRECT: 20,
+} as const
+
+// Investigation proficiency thresholds
+const PROFICIENCY_THRESHOLDS: { level: ProficiencyLevel; minXP: number; bonus: number; reliabilityBoost: number }[] = [
+  { level: 'novice',      minXP: 0,   bonus: 0, reliabilityBoost: 0 },
+  { level: 'apprentice',  minXP: 50,  bonus: 1, reliabilityBoost: 0 },
+  { level: 'journeyman',  minXP: 150, bonus: 2, reliabilityBoost: 0.1 },
+  { level: 'expert',      minXP: 300, bonus: 3, reliabilityBoost: 0.2 },
+  { level: 'master',      minXP: 500, bonus: 4, reliabilityBoost: 0.3 },
+]
 
 // Available character traits
 export const CHARACTER_TRAITS: Record<string, CharacterTrait> = {
@@ -250,7 +293,14 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       traits: [],
       level: 1,
       experience: 0,
-      experienceToNextLevel: 100
+      experienceToNextLevel: 100,
+      pendingStatPoints: 0,
+      levelUpPending: false,
+      investigationProficiency: {
+        witnessInterrogation: 0,
+        crimeSceneAnalysis: 0,
+        suspectIdentification: 0,
+      },
     }
 
     setState(prev => ({
@@ -364,13 +414,12 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     return getStat(stat) >= requirement
   }, [getStat])
 
-  // Add experience
+  // Add experience (negative amounts allowed for penalties)
   const addExperience = useCallback((amount: number) => {
     if (!state.character) return
 
     setState(prev => {
-      const newExp = prev.character!.experience + amount
-      const newLevel = prev.character!.level
+      const newExp = Math.max(0, prev.character!.experience + amount)
 
       // Check for level up
       if (newExp >= prev.character!.experienceToNextLevel) {
@@ -379,8 +428,10 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
           character: {
             ...prev.character!,
             experience: newExp - prev.character!.experienceToNextLevel,
-            level: newLevel + 1,
-            experienceToNextLevel: Math.floor(prev.character!.experienceToNextLevel * 1.5)
+            level: prev.character!.level + 1,
+            experienceToNextLevel: Math.floor(prev.character!.experienceToNextLevel * 1.5),
+            pendingStatPoints: prev.character!.pendingStatPoints + 2,
+            levelUpPending: true,
           }
         }
       }
@@ -395,21 +446,80 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     })
   }, [state.character])
 
-  // Level up (grant stat points)
+  // Level up (legacy - triggers stat allocation prompt)
   const levelUp = useCallback(() => {
     if (!state.character) return
+    // Now handled automatically in addExperience; this is a no-op kept for interface compat
+  }, [state.character])
 
-    // Each level grants 2 stat points to allocate
-    // For simplicity, auto-distribute based on background
-    const background = state.character.background
-    const bonuses = BACKGROUND_BONUSES[background]
-    const statToBoost = Object.keys(bonuses)[0] as StatName
+  // Allocate stat points earned from leveling up
+  const allocateLevelUpPoints = useCallback((stat: StatName, points: number) => {
+    if (!state.character) return
+    if (points > state.character.pendingStatPoints) return
 
-    modifyStat(statToBoost, 1)
-    modifyStat('Luck', 1)  // Everyone gets luck
+    setState(prev => ({
+      ...prev,
+      character: {
+        ...prev.character!,
+        stats: {
+          ...prev.character!.stats,
+          [stat]: Math.min(20, prev.character!.stats[stat] + points),
+        },
+        pendingStatPoints: prev.character!.pendingStatPoints - points,
+        levelUpPending: prev.character!.pendingStatPoints - points > 0,
+      }
+    }))
+  }, [state.character])
 
-    addExperience(0) // Trigger level calculation
-  }, [state.character, modifyStat, addExperience])
+  // Dismiss the level-up prompt (points stay pending for later allocation)
+  const dismissLevelUp = useCallback(() => {
+    if (!state.character) return
+    setState(prev => ({
+      ...prev,
+      character: {
+        ...prev.character!,
+        levelUpPending: false,
+      }
+    }))
+  }, [state.character])
+
+  // Add investigation proficiency XP
+  const addInvestigationXP = useCallback((category: InvestigationCategory, amount: number) => {
+    if (!state.character) return
+
+    setState(prev => ({
+      ...prev,
+      character: {
+        ...prev.character!,
+        investigationProficiency: {
+          ...prev.character!.investigationProficiency,
+          [category]: prev.character!.investigationProficiency[category] + amount,
+        }
+      }
+    }))
+  }, [state.character])
+
+  // Get the proficiency level name for a category
+  const getInvestigationLevel = useCallback((category: InvestigationCategory): ProficiencyLevel => {
+    if (!state.character) return 'novice'
+    const xp = state.character.investigationProficiency[category]
+    let level: ProficiencyLevel = 'novice'
+    for (const threshold of PROFICIENCY_THRESHOLDS) {
+      if (xp >= threshold.minXP) level = threshold.level
+    }
+    return level
+  }, [state.character])
+
+  // Get the numeric bonus for skill checks from proficiency
+  const getInvestigationBonus = useCallback((category: InvestigationCategory): number => {
+    if (!state.character) return 0
+    const xp = state.character.investigationProficiency[category]
+    let bonus = 0
+    for (const threshold of PROFICIENCY_THRESHOLDS) {
+      if (xp >= threshold.minXP) bonus = threshold.bonus
+    }
+    return bonus
+  }, [state.character])
 
   // Add a trait
   const addTrait = useCallback((traitId: string) => {
@@ -467,6 +577,11 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     levelUp,
     addTrait,
     hasTrait,
+    allocateLevelUpPoints,
+    dismissLevelUp,
+    addInvestigationXP,
+    getInvestigationLevel,
+    getInvestigationBonus,
     getBackgroundBonuses,
     getStatDescription
   }

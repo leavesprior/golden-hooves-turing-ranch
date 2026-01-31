@@ -2,8 +2,8 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { type WitnessType, WITNESS_PERSONALITIES } from '../data/clueTemplates'
-import { type DialogueTree, type DialogueNode, type DialogueResponse, getDialogueTree, type DialogueEffect } from '../data/dialogueTrees'
-import { useCharacter, type StatName, type SkillCheckResult } from '../characterContext'
+import { type DialogueTree, type DialogueNode, type DialogueResponse, type RevisitBehavior, type ProficiencyRequirement, getDialogueTree, type DialogueEffect } from '../data/dialogueTrees'
+import { useCharacter, type StatName, type SkillCheckResult, XP_REWARDS, type InvestigationCategory, type ProficiencyLevel } from '../characterContext'
 import { useReputation, type FactionId } from '../reputationContext'
 import { useNarrator } from '../narratorContext'
 import { useMystery, type CollectedClue } from '../mysteryContext'
@@ -26,7 +26,7 @@ interface WitnessDialogueProps {
 type DialogueMode = 'checking' | 'dynamic' | 'scripted'
 
 export function WitnessDialogue({ witnessType, location, clue, onClose, onClueObtained }: WitnessDialogueProps) {
-  const { getStat, rollSkillCheck } = useCharacter()
+  const { getStat, rollSkillCheck, addExperience, addInvestigationXP, getInvestigationLevel, getInvestigationBonus } = useCharacter()
   const { modifyReputation, getInteractionBonus } = useReputation()
   const { comment, recordPlayerAction, setMood, state: narratorState } = useNarrator()
   const { addClue } = useMystery()
@@ -56,7 +56,13 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
 
   // Scripted dialogue state
   const [dialogueTree] = useState<DialogueTree>(getDialogueTree(witnessType))
-  const [currentNodeId, setCurrentNodeId] = useState(dialogueTree.startNode)
+  const npcIdForStore = generateNPCId(witnessType, location)
+  const isRevisit = ConversationStore.getVisitCount(npcIdForStore) > 0
+  const chosenResponses = ConversationStore.getChosenResponses(npcIdForStore)
+  const startNodeId = isRevisit && dialogueTree.revisitStartNode && dialogueTree.nodes[dialogueTree.revisitStartNode]
+    ? dialogueTree.revisitStartNode
+    : dialogueTree.startNode
+  const [currentNodeId, setCurrentNodeId] = useState(startNodeId)
   const [dialogueHistory, setDialogueHistory] = useState<Array<{ speaker: string; text: string; isStreaming?: boolean }>>([])
   const [showSkillCheck, setShowSkillCheck] = useState<{
     stat: StatName
@@ -67,6 +73,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
   } | null>(null)
   const [clueObtained, setClueObtained] = useState(false)
   const [isEnded, setIsEnded] = useState(false)
+  const [interviewComplete, setInterviewComplete] = useState(false)
 
   const historyEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -234,6 +241,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
           addClue(clue)
           setClueObtained(true)
           onClueObtained?.(clue)
+          addExperience(XP_REWARDS.CLUE_OBTAINED)
           comment("Interesting... they let something slip.", 'observation')
         }
 
@@ -259,6 +267,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
             addClue(clue)
             setClueObtained(true)
             onClueObtained?.(clue)
+            addExperience(XP_REWARDS.CLUE_OBTAINED)
           }
         } else {
           // Total fallback - switch to scripted mode
@@ -347,7 +356,17 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
       await spendNeutral(karmaCost, `Dialogue: ${response.text.substring(0, 30)}...`)
     }
 
-    addToHistory('YOU', response.displayText || response.text)
+    // Record this choice in the conversation store
+    const currentResponses = currentNode?.responses || []
+    const siblingIds = currentResponses.map(r => r.id)
+    ConversationStore.recordChosenResponse(npcIdForStore, response.id, siblingIds)
+
+    // Use alternate text on revisit if applicable
+    const displayText = isRevisit && response.alternateText && chosenResponses.includes(response.id)
+      ? response.alternateText
+      : (response.displayText || response.text)
+
+    addToHistory('YOU', displayText)
     recordPlayerAction(`dialogue_${response.id}`)
 
     if (response.karmaGood && response.karmaGood > 0) {
@@ -370,12 +389,18 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
       const interactionBonus = witnessType === 'settler' ? getInteractionBonus('settlers') :
                                witnessType === 'native_trader' ? getInteractionBonus('natives') : 0
 
+      // Apply investigation proficiency bonus to relevant skill checks
+      const proficiencyBonus = getInvestigationBonus('witnessInterrogation')
+      const effectiveDifficulty = Math.max(1, response.skillCheck.difficulty - interactionBonus - proficiencyBonus)
+
       setShowSkillCheck({
         stat: response.skillCheck.stat as StatName,
-        difficulty: response.skillCheck.difficulty - interactionBonus,
+        difficulty: effectiveDifficulty,
         description: `${response.skillCheck.stat} check to ${response.text.toLowerCase()}`,
         onSuccess: () => {
           setShowSkillCheck(null)
+          // Grant XP for successful skill check
+          addExperience(XP_REWARDS.SKILL_CHECK_SUCCESS)
           setCurrentNodeId(response.nextNode)
           const nextNode = dialogueTree.nodes[response.nextNode]
           if (nextNode) {
@@ -403,6 +428,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
       addClue(clue)
       setClueObtained(true)
       onClueObtained?.(clue)
+      addExperience(XP_REWARDS.CLUE_OBTAINED)
     }
 
     setCurrentNodeId(response.nextNode)
@@ -410,26 +436,35 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
     if (nextNode) {
       setTimeout(() => processNodeEffects(nextNode), 300)
     }
-  }, [dialogueTree.nodes, witnessType, location, clue, clueObtained, addClue, onClueObtained, modifyReputation, getInteractionBonus, recordPlayerAction, addToHistory, processNodeEffects, canAfford, spendNeutral, earnGood, addBadKarma])
+  }, [dialogueTree.nodes, witnessType, location, clue, clueObtained, addClue, onClueObtained, modifyReputation, getInteractionBonus, recordPlayerAction, addToHistory, processNodeEffects, canAfford, spendNeutral, earnGood, addBadKarma, currentNode, npcIdForStore, isRevisit, chosenResponses, addExperience, getInvestigationBonus])
 
   // Handle skill check result
   const handleSkillCheckResult = useCallback((result: SkillCheckResult) => {
     if (showSkillCheck) {
       if (result.success) {
         setMood('impressed')
+        // Critical success grants extra XP
+        if (result.criticalSuccess) {
+          addExperience(XP_REWARDS.SKILL_CHECK_CRITICAL - XP_REWARDS.SKILL_CHECK_SUCCESS) // Extra on top of success XP
+        }
         showSkillCheck.onSuccess()
       } else {
         setMood('annoyed')
         showSkillCheck.onFailure()
       }
     }
-  }, [showSkillCheck, setMood])
+  }, [showSkillCheck, setMood, addExperience])
 
-  // Handle close
+  // Handle close - grant XP for completing the interview
   const handleClose = useCallback(() => {
+    if (dialogueHistory.length > 1 && !interviewComplete) {
+      addExperience(XP_REWARDS.WITNESS_INTERVIEW)
+      addInvestigationXP('witnessInterrogation', 10)
+      setInterviewComplete(true)
+    }
     endConversation()
     onClose()
-  }, [endConversation, onClose])
+  }, [endConversation, onClose, dialogueHistory.length, interviewComplete, addExperience, addInvestigationXP])
 
   // Get random narrator comment
   function getRandomNarratorComment(): string {
@@ -593,20 +628,45 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
         {/* Scripted Mode Response Options */}
         {dialogueMode === 'scripted' && !isEnded && currentNode?.responses && !showSkillCheck && (
           <div className="border-t border-gray-700 p-4 space-y-2">
-            {currentNode.responses.map(response => {
+            {currentNode.responses
+              .filter(response => {
+                // On revisit, hide responses marked 'hide' that were already chosen
+                if (isRevisit && response.revisitBehavior === 'hide' && chosenResponses.includes(response.id)) {
+                  return false
+                }
+                // Filter by proficiency requirement
+                if (response.requiresProficiency) {
+                  const profLevels: ProficiencyLevel[] = ['novice', 'apprentice', 'journeyman', 'expert', 'master']
+                  const requiredIdx = profLevels.indexOf(response.requiresProficiency)
+                  const currentIdx = profLevels.indexOf(getInvestigationLevel('witnessInterrogation'))
+                  if (currentIdx < requiredIdx) return false
+                }
+                return true
+              })
+              .map(response => {
+              const proficiencyBonus = getInvestigationBonus('witnessInterrogation')
+              const effectiveDifficulty = response.skillCheck
+                ? Math.max(1, response.skillCheck.difficulty - proficiencyBonus)
+                : 0
               const statValue = response.skillCheck ? getStat(response.skillCheck.stat as StatName) : 0
-              const meetsRequirement = !response.skillCheck || statValue >= response.skillCheck.difficulty
+              const meetsRequirement = !response.skillCheck || statValue >= effectiveDifficulty
               const karmaCost = response.goldCost || response.karmaCost || 0
               const canAffordCost = karmaCost <= 0 || canAfford('neutral', karmaCost)
               const isAvailable = meetsRequirement && canAffordCost
 
+              // Memory indicators
+              const wasPreviouslyChosen = chosenResponses.includes(response.id)
+              const isDimmed = isRevisit && response.revisitBehavior === 'show_dimmed' && wasPreviouslyChosen
+              const isNewOption = isRevisit && !wasPreviouslyChosen && !response.revisitBehavior
+
+              // Use alternate text on revisit if applicable
+              const shouldUseAlternate = isRevisit && response.revisitBehavior === 'show_alternate' && wasPreviouslyChosen && response.alternateText
+              const responseText = shouldUseAlternate
+                ? response.alternateText!
+                : (response.displayText || response.text)
+
               // Determine alignment label for this option
               const alignmentLabel = getAlignmentLabel(response)
-
-              // Build Fallout-style skill label prefix
-              const skillLabel = response.skillCheck
-                ? `[${response.skillCheck.stat} ${response.skillCheck.difficulty}] `
-                : ''
 
               return (
                 <button
@@ -616,7 +676,9 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
                     handleSelectResponse(response)
                   }}
                   className={`w-full p-4 md:p-3 text-left rounded transition-colors active:scale-[0.99] ${
-                    isAvailable
+                    isDimmed
+                      ? 'bg-gray-900/40 text-gray-500 hover:bg-gray-800/60'
+                      : isAvailable
                       ? 'bg-gray-800 text-gray-200 hover:bg-gray-700 active:bg-gray-600'
                       : 'bg-gray-900/60 text-gray-600 cursor-not-allowed opacity-75'
                   }`}
@@ -631,22 +693,36 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
                     {!isAvailable && (
                       <span className="text-xs mt-0.5 shrink-0 text-gray-600">🔒</span>
                     )}
+                    {/* Proficiency icon for gated options */}
+                    {response.requiresProficiency && (
+                      <span className="text-xs mt-0.5 shrink-0 text-emerald-400" title={`Requires ${response.requiresProficiency} investigation skill`}>🔍</span>
+                    )}
                     <div className="flex-1">
                       {/* Skill check label in Fallout style - before the text */}
                       {response.skillCheck && (
                         <span className={`font-mono text-xs mr-1 ${
                           meetsRequirement ? 'text-amber-400' : 'text-red-500'
                         }`}>
-                          [{response.skillCheck.stat} {response.skillCheck.difficulty}]
+                          [{response.skillCheck.stat} {effectiveDifficulty}]
+                          {proficiencyBonus > 0 && (
+                            <span className="text-emerald-400 text-[10px] ml-0.5">-{proficiencyBonus}</span>
+                          )}
                         </span>
                       )}
                       <span className="text-base md:text-sm">
-                        {response.displayText || response.text}
+                        {responseText}
                       </span>
+                      {/* Memory indicators */}
+                      {isDimmed && (
+                        <span className="ml-2 text-xs text-gray-600 italic">(asked before)</span>
+                      )}
+                      {isNewOption && (
+                        <span className="ml-2 text-xs text-emerald-500 font-medium">(new)</span>
+                      )}
                       {/* Stat gap indicator for failed checks */}
                       {response.skillCheck && !meetsRequirement && (
                         <span className="ml-2 text-xs text-red-500/70 italic">
-                          (Need {response.skillCheck.difficulty}, have {statValue})
+                          (Need {effectiveDifficulty}, have {statValue})
                         </span>
                       )}
                     </div>

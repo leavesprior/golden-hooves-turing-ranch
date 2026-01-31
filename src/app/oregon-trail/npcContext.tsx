@@ -236,12 +236,12 @@ export function NPCProvider({ children }: { children: ReactNode }) {
   }, [state.conversations])
 
   // Build conversation history for prompt
-  const buildConversationHistory = (turns: ConversationTurn[]): string => {
+  const buildConversationHistory = (turns: ConversationTurn[], npcName: string): string => {
     if (turns.length === 0) return ''
 
     return turns
       .slice(-6) // Keep last 6 turns for context
-      .map(turn => `${turn.speaker === 'player' ? 'Player' : 'NPC'}: ${turn.text}`)
+      .map(turn => `${turn.speaker === 'player' ? 'Player' : npcName}: ${turn.text}`)
       .join('\n')
   }
 
@@ -314,8 +314,9 @@ export function NPCProvider({ children }: { children: ReactNode }) {
         options?.narratorMood
       )
 
-      const history = buildConversationHistory(conv.turns)
-      const prompt = history ? `${history}\nPlayer: ${message}\nNPC:` : `Player: ${message}\nNPC:`
+      const npcName = conv.personality?.name || 'NPC'
+      const history = buildConversationHistory(conv.turns, npcName)
+      const prompt = history ? `${history}\nPlayer: ${message}\n${npcName}:` : `Player: ${message}\n${npcName}:`
 
       const result = await ollamaService.generateNPCDialogue(
         prompt,
@@ -397,8 +398,9 @@ export function NPCProvider({ children }: { children: ReactNode }) {
       options?.narratorMood
     )
 
-    const history = buildConversationHistory(conv.turns)
-    const prompt = history ? `${history}\nPlayer: ${message}\nNPC:` : `Player: ${message}\nNPC:`
+    const npcName = conv.personality?.name || 'NPC'
+    const history = buildConversationHistory(conv.turns, npcName)
+    const prompt = history ? `${history}\nPlayer: ${message}\n${npcName}:` : `Player: ${message}\n${npcName}:`
 
     let fullResponse = ''
     const stream = ollamaService.streamNPCDialogue(

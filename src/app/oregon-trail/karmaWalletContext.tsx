@@ -273,15 +273,13 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
   // Spend neutral karma
   const spendNeutral = useCallback(async (amount: number, memo?: string): Promise<boolean> => {
-    if (state.balance.neutral < amount) {
-      return false
-    }
-
-    // Optimistically update local state
-    setState(prev => ({
-      ...prev,
-      balance: { ...prev.balance, neutral: prev.balance.neutral - amount },
-    }))
+    let success = false
+    setState(prev => {
+      if (prev.balance.neutral < amount) return prev
+      success = true
+      return { ...prev, balance: { ...prev.balance, neutral: prev.balance.neutral - amount } }
+    })
+    if (!success) return false
 
     addTransaction({
       type: 'spend',
@@ -296,19 +294,17 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     })
 
     return true
-  }, [state.balance.neutral, addTransaction])
+  }, [addTransaction])
 
   // Spend good karma
   const spendGood = useCallback(async (amount: number, memo?: string): Promise<boolean> => {
-    if (state.balance.good < amount) {
-      return false
-    }
-
-    // Optimistically update local state
-    setState(prev => ({
-      ...prev,
-      balance: { ...prev.balance, good: prev.balance.good - amount },
-    }))
+    let success = false
+    setState(prev => {
+      if (prev.balance.good < amount) return prev
+      success = true
+      return { ...prev, balance: { ...prev.balance, good: prev.balance.good - amount } }
+    })
+    if (!success) return false
 
     addTransaction({
       type: 'spend',
@@ -321,7 +317,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     oregonTrailKarma.spendGood(amount, memo).catch(() => {})
 
     return true
-  }, [state.balance.good, addTransaction])
+  }, [addTransaction])
 
   // Earn neutral karma
   const earnNeutral = useCallback(async (amount: number, memo?: string): Promise<void> => {
@@ -376,20 +372,22 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
   // Convert good to neutral (2:1 ratio)
   const convertGoodToNeutral = useCallback(async (goodAmount: number): Promise<boolean> => {
-    if (state.balance.good < goodAmount) {
-      return false
-    }
-
     const neutralReceived = Math.floor(goodAmount / 2)
 
-    setState(prev => ({
-      ...prev,
-      balance: {
-        ...prev.balance,
-        good: prev.balance.good - goodAmount,
-        neutral: prev.balance.neutral + neutralReceived,
-      },
-    }))
+    let success = false
+    setState(prev => {
+      if (prev.balance.good < goodAmount) return prev
+      success = true
+      return {
+        ...prev,
+        balance: {
+          ...prev.balance,
+          good: prev.balance.good - goodAmount,
+          neutral: prev.balance.neutral + neutralReceived,
+        },
+      }
+    })
+    if (!success) return false
 
     addTransaction({
       type: 'convert',
@@ -401,7 +399,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     oregonTrailKarma.convertGoodToNeutral(goodAmount).catch(() => {})
 
     return true
-  }, [state.balance.good, addTransaction])
+  }, [addTransaction])
 
   // Take debt (1:1 neutral:bad)
   const takeDebt = useCallback(async (amount: number): Promise<boolean> => {

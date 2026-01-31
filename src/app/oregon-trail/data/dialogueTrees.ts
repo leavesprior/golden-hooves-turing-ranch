@@ -13,6 +13,9 @@ export interface DialogueNode {
   narratorComment?: string  // Unreliable narrator interjection
 }
 
+export type RevisitBehavior = 'hide' | 'show_dimmed' | 'show_alternate'
+export type ProficiencyRequirement = 'apprentice' | 'journeyman' | 'expert' | 'master'
+
 export interface DialogueResponse {
   id: string
   text: string
@@ -27,6 +30,9 @@ export interface DialogueResponse {
   requiresItem?: string  // Absurd inventory item
   grantsClue?: boolean
   grantsItem?: string
+  revisitBehavior?: RevisitBehavior  // What happens on return visit
+  alternateText?: string  // Text shown when revisitBehavior is 'show_alternate'
+  requiresProficiency?: ProficiencyRequirement  // Investigation proficiency gate
 }
 
 export interface SkillCheck {
@@ -51,6 +57,7 @@ export interface DialogueTree {
   id: string
   witnessType: WitnessType
   startNode: string
+  revisitStartNode?: string  // Node to start from on revisit (if different from startNode)
   nodes: Record<string, DialogueNode>
   context?: string  // When this tree should be used
 }
@@ -61,7 +68,40 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'bartender_standard',
     witnessType: 'bartender',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "*sigh* You again. What is it this time?",
+        speaker: 'witness',
+        narratorComment: "The bartender remembers you. Whether that's a good thing remains to be seen.",
+        responses: [
+          {
+            id: 'revisit_thinking',
+            text: "I've been thinking about what you said last time...",
+            nextNode: 'after_drink',
+          },
+          {
+            id: 'revisit_new_info',
+            text: "Any new information since my last visit?",
+            nextNode: 'knows_something',
+          },
+          {
+            id: 'revisit_buy_drink',
+            text: "Another whiskey. And more questions.",
+            karmaCost: 0.25,
+            nextNode: 'after_drink',
+          },
+          {
+            id: 'revisit_expert_read',
+            text: "[Expert Investigator] You're holding something back. I can tell.",
+            requiresProficiency: 'expert',
+            skillCheck: { stat: 'Shrewdness', difficulty: 4 },
+            nextNode: 'gives_clue',
+            grantsClue: true,
+          }
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "What'll it be, stranger? Whiskey's two bits, information costs more.",
@@ -73,13 +113,16 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
             karmaCost: 0.25,
             nextNode: 'after_drink',
             karmaGood: 0,
-            karmaLawful: 0
+            karmaLawful: 0,
+            revisitBehavior: 'show_dimmed',
           },
           {
             id: 'flash_badge',
             text: "[Show Pinkerton badge] I'm not here for drinks.",
             nextNode: 'badge_shown',
-            karmaLawful: 5
+            karmaLawful: 5,
+            revisitBehavior: 'show_alternate',
+            alternateText: "You know my badge. Let's skip the pleasantries.",
           },
           {
             id: 'intimidate',
@@ -88,14 +131,16 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
             nextNode: 'intimidate_success',
             karmaGood: -10,
             karmaLawful: -5,
-            reputationEffect: { faction: 'settlers', delta: -5 }
+            reputationEffect: { faction: 'settlers', delta: -5 },
+            revisitBehavior: 'hide',
           },
           {
             id: 'bribe',
             text: "[Pay $5] Perhaps this will refresh your memory?",
             karmaCost: 5,
             nextNode: 'bribe_success',
-            karmaLawful: -3
+            karmaLawful: -3,
+            revisitBehavior: 'hide',
           }
         ]
       },
@@ -274,7 +319,35 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'shopkeeper_standard',
     witnessType: 'shopkeeper',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "Oh! You came back! I've been organizing my thoughts since your visit...",
+        speaker: 'witness',
+        narratorComment: "The shopkeeper has been rehearsing this speech since you left.",
+        responses: [
+          {
+            id: 'revisit_remembered',
+            text: "Remembered anything new?",
+            nextNode: 'gives_info',
+            grantsClue: true,
+          },
+          {
+            id: 'revisit_supplies',
+            text: "More supplies. And more questions.",
+            karmaCost: 2,
+            nextNode: 'friendly',
+          },
+          {
+            id: 'revisit_expert_inventory',
+            text: "[Expert Investigator] Let me see your recent sales ledger.",
+            requiresProficiency: 'expert',
+            nextNode: 'gives_info',
+            grantsClue: true,
+          }
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "Welcome to my establishment. Buying or browsing?",
@@ -283,19 +356,23 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
           {
             id: 'browse',
             text: "Just looking. Actually, I'm looking for information.",
-            nextNode: 'suspicious'
+            nextNode: 'suspicious',
+            revisitBehavior: 'show_dimmed',
           },
           {
             id: 'buy_something',
             text: "I'll take some supplies. And some answers.",
             karmaCost: 2,
             nextNode: 'friendly',
-            karmaLawful: 2
+            karmaLawful: 2,
+            revisitBehavior: 'show_dimmed',
           },
           {
             id: 'official',
             text: "[Show badge] Pinkerton business.",
-            nextNode: 'official_response'
+            nextNode: 'official_response',
+            revisitBehavior: 'show_alternate',
+            alternateText: "You know who I am. Anything new to report?",
           }
         ]
       },
@@ -380,7 +457,37 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'stable_hand_standard',
     witnessType: 'stable_hand',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "*spits* Figured you'd be back. Horses remember faces. So do I.",
+        speaker: 'witness',
+        narratorComment: "The stable hand seems almost pleased to see you. Almost.",
+        responses: [
+          {
+            id: 'revisit_new_horses',
+            text: "Any new horses come through since last time?",
+            nextNode: 'recalls_horse',
+            grantsClue: true,
+          },
+          {
+            id: 'revisit_tip_again',
+            text: "*another coin* Your memory's worth it.",
+            karmaCost: 1,
+            nextNode: 'grateful',
+            karmaGood: 2,
+          },
+          {
+            id: 'revisit_expert_tracks',
+            text: "[Expert Investigator] Let me look at the tracks out back.",
+            requiresProficiency: 'expert',
+            skillCheck: { stat: 'Expertise', difficulty: 4 },
+            nextNode: 'gives_horse_clue',
+            grantsClue: true,
+          }
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "*looks up from shoveling* Help you, mister?",
@@ -390,19 +497,23 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
             id: 'friendly_approach',
             text: "Hard work. You must see a lot of horses come through.",
             nextNode: 'opens_up',
-            karmaGood: 2
+            karmaGood: 2,
+            revisitBehavior: 'show_dimmed',
           },
           {
             id: 'direct',
             text: "I'm tracking someone. What horses have you seen recently?",
-            nextNode: 'thinks_horses'
+            nextNode: 'thinks_horses',
+            revisitBehavior: 'show_alternate',
+            alternateText: "Still tracking that rider. Anything new?",
           },
           {
             id: 'tip',
             text: "*hand over a coin* Buy yourself a drink after work.",
             karmaCost: 1,
             nextNode: 'grateful',
-            karmaGood: 3
+            karmaGood: 3,
+            revisitBehavior: 'show_dimmed',
           }
         ]
       },
@@ -465,7 +576,28 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'drunk_standard',
     witnessType: 'drunk',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "*squints* Heyyy... I know you! You're my besht... *hic* ...my besht drinking buddy!",
+        speaker: 'witness',
+        narratorComment: "The drunk remembers you. This is either impressive or deeply concerning.",
+        responses: [
+          {
+            id: 'revisit_jog_memory',
+            text: "That's right, friend. Remember what you told me last time?",
+            nextNode: 'rambling_clue',
+            grantsClue: true,
+          },
+          {
+            id: 'revisit_another_round',
+            text: "*signal bartender* Another round for us both.",
+            karmaCost: 0.25,
+            nextNode: 'very_friendly',
+          },
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "*hic* You buyin', friend? M'glass seems to be empty...",
@@ -476,19 +608,22 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
             id: 'buy_drink',
             text: "*signal bartender* One for my friend here.",
             karmaCost: 0.25,
-            nextNode: 'very_friendly'
+            nextNode: 'very_friendly',
+            revisitBehavior: 'show_dimmed',
           },
           {
             id: 'refuse',
             text: "I think you've had enough. But I do have questions.",
             nextNode: 'offended',
-            karmaGood: 2
+            karmaGood: 2,
+            revisitBehavior: 'hide',
           },
           {
             id: 'pretend_drunk',
             text: "[Luck check] *slur words* Shay, you shee anyone weird lately?",
             skillCheck: { stat: 'Luck', difficulty: 4, failNode: 'sees_through' },
-            nextNode: 'drunk_bonding'
+            nextNode: 'drunk_bonding',
+            revisitBehavior: 'hide',
           }
         ]
       },
@@ -585,7 +720,29 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'child_standard',
     witnessType: 'child',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "You're BACK! *bounces* Did you catch the bad guy yet? I found more clues!",
+        speaker: 'witness',
+        narratorComment: "The child has been playing detective since your last visit. The narrator finds this adorable.",
+        responses: [
+          {
+            id: 'revisit_what_clues',
+            text: "What did you find, deputy?",
+            nextNode: 'eager_to_help',
+            grantsClue: true,
+            karmaGood: 2,
+          },
+          {
+            id: 'revisit_still_looking',
+            text: "Still working on it. Keep your eyes open for me.",
+            nextNode: 'child_clue',
+            grantsClue: true,
+          },
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "*looks up with wide eyes* Are you a real detective? Like in the dime novels?",
@@ -596,18 +753,22 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
             id: 'play_along',
             text: "*tip hat* Deputy Detective, at your service. And you are?",
             nextNode: 'excited',
-            karmaGood: 3
+            karmaGood: 3,
+            revisitBehavior: 'show_alternate',
+            alternateText: "Deputy Tommy, reporting for duty!",
           },
           {
             id: 'honest',
             text: "Something like that. I'm looking for a bad guy.",
-            nextNode: 'helpful_child'
+            nextNode: 'helpful_child',
+            revisitBehavior: 'show_dimmed',
           },
           {
             id: 'dismiss',
             text: "Run along, kid. Grown-up business.",
             nextNode: 'sad_child',
-            karmaGood: -5
+            karmaGood: -5,
+            revisitBehavior: 'hide',
           }
         ]
       },
@@ -690,7 +851,21 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'traveler_standard',
     witnessType: 'traveler',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "*nods in recognition* Still on the hunt, I see.",
+        speaker: 'witness',
+        responses: [
+          {
+            id: 'revisit_new_sighting',
+            text: "Seen anything new on the trail?",
+            nextNode: 'gives_info',
+            grantsClue: true,
+          },
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "*nods warily* Just passing through, same as you.",
@@ -700,7 +875,8 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
             id: 'fellow_traveler',
             text: "Then you might have seen who I'm looking for on the trail.",
             nextNode: 'might_have',
-            grantsClue: true
+            grantsClue: true,
+            revisitBehavior: 'show_dimmed',
           }
         ]
       },
@@ -742,7 +918,21 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'settler_standard',
     witnessType: 'settler',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "Detective! *waves from porch* Any progress on catching that criminal?",
+        speaker: 'witness',
+        responses: [
+          {
+            id: 'revisit_progress',
+            text: "Getting closer. Noticed anything since last time?",
+            nextNode: 'heard_of',
+            grantsClue: true,
+          },
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "This is good land. Hard, but good. You're not from around here.",
@@ -752,7 +942,8 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
             id: 'respectful',
             text: "No ma'am/sir. I'm tracking a criminal who might have passed this way.",
             nextNode: 'considers',
-            karmaGood: 2
+            karmaGood: 2,
+            revisitBehavior: 'show_dimmed',
           }
         ]
       },
@@ -788,7 +979,23 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'native_trader_standard',
     witnessType: 'native_trader',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "*slight nod* The hunter returns. The wind has more to say.",
+        speaker: 'witness',
+        responses: [
+          {
+            id: 'revisit_trade_again',
+            text: "*offer goods* More trade, more knowledge.",
+            karmaCost: 3,
+            nextNode: 'shares_info',
+            grantsClue: true,
+            reputationEffect: { faction: 'natives', delta: 3 },
+          },
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "*eyes measure you calmly* I trade fair. Do you?",
@@ -848,7 +1055,21 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'telegraph_operator_standard',
     witnessType: 'telegraph_operator',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "*looks up from tapping* Back again, Pinkerton? There have been more wires since your last visit...",
+        speaker: 'witness',
+        responses: [
+          {
+            id: 'revisit_check_wires',
+            text: "Show me the new ones.",
+            nextNode: 'shows_records',
+            grantsClue: true,
+          },
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "Telegraph office. Ten cents a word. What's your message?",
@@ -901,7 +1122,22 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'sheriff_deputy_standard',
     witnessType: 'sheriff_deputy',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "Pinkerton! Good timing. We got some new reports since you were last here.",
+        speaker: 'witness',
+        responses: [
+          {
+            id: 'revisit_new_reports',
+            text: "Let me see what you've got, Deputy.",
+            nextNode: 'shares_info',
+            grantsClue: true,
+            reputationEffect: { faction: 'pinkerton', delta: 2 },
+          },
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "Pinkerton, eh? Sheriff's out chasing rustlers. I'm Deputy Morrison. How can I help?",
@@ -935,7 +1171,29 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'prostitute_standard',
     witnessType: 'prostitute',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "*knowing smile* I was hoping you'd come back. I heard something you might want to know...",
+        speaker: 'witness',
+        responses: [
+          {
+            id: 'revisit_what_heard',
+            text: "I'm listening.",
+            nextNode: 'shares_secrets',
+            grantsClue: true,
+          },
+          {
+            id: 'revisit_pay_time',
+            text: "*hand over coins* For your trouble.",
+            karmaCost: 3,
+            nextNode: 'shares_secrets',
+            grantsClue: true,
+            karmaGood: 2,
+          },
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "*leans against doorframe* Looking for company, sugar? Or something else?",
@@ -995,7 +1253,21 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     id: 'preacher_standard',
     witnessType: 'preacher',
     startNode: 'greeting',
+    revisitStartNode: 'revisit_greeting',
     nodes: {
+      revisit_greeting: {
+        id: 'revisit_greeting',
+        text: "Ah, the detective returns. I have been praying on the matter since we last spoke...",
+        speaker: 'witness',
+        responses: [
+          {
+            id: 'revisit_revelation',
+            text: "And what has prayer revealed, Father?",
+            nextNode: 'vague_help',
+            grantsClue: true,
+          },
+        ]
+      },
       greeting: {
         id: 'greeting',
         text: "The Lord sees all, my child. Even those who seek to hide from justice.",

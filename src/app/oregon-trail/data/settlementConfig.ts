@@ -433,6 +433,7 @@ export interface EndingRequirements {
   outlawCaught?: boolean;
   minLuck?: number;
   chaotic?: boolean;
+  minBusinessTier?: number;
 }
 
 export const ENDINGS: Record<EndingType, EndingConfig> = {
@@ -502,6 +503,7 @@ export const ENDINGS: Record<EndingType, EndingConfig> = {
       minPropertyTier: 4,
       minDays: 180,
       minNetWorth: 5000,
+      minBusinessTier: 4,
     },
     badge: '💰',
     color: 'platinum',
@@ -516,6 +518,7 @@ export const ENDINGS: Record<EndingType, EndingConfig> = {
       minReputation: 95,
       requiredBuildings: ['house', 'barn', 'workshop', 'storehouse'],
       mysterySolved: true,
+      minBusinessTier: 5,
     },
     badge: '👑',
     color: 'legendary',
@@ -675,7 +678,8 @@ export function determineEnding(
   allCasesSolved: boolean = false,
   outlawCaught: boolean = false,
   luckStat: number = 5,
-  isChaotic: boolean = false
+  isChaotic: boolean = false,
+  businessTier: number = 0
 ): EndingType {
   if (leftSettlement) return 'departed';
 
@@ -686,6 +690,7 @@ export function determineEnding(
     daysInSettlement >= (golden.minDays || 0) &&
     reputation >= (golden.minReputation || 0) &&
     golden.requiredBuildings?.every(b => buildings.includes(b)) &&
+    businessTier >= (golden.minBusinessTier || 0) &&
     mysterySolved &&
     allCasesSolved
   ) {
@@ -699,6 +704,7 @@ export function determineEnding(
     daysInSettlement >= (legend.minDays || 0) &&
     reputation >= (legend.minReputation || 0) &&
     legend.requiredBuildings?.every(b => buildings.includes(b)) &&
+    businessTier >= (legend.minBusinessTier || 0) &&
     (!legend.mysterySolved || mysterySolved)
   ) {
     return 'legend';
@@ -718,7 +724,8 @@ export function determineEnding(
   if (
     propertyTier >= (tycoon.minPropertyTier || 0) &&
     daysInSettlement >= (tycoon.minDays || 0) &&
-    netWorth >= (tycoon.minNetWorth || 0)
+    netWorth >= (tycoon.minNetWorth || 0) &&
+    businessTier >= (tycoon.minBusinessTier || 0)
   ) {
     return 'tycoon';
   }

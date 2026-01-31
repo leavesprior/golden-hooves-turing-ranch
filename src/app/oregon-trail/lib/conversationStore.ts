@@ -21,6 +21,8 @@ interface StoredConversation {
   mood: NPCMood
   trustLevel: number
   cluesRevealed: string[]
+  chosenResponseIds: string[]
+  unchosenResponseIds: string[]
   visitCount: number
   firstVisit: number
   lastVisit: number
@@ -117,6 +119,7 @@ export const ConversationStore = {
     const store = this.load()
 
     // Convert to stored format
+    const existing = store.conversations[conversation.npcId]
     const stored: StoredConversation = {
       npcId: conversation.npcId,
       witnessType: conversation.witnessType,
@@ -130,8 +133,10 @@ export const ConversationStore = {
       mood: conversation.mood,
       trustLevel: conversation.trustLevel,
       cluesRevealed: conversation.cluesRevealed,
-      visitCount: (store.conversations[conversation.npcId]?.visitCount || 0) + 1,
-      firstVisit: store.conversations[conversation.npcId]?.firstVisit || Date.now(),
+      chosenResponseIds: existing?.chosenResponseIds || [],
+      unchosenResponseIds: existing?.unchosenResponseIds || [],
+      visitCount: (existing?.visitCount || 0) + 1,
+      firstVisit: existing?.firstVisit || Date.now(),
       lastVisit: Date.now(),
     }
 
@@ -264,6 +269,45 @@ export const ConversationStore = {
       friendlyNPCs: friendly,
       hostileNPCs: hostile,
     }
+  },
+
+  /**
+   * Record a chosen response and compute unchosen siblings
+   */
+  recordChosenResponse(npcId: string, responseId: string, allSiblingIds: string[]): boolean {
+    const store = this.load()
+    const conv = store.conversations[npcId]
+    if (!conv) return false
+
+    if (!conv.chosenResponseIds.includes(responseId)) {
+      conv.chosenResponseIds.push(responseId)
+    }
+
+    const newUnchosen = allSiblingIds.filter(
+      id => id !== responseId && !conv.chosenResponseIds.includes(id) && !conv.unchosenResponseIds.includes(id)
+    )
+    conv.unchosenResponseIds.push(...newUnchosen)
+
+    // Remove from unchosen if it was there
+    conv.unchosenResponseIds = conv.unchosenResponseIds.filter(id => id !== responseId)
+
+    return this.save(store)
+  },
+
+  /**
+   * Get response IDs not yet selected for an NPC
+   */
+  getUnchosenResponses(npcId: string): string[] {
+    const conv = this.getConversation(npcId)
+    return conv?.unchosenResponseIds || []
+  },
+
+  /**
+   * Get response IDs already selected for an NPC
+   */
+  getChosenResponses(npcId: string): string[] {
+    const conv = this.getConversation(npcId)
+    return conv?.chosenResponseIds || []
   },
 
   /**

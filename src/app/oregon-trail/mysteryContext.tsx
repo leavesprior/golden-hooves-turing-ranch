@@ -21,10 +21,12 @@ import {
 } from './data/clueTemplates'
 import {
   EDUCATIONAL_CLUES,
+  ALL_CLUES,
   type EducationalClue,
   type CaseId,
   getCluesByCaseId,
   getCluesByLocationId,
+  getTrailCluesByLocationId,
   checkAnswer as checkEducationalAnswer
 } from './data/educationalClues'
 import {
@@ -174,6 +176,7 @@ interface MysteryContextValue {
 
   // Case management
   startCase: (caseId: CaseId) => void
+  autoStartFirstCase: () => void
   getActiveCase: () => Case | null
   getCaseSuspect: () => GoldCountrySuspect | null
   solveCase: () => { success: boolean; message: string }
@@ -791,7 +794,7 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
   // GOLD COUNTRY MYSTERY (Carmen Sandiego integration)
   // ========================================================================
 
-  // Start a new case
+  // Start a new case (preserves trail clues already collected)
   const startCase = useCallback((caseId: CaseId) => {
     const caseData = getCaseById(caseId)
     if (!caseData) return
@@ -802,14 +805,19 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
       ...prev,
       activeCase: caseId,
       activeCaseData: caseData,
-      // Reset educational clues for new case
-      educationalCluesCollected: [],
+      // Preserve existing clues (trail clues collected before Gold Country)
       currentLocationClues: [],
-      currentDiscountTier: null,
       // Set up the suspect as the current target using their Oregon Trail traits
       currentOutlaw: suspect?.id || null
     }))
   }, [])
+
+  // Auto-start the first case when entering Gold Country
+  const autoStartFirstCase = useCallback(() => {
+    // Only auto-start if no case is active and none have been solved yet
+    if (state.activeCase || state.casesSolved.length > 0) return
+    startCase('jumping_frog')
+  }, [state.activeCase, state.casesSolved, startCase])
 
   // Get the active case
   const getActiveCase = useCallback((): Case | null => {
@@ -867,16 +875,18 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
     return CASES.filter(c => !state.casesSolved.includes(c.id))
   }, [state.casesSolved])
 
-  // Get educational clues for a location (filtered by active case)
+  // Get educational clues for a location (filtered by active case, or trail clues during travel)
   const getCluesForLocation = useCallback((locationId: string): EducationalClue[] => {
     if (!state.activeCase) {
-      // No active case - return all clues for location
+      // No active case - return trail clues + any Gold Country clues for this location
       return getCluesByLocationId(locationId)
     }
-    // Filter to only clues for the active case at this location
-    return EDUCATIONAL_CLUES.filter(
+    // Active case: return case-specific clues AND trail clues for this location
+    const caseClues = EDUCATIONAL_CLUES.filter(
       c => c.caseId === state.activeCase && c.locationId === locationId
     )
+    const trailClues = getTrailCluesByLocationId(locationId)
+    return [...caseClues, ...trailClues]
   }, [state.activeCase])
 
   // Attempt to answer an educational clue
@@ -885,7 +895,7 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
     fact: string
     suspectHint: string
   } => {
-    const clue = EDUCATIONAL_CLUES.find(c => c.id === clueId)
+    const clue = ALL_CLUES.find(c => c.id === clueId)
     if (!clue) {
       return { correct: false, fact: '', suspectHint: '' }
     }
@@ -940,7 +950,7 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
 
   // Use a hint for a clue
   const useHint = useCallback((clueId: string): string | null => {
-    const clue = EDUCATIONAL_CLUES.find(c => c.id === clueId)
+    const clue = ALL_CLUES.find(c => c.id === clueId)
     if (!clue) return null
 
     setState(prev => ({
@@ -1010,6 +1020,7 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
 
     // Gold Country Mystery
     startCase,
+    autoStartFirstCase,
     getActiveCase,
     getCaseSuspect,
     solveCase,

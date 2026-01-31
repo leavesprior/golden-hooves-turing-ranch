@@ -1,8 +1,12 @@
 /**
- * BOBR Ollama Service
+ * BOBR LLM Service
  *
- * API client for localhost:11434 Ollama server.
- * Provides health checks, streaming responses, and graceful fallback.
+ * Dual-mode LLM client:
+ * - Direct mode (local dev): Talks to localhost:11434 Ollama directly from browser
+ * - Proxy mode (Railway/production): Routes through /api/llm/* server-side routes
+ *   which try Ollama via Cloudflare tunnel, then fall back to OpenRouter
+ *
+ * Set NEXT_PUBLIC_LLM_MODE=proxy for production deployment.
  */
 
 import {
@@ -18,6 +22,10 @@ const OLLAMA_BASE_URL = 'http://localhost:11434';
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 const REQUEST_TIMEOUT = 60000; // 60 seconds for generation
 
+// Proxy mode: route through server-side API routes
+const isProxyMode = typeof process !== 'undefined'
+  && process.env?.NEXT_PUBLIC_LLM_MODE === 'proxy';
+
 class OllamaService {
   private status: OllamaServiceStatus = {
     available: false,
@@ -28,7 +36,7 @@ class OllamaService {
   private healthCheckPromise: Promise<OllamaServiceStatus> | null = null;
 
   /**
-   * Check if Ollama service is available and get best model
+   * Check if LLM service is available and get best model
    */
   async checkHealth(force = false): Promise<OllamaServiceStatus> {
     const now = Date.now();
@@ -43,13 +51,43 @@ class OllamaService {
       return this.healthCheckPromise;
     }
 
-    this.healthCheckPromise = this._performHealthCheck();
+    this.healthCheckPromise = isProxyMode
+      ? this._performProxyHealthCheck()
+      : this._performDirectHealthCheck();
     const result = await this.healthCheckPromise;
     this.healthCheckPromise = null;
     return result;
   }
 
-  private async _performHealthCheck(): Promise<OllamaServiceStatus> {
+  private async _performProxyHealthCheck(): Promise<OllamaServiceStatus> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch('/api/llm/health', { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+
+      this.status = {
+        available: data.activeProvider !== 'none',
+        model: data.ollama?.model || data.openrouter?.model || null,
+        lastChecked: Date.now(),
+      };
+    } catch (error) {
+      this.status = {
+        available: false,
+        model: null,
+        lastChecked: Date.now(),
+        error: error instanceof Error ? error.message : 'Proxy health check failed',
+      };
+    }
+    return this.status;
+  }
+
+  private async _performDirectHealthCheck(): Promise<OllamaServiceStatus> {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
@@ -98,7 +136,7 @@ class OllamaService {
   }
 
   /**
-   * Check if Ollama is currently available
+   * Check if LLM is currently available
    */
   isAvailable(): boolean {
     return this.status.available;
@@ -115,6 +153,66 @@ class OllamaService {
    * Generate a response (non-streaming)
    */
   async generate(
+    prompt: string,
+    options?: {
+      system?: string;
+      context?: number[];
+      temperature?: number;
+      maxTokens?: number;
+    }
+  ): Promise<OllamaGenerateResponse | null> {
+    if (isProxyMode) {
+      return this._generateViaProxy(prompt, options);
+    }
+    return this._generateDirect(prompt, options);
+  }
+
+  private async _generateViaProxy(
+    prompt: string,
+    options?: {
+      system?: string;
+      context?: number[];
+      temperature?: number;
+      maxTokens?: number;
+    }
+  ): Promise<OllamaGenerateResponse | null> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+      const response = await fetch('/api/llm/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          system: options?.system,
+          context: options?.context,
+          temperature: options?.temperature,
+          maxTokens: options?.maxTokens,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      if (!data.response) return null;
+
+      return {
+        model: data.model || 'proxy',
+        created_at: new Date().toISOString(),
+        response: data.response,
+        done: true,
+        context: data.context,
+      };
+    } catch (error) {
+      console.error('[OllamaService] Proxy generation failed:', error);
+      return null;
+    }
+  }
+
+  private async _generateDirect(
     prompt: string,
     options?: {
       system?: string;
@@ -169,6 +267,7 @@ class OllamaService {
   /**
    * Generate a streaming response
    * Returns an async generator for real-time display
+   * Note: In proxy mode, falls back to non-streaming for simplicity
    */
   async *generateStream(
     prompt: string,
@@ -179,6 +278,23 @@ class OllamaService {
       maxTokens?: number;
     }
   ): AsyncGenerator<OllamaStreamChunk, OllamaGenerateResponse | null, unknown> {
+    // In proxy mode, simulate streaming with a single response
+    if (isProxyMode) {
+      const result = await this._generateViaProxy(prompt, options);
+      if (result) {
+        // Emit the full response as a single chunk
+        yield {
+          model: result.model,
+          created_at: result.created_at,
+          response: result.response,
+          done: true,
+        };
+        return result;
+      }
+      return null;
+    }
+
+    // Direct Ollama streaming
     const status = await this.checkHealth();
     if (!status.available || !status.model) {
       return null;

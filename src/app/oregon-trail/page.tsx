@@ -26,7 +26,7 @@ import { ReputationBar } from './components/ReputationBar'
 import { NarratorOverlay, ReliabilityIndicator } from './components/NarratorOverlay'
 import { TownShop } from './components/TownShop'
 import { TownInn } from './components/TownInn'
-import { ResearchStation } from './components/ResearchStation'
+import { ResearchStation, type TrailLandmarkInfo } from './components/ResearchStation'
 import { DiscountReward, DiscountProgressBar } from './components/DiscountReward'
 import { type WitnessType } from './data/clueTemplates'
 import { hasCynthiasInn } from './oregonTrailContext'
@@ -1044,13 +1044,15 @@ function TravelScreen() {
   const [guideRemainingLandmarks, setGuideRemainingLandmarks] = useState(0)
 
   // Get Gold Country mystery context
-  const { getCluesForLocation, getCorrectClueCount, getActiveCase } = useMystery()
+  const { getCluesForLocation, getCorrectClueCount, getActiveCase, autoStartFirstCase } = useMystery()
   const activeCaseData = getActiveCase()
 
-  // Get current location info for Gold Country research
-  const currentGoldCountryLocation = getGoldCountryLocation(state.currentLandmark.toLowerCase().replace(/[^a-z]/g, '_'))
-  const currentLocationClues = getCluesForLocation(state.currentLandmark.toLowerCase().replace(/[^a-z]/g, '_'))
-  const hasResearchAvailable = currentGoldCountryLocation && currentLocationClues.length > 0
+  // Get current location info for research (works for both trail landmarks and Gold Country)
+  const currentLocationId = state.currentLandmark.toLowerCase().replace(/[^a-z]/g, '_')
+  const currentGoldCountryLocation = getGoldCountryLocation(currentLocationId)
+  const currentLocationClues = getCluesForLocation(currentLocationId)
+  // Research is available at trail landmarks with clues OR Gold Country locations with clues
+  const hasResearchAvailable = currentLocationClues.length > 0
 
   // Check if current location has Cynthia's Inn
   const isWestPoint = hasCynthiasInn(state.currentLandmark)
@@ -1058,6 +1060,21 @@ function TravelScreen() {
   // Specialty shops and guides at current location (seeded by day to be deterministic)
   const earlyLandmarkData = LANDMARKS.find(l => l.name === state.currentLandmark)
   const earlyLandmarkType = earlyLandmarkData?.type || 'town'
+
+  // Build trail landmark info for ResearchStation when not at a Gold Country location
+  const currentTrailLandmark: TrailLandmarkInfo | undefined = !currentGoldCountryLocation && currentLocationClues.length > 0
+    ? {
+        name: state.currentLandmark,
+        description: earlyLandmarkData ? `A ${earlyLandmarkData.type} on the Oregon Trail` : 'An Oregon Trail landmark',
+        icon: earlyLandmarkData?.type === 'fort' ? '🏰'
+          : earlyLandmarkData?.type === 'river' ? '🌊'
+          : earlyLandmarkData?.type === 'landmark' ? '🗿'
+          : earlyLandmarkData?.type === 'pass' ? '⛰️'
+          : earlyLandmarkData?.type === 'spring' ? '♨️'
+          : earlyLandmarkData?.type === 'mountains' ? '🏔️'
+          : '📍',
+      }
+    : undefined
   const availableSpecialtyShops = React.useMemo(
     () => getAvailableShops(state.currentLandmark, earlyLandmarkType, state.day * 1000 + state.distance),
     [state.currentLandmark, earlyLandmarkType, state.day, state.distance]
@@ -1661,12 +1678,13 @@ function TravelScreen() {
           />
         )}
 
-        {/* Research Station Modal - Gold Country educational content */}
-        {showResearch && currentGoldCountryLocation && currentLocationClues.length > 0 && (
+        {/* Research Station Modal - educational content (trail landmarks + Gold Country) */}
+        {showResearch && currentLocationClues.length > 0 && (
           <ResearchStation
             isOpen={showResearch}
             onClose={() => setShowResearch(false)}
-            location={currentGoldCountryLocation}
+            location={currentGoldCountryLocation || undefined}
+            trailLandmark={currentTrailLandmark}
             clue={currentLocationClues[0]}
             onClueAnswered={(correct) => {
               if (correct) {
@@ -1940,6 +1958,7 @@ function TravelScreen() {
 function WitnessScreen() {
   const { state, closeWitnessDialogue } = useOregonTrail()
   const { state: mysteryState, generateClueForWitness, addClue } = useMystery()
+  const { addExperience, addInvestigationXP } = useCharacter()
 
   const witnessType = state.investigation.activeWitness as WitnessType | null
 
@@ -1979,16 +1998,20 @@ function TelegraphScreen() {
   const { closeTelegraph, state } = useOregonTrail()
   const { comment, setMood } = useNarrator()
   const { modifyReputation } = useReputation()
+  const { addExperience, addInvestigationXP } = useCharacter()
 
   const handleWarrantIssued = (success: boolean, bounty: number, message: string) => {
     if (success) {
       setMood('impressed')
       comment("Justice has been served! Though the narrator wonders if it was truly deserved...", 'observation')
       modifyReputation('pinkerton', 15, 'Successful warrant execution', state.currentLandmark)
+      addExperience(100) // OUTLAW_CAPTURED
+      addInvestigationXP('suspectIdentification', 15)
     } else {
       setMood('amused')
       comment("Wrong suspect! The real outlaw escapes while you arrest an innocent. How embarrassing.", 'observation')
       modifyReputation('pinkerton', -20, 'Wrongful arrest', state.currentLandmark)
+      addExperience(-10) // WRONG_ACCUSATION penalty
     }
     closeTelegraph()
   }
@@ -2299,6 +2322,7 @@ function RanchManagementScreen() {
 function GoldCountryArrivalScreen() {
   const { state, enterSettlement, leaveSettlement, resetGame } = useOregonTrail()
   const { balance } = useKarmaWallet()
+  const { autoStartFirstCase } = useMystery()
   const [showBooking, setShowBooking] = useState(false)
 
   // Calculate karma score and outlaws caught for discount tier
@@ -2364,7 +2388,7 @@ function GoldCountryArrivalScreen() {
 
           <div className="space-y-4">
             <button
-              onClick={enterSettlement}
+              onClick={() => { autoStartFirstCase(); enterSettlement() }}
               className="w-full py-4 bg-amber-700 hover:bg-amber-600 text-amber-100 font-pixel text-lg rounded border-4 border-amber-500 transition-colors"
             >
               🏠 Stake Your Claim
@@ -2497,8 +2521,13 @@ function OregonTrailGame() {
       await AudioManager.initAudio()
       setAudioInitialized(true)
     }
-    // Start electro swing playlist (shuffled 12 tracks with crossfade)
-    AudioManager.playPlaylist()
+    // Start music based on saved preference (electro swing or Fallout 2 OST)
+    const savedMode = AudioManager.loadSoundtrackPreference()
+    if (savedMode === 'fallout') {
+      AudioManager.playFalloutPlaylist()
+    } else {
+      AudioManager.playPlaylist()
+    }
     startFromTitle()
   }, [audioInitialized, startFromTitle])
 
@@ -2508,7 +2537,12 @@ function OregonTrailGame() {
       await AudioManager.initAudio()
       setAudioInitialized(true)
     }
-    AudioManager.playPlaylist()
+    const savedMode = AudioManager.loadSoundtrackPreference()
+    if (savedMode === 'fallout') {
+      AudioManager.playFalloutPlaylist()
+    } else {
+      AudioManager.playPlaylist()
+    }
     // Load most recent save
     const sorted = [...saves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     if (sorted.length > 0) {
