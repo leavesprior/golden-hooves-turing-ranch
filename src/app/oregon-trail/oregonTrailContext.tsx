@@ -2,8 +2,10 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react'
 import { useKarma } from '@/lib/karmaContext'
+import { useKarmaWallet } from './karmaWalletContext'
 import { type CrossingOutcome } from './data/riverCrossings'
 import { getCriticalDescription } from './data/criticalDescriptions'
+import { type QuestReward } from './data/goldCountryNPCs'
 
 // Types
 export type Pace = 'steady' | 'strenuous' | 'grueling'
@@ -28,7 +30,10 @@ export type GamePhase =
   | 'world_map'           // NEW: Fallout-style world map
   | 'ranch_management'    // NEW: Lords II-style ranch building
   | 'gold_country_arrival' // NEW: Arrival at Gold Country - settlement choice
-  | 'settlement'          // NEW: Settlement building phase (Fallout-inspired)
+  | 'gold_country_explore' // NEW: Free-roam world map hub
+  | 'gold_country_location' // NEW: Per-location screen with NPCs/search
+  | 'gold_country_travel'   // NEW: Travel between locations with encounters
+  | 'settlement'          // NEW: Settlement building phase (accessed from BOBR Cabin)
   | 'settlement_victory'  // NEW: Settlement completion/ending screen
   | 'complete'
   | 'game_over'
@@ -148,6 +153,15 @@ export interface OregonTrailState {
   graphicsTier: GraphicsTier
   gamesCompleted: number
   outlawsCaught: number
+
+  // Gold Country Free-Roam
+  currentGoldCountryLocation: string | null  // current location ID in Gold Country
+  travelingToLocation: string | null         // destination during travel phase
+  discoveredGoldLocations: string[]          // IDs of discovered locations
+  goldCountryDay: number                     // days spent in Gold Country
+  completedQuests: string[]                  // IDs of completed quests
+  searchedAreas: string[]                    // IDs of searched areas
+  inventory: string[]                        // items found during exploration
 }
 
 // Landmarks along the trail (Missouri to California Gold Country)
@@ -160,12 +174,12 @@ export const LANDMARKS = [
   { name: 'Independence Rock', distance: 830, type: 'landmark' },
   { name: 'South Pass', distance: 932, type: 'pass' },
   { name: 'Fort Bridger', distance: 1032, type: 'fort' },
-  { name: 'Soda Springs', distance: 1160, type: 'spring' },
-  { name: 'Fort Hall', distance: 1220, type: 'fort' },
-  { name: 'Snake River Crossing', distance: 1430, type: 'river' },
-  { name: 'Fort Boise', distance: 1534, type: 'fort' },
-  { name: 'Blue Mountains', distance: 1680, type: 'mountains' },
-  { name: 'The Dalles', distance: 1820, type: 'town' },
+  { name: 'Raft River', distance: 1120, type: 'river' },
+  { name: 'City of Rocks', distance: 1200, type: 'landmark' },
+  { name: 'Humboldt River', distance: 1380, type: 'river' },
+  { name: 'Humboldt Sink', distance: 1520, type: 'landmark' },
+  { name: 'Forty Mile Desert', distance: 1600, type: 'desert' },
+  { name: 'Truckee Pass', distance: 1750, type: 'pass' },
   { name: 'Sacramento Valley', distance: 1900, type: 'landmark' },
   { name: 'West Point', distance: 1950, type: 'town', special: 'cynthias_inn' },  // Back of Beyond connection!
   { name: 'Gold Country', distance: 2000, type: 'destination' },
@@ -718,6 +732,14 @@ const DEFAULT_STATE: OregonTrailState = {
   graphicsTier: 'retro_4bit',
   gamesCompleted: 0,
   outlawsCaught: 0,
+  // Gold Country Free-Roam defaults
+  currentGoldCountryLocation: null,
+  travelingToLocation: null,
+  discoveredGoldLocations: ['bobr_cabin'],  // BOBR Cabin always visible
+  goldCountryDay: 1,
+  completedQuests: [],
+  searchedAreas: [],
+  inventory: [],
 }
 
 // Context
@@ -778,6 +800,19 @@ interface OregonTrailContextValue {
   leaveSettlement: () => void
   completeSettlement: () => void
 
+  // Gold Country Free-Roam
+  enterGoldCountryExplore: () => void
+  visitGoldCountryLocation: (locationId: string) => void
+  startGoldCountryTravel: (toLocationId: string) => void
+  arriveAtGoldCountryLocation: (locationId: string) => void
+  returnToGoldCountryMap: () => void
+  discoverLocation: (locationId: string) => void
+  completeQuest: (questId: string) => void
+  completeQuestWithReward: (questId: string, reward: QuestReward, choiceId?: string) => void
+  markAreaSearched: (areaId: string) => void
+  addInventoryItem: (itemId: string) => void
+  advanceGoldCountryDay: (days: number) => void
+
   // Save/Load support
   loadState: (savedState: OregonTrailState) => void
 }
@@ -799,6 +834,10 @@ interface OregonTrailProviderProps {
 export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   const [state, setState] = useState<OregonTrailState>(DEFAULT_STATE)
   const { applyKarma } = useKarma()
+  const {
+    earnNeutral, earnGood, addBadKarma, spendNeutral,
+    recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction,
+  } = useKarmaWallet()
 
   // Start new game
   const startGame = useCallback((leaderName: string, partyNames: string[]) => {
@@ -854,9 +893,13 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
       const baseDistance = 15 // Miles per day with good conditions
       const dailyDistance = Math.round(baseDistance * paceMultiplier * (1 - weatherPenalty))
 
-      // Food consumption based on rations
+      // Desert terrain check (Humboldt Sink → Forty Mile Desert region)
+      const inDesertTerrain = prev.distance >= 1380 && prev.distance <= 1700
+
+      // Food consumption based on rations (extra in desert due to water needs)
       const rationMultiplier = { filling: 3, meager: 2, bare_bones: 1 }[prev.rations]
-      const foodConsumed = prev.party.length * rationMultiplier
+      const desertFoodMultiplier = inDesertTerrain ? 1.5 : 1.0
+      const foodConsumed = Math.ceil(prev.party.length * rationMultiplier * desertFoodMultiplier)
 
       // Health effects
       let healthChange = 0
@@ -865,6 +908,11 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
       if (prev.pace === 'grueling') healthChange -= 2
       if (prev.weather === 'storm') healthChange -= 2
       if (prev.weather === 'snow') healthChange -= 3
+      // Desert heat exhaustion
+      if (inDesertTerrain) {
+        healthChange -= 2  // Base desert health drain
+        if (prev.pace === 'grueling') healthChange -= 2  // Extra penalty for pushing hard in heat
+      }
 
       // Update party health
       const updatedParty = prev.party.map(member => ({
@@ -1473,8 +1521,9 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   const enterSettlement = useCallback(() => {
     setState(prev => ({
       ...prev,
-      phase: 'settlement' as GamePhase,
-      message: 'Welcome to Gold Country! Stake your claim and build your future.',
+      phase: 'gold_country_explore' as GamePhase,
+      currentGoldCountryLocation: 'bobr_cabin',
+      message: 'Welcome to Gold Country! Explore the Sierra Foothills and build your future.',
     }))
   }, [])
 
@@ -1494,9 +1543,165 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     }))
   }, [])
 
+  // Gold Country Free-Roam
+  const enterGoldCountryExplore = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: 'gold_country_explore' as GamePhase,
+      currentGoldCountryLocation: 'bobr_cabin',
+      message: 'Welcome to Gold Country! Explore the Sierra Foothills and uncover its secrets.',
+    }))
+  }, [])
+
+  const visitGoldCountryLocation = useCallback((locationId: string) => {
+    setState(prev => ({
+      ...prev,
+      phase: 'gold_country_location' as GamePhase,
+      currentGoldCountryLocation: locationId,
+      discoveredGoldLocations: prev.discoveredGoldLocations.includes(locationId)
+        ? prev.discoveredGoldLocations
+        : [...prev.discoveredGoldLocations, locationId],
+    }))
+  }, [])
+
+  const startGoldCountryTravel = useCallback((toLocationId: string) => {
+    setState(prev => ({
+      ...prev,
+      phase: 'gold_country_travel' as GamePhase,
+      travelingToLocation: toLocationId,
+    }))
+  }, [])
+
+  const arriveAtGoldCountryLocation = useCallback((locationId: string) => {
+    setState(prev => ({
+      ...prev,
+      phase: 'gold_country_location' as GamePhase,
+      currentGoldCountryLocation: locationId,
+      travelingToLocation: null,
+      discoveredGoldLocations: prev.discoveredGoldLocations.includes(locationId)
+        ? prev.discoveredGoldLocations
+        : [...prev.discoveredGoldLocations, locationId],
+    }))
+  }, [])
+
+  const returnToGoldCountryMap = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: 'gold_country_explore' as GamePhase,
+    }))
+  }, [])
+
+  const discoverLocation = useCallback((locationId: string) => {
+    setState(prev => ({
+      ...prev,
+      discoveredGoldLocations: prev.discoveredGoldLocations.includes(locationId)
+        ? prev.discoveredGoldLocations
+        : [...prev.discoveredGoldLocations, locationId],
+    }))
+  }, [])
+
+  const completeQuest = useCallback((questId: string) => {
+    setState(prev => ({
+      ...prev,
+      completedQuests: prev.completedQuests.includes(questId)
+        ? prev.completedQuests
+        : [...prev.completedQuests, questId],
+    }))
+  }, [])
+
+  // Complete quest with specific reward (for moral choice quests)
+  const completeQuestWithReward = useCallback((questId: string, reward: QuestReward, _choiceId?: string) => {
+    // Mark quest as completed
+    setState(prev => ({
+      ...prev,
+      completedQuests: prev.completedQuests.includes(questId)
+        ? prev.completedQuests
+        : [...prev.completedQuests, questId],
+      // Add item to inventory if rewarded
+      inventory: reward.item
+        ? [...prev.inventory, reward.item]
+        : prev.inventory,
+    }))
+
+    // Apply karma rewards
+    // Handle neutralKarma (positive = earn, negative = spend)
+    if (reward.neutralKarma) {
+      if (reward.neutralKarma > 0) {
+        earnNeutral(reward.neutralKarma, `Quest: ${questId}`)
+      } else {
+        spendNeutral(Math.abs(reward.neutralKarma), `Quest: ${questId}`)
+      }
+    }
+
+    // Handle legacy gold field (maps to neutralKarma)
+    if (reward.gold && !reward.neutralKarma) {
+      earnNeutral(reward.gold, `Quest: ${questId}`)
+    }
+
+    // Handle goodKarma
+    if (reward.goodKarma && reward.goodKarma > 0) {
+      earnGood(reward.goodKarma, `Quest: ${questId}`)
+    }
+
+    // Handle legacy karma field (maps to goodKarma)
+    if (reward.karma && !reward.goodKarma) {
+      earnGood(reward.karma, `Quest: ${questId}`)
+    }
+
+    // Handle badKarma
+    if (reward.badKarma && reward.badKarma > 0) {
+      addBadKarma(reward.badKarma, `Quest: ${questId}`)
+    }
+
+    // Apply alignment shifts
+    if (reward.lawfulShift) {
+      if (reward.lawfulShift > 0) {
+        recordLawfulAction(reward.lawfulShift)
+      } else {
+        recordChaoticAction(Math.abs(reward.lawfulShift))
+      }
+    }
+
+    if (reward.goodEvilShift) {
+      if (reward.goodEvilShift > 0) {
+        recordGoodAction(reward.goodEvilShift)
+      } else {
+        recordEvilAction(Math.abs(reward.goodEvilShift))
+      }
+    }
+  }, [earnNeutral, spendNeutral, earnGood, addBadKarma, recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction])
+
+  const markAreaSearched = useCallback((areaId: string) => {
+    setState(prev => ({
+      ...prev,
+      searchedAreas: prev.searchedAreas.includes(areaId)
+        ? prev.searchedAreas
+        : [...prev.searchedAreas, areaId],
+    }))
+  }, [])
+
+  const addInventoryItem = useCallback((itemId: string) => {
+    setState(prev => ({
+      ...prev,
+      inventory: [...prev.inventory, itemId],
+    }))
+  }, [])
+
+  const advanceGoldCountryDay = useCallback((days: number) => {
+    setState(prev => ({
+      ...prev,
+      goldCountryDay: prev.goldCountryDay + days,
+    }))
+  }, [])
+
   // Load saved state (for save/load system)
+  // Merge with DEFAULT_STATE to handle saves from older versions that
+  // may be missing newer fields (e.g. Gold Country arrays)
   const loadState = useCallback((savedState: OregonTrailState) => {
-    setState(savedState)
+    setState({
+      ...DEFAULT_STATE,
+      ...savedState,
+    })
   }, [])
 
   const value: OregonTrailContextValue = {
@@ -1549,6 +1754,18 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     enterSettlement,
     leaveSettlement,
     completeSettlement,
+    // Gold Country Free-Roam
+    enterGoldCountryExplore,
+    visitGoldCountryLocation,
+    startGoldCountryTravel,
+    arriveAtGoldCountryLocation,
+    returnToGoldCountryMap,
+    discoverLocation,
+    completeQuest,
+    completeQuestWithReward,
+    markAreaSearched,
+    addInventoryItem,
+    advanceGoldCountryDay,
     // Save/Load
     loadState,
   }
@@ -1562,14 +1779,22 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
 
 // Helper function for weather
 function getRandomWeather(distance: number): Weather {
-  // More snow in mountains (distance 800-1200)
-  const inMountains = distance > 800 && distance < 1200
+  // Mountain passes: Rocky Mountains (800-1032) and Truckee Pass (1700-1800)
+  const inMountains = (distance > 800 && distance < 1032) || (distance > 1700 && distance < 1800)
+  // Desert region: Humboldt Sink through Forty Mile Desert (1380-1700)
+  const inDesert = distance > 1380 && distance < 1700
   const rand = Math.random()
 
   if (inMountains) {
     if (rand < 0.3) return 'snow'
     if (rand < 0.5) return 'storm'
     if (rand < 0.7) return 'rain'
+    return 'fair'
+  }
+
+  if (inDesert) {
+    // Desert: almost always fair (hot), rare storm
+    if (rand < 0.05) return 'storm'
     return 'fair'
   }
 
