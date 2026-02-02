@@ -136,6 +136,10 @@ export interface MysteryState {
 
   // Discount tracking
   currentDiscountTier: DiscountTier | null
+
+  // Telegraph warrant system
+  investigationStartDay: number | null
+  warrantSentAhead: boolean
 }
 
 interface MysteryContextValue {
@@ -202,6 +206,14 @@ interface MysteryContextValue {
   // Discount tier
   getCurrentDiscountTier: () => DiscountTier | null
   getCorrectClueCount: () => number
+
+  // Telegraph warrant
+  getInvestigationRating: (currentDay: number) => 'fast' | 'average' | 'slow'
+  sendTelegraphWarrant: () => boolean
+  hasWarrantSentAhead: () => boolean
+
+  // Persistence
+  loadMysteryState: (savedState: Partial<MysteryState>) => void
 }
 
 const MysteryContext = createContext<MysteryContextValue | undefined>(undefined)
@@ -229,7 +241,11 @@ const initialState: MysteryState = {
   educationalCluesCollected: [],
   currentLocationClues: [],
   hintsUsedTotal: 0,
-  currentDiscountTier: null
+  currentDiscountTier: null,
+
+  // Telegraph warrant
+  investigationStartDay: null,
+  warrantSentAhead: false,
 }
 
 export function MysteryProvider({ children }: { children: ReactNode }) {
@@ -920,7 +936,9 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
         return {
           ...prev,
           educationalCluesCollected: collected,
-          currentDiscountTier: getQualifyingTier(correctCount)
+          currentDiscountTier: getQualifyingTier(correctCount),
+          // Set investigation start day on first clue attempt
+          investigationStartDay: prev.investigationStartDay ?? Date.now(),
         }
       })
     } else if (correct && !state.educationalCluesCollected[existingIndex].answeredCorrectly) {
@@ -996,6 +1014,47 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
     return state.educationalCluesCollected.filter(c => c.answeredCorrectly).length
   }, [state.educationalCluesCollected])
 
+  // Investigation speed rating based on clues per game-day
+  const getInvestigationRating = useCallback((currentDay: number): 'fast' | 'average' | 'slow' => {
+    const correctClues = state.educationalCluesCollected.filter(c => c.answeredCorrectly).length
+    const startDay = state.investigationStartDay || 1
+    const daysElapsed = Math.max(1, currentDay - startDay)
+    const pace = correctClues / daysElapsed
+
+    if (pace >= 1.5) return 'fast'
+    if (pace >= 0.8) return 'average'
+    return 'slow'
+  }, [state.educationalCluesCollected, state.investigationStartDay])
+
+  // Send telegraph warrant ahead
+  const sendTelegraphWarrant = useCallback((): boolean => {
+    const correctClues = state.educationalCluesCollected.filter(c => c.answeredCorrectly).length
+    if (correctClues < 3) return false  // Need minimum clues
+
+    setState(prev => ({
+      ...prev,
+      warrantSentAhead: true,
+    }))
+    return true
+  }, [state.educationalCluesCollected])
+
+  // Check if warrant was sent ahead
+  const hasWarrantSentAhead = useCallback((): boolean => {
+    return state.warrantSentAhead
+  }, [state.warrantSentAhead])
+
+  // Load mystery state from saved data (persistence)
+  const loadMysteryState = useCallback((savedState: Partial<MysteryState>) => {
+    setState(prev => ({
+      ...prev,
+      ...savedState,
+      // Recalculate discount tier from restored clues
+      currentDiscountTier: savedState.educationalCluesCollected
+        ? getQualifyingTier(savedState.educationalCluesCollected.filter(c => c.answeredCorrectly).length)
+        : prev.currentDiscountTier,
+    }))
+  }, [])
+
   const value: MysteryContextValue = {
     state,
     initializeMystery,
@@ -1031,7 +1090,11 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
     useHint,
     getEducationalProgress,
     getCurrentDiscountTier,
-    getCorrectClueCount
+    getCorrectClueCount,
+    getInvestigationRating,
+    sendTelegraphWarrant,
+    hasWarrantSentAhead,
+    loadMysteryState
   }
 
   return (
@@ -1054,8 +1117,8 @@ function getNextLocationOnTrail(currentLocation: string): string {
   const trailLocations = [
     'Independence', 'Kansas River', 'Fort Kearny', 'Chimney Rock',
     'Fort Laramie', 'Independence Rock', 'South Pass', 'Fort Bridger',
-    'Soda Springs', 'Fort Hall', 'Snake River', 'Fort Boise',
-    'Blue Mountains', 'The Dalles', 'Sacramento Valley', 'Gold Country'
+    'Raft River', 'City of Rocks', 'Humboldt River', 'Humboldt Sink',
+    'Forty Mile Desert', 'Truckee Pass', 'Sacramento Valley', 'West Point', 'Gold Country'
   ]
 
   const currentIndex = trailLocations.findIndex(

@@ -130,9 +130,9 @@ export default function GoldCountryBooking({
     if (onBookingIntent) {
       onBookingIntent(discountCode)
     }
-    // Open Airbnb listing (replace with actual Back of Beyond Ranch URL)
+    // Open Airbnb listing for Back of Beyond Ranch
     window.open(
-      'https://www.airbnb.com/rooms/52180453', // Replace with actual listing ID
+      'https://www.airbnb.com/rooms/30045739',
       '_blank',
       'noopener,noreferrer'
     )

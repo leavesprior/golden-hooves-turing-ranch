@@ -51,7 +51,7 @@ export function AuthSavePanel() {
 
   if (authLoading) {
     return (
-      <div className="fixed top-4 right-4 z-50 bg-amber-900/90 border-2 border-amber-600 rounded-lg px-4 py-2">
+      <div className="fixed bottom-4 left-4 z-50 bg-amber-900/90 border-2 border-amber-600 rounded-lg px-4 py-2">
         <span className="text-amber-300 text-sm font-pixel animate-pulse">Loading...</span>
       </div>
     )
@@ -60,7 +60,7 @@ export function AuthSavePanel() {
   // Collapsed button view
   if (view === 'collapsed') {
     return (
-      <div className="fixed top-4 right-4 z-50 flex gap-2">
+      <div className="fixed bottom-4 left-4 z-50 flex gap-2">
         {isAuthenticated ? (
           <>
             <button
@@ -92,7 +92,7 @@ export function AuthSavePanel() {
   }
 
   // Panel wrapper
-  const panelClasses = "fixed top-4 right-4 z-50 bg-gradient-to-b from-gray-900 to-gray-950 border-4 border-amber-600 rounded-lg shadow-2xl w-80 max-h-[80vh] overflow-y-auto"
+  const panelClasses = "fixed bottom-4 left-4 z-50 bg-gradient-to-b from-gray-900 to-gray-950 border-4 border-amber-600 rounded-lg shadow-2xl w-80 max-h-[80vh] overflow-y-auto"
 
   // Login view
   if (view === 'login') {

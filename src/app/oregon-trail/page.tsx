@@ -31,6 +31,7 @@ import { DiscountReward, DiscountProgressBar } from './components/DiscountReward
 import { type WitnessType } from './data/clueTemplates'
 import { hasCynthiasInn } from './oregonTrailContext'
 import { getGoldCountryLocation } from './data/goldCountryLocations'
+import { rollHistoricalEncounter, type HistoricalCharacterEvent, type HistoricalCharacterChoice } from './data/historicalCharacters'
 
 // 64-bit Graphics System
 import {
@@ -60,6 +61,12 @@ import { RanchManagement } from './components/RanchManagement'
 import { SettlementProvider, useSettlement } from './settlementContext'
 import { SettlementHub } from './components/SettlementHub'
 import { SettlementVictory } from './components/SettlementVictory'
+
+// Gold Country Free-Roam (Fallout 2-style)
+import { GoldCountryExplore } from './components/GoldCountryExplore'
+import { GoldCountryLocation } from './components/GoldCountryLocation'
+import { GoldCountryTravel } from './components/GoldCountryTravel'
+import { QuestLog } from './components/QuestLog'
 
 // Title Screen and Chapter System
 import { TitleScreen } from './components/TitleScreen'
@@ -143,7 +150,7 @@ function GameMenu() {
           <h2 className="font-pixel text-red-400 text-xl mb-2">is Black Bart?</h2>
           <p className="text-amber-400 text-sm">A Pinkerton Mystery</p>
           <p className="text-amber-600 text-xs mt-2 italic">
-            Oregon Trail × Carmen Sandiego × Fallout
+            The Emigrant Trail × Carmen Sandiego × Fallout
           </p>
         </div>
 
@@ -1054,6 +1061,30 @@ function TravelScreen() {
   // Research is available at trail landmarks with clues OR Gold Country locations with clues
   const hasResearchAvailable = currentLocationClues.length > 0
 
+  // Historical character encounters
+  const [historicalEncounter, setHistoricalEncounter] = useState<HistoricalCharacterEvent | null>(null)
+  const [historicalOutcome, setHistoricalOutcome] = useState<string | null>(null)
+  const [visitedHistoricalIds, setVisitedHistoricalIds] = useState<string[]>([])
+
+  // Roll for historical encounter when arriving at a town
+  const currentHistoricalChar = React.useMemo(() => {
+    return rollHistoricalEncounter(state.currentLandmark, visitedHistoricalIds)
+  }, [state.currentLandmark, visitedHistoricalIds])
+
+  const handleHistoricalChoice = useCallback((choice: HistoricalCharacterChoice) => {
+    const outcome = choice.outcome
+    setHistoricalOutcome(outcome.message)
+
+    if (historicalEncounter) {
+      setVisitedHistoricalIds(prev => [...prev, historicalEncounter.id])
+    }
+
+    // Apply effects through narrator
+    if (outcome.moraleDelta) {
+      comment(`${outcome.moraleDelta > 0 ? 'Spirits lifted.' : 'A somber moment.'}`, 'observation')
+    }
+  }, [historicalEncounter, comment])
+
   // Check if current location has Cynthia's Inn
   const isWestPoint = hasCynthiasInn(state.currentLandmark)
 
@@ -1065,7 +1096,7 @@ function TravelScreen() {
   const currentTrailLandmark: TrailLandmarkInfo | undefined = !currentGoldCountryLocation && currentLocationClues.length > 0
     ? {
         name: state.currentLandmark,
-        description: earlyLandmarkData ? `A ${earlyLandmarkData.type} on the Oregon Trail` : 'An Oregon Trail landmark',
+        description: earlyLandmarkData ? `A ${earlyLandmarkData.type} on the Emigrant Trail` : 'An Emigrant Trail landmark',
         icon: earlyLandmarkData?.type === 'fort' ? '🏰'
           : earlyLandmarkData?.type === 'river' ? '🌊'
           : earlyLandmarkData?.type === 'landmark' ? '🗿'
@@ -1185,7 +1216,7 @@ function TravelScreen() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="text-6xl mb-4">\u2620\ufe0f</div>
+          <div className="text-6xl mb-4">☠️</div>
           <h1 className="font-pixel text-red-400 text-2xl mb-4">Game Over</h1>
           <p className="text-gray-400 mb-6">{state.message}</p>
           <p className="text-gray-500 text-sm mb-8">
@@ -1207,7 +1238,7 @@ function TravelScreen() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-yellow-950 via-amber-900 to-amber-950 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="text-6xl mb-4">\ud83c\udfc6</div>
+          <div className="text-6xl mb-4">🏆</div>
           <h1 className="font-pixel text-yellow-300 text-2xl mb-4">You Made It!</h1>
           <p className="text-amber-300 mb-6">Welcome to Gold Country, California!</p>
           <div className="text-amber-400 text-sm mb-8 space-y-1">
@@ -1539,6 +1570,15 @@ function TravelScreen() {
                 Research
               </p>
             </button>
+            {currentHistoricalChar && (
+              <button
+                onClick={() => setHistoricalEncounter(currentHistoricalChar)}
+                className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-500 rounded-lg text-center animate-pulse"
+              >
+                <span className="text-2xl">{currentHistoricalChar.portrait}</span>
+                <p className="text-amber-200 text-xs mt-1">Stranger</p>
+              </button>
+            )}
             <button
               onClick={() => hunt()}
               disabled={state.ammunition < 10}
@@ -1642,6 +1682,69 @@ function TravelScreen() {
 
         {/* Inn Modal */}
         {showInn && <TownInn onClose={() => setShowInn(false)} isWestPoint={isWestPoint} />}
+
+        {/* Historical Character Encounter Modal */}
+        {historicalEncounter && (
+          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[55] p-4">
+            <div className="bg-amber-950 border-2 border-amber-500 rounded-lg w-full max-w-lg max-h-[85vh] overflow-y-auto">
+              <div className="bg-amber-900/80 p-4 border-b border-amber-600">
+                <div className="flex items-center gap-3">
+                  <span className="text-4xl">{historicalEncounter.portrait}</span>
+                  <div>
+                    <h2 className="text-amber-200 font-bold text-lg">{historicalEncounter.characterName}</h2>
+                    <p className="text-amber-400 text-sm">{historicalEncounter.title}</p>
+                    <p className="text-amber-600 text-xs">{historicalEncounter.period}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 space-y-4">
+                {!historicalOutcome ? (
+                  <>
+                    <p className="text-gray-300 text-sm leading-relaxed">{historicalEncounter.description}</p>
+                    <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-3">
+                      <p className="text-amber-200 text-sm italic">&ldquo;{historicalEncounter.dialogue.greeting}&rdquo;</p>
+                    </div>
+                    <div className="bg-amber-900/20 border border-amber-800 rounded-lg p-3">
+                      <p className="text-gray-400 text-sm">&ldquo;{historicalEncounter.dialogue.fact}&rdquo;</p>
+                    </div>
+                    <div className="space-y-2">
+                      {historicalEncounter.choices.map(choice => (
+                        <button
+                          key={choice.id}
+                          onClick={() => handleHistoricalChoice(choice)}
+                          className="w-full text-left px-4 py-3 bg-amber-900/30 hover:bg-amber-800/50 border border-amber-700 hover:border-amber-500 rounded-lg text-amber-200 text-sm transition-colors"
+                        >
+                          {choice.text}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-300 text-sm leading-relaxed">{historicalOutcome}</p>
+                    <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-3">
+                      <p className="text-amber-200 text-sm italic">&ldquo;{historicalEncounter.dialogue.farewell}&rdquo;</p>
+                    </div>
+                    <div className="bg-cyan-900/30 border border-cyan-700 rounded-lg p-3">
+                      <p className="text-cyan-300 text-xs font-bold mb-1">Historical Background:</p>
+                      <p className="text-gray-400 text-xs">{historicalEncounter.historicalBio}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="border-t border-amber-700 p-4">
+                <button
+                  onClick={() => { setHistoricalEncounter(null); setHistoricalOutcome(null) }}
+                  className="w-full py-2 bg-amber-700 hover:bg-amber-600 text-amber-100 rounded font-bold text-sm"
+                >
+                  {historicalOutcome ? 'Continue Journey' : 'Walk Away'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Specialty Shop Modal */}
         {showSpecialtyShop && (
@@ -2441,11 +2544,11 @@ function GoldCountryArrivalScreen() {
 
 // Settlement Hub Screen - Main settlement building interface
 function SettlementScreen() {
-  const { leaveSettlement, completeSettlement, resetGame } = useOregonTrail()
+  const { leaveSettlement, completeSettlement, returnToGoldCountryMap } = useOregonTrail()
 
   return (
     <SettlementHub
-      onLeave={leaveSettlement}
+      onLeave={returnToGoldCountryMap}
       onComplete={completeSettlement}
     />
   )
@@ -2460,12 +2563,80 @@ function SettlementVictoryScreen() {
   )
 }
 
+// Gold Country Explore Screen - Free-roam map hub
+function GoldCountryExploreScreen() {
+  const {
+    state,
+    visitGoldCountryLocation,
+    startGoldCountryTravel,
+    leaveSettlement,
+    setPhase,
+  } = useOregonTrail()
+  const [showQuestLog, setShowQuestLog] = useState(false)
+
+  return (
+    <>
+      <GoldCountryExplore
+        onVisitLocation={(locationId) => {
+          visitGoldCountryLocation(locationId)
+        }}
+        onTravel={(toLocationId) => {
+          startGoldCountryTravel(toLocationId)
+        }}
+        onOpenSettlement={() => {
+          setPhase('settlement')
+        }}
+        onOpenQuestLog={() => setShowQuestLog(true)}
+        onLeave={leaveSettlement}
+      />
+      {showQuestLog && <QuestLog onClose={() => setShowQuestLog(false)} />}
+    </>
+  )
+}
+
+// Gold Country Location Screen - Per-location with NPCs/search
+function GoldCountryLocationScreen() {
+  const { state, returnToGoldCountryMap, setPhase } = useOregonTrail()
+
+  const locationId = state.currentGoldCountryLocation || 'bobr_cabin'
+
+  return (
+    <GoldCountryLocation
+      locationId={locationId}
+      onReturnToMap={returnToGoldCountryMap}
+      onOpenSettlement={() => {
+        setPhase('settlement')
+      }}
+    />
+  )
+}
+
+// Gold Country Travel Screen - Travel with random encounters
+function GoldCountryTravelScreen() {
+  const { state, arriveAtGoldCountryLocation, returnToGoldCountryMap } = useOregonTrail()
+
+  const fromId = state.currentGoldCountryLocation || 'bobr_cabin'
+  const toId = state.travelingToLocation || 'bobr_cabin'
+
+  return (
+    <GoldCountryTravel
+      fromLocationId={fromId}
+      toLocationId={toId}
+      onArrive={(locationId) => {
+        arriveAtGoldCountryLocation(locationId)
+      }}
+      onReturnToMap={returnToGoldCountryMap}
+    />
+  )
+}
+
 // Save/Load Integration Wrapper
 function SaveLoadIntegration() {
   const { state, loadState } = useOregonTrail()
   const { user } = useAuth()
   const { setGameDataCollector, setGameDataLoader, setMetadataCollector, enableAutoSave } = useSaveLoad()
   const { balance, alignment, getAlignmentDisplayName, loadKarmaState } = useKarmaWallet()
+  const { state: mysteryState, loadMysteryState } = useMystery()
 
   // Set up save data collector — skip during title/chapter_intro phases
   React.useEffect(() => {
@@ -2480,6 +2651,20 @@ function SaveLoadIntegration() {
         oregonTrail: state,
         karmaBalance: balance,
         karmaAlignment: alignment,
+        mysteryState: {
+          educationalCluesCollected: mysteryState.educationalCluesCollected,
+          activeCase: mysteryState.activeCase,
+          activeCaseData: mysteryState.activeCaseData,
+          casesSolved: mysteryState.casesSolved,
+          hintsUsedTotal: mysteryState.hintsUsedTotal,
+          currentDiscountTier: mysteryState.currentDiscountTier,
+          collectedClues: mysteryState.collectedClues,
+          knownTraits: mysteryState.knownTraits,
+          currentOutlaw: mysteryState.currentOutlaw,
+          outlawsCaught: mysteryState.outlawsCaught,
+          outlawsEscaped: mysteryState.outlawsEscaped,
+          totalBountyEarned: mysteryState.totalBountyEarned,
+        },
       }
     })
 
@@ -2504,8 +2689,12 @@ function SaveLoadIntegration() {
           data.karmaAlignment as { lawfulChaotic: number; goodEvil: number } | undefined,
         )
       }
+      // Restore mystery/investigation state
+      if (data.mysteryState) {
+        loadMysteryState(data.mysteryState as Partial<import('./mysteryContext').MysteryState>)
+      }
     })
-  }, [user, state, balance, alignment, setGameDataCollector, setGameDataLoader, setMetadataCollector, getAlignmentDisplayName, loadState, loadKarmaState, enableAutoSave])
+  }, [user, state, balance, alignment, mysteryState, setGameDataCollector, setGameDataLoader, setMetadataCollector, getAlignmentDisplayName, loadState, loadKarmaState, loadMysteryState, enableAutoSave])
 
   return null
 }
@@ -2552,106 +2741,124 @@ function OregonTrailGame() {
 
   // Playlist auto-cycles tracks via AudioManager - no manual switching needed
 
-  // Title screen phase
-  if (state.phase === 'title') {
-    return (
-      <>
+  // Determine phase content - extracted to ensure SaveLoadIntegration
+  // and AuthSavePanel always render regardless of active phase
+  const renderPhaseContent = () => {
+    // Title screen phase
+    if (state.phase === 'title') {
+      return (
         <TitleScreen
           onStart={handleGameStart}
           hasSaves={saves.length > 0}
           onContinue={handleContinue}
         />
-        <AuthSavePanel />
-        <SaveLoadIntegration />
-      </>
-    )
+      )
+    }
+
+    // Chapter intro phase
+    if (state.phase === 'chapter_intro') {
+      const chapter = CHAPTERS[state.currentChapter as keyof typeof CHAPTERS] || CHAPTERS[1]
+      return (
+        <ChapterIntro
+          chapterNumber={chapter.number}
+          title={chapter.title}
+          subtitle={chapter.subtitle}
+          narrative={chapter.narrative}
+          onComplete={completeChapterIntro}
+        />
+      )
+    }
+
+    // Menu phase
+    if (state.phase === 'menu') {
+      return <GameMenu />
+    }
+
+    // Outfitting phase
+    if (state.phase === 'outfitting') {
+      return <OutfittingScreen />
+    }
+
+    // Character creation phase (new)
+    if (state.phase === 'character_creation') {
+      return <CharacterCreationScreen />
+    }
+
+    // Investigation phase (new)
+    if (state.phase === 'investigation') {
+      return <InvestigationScreen />
+    }
+
+    // Witness dialogue phase (new)
+    if (state.phase === 'witness') {
+      return <WitnessScreen />
+    }
+
+    // Dossier phase (new)
+    if (state.phase === 'dossier') {
+      return <DossierScreen />
+    }
+
+    // Telegraph phase (new)
+    if (state.phase === 'telegraph') {
+      return <TelegraphScreen />
+    }
+
+    // Journal phase (new)
+    if (state.phase === 'journal') {
+      return <JournalScreen />
+    }
+
+    // World Map phase (Fallout-style exploration)
+    if (state.phase === 'world_map') {
+      return <WorldMapScreen />
+    }
+
+    // Ranch Management phase (Lords II-style building)
+    if (state.phase === 'ranch_management') {
+      return <RanchManagementScreen />
+    }
+
+    // Gold Country Arrival phase - choose to settle or continue
+    if (state.phase === 'gold_country_arrival') {
+      return <GoldCountryArrivalScreen />
+    }
+
+    // Gold Country Free-Roam phases (Fallout 2-style)
+    if (state.phase === 'gold_country_explore') {
+      return <GoldCountryExploreScreen />
+    }
+
+    if (state.phase === 'gold_country_location') {
+      return <GoldCountryLocationScreen />
+    }
+
+    if (state.phase === 'gold_country_travel') {
+      return <GoldCountryTravelScreen />
+    }
+
+    // Settlement phase - main settlement building (accessed from BOBR Cabin)
+    if (state.phase === 'settlement') {
+      return <SettlementScreen />
+    }
+
+    // Settlement Victory phase - final ending screen
+    if (state.phase === 'settlement_victory') {
+      return <SettlementVictoryScreen />
+    }
+
+    // Default to travel screen (handles traveling, town, river, event, complete, game_over)
+    return <TravelScreen />
   }
 
-  // Chapter intro phase
-  if (state.phase === 'chapter_intro') {
-    const chapter = CHAPTERS[state.currentChapter as keyof typeof CHAPTERS] || CHAPTERS[1]
-    return (
-      <ChapterIntro
-        chapterNumber={chapter.number}
-        title={chapter.title}
-        subtitle={chapter.subtitle}
-        narrative={chapter.narrative}
-        onComplete={completeChapterIntro}
-      />
-    )
-  }
+  // Hide save panel during cinematic/non-interactive phases
+  const showSavePanel = state.phase !== 'chapter_intro'
 
-  // Menu phase
-  if (state.phase === 'menu') {
-    return <GameMenu />
-  }
-
-  // Outfitting phase
-  if (state.phase === 'outfitting') {
-    return <OutfittingScreen />
-  }
-
-  // Character creation phase (new)
-  if (state.phase === 'character_creation') {
-    return <CharacterCreationScreen />
-  }
-
-  // Investigation phase (new)
-  if (state.phase === 'investigation') {
-    return <InvestigationScreen />
-  }
-
-  // Witness dialogue phase (new)
-  if (state.phase === 'witness') {
-    return <WitnessScreen />
-  }
-
-  // Dossier phase (new)
-  if (state.phase === 'dossier') {
-    return <DossierScreen />
-  }
-
-  // Telegraph phase (new)
-  if (state.phase === 'telegraph') {
-    return <TelegraphScreen />
-  }
-
-  // Journal phase (new)
-  if (state.phase === 'journal') {
-    return <JournalScreen />
-  }
-
-  // World Map phase (Fallout-style exploration)
-  if (state.phase === 'world_map') {
-    return <WorldMapScreen />
-  }
-
-  // Ranch Management phase (Lords II-style building)
-  if (state.phase === 'ranch_management') {
-    return <RanchManagementScreen />
-  }
-
-  // Gold Country Arrival phase - choose to settle or continue
-  if (state.phase === 'gold_country_arrival') {
-    return <GoldCountryArrivalScreen />
-  }
-
-  // Settlement phase - main settlement building (Fallout-inspired)
-  if (state.phase === 'settlement') {
-    return <SettlementScreen />
-  }
-
-  // Settlement Victory phase - final ending screen
-  if (state.phase === 'settlement_victory') {
-    return <SettlementVictoryScreen />
-  }
-
-  // Default to travel screen (handles traveling, town, river, event, complete, game_over)
   return (
     <>
-      <TravelScreen />
-      <AuthSavePanel />
+      {renderPhaseContent()}
       <SaveLoadIntegration />
+      {showSavePanel && <AuthSavePanel />}
     </>
   )
 }

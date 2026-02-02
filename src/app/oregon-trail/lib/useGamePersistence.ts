@@ -109,6 +109,28 @@ export function getSaveSummary(): {
   }
 }
 
+// Landmark migration map: old Oregon Trail names → new California Trail names
+const LANDMARK_MIGRATIONS: Record<string, string> = {
+  'Soda Springs': 'Raft River',
+  'Fort Hall': 'City of Rocks',
+  'Snake River Crossing': 'Humboldt River',
+  'Fort Boise': 'Humboldt Sink',
+  'Blue Mountains': 'Forty Mile Desert',
+  'The Dalles': 'Truckee Pass',
+}
+
+/** Migrate old save data to new format */
+function migrateSave(state: SavedGameState): SavedGameState {
+  // Migrate landmark names
+  if (state.currentLandmark && LANDMARK_MIGRATIONS[state.currentLandmark]) {
+    state.currentLandmark = LANDMARK_MIGRATIONS[state.currentLandmark]
+  }
+
+  // Update version
+  state.version = '2.0.0'
+  return state
+}
+
 /**
  * Load saved game state
  */
@@ -118,11 +140,19 @@ export function loadGame(): SavedGameState | null {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (!saved) return null
 
-    const state: SavedGameState = JSON.parse(saved)
+    let state: SavedGameState = JSON.parse(saved)
 
     // Version check for compatibility
     if (!state.version) {
       console.warn('GamePersistence: Old save format detected')
+    }
+
+    // Migrate if needed (pre-2.0.0 saves have old Oregon Trail landmarks)
+    if (!state.version || state.version < '2.0.0') {
+      console.log('GamePersistence: Migrating save from', state.version || 'unknown', 'to 2.0.0')
+      state = migrateSave(state)
+      // Re-save migrated state
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
     }
 
     return state
@@ -139,7 +169,7 @@ export function saveGame(state: Partial<SavedGameState>): boolean {
   if (typeof window === 'undefined') return false
   try {
     const fullState: SavedGameState = {
-      version: '1.0.0',
+      version: '2.0.0',
       timestamp: Date.now(),
 
       // Defaults that get overwritten by state

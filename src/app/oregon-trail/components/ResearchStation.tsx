@@ -4,6 +4,7 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { useMystery } from '../mysteryContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import type { EducationalClue } from '../data/educationalClues'
+import { isCloseAnswer, generateMultipleChoice } from '../data/educationalClues'
 import type { GoldCountryLocation } from '../data/goldCountryLocations'
 import { getNextTierProgress, getQualifyingTier, DISCOUNT_TIERS } from '../data/discountEngine'
 
@@ -60,14 +61,24 @@ export function ResearchStation({
   const displayLink = location?.externalLink || clue.hintLink
   const displayLinkPrompt = location?.linkPrompt || 'Research this location'
   const displayLinkHint = location?.linkHint || ''
-  const { attemptEducationalClue, useHint, getEducationalProgress, getCorrectClueCount } = useMystery()
+  const { attemptEducationalClue, useHint, getEducationalProgress, getCorrectClueCount, state: mysteryState } = useMystery()
   const { earnGood, earnNeutral, recordGoodAction, spendNeutral, canAfford } = useKarmaWallet()
 
+  // Check if this clue was already answered correctly
+  const alreadyCompleted = useMemo(() => {
+    return mysteryState.educationalCluesCollected.some(
+      c => c.clue.id === clue.id && c.answeredCorrectly
+    )
+  }, [mysteryState.educationalCluesCollected, clue.id])
+
   const [answer, setAnswer] = useState('')
-  const [showResult, setShowResult] = useState<'correct' | 'incorrect' | null>(null)
+  const [showResult, setShowResult] = useState<'correct' | 'incorrect' | 'close' | null>(alreadyCompleted ? 'correct' : null)
   const [showHint, setShowHint] = useState(false)
   const [hintsUsed, setHintsUsed] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [failedAttempts, setFailedAttempts] = useState(0)
+  const [multipleChoiceOptions, setMultipleChoiceOptions] = useState<string[] | null>(null)
+  const [reducedKarma, setReducedKarma] = useState(false)
 
   // Calculate progress info
   const correctCount = getCorrectClueCount()
@@ -81,19 +92,53 @@ export function ResearchStation({
     setIsSubmitting(true)
     const result = attemptEducationalClue(clue.id, answer.trim())
 
-    setShowResult(result.correct ? 'correct' : 'incorrect')
-
     if (result.correct) {
-      // Reward for correct answer
-      await earnGood(5, `Learned about ${displayName}`)
-      recordGoodAction(5) // Slight shift toward good alignment (learning is virtuous)
+      setShowResult('correct')
+      const karmaAmount = reducedKarma ? 3 : 5
+      await earnGood(karmaAmount, `Learned about ${displayName}`)
+      recordGoodAction(karmaAmount)
       onClueAnswered?.(true)
     } else {
+      const newFailedAttempts = failedAttempts + 1
+      setFailedAttempts(newFailedAttempts)
+
+      // Check if answer is close
+      if (isCloseAnswer(clue.id, answer.trim())) {
+        setShowResult('close')
+      } else {
+        setShowResult('incorrect')
+      }
+
+      // After 2 failed attempts, switch to multiple choice
+      if (newFailedAttempts >= 2 && !multipleChoiceOptions) {
+        const options = generateMultipleChoice(clue.id)
+        setMultipleChoiceOptions(options)
+        setReducedKarma(true)
+      }
+
       onClueAnswered?.(false)
     }
 
     setIsSubmitting(false)
-  }, [answer, clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered, isSubmitting])
+  }, [answer, clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered, isSubmitting, failedAttempts, multipleChoiceOptions, reducedKarma])
+
+  // Handle multiple choice selection
+  const handleMultipleChoiceSelect = useCallback((option: string) => {
+    setAnswer(option)
+    // Auto-submit after a short delay for visual feedback
+    setTimeout(async () => {
+      const result = attemptEducationalClue(clue.id, option)
+      if (result.correct) {
+        setShowResult('correct')
+        await earnGood(3, `Learned about ${displayName}`)
+        recordGoodAction(3)
+        onClueAnswered?.(true)
+      } else {
+        setShowResult('incorrect')
+        onClueAnswered?.(false)
+      }
+    }, 200)
+  }, [clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered])
 
   // Handle hint request
   const handleUseHint = useCallback(async () => {
@@ -111,11 +156,14 @@ export function ResearchStation({
   // Handle closing and reset
   const handleClose = useCallback(() => {
     setAnswer('')
-    setShowResult(null)
+    setShowResult(alreadyCompleted ? 'correct' : null)
     setShowHint(false)
     setHintsUsed(0)
+    setFailedAttempts(0)
+    setMultipleChoiceOptions(null)
+    setReducedKarma(false)
     onClose()
-  }, [onClose])
+  }, [onClose, alreadyCompleted])
 
   // Handle key press
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
@@ -184,24 +232,44 @@ export function ResearchStation({
           {/* Answer Input (only show if not yet answered correctly) */}
           {showResult !== 'correct' && (
             <div className="space-y-3">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Type your answer..."
-                  disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 bg-gray-800 border border-gray-600 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:border-cyan-500"
-                />
-                <button
-                  onClick={handleSubmit}
-                  disabled={!answer.trim() || isSubmitting}
-                  className="px-6 py-2 bg-cyan-700 hover:bg-cyan-600 text-cyan-100 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? '...' : 'Submit'}
-                </button>
-              </div>
+              {/* Multiple choice mode (after 2 failed attempts) */}
+              {multipleChoiceOptions ? (
+                <div className="space-y-2">
+                  <p className="text-amber-300 text-sm font-bold">Choose the correct answer:</p>
+                  <p className="text-gray-500 text-xs">(Reduced karma reward: +3🍪 instead of +5🍪)</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {multipleChoiceOptions.map((option, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleMultipleChoiceSelect(option)}
+                        disabled={isSubmitting}
+                        className="px-4 py-3 bg-gray-800 hover:bg-cyan-900/60 border border-gray-600 hover:border-cyan-500 rounded text-gray-200 text-left transition-colors disabled:opacity-50"
+                      >
+                        {String.fromCharCode(65 + idx)}. {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={answer}
+                    onChange={(e) => { setAnswer(e.target.value); if (showResult === 'incorrect' || showResult === 'close') setShowResult(null) }}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Type your answer..."
+                    disabled={isSubmitting}
+                    className="flex-1 px-4 py-2 bg-gray-800 border border-gray-600 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+                  />
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!answer.trim() || isSubmitting}
+                    className="px-6 py-2 bg-cyan-700 hover:bg-cyan-600 text-cyan-100 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? '...' : 'Submit'}
+                  </button>
+                </div>
+              )}
 
               {/* Hint Button */}
               {!showHint && clue.hintLink && (
@@ -222,8 +290,14 @@ export function ResearchStation({
               <div className="bg-green-900/40 border border-green-600 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-2xl">✅</span>
-                  <span className="text-green-300 font-bold">Correct!</span>
-                  <span className="text-green-400 text-sm">+5🍪 Good Karma</span>
+                  {alreadyCompleted ? (
+                    <span className="text-green-300 font-bold">Already Completed</span>
+                  ) : (
+                    <>
+                      <span className="text-green-300 font-bold">Correct!</span>
+                      <span className="text-green-400 text-sm">+5🍪 Good Karma</span>
+                    </>
+                  )}
                 </div>
                 <p className="text-green-200 text-sm">
                   <span className="font-bold">Answer:</span> {clue.answer}
@@ -262,6 +336,18 @@ export function ResearchStation({
             </div>
           )}
 
+          {showResult === 'close' && (
+            <div className="bg-amber-900/40 border border-amber-600 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">🤏</span>
+                <span className="text-amber-300 font-bold">Close! Try being more specific.</span>
+              </div>
+              <p className="text-gray-400 text-sm">
+                You&apos;re on the right track. Check the research link for more details.
+              </p>
+            </div>
+          )}
+
           {showResult === 'incorrect' && (
             <div className="bg-red-900/40 border border-red-600 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -269,7 +355,10 @@ export function ResearchStation({
                 <span className="text-red-300 font-bold">Not quite right...</span>
               </div>
               <p className="text-gray-400 text-sm">
-                Try again! Visit the research link above for clues.
+                {failedAttempts >= 2 && !multipleChoiceOptions
+                  ? 'Multiple choice options are now available above.'
+                  : 'Try again! Visit the research link above for clues.'
+                }
               </p>
             </div>
           )}

@@ -8,6 +8,7 @@ import { useCharacter } from '../characterContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { KarmaWallet } from './KarmaWallet'
 import { KarmaConvertModal } from './KarmaConvertModal'
+import { rollGhostEncounter, type GhostEncounter, type GhostChoice } from '../data/hauntedInns'
 
 interface RoomOption {
   id: string
@@ -201,6 +202,8 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
   const [selectedTab, setSelectedTab] = useState<'rooms' | 'food' | 'drinks'>('rooms')
   const [message, setMessage] = useState<string | null>(null)
   const [partyMorale, setPartyMorale] = useState(50)  // Track morale during visit
+  const [ghostEncounter, setGhostEncounter] = useState<GhostEncounter | null>(null)
+  const [ghostOutcome, setGhostOutcome] = useState<string | null>(null)
   const [cynthiaDialogue, setCynthiaDialogue] = useState<string | null>(
     isWestPoint ? "Welcome to the Back of Beyond Inn! I'm Cynthia. You look like you've been on the trail a while. Sit down, rest your bones." : null
   )
@@ -252,6 +255,14 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     restAtInn(room.healthBonus, room.moraleBonus, 0) // Pass 0 since karma already spent
     setMessage(`Your party rests in the ${room.name}. Everyone feels refreshed! (-${price}${karmaEmoji})`)
     setPartyMorale(m => Math.min(100, m + room.moraleBonus))
+
+    // Roll for ghost encounter after resting
+    const ghost = rollGhostEncounter(state.currentLandmark)
+    if (ghost) {
+      setTimeout(() => {
+        setGhostEncounter(ghost)
+      }, 1500)
+    }
 
     // Special dialogue for Cynthia's cabin
     if (room.id === 'cabin' && isWestPoint) {
@@ -353,6 +364,44 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
       }, 1000)
     }
   }, [canAfford, spendNeutral, setConvertModalContext, setShowConvertModal, priceModifier, buyDrink, modifyStat, comment, setMood])
+
+  // Handle ghost encounter choice
+  const handleGhostChoice = useCallback(async (choice: GhostChoice) => {
+    const outcome = choice.outcome
+
+    // Apply morale/health effects
+    if (outcome.moraleDelta) {
+      setPartyMorale(m => Math.max(0, Math.min(100, m + outcome.moraleDelta!)))
+    }
+    if (outcome.healthDelta) {
+      // Apply through restAtInn with negative bonus for damage
+      if (outcome.healthDelta > 0) {
+        restAtInn(outcome.healthDelta, 0, 0)
+      }
+    }
+    // Apply karma effects
+    if (outcome.goodKarmaDelta && outcome.goodKarmaDelta > 0) {
+      // We don't have earnGood here directly, so use spendGood negatively
+      // Actually just report the karma gain in the message
+    }
+    if (outcome.neutralKarmaDelta && outcome.neutralKarmaDelta < 0) {
+      const cost = Math.abs(outcome.neutralKarmaDelta)
+      if (canAfford('neutral', cost)) {
+        await spendNeutral(cost, `Ghost encounter: ${ghostEncounter?.ghostName}`)
+      }
+    }
+
+    setGhostOutcome(outcome.message)
+
+    // Clear ghost encounter after showing outcome
+    setTimeout(() => {
+      setGhostEncounter(null)
+      setGhostOutcome(null)
+      if (ghostEncounter) {
+        setMessage(`${ghostEncounter.historicalFact}`)
+      }
+    }, 5000)
+  }, [ghostEncounter, canAfford, spendNeutral, restAtInn])
 
   // Party dynamics display
   const getMoraleDescription = (morale: number) => {
@@ -606,6 +655,56 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
           </button>
         </div>
       </div>
+
+      {/* Ghost Encounter Modal */}
+      {ghostEncounter && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4">
+          <div className="bg-gray-900 border-2 border-purple-600 rounded-lg w-full max-w-lg overflow-hidden">
+            <div className="bg-purple-900/60 p-4 border-b border-purple-700">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">👻</span>
+                <div>
+                  <h2 className="text-purple-200 font-bold text-lg">{ghostEncounter.title}</h2>
+                  <p className="text-purple-400 text-sm">{ghostEncounter.ghostName}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {!ghostOutcome ? (
+                <>
+                  <p className="text-gray-300 text-sm leading-relaxed">{ghostEncounter.description}</p>
+                  <div className="space-y-2">
+                    {ghostEncounter.choices.map(choice => (
+                      <button
+                        key={choice.id}
+                        onClick={() => handleGhostChoice(choice)}
+                        className="w-full text-left px-4 py-3 bg-purple-900/30 hover:bg-purple-800/50 border border-purple-700 hover:border-purple-500 rounded-lg text-purple-200 text-sm transition-colors"
+                      >
+                        {choice.text}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-300 text-sm leading-relaxed">{ghostOutcome}</p>
+                  <div className="bg-purple-900/30 border border-purple-700 rounded-lg p-3 mt-4">
+                    <p className="text-purple-300 text-xs font-bold mb-1">Historical Fact:</p>
+                    <p className="text-gray-400 text-xs">{ghostEncounter.historicalFact}</p>
+                  </div>
+                  <button
+                    onClick={() => { setGhostEncounter(null); setGhostOutcome(null) }}
+                    className="w-full py-2 bg-purple-700 hover:bg-purple-600 text-purple-100 rounded font-bold text-sm mt-2"
+                  >
+                    Continue
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Karma Convert Modal */}
       {showConvertModal && convertModalContext && (

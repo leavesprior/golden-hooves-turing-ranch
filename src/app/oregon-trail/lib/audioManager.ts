@@ -1537,9 +1537,96 @@ export const FALLOUT_TRACKS: FalloutTrack[] = [
   },
 ]
 
-// Fallout playback state
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAROV STELAR - Real electro swing MP3 playback
+// ═══════════════════════════════════════════════════════════════════════════════
+// 40 tracks from Parov Stelar's The Princess (2012) and The Burning Spider (2017).
+// Replaces the synthesized electro swing with the real deal.
+
+export interface ParovTrack {
+  id: string
+  title: string
+  file: string           // URL path under /rpg/sounds/parov/
+  album: 'the_princess' | 'the_burning_spider'
+  context: FalloutTrackContext[]  // Reuse context system
+}
+
+export const PAROV_TRACKS: ParovTrack[] = [
+  // The Princess (2012) - CD1
+  { id: 'millas_dream', title: "Milla's Dream", file: '/rpg/sounds/parov/millas_dream.mp3', album: 'the_princess', context: ['ambient', 'title'] },
+  { id: 'all_night', title: 'All Night', file: '/rpg/sounds/parov/all_night.mp3', album: 'the_princess', context: ['saloon', 'town'] },
+  { id: 'nobodys_fool', title: "Nobody's Fool", file: '/rpg/sounds/parov/nobodys_fool.mp3', album: 'the_princess', context: ['travel', 'ambient'] },
+  { id: 'the_princess', title: 'The Princess', file: '/rpg/sounds/parov/the_princess.mp3', album: 'the_princess', context: ['title', 'mystery'] },
+  { id: 'silent_shuffle', title: 'Silent Shuffle', file: '/rpg/sounds/parov/silent_shuffle.mp3', album: 'the_princess', context: ['mystery', 'town'] },
+  { id: 'this_game', title: 'This Game', file: '/rpg/sounds/parov/this_game.mp3', album: 'the_princess', context: ['danger', 'travel'] },
+  { id: 'you_got_me_there', title: 'You Got Me There', file: '/rpg/sounds/parov/you_got_me_there.mp3', album: 'the_princess', context: ['saloon', 'town'] },
+  { id: 'dust_in_the_summer_rain', title: 'Dust In The Summer Rain', file: '/rpg/sounds/parov/dust_in_the_summer_rain.mp3', album: 'the_princess', context: ['travel', 'wilderness'] },
+  { id: 'requiem_for_annie', title: 'Requiem For Annie', file: '/rpg/sounds/parov/requiem_for_annie.mp3', album: 'the_princess', context: ['danger', 'mystery'] },
+  { id: 'with_you', title: 'With You', file: '/rpg/sounds/parov/with_you.mp3', album: 'the_princess', context: ['settlement', 'ambient'] },
+  { id: 'the_beach', title: 'The Beach', file: '/rpg/sounds/parov/the_beach.mp3', album: 'the_princess', context: ['ambient', 'settlement'] },
+  { id: 'song_for_the_crickets', title: 'Song For The Crickets', file: '/rpg/sounds/parov/song_for_the_crickets.mp3', album: 'the_princess', context: ['wilderness', 'ambient'] },
+  { id: 'beautiful_morning', title: 'Beautiful Morning', file: '/rpg/sounds/parov/beautiful_morning.mp3', album: 'the_princess', context: ['travel', 'title'] },
+  { id: 'the_fog', title: 'The Fog', file: '/rpg/sounds/parov/the_fog.mp3', album: 'the_princess', context: ['mystery', 'danger'] },
+  { id: 'true_romance_part_2', title: 'True Romance Part 2', file: '/rpg/sounds/parov/true_romance_part_2.mp3', album: 'the_princess', context: ['saloon', 'settlement'] },
+  // The Princess (2012) - CD2
+  { id: 'jimmys_gang', title: "Jimmy's Gang", file: '/rpg/sounds/parov/jimmys_gang.mp3', album: 'the_princess', context: ['danger', 'saloon'] },
+  { id: 'sallys_dance', title: "Sally's Dance", file: '/rpg/sounds/parov/sallys_dance.mp3', album: 'the_princess', context: ['saloon', 'town'] },
+  { id: 'booty_swing', title: 'Booty Swing', file: '/rpg/sounds/parov/booty_swing.mp3', album: 'the_princess', context: ['saloon', 'title'] },
+  { id: 'baska_brother', title: 'Baska Brother', file: '/rpg/sounds/parov/baska_brother.mp3', album: 'the_princess', context: ['travel', 'danger'] },
+  { id: 'the_phantom', title: 'The Phantom (1930 Version)', file: '/rpg/sounds/parov/the_phantom_1930_version.mp3', album: 'the_princess', context: ['mystery', 'danger'] },
+  { id: 'the_snake', title: 'The Snake', file: '/rpg/sounds/parov/the_snake.mp3', album: 'the_princess', context: ['danger', 'mystery'] },
+  { id: 'wanna_fete', title: 'Wanna Fete', file: '/rpg/sounds/parov/wanna_fete.mp3', album: 'the_princess', context: ['saloon', 'town'] },
+  { id: 'oh_yeah', title: 'Oh Yeah', file: '/rpg/sounds/parov/oh_yeah.mp3', album: 'the_princess', context: ['travel', 'ambient'] },
+  { id: 'the_vamp', title: 'The Vamp', file: '/rpg/sounds/parov/the_vamp.mp3', album: 'the_princess', context: ['saloon', 'danger'] },
+  { id: 'the_paris_swing_box', title: 'The Paris Swing Box', file: '/rpg/sounds/parov/the_paris_swing_box.mp3', album: 'the_princess', context: ['town', 'saloon'] },
+  { id: 'a_song_for_you', title: 'A Song For You', file: '/rpg/sounds/parov/a_song_for_you.mp3', album: 'the_princess', context: ['ambient', 'settlement'] },
+  // The Burning Spider (2017)
+  { id: 'the_burning_spider', title: 'The Burning Spider', file: '/rpg/sounds/parov/the_burning_spider.mp3', album: 'the_burning_spider', context: ['danger', 'travel'] },
+  { id: 'step_two', title: 'Step Two', file: '/rpg/sounds/parov/step_two.mp3', album: 'the_burning_spider', context: ['travel', 'town'] },
+  { id: 'soul_fever_blues', title: 'Soul Fever Blues', file: '/rpg/sounds/parov/soul_fever_blues.mp3', album: 'the_burning_spider', context: ['saloon', 'wilderness'] },
+  { id: 'everything_of_my_heart', title: 'Everything Of My Heart', file: '/rpg/sounds/parov/everything_of_my_haert.mp3', album: 'the_burning_spider', context: ['ambient', 'settlement'] },
+  { id: 'my_man', title: 'My Man', file: '/rpg/sounds/parov/my_man.mp3', album: 'the_burning_spider', context: ['saloon', 'town'] },
+  { id: 'all_grown_up', title: 'All Grown Up', file: '/rpg/sounds/parov/all_grown_up.mp3', album: 'the_burning_spider', context: ['travel', 'ambient'] },
+  { id: 'mama_talking', title: 'Mama Talking', file: '/rpg/sounds/parov/mama_talking.mp3', album: 'the_burning_spider', context: ['saloon', 'town'] },
+  { id: 'state_of_the_union', title: 'State Of The Union', file: '/rpg/sounds/parov/state_of_the_union.mp3', album: 'the_burning_spider', context: ['danger', 'mystery'] },
+  { id: 'beauty_mark', title: 'Beauty Mark', file: '/rpg/sounds/parov/beauty_mark.mp3', album: 'the_burning_spider', context: ['ambient', 'settlement'] },
+  { id: 'cuba_libre', title: 'Cuba Libre', file: '/rpg/sounds/parov/cuba_libre.mp3', album: 'the_burning_spider', context: ['saloon', 'town'] },
+  { id: 'black_coffee', title: 'Black Coffee', file: '/rpg/sounds/parov/black_coffee.mp3', album: 'the_burning_spider', context: ['mystery', 'ambient'] },
+  { id: 'the_ride', title: 'The Ride', file: '/rpg/sounds/parov/the_ride.mp3', album: 'the_burning_spider', context: ['travel', 'danger'] },
+]
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WESTERN - Scott Joplin Ragtime piano for authentic saloon atmosphere
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface WesternTrack {
+  id: string
+  title: string
+  file: string
+  year: number
+  context: FalloutTrackContext[]
+}
+
+export const WESTERN_TRACKS: WesternTrack[] = [
+  { id: 'maple_leaf_rag', title: 'Maple Leaf Rag', file: '/rpg/sounds/western/maple_leaf_rag.mp3', year: 1899, context: ['saloon', 'town'] },
+  { id: 'the_entertainer', title: 'The Entertainer', file: '/rpg/sounds/western/the_entertainer.mp3', year: 1902, context: ['saloon', 'town', 'title'] },
+  { id: 'sunflower_slow_drag', title: 'Sunflower Slow Drag', file: '/rpg/sounds/western/sunflower_slow_drag.mp3', year: 1901, context: ['ambient', 'settlement'] },
+  { id: 'elite_syncopations', title: 'Elite Syncopations', file: '/rpg/sounds/western/elite_syncopations.mp3', year: 1902, context: ['saloon', 'town'] },
+  { id: 'peacherine_rag', title: 'Peacherine Rag', file: '/rpg/sounds/western/peacherine_rag.mp3', year: 1901, context: ['travel', 'saloon'] },
+  { id: 'cascades', title: 'Cascades', file: '/rpg/sounds/western/cascades.mp3', year: 1904, context: ['travel', 'ambient'] },
+  { id: 'swipesy', title: 'Swipesy', file: '/rpg/sounds/western/swipesy.mp3', year: 1900, context: ['town', 'ambient'] },
+  { id: 'the_ragtime_dance', title: 'The Ragtime Dance', file: '/rpg/sounds/western/the_ragtime_dance.mp3', year: 1906, context: ['saloon', 'settlement'] },
+  { id: 'solace', title: 'Solace', file: '/rpg/sounds/western/solace.mp3', year: 1909, context: ['wilderness', 'ambient', 'mystery'] },
+  { id: 'pine_apple_rag', title: 'Pine Apple Rag', file: '/rpg/sounds/western/pine_apple_rag.mp3', year: 1908, context: ['saloon', 'travel'] },
+  { id: 'something_doing', title: 'Something Doing', file: '/rpg/sounds/western/something_doing.mp3', year: 1903, context: ['danger', 'travel'] },
+  { id: 'sugar_cane', title: 'Sugar Cane', file: '/rpg/sounds/western/sugar_cane.mp3', year: 1908, context: ['settlement', 'ambient'] },
+]
+
+// Shared MP3 playback state (used by Fallout, Parov, and Western modes)
+export type SoundtrackMode = 'synth' | 'parov' | 'western' | 'fallout'
+
 interface FalloutState {
-  mode: 'synth' | 'fallout'  // Which soundtrack is active
+  mode: SoundtrackMode
   audioElement: HTMLAudioElement | null
   nextAudioElement: HTMLAudioElement | null  // For crossfading
   currentTrackId: string | null
@@ -1561,7 +1648,7 @@ const falloutState: FalloutState = {
 }
 
 // Get the active soundtrack mode
-export function getSoundtrackMode(): 'synth' | 'fallout' {
+export function getSoundtrackMode(): SoundtrackMode {
   return falloutState.mode
 }
 
@@ -1572,14 +1659,14 @@ export function getCurrentFalloutTrack(): FalloutTrack | null {
 }
 
 // Switch soundtrack mode
-export function setSoundtrackMode(mode: 'synth' | 'fallout'): void {
+export function setSoundtrackMode(mode: SoundtrackMode): void {
   if (falloutState.mode === mode) return
 
   // Stop whatever is playing
   if (falloutState.mode === 'synth') {
     stopMusic()
   } else {
-    stopFalloutMusic()
+    stopFalloutMusic() // Works for all MP3-based modes
   }
 
   falloutState.mode = mode
@@ -1587,6 +1674,10 @@ export function setSoundtrackMode(mode: 'synth' | 'fallout'): void {
   // Start the new mode
   if (mode === 'synth') {
     playPlaylist()
+  } else if (mode === 'parov') {
+    playParovPlaylist()
+  } else if (mode === 'western') {
+    playWesternPlaylist()
   } else {
     playFalloutPlaylist()
   }
@@ -1598,10 +1689,10 @@ export function setSoundtrackMode(mode: 'synth' | 'fallout'): void {
 }
 
 // Load saved soundtrack preference
-export function loadSoundtrackPreference(): 'synth' | 'fallout' {
+export function loadSoundtrackPreference(): SoundtrackMode {
   try {
     const saved = localStorage.getItem('golden-hooves-soundtrack-mode')
-    if (saved === 'fallout' || saved === 'synth') return saved
+    if (saved === 'fallout' || saved === 'synth' || saved === 'parov' || saved === 'western') return saved
   } catch {}
   return 'synth'
 }
@@ -1709,8 +1800,11 @@ function advanceFalloutTrack(): void {
 
   falloutState.queueIndex++
   if (falloutState.queueIndex >= falloutState.trackQueue.length) {
-    // Reshuffle and restart
-    falloutState.trackQueue = buildFalloutQueue(falloutState.currentContext)
+    // Reshuffle and restart using the appropriate queue builder
+    const buildQueue = falloutState.mode === 'parov' ? buildParovQueue
+      : falloutState.mode === 'western' ? buildWesternQueue
+      : buildFalloutQueue
+    falloutState.trackQueue = buildQueue(falloutState.currentContext)
     falloutState.queueIndex = 0
   }
 
@@ -1733,9 +1827,9 @@ export function stopFalloutMusic(): void {
   falloutState.currentTrackId = null
 }
 
-// Change Fallout context (e.g., entering a town vs traveling)
+// Change context for any MP3-based mode (entering a town vs traveling)
 export function setFalloutContext(context: FalloutTrackContext): void {
-  if (falloutState.mode !== 'fallout') return
+  if (falloutState.mode === 'synth') return
   if (falloutState.currentContext === context) return
 
   falloutState.currentContext = context
@@ -1743,7 +1837,10 @@ export function setFalloutContext(context: FalloutTrackContext): void {
   // Rebuild queue with new context priority, but finish current track
   // Queue will use new context on next advance
   const remaining = falloutState.trackQueue.slice(falloutState.queueIndex + 1)
-  const newQueue = buildFalloutQueue(context).filter(
+  const buildQueue = falloutState.mode === 'parov' ? buildParovQueue
+    : falloutState.mode === 'western' ? buildWesternQueue
+    : buildFalloutQueue
+  const newQueue = buildQueue(context).filter(
     t => !remaining.some(r => r.id === t.id)
   )
   falloutState.trackQueue = [
@@ -1755,4 +1852,60 @@ export function setFalloutContext(context: FalloutTrackContext): void {
 // Get tracks for a specific context (for UI display)
 export function getFalloutTracksForContext(context: FalloutTrackContext): FalloutTrack[] {
   return FALLOUT_TRACKS.filter(t => t.context.includes(context))
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAROV STELAR PLAYBACK - Uses same crossfade engine as Fallout
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get current Parov track info
+export function getCurrentParovTrack(): ParovTrack | null {
+  if (falloutState.mode !== 'parov' || !falloutState.currentTrackId) return null
+  return PAROV_TRACKS.find(t => t.id === falloutState.currentTrackId) || null
+}
+
+// Build context-aware shuffled Parov queue
+function buildParovQueue(context: FalloutTrackContext): FalloutTrack[] {
+  const contextTracks = PAROV_TRACKS.filter(t => t.context.includes(context))
+  const otherTracks = PAROV_TRACKS.filter(t => !t.context.includes(context))
+  return [...shuffleArray([...contextTracks]), ...shuffleArray([...otherTracks])]
+}
+
+// Play Parov Stelar as shuffled playlist
+export function playParovPlaylist(context: FalloutTrackContext = 'ambient'): void {
+  if (!initAudio()) return
+  falloutState.mode = 'parov'
+  falloutState.currentContext = context
+  falloutState.trackQueue = buildParovQueue(context)
+  falloutState.queueIndex = 0
+  falloutState.isPlaying = true
+  playFalloutTrack(falloutState.trackQueue[0])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WESTERN PLAYBACK - Scott Joplin ragtime piano
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get current Western track info
+export function getCurrentWesternTrack(): WesternTrack | null {
+  if (falloutState.mode !== 'western' || !falloutState.currentTrackId) return null
+  return WESTERN_TRACKS.find(t => t.id === falloutState.currentTrackId) || null
+}
+
+// Build context-aware shuffled Western queue
+function buildWesternQueue(context: FalloutTrackContext): FalloutTrack[] {
+  const contextTracks = WESTERN_TRACKS.filter(t => t.context.includes(context))
+  const otherTracks = WESTERN_TRACKS.filter(t => !t.context.includes(context))
+  return [...shuffleArray([...contextTracks]), ...shuffleArray([...otherTracks])]
+}
+
+// Play Western as shuffled playlist
+export function playWesternPlaylist(context: FalloutTrackContext = 'ambient'): void {
+  if (!initAudio()) return
+  falloutState.mode = 'western'
+  falloutState.currentContext = context
+  falloutState.trackQueue = buildWesternQueue(context)
+  falloutState.queueIndex = 0
+  falloutState.isPlaying = true
+  playFalloutTrack(falloutState.trackQueue[0])
 }

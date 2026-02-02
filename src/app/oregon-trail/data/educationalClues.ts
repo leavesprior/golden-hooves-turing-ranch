@@ -30,7 +30,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.gocalaveras.com/angels-camp/',
     question: 'What famous American author heard this frog-jumping tale in Angels Camp and turned it into a story that launched his career?',
     answer: 'Mark Twain',
-    acceptedAnswers: ['mark twain', 'twain', 'samuel clemens'],
+    acceptedAnswers: ['mark twain', 'twain', 'samuel clemens', 'sam clemens', 'clemens'],
     fact: 'In 1865, a young Samuel Clemens (Mark Twain) was prospecting in Calaveras County when he heard a bartender tell the tale of a jumping frog. His retelling became \'The Celebrated Jumping Frog of Calaveras County\' - the story that made him famous.',
     suspectHint: 'The thief seems to be a literature enthusiast...'
   },
@@ -43,7 +43,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.gocalaveras.com/jumping-frog-jubilee/',
     question: 'What is the name of the famous annual frog-jumping competition held in Angels Camp every May?',
     answer: 'Jumping Frog Jubilee',
-    acceptedAnswers: ['jumping frog jubilee', 'frog jubilee', 'calaveras county fair and jumping frog jubilee', 'the jubilee'],
+    acceptedAnswers: ['jumping frog jubilee', 'frog jubilee', 'calaveras county fair and jumping frog jubilee', 'the jubilee', 'frog jumping jubilee', 'calaveras frog jubilee', 'jubilee'],
     fact: 'The Jumping Frog Jubilee has been held at the Calaveras County Fair since 1928. The world record jump is over 21 feet! Contestants rent frogs or bring their own to compete for prizes.',
     suspectHint: 'Planning to sell the trophy at a big event perhaps?'
   },
@@ -56,7 +56,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.murphyshistorichotel.com/',
     question: 'Besides Mark Twain, which famous outlaw known as the \'Gentleman Bandit\' signed the Murphys Hotel guest register?',
     answer: 'Black Bart',
-    acceptedAnswers: ['black bart', 'charles bolton', 'charles boles', 'bart'],
+    acceptedAnswers: ['black bart', 'charles bolton', 'charles boles', 'bart', 'gentleman bandit'],
     fact: 'The Murphys Historic Hotel guest register contains signatures of Mark Twain, President Ulysses S. Grant, and Black Bart - a stagecoach robber famous for leaving poetry at his crime scenes. The register is still on display today!',
     suspectHint: 'Fancies themselves a gentleman criminal, like the outlaws of old...'
   },
@@ -69,7 +69,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.caverntours.com/moaning-cavern/',
     question: 'What famous American landmark could fit inside Moaning Cavern\'s main chamber?',
     answer: 'Statue of Liberty',
-    acceptedAnswers: ['statue of liberty', 'the statue of liberty', 'liberty'],
+    acceptedAnswers: ['statue of liberty', 'the statue of liberty', 'liberty', 'lady liberty'],
     fact: 'Moaning Cavern\'s main chamber is 165 feet tall - large enough to fit the Statue of Liberty inside! The \'moaning\' stopped when the entrance was enlarged for tours in 1922. Human remains found here date back 13,000 years.',
     suspectHint: 'The thief knows these caves intimately...'
   },
@@ -82,7 +82,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.parks.ca.gov/?page_id=551',
     question: 'When the bark of the Discovery Tree was shipped east for display in 1853, what did skeptical viewers call it?',
     answer: 'California hoax',
-    acceptedAnswers: ['california hoax', 'hoax', 'a hoax', 'the california hoax'],
+    acceptedAnswers: ['california hoax', 'hoax', 'a hoax', 'the california hoax', 'california humbug', 'humbug'],
     fact: 'Augustus T. Dowd discovered the giant sequoias while chasing a bear in 1852. When the Discovery Tree\'s bark was exhibited back east, people refused to believe any tree could be that large - they called it the \'California Hoax\'!',
     suspectHint: 'Left behind some bark... sentimental about the old trees?'
   },
@@ -95,7 +95,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.airbnb.com/rooms/30045739',
     question: 'What outdoor feature at the cabin would Mark Twain have loved after a dusty stagecoach ride through Gold Country?',
     answer: 'hot tub',
-    acceptedAnswers: ['hot tub', 'hottub', 'jacuzzi', 'spa', 'private hot tub'],
+    acceptedAnswers: ['hot tub', 'hottub', 'jacuzzi', 'spa', 'private hot tub', 'the hot tub', 'hot spring', 'soaking tub'],
     fact: 'Back of Beyond Ranch features a private hot tub where you can soak under the stars - the same stars that Mark Twain gazed upon while traveling through these foothills in the 1860s on his way to San Francisco.',
     suspectHint: 'The thief was spotted relaxing in the hot tub before fleeing!'
   },
@@ -110,7 +110,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.kennedygoldmine.com/',
     question: 'How deep did the Kennedy Mine reach at its lowest point (in feet)?',
     answer: '5912',
-    acceptedAnswers: ['5912', '5,912', '5912 feet', '5,912 feet'],
+    acceptedAnswers: ['5912', '5,912', '5912 feet', '5,912 feet', '5912ft', 'nearly 6000', 'almost 6000 feet', 'about 5900'],
     fact: 'Kennedy Mine reached 5,912 feet deep - nearly a mile underground! It was one of the deepest gold mines in North America. Miners worked in sweltering heat at the bottom, extracting gold that helped build California.',
     suspectHint: 'Only someone with mining experience could pull this off...'
   },
@@ -123,7 +123,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.kennedygoldmine.com/',
     question: 'How many miners lost their lives in the 1922 Kennedy/Argonaut Mine fire?',
     answer: '47',
-    acceptedAnswers: ['47', 'forty seven', 'forty-seven'],
+    acceptedAnswers: ['47', 'forty seven', 'forty-seven', '47 miners', 'forty seven miners'],
     fact: 'The 1922 Argonaut Mine fire killed 47 miners who were trapped underground. Rescue attempts continued for weeks while families waited above. The tragedy led to improved mine safety regulations across California.',
     suspectHint: 'The thief has a personal connection to this mine\'s history...'
   },
@@ -136,7 +136,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.gocalaveras.com/mokelumne-hill/',
     question: 'What was the notorious nickname for Mokelumne Hill\'s cemetery?',
     answer: 'Murderer\'s Gulch',
-    acceptedAnswers: ['murderer\'s gulch', 'murderers gulch', 'murderer gulch'],
+    acceptedAnswers: ['murderer\'s gulch', 'murderers gulch', 'murderer gulch', 'murderers row', 'the gulch'],
     fact: 'Mokelumne Hill was so violent during the Gold Rush that 17 murders occurred in a single weekend in 1851! The cemetery became known as \'Murderer\'s Gulch.\' The Hotel Leger, built in 1851, is said to be haunted by victims.',
     suspectHint: 'Fascinated by the town\'s dark past...'
   },
@@ -149,7 +149,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.gocalaveras.com/angels-camp/',
     question: 'What metal besides gold was extensively mined around Angels Camp?',
     answer: 'copper',
-    acceptedAnswers: ['copper', 'copper ore'],
+    acceptedAnswers: ['copper', 'copper ore', 'copper mining'],
     fact: 'After the Gold Rush peaked, miners discovered rich copper deposits around Angels Camp. The Utica Mine produced both gold and copper well into the 20th century, extending the town\'s mining heritage.',
     suspectHint: 'Researching mining history for something specific...'
   },
@@ -162,7 +162,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://visitmurphys.com/',
     question: 'Approximately how many wine tasting rooms can visitors explore in the Murphys area today?',
     answer: '20',
-    acceptedAnswers: ['20', 'twenty', 'over 20', 'about 20', 'around 20'],
+    acceptedAnswers: ['20', 'twenty', 'over 20', 'about 20', 'around 20', '20+', 'more than 20', 'two dozen'],
     fact: 'Despite its tiny population, Murphys is home to over 20 wine tasting rooms! The region\'s winemaking history dates back to Italian and French immigrants who planted vines during the Gold Rush era.',
     suspectHint: 'Celebrating with wine after each heist...'
   },
@@ -175,7 +175,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.airbnb.com/rooms/30045739',
     question: 'What indoor entertainment space at Back of Beyond Ranch continues the Gold Rush tradition of games and fun?',
     answer: 'game room',
-    acceptedAnswers: ['game room', 'gameroom', 'games room', 'the game room'],
+    acceptedAnswers: ['game room', 'gameroom', 'games room', 'the game room', 'recreation room', 'rec room', 'game area'],
     fact: 'Back of Beyond Ranch features a game room for entertainment - a nod to the Gold Rush era when miners gathered in saloons for card games and billiards after long days of prospecting. The cabin is perfect for group gatherings!',
     suspectHint: 'Spotted playing pool before making their escape...'
   },
@@ -188,7 +188,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.amadorgold.com/amador-county-towns/jackson/',
     question: 'Who built the network of secret tunnels beneath Jackson during the Gold Rush era?',
     answer: 'Chinese',
-    acceptedAnswers: ['chinese', 'chinese workers', 'chinese miners', 'the chinese', 'chinese immigrants'],
+    acceptedAnswers: ['chinese', 'chinese workers', 'chinese miners', 'the chinese', 'chinese immigrants', 'chinese laborers', 'chinese people'],
     fact: 'Chinese workers built extensive tunnels beneath Jackson to move safely while facing discrimination above ground. Some of these tunnels still exist today, a hidden reminder of the diverse people who built Gold Country.',
     suspectHint: 'Knows the underground passages like the back of their hand...'
   },
@@ -216,7 +216,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.caverntours.com/moaning-cavern/',
     question: 'What adventure activity lets visitors descend into Moaning Cavern\'s main chamber on a rope?',
     answer: 'rappelling',
-    acceptedAnswers: ['rappelling', 'rappel', 'rope descent', 'abseiling'],
+    acceptedAnswers: ['rappelling', 'rappel', 'rope descent', 'abseiling', 'rappeling', 'rapelling', 'rope rappel'],
     fact: 'Moaning Cavern offers a 165-foot rappelling descent - one of the longest underground rappels open to the public in California! It\'s like dropping into a vertical football field of darkness.',
     suspectHint: 'An expert climber with cave experience...'
   },
@@ -229,7 +229,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.caverntours.com/california-caverns/',
     question: 'What famous naturalist and Sierra Club founder explored California Caverns in 1858?',
     answer: 'John Muir',
-    acceptedAnswers: ['john muir', 'muir'],
+    acceptedAnswers: ['john muir', 'muir', 'j muir'],
     fact: 'John Muir explored California Caverns in 1858 and was enchanted by its beauty. He described the crystalline formations as \'nature\'s jewelry box.\' His advocacy later helped protect California\'s wild places.',
     suspectHint: 'The suspect quoted Muir\'s writings... well-educated.'
   },
@@ -242,7 +242,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.caverntours.com/california-caverns/',
     question: 'What rare type of crystal formation is California Caverns famous for?',
     answer: 'aragonite',
-    acceptedAnswers: ['aragonite', 'aragonite crystals', 'aragonite formations'],
+    acceptedAnswers: ['aragonite', 'aragonite crystals', 'aragonite formations', 'aragonite crystal'],
     fact: 'California Caverns contains rare aragonite crystal formations - delicate needle-like structures that form under very specific conditions. They\'re so fragile that even breath moisture can damage them.',
     suspectHint: 'Collecting rare minerals as trophies...'
   },
@@ -255,7 +255,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.parks.ca.gov/?page_id=551',
     question: 'What Native American tribe traditionally lived in the Calaveras Big Trees region?',
     answer: 'Miwok',
-    acceptedAnswers: ['miwok', 'me-wuk', 'mewuk', 'sierra miwok'],
+    acceptedAnswers: ['miwok', 'me-wuk', 'mewuk', 'sierra miwok', 'the miwok', 'miwok people', 'miwok tribe', 'miwok nation'],
     fact: 'The Sierra Miwok people have called this region home for thousands of years. They used acorns from black oaks as a staple food, and the giant sequoias held spiritual significance in their culture.',
     suspectHint: 'Specifically targeting Miwok cultural artifacts...'
   },
@@ -268,7 +268,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://visitmurphys.com/',
     question: 'When did winemaking begin in the Murphys/Calaveras County area?',
     answer: '1850s',
-    acceptedAnswers: ['1850s', '1850', 'eighteen fifties', 'the 1850s', 'mid 1800s', '1850\'s'],
+    acceptedAnswers: ['1850s', '1850', 'eighteen fifties', 'the 1850s', 'mid 1800s', '1850\'s', 'during the gold rush', 'gold rush era', '1850s gold rush'],
     fact: 'Italian and French immigrants began planting wine grapes in Calaveras County in the 1850s. Prohibition nearly destroyed the industry, but it revived in the 1970s and now Murphys is a beloved wine destination.',
     suspectHint: 'Left a wine cork at the cave entrance...'
   },
@@ -307,7 +307,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.parks.ca.gov/?page_id=549',
     question: 'What creek carved the Natural Bridges over millions of years?',
     answer: 'Coyote Creek',
-    acceptedAnswers: ['coyote creek', 'coyote'],
+    acceptedAnswers: ['coyote creek', 'coyote', 'coyote river'],
     fact: 'Coyote Creek slowly dissolved the marble limestone over millions of years, creating caves that eventually collapsed into the Natural Bridges. On hot summer days, locals cool off in the swimming holes beneath the ancient rock formations.',
     suspectHint: 'Using the waterways to transport stolen goods...'
   },
@@ -320,7 +320,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.parks.ca.gov/?page_id=549',
     question: 'What type of rock makes up the Natural Bridges formations?',
     answer: 'limestone',
-    acceptedAnswers: ['limestone', 'marble limestone', 'marble'],
+    acceptedAnswers: ['limestone', 'marble limestone', 'marble', 'marble rock', 'limestone rock'],
     fact: 'The Natural Bridges are composed of marble limestone - rock formed from the shells and skeletons of sea creatures that lived here when California was underwater hundreds of millions of years ago!',
     suspectHint: 'This sample reveals the hideout location!'
   },
@@ -335,7 +335,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://visitmurphys.com/',
     question: 'Which immigrant groups brought winemaking traditions to Calaveras County during the Gold Rush?',
     answer: 'Italian and French',
-    acceptedAnswers: ['italian and french', 'french and italian', 'italians and french', 'italian', 'french'],
+    acceptedAnswers: ['italian and french', 'french and italian', 'italians and french', 'italian', 'french', 'italians', 'french and italians', 'italian and french immigrants', 'european immigrants'],
     fact: 'Italian and French immigrants planted the first wine grapes in Calaveras County during the 1850s Gold Rush. They discovered the Sierra Foothills climate was ideal for growing premium wine grapes.',
     suspectHint: 'Has deep knowledge of local wine history...'
   },
@@ -348,7 +348,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     hintLink: 'https://www.ironstonevineyards.com/',
     question: 'How much does the crystalline gold specimen on display at Ironstone Vineyards weigh (in pounds)?',
     answer: '44',
-    acceptedAnswers: ['44', '44 pounds', 'forty four', '44 lbs'],
+    acceptedAnswers: ['44', '44 pounds', 'forty four', '44 lbs', 'forty-four', 'forty four pounds', '44lbs'],
     fact: 'Ironstone Vineyards displays a 44-pound crystalline gold leaf specimen - the largest in the world! It was discovered in nearby Jamestown and is worth millions. Quite a contrast to the wine barrels surrounding it!',
     suspectHint: 'Seemed very interested in valuable objects...'
   },
@@ -367,7 +367,7 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
   }
 ]
 
-// ========== OREGON TRAIL LANDMARK CLUES (case-independent) ==========
+// ========== EMIGRANT TRAIL LANDMARK CLUES (case-independent) ==========
 // These appear during travel and are NOT tied to a Gold Country case.
 
 export const TRAIL_CLUES: EducationalClue[] = [
@@ -376,12 +376,12 @@ export const TRAIL_CLUES: EducationalClue[] = [
     caseId: null,
     locationId: 'fort_kearny',
     order: 1,
-    text: 'A weathered signpost marks Fort Kearny, the first major military outpost on the Oregon Trail. Soldiers here protected emigrants from conflicts and helped maintain order on the frontier.',
+    text: 'A weathered signpost marks Fort Kearny, the first major military outpost on the Emigrant Trail. Soldiers here protected emigrants from conflicts and helped maintain order on the frontier.',
     hintLink: 'https://en.wikipedia.org/wiki/Fort_Kearny',
-    question: 'What was Fort Kearny\'s primary role on the Oregon Trail?',
+    question: 'What was Fort Kearny\'s primary role on the Emigrant Trail?',
     answer: 'military outpost',
-    acceptedAnswers: ['military outpost', 'military post', 'protect emigrants', 'protecting travelers', 'army outpost', 'military'],
-    fact: 'Fort Kearny was established in 1848 to protect Oregon Trail emigrants. By 1850, over 50,000 travelers passed through annually. Soldiers stationed here also served as de facto postal workers, forwarding letters back east.',
+    acceptedAnswers: ['military outpost', 'military post', 'protect emigrants', 'protecting travelers', 'army outpost', 'military', 'army post', 'protection', 'military protection', 'protecting emigrants', 'army fort', 'soldier outpost', 'frontier defense', 'defend emigrants', 'military garrison'],
+    fact: 'Fort Kearny was established in 1848 to protect overland emigrants. By 1850, over 50,000 travelers passed through annually. Soldiers stationed here also served as de facto postal workers, forwarding letters back east.',
     suspectHint: 'The trail holds knowledge for those who seek it...'
   },
   {
@@ -393,8 +393,8 @@ export const TRAIL_CLUES: EducationalClue[] = [
     hintLink: 'https://en.wikipedia.org/wiki/Chimney_Rock_(Nebraska)',
     question: 'Approximately how tall does Chimney Rock rise above the North Platte River valley?',
     answer: '300 feet',
-    acceptedAnswers: ['300 feet', '300', '325 feet', '325', 'about 300 feet', 'three hundred feet'],
-    fact: 'Chimney Rock rises about 300 feet above the surrounding terrain. It was so iconic that it appeared in more pioneer diaries, letters, and paintings than any other landmark on the Oregon Trail. Erosion has reduced its height over time.',
+    acceptedAnswers: ['300 feet', '300', '325 feet', '325', 'about 300 feet', 'three hundred feet', '300ft', '325ft', '300 ft', 'around 300 feet', 'approximately 300 feet'],
+    fact: 'Chimney Rock rises about 300 feet above the surrounding terrain. It was so iconic that it appeared in more pioneer diaries, letters, and paintings than any other landmark on the Emigrant Trail. Erosion has reduced its height over time.',
     suspectHint: 'Even nature leaves clues for the observant traveler...'
   },
   {
@@ -406,7 +406,7 @@ export const TRAIL_CLUES: EducationalClue[] = [
     hintLink: 'https://en.wikipedia.org/wiki/Fort_Laramie',
     question: 'What did travelers primarily trade for at Fort Laramie?',
     answer: 'supplies',
-    acceptedAnswers: ['supplies', 'provisions', 'food', 'goods', 'food and supplies', 'trade goods'],
+    acceptedAnswers: ['supplies', 'provisions', 'food', 'goods', 'food and supplies', 'trade goods', 'equipment', 'ammunition', 'clothing', 'tools', 'medicine', 'oxen', 'fresh supplies', 'wagon parts', 'repair supplies', 'necessities', 'essentials', 'livestock', 'horses', 'rest and supplies', 'resupply', 'buffalo robes'],
     fact: 'Fort Laramie was where emigrants traded worn-out equipment, lightened their loads, and restocked provisions. The trail around the fort was littered with abandoned furniture, stoves, and heavy goods that travelers realized they couldn\'t carry further.',
     suspectHint: 'A well-supplied traveler is a wise traveler...'
   },
@@ -415,11 +415,11 @@ export const TRAIL_CLUES: EducationalClue[] = [
     caseId: null,
     locationId: 'independence_rock',
     order: 1,
-    text: 'This massive granite outcrop in central Wyoming served as a milestone for Oregon Trail travelers. Thousands carved their names into its surface, earning it the nickname "The Great Register of the Desert."',
+    text: 'This massive granite outcrop in central Wyoming served as a milestone for Emigrant Trail travelers. Thousands carved their names into its surface, earning it the nickname "The Great Register of the Desert."',
     hintLink: 'https://en.wikipedia.org/wiki/Independence_Rock_(Wyoming)',
     question: 'Why was this granite outcrop called "Independence Rock"?',
     answer: 'Travelers aimed to reach it by July 4th',
-    acceptedAnswers: ['july 4th', 'july 4', 'independence day', 'fourth of july', 'travelers aimed to reach it by july 4th', 'reach by july 4th', 'fourth of july deadline'],
+    acceptedAnswers: ['july 4th', 'july 4', 'independence day', 'fourth of july', 'travelers aimed to reach it by july 4th', 'reach by july 4th', 'fourth of july deadline', 'july fourth', '4th of july', 'reach it by independence day', 'named after independence day', 'july 4th deadline', 'arrive by july 4'],
     fact: 'Emigrants aimed to reach Independence Rock by July 4th (Independence Day) to ensure they\'d cross the mountains before winter snows. Those arriving later risked the fate of the Donner Party. Over 5,000 names were carved into the rock.',
     suspectHint: 'Timing is everything on the frontier...'
   },
@@ -428,52 +428,91 @@ export const TRAIL_CLUES: EducationalClue[] = [
     caseId: null,
     locationId: 'south_pass',
     order: 1,
-    text: 'This broad, gentle valley through the Rocky Mountains was the key to the entire Oregon Trail. Without it, wagon travel to the Pacific would have been nearly impossible.',
+    text: 'This broad, gentle valley through the Rocky Mountains was the key to the entire Emigrant Trail. Without it, wagon travel to the Pacific would have been nearly impossible.',
     hintLink: 'https://en.wikipedia.org/wiki/South_Pass_(Wyoming)',
     question: 'What made South Pass unique among mountain crossings?',
     answer: 'gentle slope',
-    acceptedAnswers: ['gentle slope', 'gradual slope', 'wagons could cross easily', 'easy crossing', 'wide and gentle', 'broad and gentle', 'not steep', 'gradual'],
+    acceptedAnswers: ['gentle slope', 'gradual slope', 'wagons could cross easily', 'easy crossing', 'wide and gentle', 'broad and gentle', 'not steep', 'gradual', 'wide pass', 'broad pass', 'easy grade', 'gentle grade', 'wagons could pass', 'flat enough for wagons', 'gentle enough for wagons', 'wide enough for wagons', 'gradual enough for wagons'],
     fact: 'South Pass was so broad and gradual that many emigrants didn\'t even realize they were crossing the Continental Divide at 7,550 feet. Unlike narrow mountain passes, its 20-mile width allowed wagons to pass easily - making it the gateway to the West.',
     suspectHint: 'The easiest path isn\'t always the most obvious...'
   },
   {
     id: 'trail_clue_06',
     caseId: null,
-    locationId: 'soda_springs',
+    locationId: 'raft_river',
     order: 1,
-    text: 'Travelers were amazed by the naturally carbonated water bubbling from the ground here. Some called it "Beer Springs" and many compared it to soda water they knew from back east.',
-    hintLink: 'https://en.wikipedia.org/wiki/Soda_Springs,_Idaho',
-    question: 'What gives the springs their fizzy, carbonated water?',
-    answer: 'carbon dioxide',
-    acceptedAnswers: ['carbon dioxide', 'co2', 'volcanic activity', 'underground volcanic', 'volcanic', 'carbonic acid', 'natural carbonation'],
-    fact: 'The springs are naturally carbonated by carbon dioxide gas released from underground volcanic activity. Pioneer Brigham Young wrote that the water "tastes much like beer." Steamboat Spring, which shot water 15 feet high, was a particular attraction.',
-    suspectHint: 'Nature\'s wonders can teach us much...'
+    text: 'Here at the Raft River, the trail splits. A crude signpost points southwest: "Road to California." During the Gold Rush, the vast majority of emigrants took this fork rather than continuing to Oregon.',
+    hintLink: 'https://en.wikipedia.org/wiki/California_Trail',
+    question: 'What percentage of Gold Rush emigrants took the California Trail fork at this point?',
+    answer: '70',
+    acceptedAnswers: ['70', '70%', '70 percent', 'seventy', 'seventy percent', 'about 70', 'around 70', 'most of them', 'majority'],
+    fact: 'During the Gold Rush peak of 1849-1850, approximately 70% of all overland emigrants took the California fork at the Raft River. A makeshift signpost reading "Road to California" guided them southwest toward the goldfields.',
+    suspectHint: 'The path to gold is well-traveled...'
   },
   {
     id: 'trail_clue_07',
     caseId: null,
-    locationId: 'blue_mountains',
+    locationId: 'city_of_rocks',
     order: 1,
-    text: 'These forested mountains in eastern Oregon were one of the last major obstacles before the Willamette Valley. The steep terrain forced travelers to lock their wagon wheels and slide down slopes.',
-    hintLink: 'https://en.wikipedia.org/wiki/Blue_Mountains_(Oregon)',
-    question: 'What Native American people lived in and guided travelers through the Blue Mountains region?',
-    answer: 'Cayuse',
-    acceptedAnswers: ['cayuse', 'cayuse tribe', 'the cayuse', 'cayuse people', 'cayuse nation'],
-    fact: 'The Cayuse people had lived in the Blue Mountains region for thousands of years. They initially helped guide emigrants through the difficult terrain, but growing tensions over land and disease led to the Cayuse War of 1847-1850.',
-    suspectHint: 'Those who know the land best are its original people...'
+    text: 'Towering granite spires rise from the landscape like a stone city. These formations are among the oldest exposed rock in North America. Passing emigrants carved their names, initials, and dates into the soft granite.',
+    hintLink: 'https://en.wikipedia.org/wiki/City_of_Rocks_National_Reserve',
+    question: 'How old are the granite formations at the City of Rocks (in billions of years)?',
+    answer: '2.5 billion',
+    acceptedAnswers: ['2.5 billion', '2.5', '2.5 billion years', 'two and a half billion', '2500 million', '2.5 billion years old', 'about 2.5 billion'],
+    fact: 'The granite spires at City of Rocks are approximately 2.5 billion years old - among the oldest exposed rock in North America. Emigrants called it "City of Rocks" because the formations looked like buildings. Many carved their names using axle grease and gunpowder.',
+    suspectHint: 'Even stone remembers those who pass...'
   },
   {
     id: 'trail_clue_08',
     caseId: null,
-    locationId: 'the_dalles',
+    locationId: 'humboldt_river',
     order: 1,
-    text: 'Here at The Dalles, travelers faced a terrible choice: risk the treacherous Columbia River rapids by raft, or pay to take the expensive Barlow Road over Mount Hood.',
-    hintLink: 'https://en.wikipedia.org/wiki/The_Dalles,_Oregon',
-    question: 'What dangerous water route did travelers face at The Dalles?',
-    answer: 'Columbia River rapids',
-    acceptedAnswers: ['columbia river rapids', 'columbia river', 'the rapids', 'river rapids', 'columbia rapids'],
-    fact: 'The Columbia River rapids at The Dalles were so dangerous that many families lost everything - wagons, supplies, even lives - trying to navigate them by raft. Sam Barlow built a toll road around Mount Hood in 1846, charging $5 per wagon.',
-    suspectHint: 'The most direct path is not always the safest...'
+    text: 'You follow the most despised river in the West. For 350 miles it is your only water source, yet its alkaline water sickens livestock and tastes foul. Emigrants called it every foul name imaginable.',
+    hintLink: 'https://en.wikipedia.org/wiki/Humboldt_River',
+    question: 'How many miles did emigrants follow the Humboldt River across the Great Basin?',
+    answer: '350',
+    acceptedAnswers: ['350', '350 miles', 'three hundred fifty', 'about 350', 'around 350', '350 miles long'],
+    fact: 'The Humboldt River stretches 350 miles across Nevada - the only water source in the Great Basin. Its alkaline water killed hundreds of oxen and made people sick. One emigrant wrote: "This stream stinks with dead cattle." Yet abandoning it meant certain death.',
+    suspectHint: 'Sometimes you must follow what you hate to survive...'
+  },
+  {
+    id: 'trail_clue_08b',
+    caseId: null,
+    locationId: 'humboldt_sink',
+    order: 1,
+    text: 'The river simply vanishes here, swallowed by the desert sand. Wagons and supplies lay abandoned where emigrants lightened their loads for the terrible desert crossing ahead.',
+    hintLink: 'https://en.wikipedia.org/wiki/Humboldt_Sink',
+    question: 'What happens to the Humboldt River at the Humboldt Sink?',
+    answer: 'disappears into the desert',
+    acceptedAnswers: ['disappears', 'vanishes', 'sinks into the ground', 'sinks into the desert', 'disappears into the desert', 'evaporates', 'absorbed by desert', 'dries up', 'goes underground', 'sinks', 'disappears into sand'],
+    fact: 'The Humboldt River simply disappears at the Humboldt Sink, absorbed by desert sand and evaporation. Emigrants called it the "most miserable place on the face of the earth." Hundreds of wagons were abandoned here as travelers lightened loads for the desert crossing.',
+    suspectHint: 'Some things vanish without a trace...'
+  },
+  {
+    id: 'trail_clue_08c',
+    caseId: null,
+    locationId: 'forty_mile_desert',
+    order: 1,
+    text: 'Forty miles of waterless hell stretching between the Humboldt Sink and the Truckee River. Thousands of animal carcasses lined this route. Most emigrants crossed at night to escape the scorching heat.',
+    hintLink: 'https://en.wikipedia.org/wiki/Forty_Mile_Desert',
+    question: 'Why did most emigrants cross the Forty Mile Desert at night?',
+    answer: 'to avoid the heat',
+    acceptedAnswers: ['avoid the heat', 'escape the heat', 'cooler at night', 'too hot during day', 'heat', 'it was cooler', 'night was cooler', 'avoid heat', 'less hot', 'to stay cool', 'the heat', 'because of heat'],
+    fact: 'Daytime temperatures in the Forty Mile Desert exceeded 100°F. Most emigrants traveled at night and rested during the day. Despite this, hundreds of people and thousands of animals perished here. One traveler counted 1,000 dead mules in a single day of travel.',
+    suspectHint: 'The desert shows no mercy to the unprepared...'
+  },
+  {
+    id: 'trail_clue_08d',
+    caseId: null,
+    locationId: 'truckee_pass',
+    order: 1,
+    text: 'This mountain pass is haunted by the memory of the Donner Party. In the winter of 1846-47, 87 emigrants became trapped by early snowfall. Their ordeal became the most infamous tragedy of the westward migration.',
+    hintLink: 'https://en.wikipedia.org/wiki/Donner_Party',
+    question: 'How many members of the Donner Party survived the winter of 1846-47?',
+    answer: '48',
+    acceptedAnswers: ['48', 'forty eight', 'forty-eight', '48 people', '48 survivors', 'about 48', 'around 48', '48 out of 87'],
+    fact: 'Of the 87 members of the Donner Party trapped at Truckee Lake (now Donner Lake), only 48 survived. The survivors resorted to cannibalism to stay alive through the brutal winter. Their tragedy became a cautionary tale about the dangers of taking shortcuts - they were delayed by the Hastings Cutoff.',
+    suspectHint: 'The mountains remember every soul lost...'
   },
   {
     id: 'trail_clue_09',
@@ -484,7 +523,7 @@ export const TRAIL_CLUES: EducationalClue[] = [
     hintLink: 'https://en.wikipedia.org/wiki/California_Gold_Rush',
     question: 'In what year did the California Gold Rush begin after gold was found at Sutter\'s Mill?',
     answer: '1848',
-    acceptedAnswers: ['1848', 'eighteen forty eight', '1848-1849', '1849'],
+    acceptedAnswers: ['1848', 'eighteen forty eight', '1848-1849', '1849', 'eighteen forty-eight', 'eighteen forty nine', '1848 to 1849'],
     fact: 'James Marshall found gold at Sutter\'s Mill on January 24, 1848. By 1849, over 300,000 people ("Forty-Niners") had rushed to California. The Gold Rush transformed San Francisco from a small settlement to a booming city of 36,000 in just two years.',
     suspectHint: 'Gold fever changes people - and nations...'
   },
@@ -511,13 +550,105 @@ export function getClueById(id: string): EducationalClue | undefined {
   return ALL_CLUES.find(clue => clue.id === id)
 }
 
+/** Levenshtein distance between two strings */
+function levenshtein(a: string, b: string): number {
+  const matrix: number[][] = []
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i]
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      matrix[i][j] = b[i - 1] === a[j - 1]
+        ? matrix[i - 1][j - 1]
+        : Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+    }
+  }
+  return matrix[b.length][a.length]
+}
+
+/** Normalize: lowercase, strip punctuation/apostrophes, collapse whitespace */
+function normalizeAnswer(s: string): string {
+  return s.toLowerCase().replace(/[''`.,!?;:\-_"()]/g, '').replace(/\s+/g, ' ').trim()
+}
+
+/** Word overlap score: fraction of accepted words found in user answer */
+function wordOverlap(userWords: string[], acceptedWords: string[]): number {
+  if (acceptedWords.length === 0) return 0
+  const matched = acceptedWords.filter(aw => userWords.some(uw => uw === aw || (uw.length >= 4 && aw.startsWith(uw))))
+  return matched.length / acceptedWords.length
+}
+
 export function checkAnswer(clueId: string, userAnswer: string): boolean {
   const clue = getClueById(clueId)
   if (!clue) return false
-  const normalized = userAnswer.toLowerCase().trim()
-  return clue.acceptedAnswers.some(accepted =>
-    normalized === accepted.toLowerCase() || normalized.includes(accepted.toLowerCase())
-  )
+
+  const normalized = normalizeAnswer(userAnswer)
+  if (!normalized) return false
+
+  return clue.acceptedAnswers.some(accepted => {
+    const normAccepted = normalizeAnswer(accepted)
+
+    // Exact match
+    if (normalized === normAccepted) return true
+
+    // User answer contains accepted answer
+    if (normalized.includes(normAccepted)) return true
+
+    // Reverse substring: accepted contains user answer (if user typed 3+ chars)
+    if (normalized.length >= 3 && normAccepted.includes(normalized)) return true
+
+    // Levenshtein tolerance for words 5+ chars (distance <= 2)
+    if (normalized.length >= 5 && normAccepted.length >= 5 && levenshtein(normalized, normAccepted) <= 2) return true
+
+    // Word overlap scoring for multi-word answers (60%+ match)
+    const userWords = normalized.split(' ')
+    const acceptedWords = normAccepted.split(' ')
+    if (acceptedWords.length >= 2 && wordOverlap(userWords, acceptedWords) >= 0.6) return true
+
+    return false
+  })
+}
+
+/** Check if answer is close but not matching (for "Close! Try being more specific" feedback) */
+export function isCloseAnswer(clueId: string, userAnswer: string): boolean {
+  const clue = getClueById(clueId)
+  if (!clue) return false
+  const normalized = normalizeAnswer(userAnswer)
+  if (normalized.length < 3) return false
+
+  return clue.acceptedAnswers.some(accepted => {
+    const normAccepted = normalizeAnswer(accepted)
+    // Close if Levenshtein is 3-4 (too far for correct, but close)
+    if (normalized.length >= 4 && levenshtein(normalized, normAccepted) <= 4) return true
+    // Close if partial word overlap (40-59%)
+    const userWords = normalized.split(' ')
+    const acceptedWords = normAccepted.split(' ')
+    if (acceptedWords.length >= 2) {
+      const overlap = wordOverlap(userWords, acceptedWords)
+      if (overlap >= 0.4 && overlap < 0.6) return true
+    }
+    return false
+  })
+}
+
+/** Generate multiple choice options for a clue (correct + 3 distractors) */
+export function generateMultipleChoice(clueId: string): string[] {
+  const clue = getClueById(clueId)
+  if (!clue) return []
+
+  const correctAnswer = clue.answer
+  // Gather distractor answers from other clues
+  const otherAnswers = ALL_CLUES
+    .filter(c => c.id !== clueId)
+    .map(c => c.answer)
+    .filter((v, i, arr) => arr.indexOf(v) === i) // dedupe
+
+  // Pick 3 random distractors
+  const shuffled = otherAnswers.sort(() => Math.random() - 0.5)
+  const distractors = shuffled.slice(0, 3)
+
+  // Combine and shuffle all 4 options
+  const options = [correctAnswer, ...distractors].sort(() => Math.random() - 0.5)
+  return options
 }
 
 // Get clue count per case (excludes trail clues which have null caseId)

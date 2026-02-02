@@ -111,12 +111,20 @@ export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
                   <p className="text-gray-400 text-xs">{endingConfig.description}</p>
                 </div>
               </div>
-              <button
-                onClick={handleComplete}
-                className="px-4 py-2 bg-green-700 hover:bg-green-600 text-green-100 font-pixel text-xs rounded border-2 border-green-500"
-              >
-                Complete Journey
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleLeave}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-pixel text-xs rounded border-2 border-gray-500"
+                >
+                  Return to Map
+                </button>
+                <button
+                  onClick={handleComplete}
+                  className="px-4 py-2 bg-green-700 hover:bg-green-600 text-green-100 font-pixel text-xs rounded border-2 border-green-500"
+                >
+                  Complete Journey
+                </button>
+              </div>
             </div>
           </div>
         </header>

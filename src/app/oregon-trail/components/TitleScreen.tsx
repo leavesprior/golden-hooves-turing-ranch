@@ -186,7 +186,7 @@ export function TitleScreen({ onStart, hasSaves, onContinue }: TitleScreenProps)
             The Journey to Gold Country
           </h2>
           <div className="flex items-center justify-center gap-2 text-amber-500 text-sm">
-            <span>Oregon Trail</span>
+            <span>The Emigrant Trail</span>
             <span className="text-amber-600">×</span>
             <span>Fallout</span>
             <span className="text-amber-600">×</span>

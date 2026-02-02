@@ -132,7 +132,8 @@ export function generateRiverState(
   // Base values by river (some rivers are more dangerous than others)
   const riverDefaults: Record<string, { depth: number; width: number; speed: number }> = {
     'Kansas River Crossing': { depth: 3.5, width: 200, speed: 3 },
-    'Snake River Crossing': { depth: 4.5, width: 300, speed: 5 },
+    'Raft River': { depth: 2.5, width: 120, speed: 2 },
+    'Humboldt River': { depth: 2, width: 80, speed: 1.5 },  // Shallow alkaline river
     // Default for unknown rivers
     'default': { depth: 3, width: 150, speed: 2.5 }
   }

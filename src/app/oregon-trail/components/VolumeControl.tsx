@@ -10,12 +10,14 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import * as AudioManager from '../lib/audioManager'
 
+type SoundtrackMode = 'synth' | 'parov' | 'western' | 'fallout'
+
 interface VolumeState {
   masterVolume: number
   musicVolume: number
   sfxVolume: number
   isMuted: boolean
-  soundtrackMode: 'synth' | 'fallout'
+  soundtrackMode: SoundtrackMode
 }
 
 const STORAGE_KEY = 'golden-hooves-audio-settings'
@@ -80,9 +82,9 @@ export function VolumeControl() {
     })
   }, [prevMasterVolume])
 
-  const handleSoundtrackToggle = useCallback(() => {
+  const handleSoundtrackChange = useCallback((newMode: SoundtrackMode) => {
     setState(prev => {
-      const newMode = prev.soundtrackMode === 'synth' ? 'fallout' : 'synth'
+      if (prev.soundtrackMode === newMode) return prev
       AudioManager.setSoundtrackMode(newMode)
       return { ...prev, soundtrackMode: newMode }
     })
@@ -128,27 +130,47 @@ export function VolumeControl() {
             </button>
           </div>
 
-          {/* Soundtrack mode toggle */}
-          <div className="flex gap-1 mb-3">
+          {/* Soundtrack mode selector */}
+          <div className="grid grid-cols-2 gap-1 mb-3">
             <button
-              onClick={() => state.soundtrackMode !== 'synth' && handleSoundtrackToggle()}
-              className={`flex-1 py-1.5 px-2 rounded text-xs font-pixel transition-colors ${
+              onClick={() => handleSoundtrackChange('synth')}
+              className={`py-1.5 px-2 rounded text-xs font-pixel transition-colors ${
                 state.soundtrackMode === 'synth'
                   ? 'bg-amber-700/60 border border-amber-500/50 text-amber-200'
                   : 'bg-stone-800/60 border border-stone-600/30 text-stone-400 hover:bg-stone-700/60'
               }`}
             >
-              Electro Swing
+              Chiptune
             </button>
             <button
-              onClick={() => state.soundtrackMode !== 'fallout' && handleSoundtrackToggle()}
-              className={`flex-1 py-1.5 px-2 rounded text-xs font-pixel transition-colors ${
-                state.soundtrackMode === 'fallout'
-                  ? 'bg-green-800/60 border border-green-500/50 text-green-200'
+              onClick={() => handleSoundtrackChange('parov')}
+              className={`py-1.5 px-2 rounded text-xs font-pixel transition-colors ${
+                state.soundtrackMode === 'parov'
+                  ? 'bg-purple-700/60 border border-purple-500/50 text-purple-200'
                   : 'bg-stone-800/60 border border-stone-600/30 text-stone-400 hover:bg-stone-700/60'
               }`}
             >
-              Fallout 2 OST
+              Parov Stelar
+            </button>
+            <button
+              onClick={() => handleSoundtrackChange('western')}
+              className={`py-1.5 px-2 rounded text-xs font-pixel transition-colors ${
+                state.soundtrackMode === 'western'
+                  ? 'bg-yellow-700/60 border border-yellow-500/50 text-yellow-200'
+                  : 'bg-stone-800/60 border border-stone-600/30 text-stone-400 hover:bg-stone-700/60'
+              }`}
+            >
+              Western
+            </button>
+            <button
+              onClick={() => handleSoundtrackChange('fallout')}
+              className={`py-1.5 px-2 rounded text-xs font-pixel transition-colors ${
+                state.soundtrackMode === 'fallout'
+                  ? 'bg-green-700/60 border border-green-500/50 text-green-200'
+                  : 'bg-stone-800/60 border border-stone-600/30 text-stone-400 hover:bg-stone-700/60'
+              }`}
+            >
+              Fallout 2
             </button>
           </div>
 
@@ -190,12 +212,12 @@ export function VolumeControl() {
 
           {/* Current track info */}
           <div className="mt-4 pt-3 border-t border-amber-800/50">
-            {state.soundtrackMode === 'fallout' ? (
-              <NowPlayingFallout />
-            ) : (
+            {state.soundtrackMode === 'synth' ? (
               <p className="text-amber-600/70 text-xs font-pixel">
                 Now Playing: {formatTrackName(AudioManager.getCurrentStyle())}
               </p>
+            ) : (
+              <NowPlayingMP3 mode={state.soundtrackMode} />
             )}
           </div>
         </div>
@@ -204,27 +226,37 @@ export function VolumeControl() {
   )
 }
 
-function NowPlayingFallout() {
-  const [track, setTrack] = useState<{ title: string } | null>(null)
+const MODE_LABELS: Record<string, { name: string; color: string }> = {
+  fallout: { name: 'Fallout 2 Original Soundtrack', color: 'text-green-500/70' },
+  parov: { name: 'Parov Stelar - Electro Swing', color: 'text-purple-500/70' },
+  western: { name: 'Scott Joplin - Ragtime Piano', color: 'text-yellow-500/70' },
+}
+
+function NowPlayingMP3({ mode }: { mode: string }) {
+  const [trackTitle, setTrackTitle] = useState<string | null>(null)
 
   useEffect(() => {
-    // Poll for current track since there's no event system
     const update = () => {
-      const current = AudioManager.getCurrentFalloutTrack()
-      setTrack(current ? { title: current.title } : null)
+      let current: { title: string } | null = null
+      if (mode === 'fallout') current = AudioManager.getCurrentFalloutTrack()
+      else if (mode === 'parov') current = AudioManager.getCurrentParovTrack()
+      else if (mode === 'western') current = AudioManager.getCurrentWesternTrack()
+      setTrackTitle(current?.title ?? null)
     }
     update()
     const interval = setInterval(update, 2000)
     return () => clearInterval(interval)
-  }, [])
+  }, [mode])
+
+  const label = MODE_LABELS[mode] || MODE_LABELS.fallout
 
   return (
     <div className="text-xs font-pixel">
-      <p className="text-green-500/70">
-        {track ? `Now Playing: ${track.title}` : 'Fallout 2 OST - Loading...'}
+      <p className={label.color}>
+        {trackTitle ? `Now Playing: ${trackTitle}` : `${label.name} - Loading...`}
       </p>
       <p className="text-stone-500/50 mt-0.5">
-        Fallout 2 Original Soundtrack
+        {label.name}
       </p>
     </div>
   )

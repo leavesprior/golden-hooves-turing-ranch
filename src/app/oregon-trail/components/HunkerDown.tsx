@@ -86,59 +86,92 @@ const RENTAL_REGIONS: Record<string, RentalOption[]> = {
       features: ['Mountain views', 'Hiking trails', 'Wildlife']
     }
   ],
-  'soda_springs': [
+  'raft_river': [
     {
-      name: 'Springs Valley Cabin',
-      description: 'Near natural mineral springs',
+      name: 'Snake River Homestead',
+      description: 'Where the California Trail splits off',
       pricePerNight: 85,
       sleeps: 4,
-      airbnbUrl: 'https://airbnb.com/s/Soda-Springs--ID',
+      airbnbUrl: 'https://airbnb.com/s/Burley--ID',
       region: 'Idaho',
-      features: ['Hot springs nearby', 'Fishing', 'Quiet']
+      features: ['River views', 'Historic crossroads', 'Quiet']
     }
   ],
-  'fort_boise': [
+  'city_of_rocks': [
     {
-      name: 'Idaho River House',
-      description: 'Riverside relaxation',
+      name: 'Granite Spire Lodge',
+      description: 'Among 2.5 billion year old formations',
       pricePerNight: 100,
       sleeps: 6,
-      airbnbUrl: 'https://airbnb.com/s/Boise--ID',
+      airbnbUrl: 'https://airbnb.com/s/Almo--ID',
       region: 'Idaho',
-      features: ['River access', 'Modern amenities', 'Near town']
+      features: ['Rock climbing', 'Star gazing', 'Historic carvings']
     }
   ],
-  'blue_mountains': [
+  'humboldt_river': [
     {
-      name: 'Blue Mountain Lodge',
-      description: 'Forest mountain retreat',
-      pricePerNight: 130,
-      sleeps: 8,
-      airbnbUrl: 'https://airbnb.com/s/Pendleton--OR',
-      region: 'Oregon',
-      features: ['Forest views', 'Fireplace', 'Secluded']
-    }
-  ],
-  'the_dalles': [
-    {
-      name: 'Columbia Gorge View',
-      description: 'Overlooking the mighty Columbia',
-      pricePerNight: 145,
+      name: 'Great Basin Ranch',
+      description: 'Alongside the emigrant lifeline',
+      pricePerNight: 95,
       sleeps: 6,
-      airbnbUrl: 'https://airbnb.com/s/The-Dalles--OR',
-      region: 'Oregon',
-      features: ['River views', 'Wineries nearby', 'Scenic']
+      airbnbUrl: 'https://airbnb.com/s/Elko--NV',
+      region: 'Nevada',
+      features: ['Ranch experience', 'Open range', 'Desert sunsets']
     }
   ],
-  'oregon_city': [
+  'humboldt_sink': [
     {
-      name: 'Willamette Valley Farmhouse',
-      description: "You've made it! Celebrate in style",
-      pricePerNight: 160,
+      name: 'Desert Oasis Retreat',
+      description: 'Where the river vanishes into sand',
+      pricePerNight: 90,
+      sleeps: 4,
+      airbnbUrl: 'https://airbnb.com/s/Lovelock--NV',
+      region: 'Nevada',
+      features: ['Desert solitude', 'Hot springs nearby', 'Off-grid']
+    }
+  ],
+  'forty_mile_desert': [
+    {
+      name: 'Emigrant Pass Cabin',
+      description: 'Rest before the deadliest stretch',
+      pricePerNight: 110,
+      sleeps: 6,
+      airbnbUrl: 'https://airbnb.com/s/Fernley--NV',
+      region: 'Nevada',
+      features: ['A/C (!)', 'Water supply', 'Desert views']
+    }
+  ],
+  'truckee_pass': [
+    {
+      name: 'Donner Lake Lodge',
+      description: 'Sierra Nevada mountain retreat',
+      pricePerNight: 150,
       sleeps: 8,
-      airbnbUrl: 'https://airbnb.com/s/Oregon-City--OR',
-      region: 'Oregon',
-      features: ['Farm fresh eggs', 'Wine country', 'Historic']
+      airbnbUrl: 'https://airbnb.com/s/Truckee--CA',
+      region: 'California',
+      features: ['Lake views', 'Skiing', 'Mountain trails', 'Fireplace']
+    }
+  ],
+  'sacramento_valley': [
+    {
+      name: 'Gold Rush Farmhouse',
+      description: 'The promised land at last',
+      pricePerNight: 140,
+      sleeps: 8,
+      airbnbUrl: 'https://airbnb.com/s/Sacramento--CA',
+      region: 'California',
+      features: ['Farm fresh food', 'Historic area', 'Near Sacramento']
+    }
+  ],
+  'west_point': [
+    {
+      name: "Cynthia's Mountain Cabin",
+      description: 'Stay at the famous Back of Beyond',
+      pricePerNight: 175,
+      sleeps: 10,
+      airbnbUrl: 'https://www.airbnb.com/rooms/30045739',
+      region: 'California Gold Country',
+      features: ['Mountain retreat', 'Gold panning', 'Ranch life', 'Special discount!']
     }
   ],
   // Gold Country - Back of Beyond Ranch featured
@@ -148,7 +181,7 @@ const RENTAL_REGIONS: Record<string, RentalOption[]> = {
       description: 'Premium Gold Country retreat - YOUR destination!',
       pricePerNight: 200,
       sleeps: 10,
-      airbnbUrl: 'https://www.airbnb.com/rooms/52180453', // Replace with actual listing
+      airbnbUrl: 'https://www.airbnb.com/rooms/30045739',
       region: 'California Gold Country',
       features: ['Ranch experience', 'Gold panning', 'Historic', 'Special discount available!']
     },

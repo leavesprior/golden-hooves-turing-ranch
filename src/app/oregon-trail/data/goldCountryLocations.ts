@@ -3,6 +3,8 @@
  * Migrated from Carmen Sandiego game for educational content integration
  */
 
+export type ShopType = 'general' | 'saloon' | 'wine' | 'equipment' | 'stable' | 'assay' | 'none'
+
 export interface GoldCountryLocation {
   id: string
   name: string
@@ -18,6 +20,11 @@ export interface GoldCountryLocation {
   fact: string
   atmosphere: 'cozy' | 'historic' | 'charming' | 'mysterious' | 'wondrous' | 'majestic' | 'haunting' | 'ghostly' | 'elegant' | 'wild'
   tags: string[]
+  // Fallout 2 free-roam extensions
+  shopType: ShopType
+  adjacentTo: string[]  // IDs of locations reachable without travel encounter
+  travelDistance: number  // relative distance units (1-5), higher = more encounter chance
+  specialFeature?: string  // unique mechanic at this location
 }
 
 export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
@@ -35,7 +42,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'Look for photos that might reveal clues about the local area',
     fact: 'The Back of Beyond Ranch sits at 3,000 feet elevation in the Sierra Nevada foothills, where the Gold Rush pioneers once searched for fortune.',
     atmosphere: 'cozy',
-    tags: ['lodging', 'base_camp', 'mountain']
+    tags: ['lodging', 'base_camp', 'mountain'],
+    shopType: 'general',
+    adjacentTo: ['natural_bridges', 'murphys', 'mokelumne_hill'],
+    travelDistance: 0,
+    specialFeature: 'settlement_management',
   },
   {
     id: 'angels_camp',
@@ -51,7 +62,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'When did Twain visit this town?',
     fact: 'Mark Twain visited Angels Camp in 1864-1865, where he heard the story that became \'The Celebrated Jumping Frog of Calaveras County.\'',
     atmosphere: 'historic',
-    tags: ['town', 'twain', 'gold_rush', 'festival']
+    tags: ['town', 'twain', 'gold_rush', 'festival'],
+    shopType: 'saloon',
+    adjacentTo: ['murphys', 'moaning_cavern', 'natural_bridges'],
+    travelDistance: 3,
+    specialFeature: 'frog_jumping_contest',
   },
   {
     id: 'murphys',
@@ -67,7 +82,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'Famous guests have stayed at the historic hotel',
     fact: 'The Murphys Hotel guest register, dating to the 1850s, contains signatures of Mark Twain, Ulysses S. Grant, and Black Bart.',
     atmosphere: 'charming',
-    tags: ['town', 'wine', 'history', 'dining']
+    tags: ['town', 'wine', 'history', 'dining'],
+    shopType: 'wine',
+    adjacentTo: ['bobr_cabin', 'angels_camp', 'ironstone_vineyards', 'big_trees'],
+    travelDistance: 2,
+    specialFeature: 'wine_tasting',
   },
   {
     id: 'moaning_cavern',
@@ -83,7 +102,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'How deep is the main chamber?',
     fact: 'Moaning Cavern\'s main chamber is large enough to hold the Statue of Liberty. Human remains found here date back 13,000 years.',
     atmosphere: 'mysterious',
-    tags: ['cave', 'adventure', 'geology', 'history']
+    tags: ['cave', 'adventure', 'geology', 'history'],
+    shopType: 'none',
+    adjacentTo: ['angels_camp', 'california_caverns'],
+    travelDistance: 3,
+    specialFeature: 'rappel_challenge',
   },
   {
     id: 'california_caverns',
@@ -99,7 +122,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'What rare formations can be found here?',
     fact: 'California Caverns contains rare aragonite crystal formations and an underground lake. John Muir explored these caves in 1858.',
     atmosphere: 'wondrous',
-    tags: ['cave', 'crystals', 'adventure', 'rare']
+    tags: ['cave', 'crystals', 'adventure', 'rare'],
+    shopType: 'none',
+    adjacentTo: ['moaning_cavern', 'murphys'],
+    travelDistance: 3,
+    specialFeature: 'crystal_discovery',
   },
   {
     id: 'big_trees',
@@ -115,7 +142,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'How old are these trees?',
     fact: 'The Discovery Tree, found in 1852, was over 1,200 years old. Its stump was so large that 32 people once danced on it at a party.',
     atmosphere: 'majestic',
-    tags: ['nature', 'hiking', 'sequoias', 'park']
+    tags: ['nature', 'hiking', 'sequoias', 'park'],
+    shopType: 'none',
+    adjacentTo: ['murphys', 'angels_camp'],
+    travelDistance: 4,
+    specialFeature: 'sequoia_identification',
   },
   {
     id: 'kennedy_mine',
@@ -131,7 +162,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'How deep did the miners dig?',
     fact: 'Kennedy Mine reached a depth of 5,912 feet, making it one of the deepest gold mines in North America. A tragic fire in 1922 claimed 47 lives.',
     atmosphere: 'haunting',
-    tags: ['mine', 'history', 'gold_rush', 'museum']
+    tags: ['mine', 'history', 'gold_rush', 'museum'],
+    shopType: 'equipment',
+    adjacentTo: ['jackson'],
+    travelDistance: 4,
+    specialFeature: 'mine_exploration',
   },
   {
     id: 'mokelumne_hill',
@@ -147,7 +182,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'What was this town\'s violent reputation?',
     fact: 'Mokelumne Hill had 17 murders in a single weekend during 1851. The Hotel Leger is said to be haunted by Gold Rush ghosts.',
     atmosphere: 'ghostly',
-    tags: ['town', 'history', 'gold_rush', 'haunted']
+    tags: ['town', 'history', 'gold_rush', 'haunted'],
+    shopType: 'saloon',
+    adjacentTo: ['bobr_cabin', 'jackson', 'murphys'],
+    travelDistance: 3,
+    specialFeature: 'haunted_inn',
   },
   {
     id: 'ironstone_vineyards',
@@ -163,7 +202,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'What treasure is displayed in their museum?',
     fact: 'Ironstone displays a 44-pound crystalline gold leaf specimen found in nearby Jamestown - the largest in existence.',
     atmosphere: 'elegant',
-    tags: ['winery', 'museum', 'gardens', 'gold']
+    tags: ['winery', 'museum', 'gardens', 'gold'],
+    shopType: 'wine',
+    adjacentTo: ['murphys'],
+    travelDistance: 2,
+    specialFeature: 'gold_museum',
   },
   {
     id: 'jackson',
@@ -179,7 +222,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'What lies beneath the streets?',
     fact: 'Jackson has a network of Chinese tunnels beneath Main Street, built during the Gold Rush when Chinese workers faced discrimination above ground.',
     atmosphere: 'mysterious',
-    tags: ['town', 'history', 'tunnels', 'county_seat']
+    tags: ['town', 'history', 'tunnels', 'county_seat'],
+    shopType: 'general',
+    adjacentTo: ['kennedy_mine', 'mokelumne_hill'],
+    travelDistance: 4,
+    specialFeature: 'warrant_system',
   },
   {
     id: 'natural_bridges',
@@ -195,7 +242,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     linkHint: 'How were these bridges formed?',
     fact: 'The Natural Bridges were formed over millions of years as Coyote Creek dissolved the limestone, creating a cave that eventually collapsed to form the bridges.',
     atmosphere: 'wild',
-    tags: ['nature', 'hiking', 'geology', 'swimming']
+    tags: ['nature', 'hiking', 'geology', 'swimming'],
+    shopType: 'none',
+    adjacentTo: ['bobr_cabin', 'angels_camp'],
+    travelDistance: 2,
+    specialFeature: 'gold_panning',
   }
 ]
 
@@ -216,3 +267,26 @@ export function getLocationsByTag(tag: string): GoldCountryLocation[] {
 
 // Location IDs for quick reference
 export const GOLD_COUNTRY_LOCATION_IDS = GOLD_COUNTRY_LOCATIONS.map(loc => loc.id)
+
+// Get adjacent locations (reachable without travel encounter)
+export function getAdjacentLocations(locationId: string): GoldCountryLocation[] {
+  const location = GOLD_COUNTRY_LOCATIONS.find(loc => loc.id === locationId)
+  if (!location) return []
+  return GOLD_COUNTRY_LOCATIONS.filter(loc => location.adjacentTo.includes(loc.id))
+}
+
+// Calculate travel distance between two locations
+export function getLocationTravelDistance(fromId: string, toId: string): number {
+  const from = GOLD_COUNTRY_LOCATIONS.find(loc => loc.id === fromId)
+  const to = GOLD_COUNTRY_LOCATIONS.find(loc => loc.id === toId)
+  if (!from || !to) return 5
+  // Adjacent locations have lower encounter chance
+  if (from.adjacentTo.includes(toId)) return 1
+  return Math.max(from.travelDistance, to.travelDistance)
+}
+
+// Check if two locations are adjacent
+export function areLocationsAdjacent(id1: string, id2: string): boolean {
+  const loc = GOLD_COUNTRY_LOCATIONS.find(l => l.id === id1)
+  return loc?.adjacentTo.includes(id2) ?? false
+}
