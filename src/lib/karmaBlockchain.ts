@@ -30,8 +30,11 @@ export interface BlockchainError {
 
 // Default agent ID for Oregon Trail game
 const DEFAULT_AGENT_ID = 'bobr_oregon_trail'
-const BLOCKCHAIN_BASE_URL = 'http://localhost:8131'
+const BLOCKCHAIN_BASE_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? '' // In production, blockchain is not available - use offline mode
+  : 'http://localhost:8131'
 const API_TIMEOUT_MS = 500
+const IS_PRODUCTION = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
 
 /**
  * Timeout wrapper for fetch requests
@@ -96,6 +99,10 @@ export class KarmaBlockchainClient {
    * Check if the blockchain API is available
    */
   async checkConnection(): Promise<boolean> {
+    if (IS_PRODUCTION) {
+      this.isOnline = false
+      return false
+    }
     try {
       const response = await fetchWithTimeout(`${this.baseUrl}/health`, {}, 1000)
       this.isOnline = response.ok
@@ -110,11 +117,13 @@ export class KarmaBlockchainClient {
    * Get the current karma balance for the agent
    */
   async getBalance(): Promise<KarmaBalance> {
+    if (IS_PRODUCTION) {
+      return { good: 0, neutral: 400, bad: 0 }
+    }
     try {
       const response = await fetchWithTimeout(`${this.baseUrl}/karma/${this.agentId}`)
 
       if (!response.ok) {
-        // If agent doesn't exist yet, return default balance
         if (response.status === 404) {
           return { good: 0, neutral: 400, bad: 0 }
         }
@@ -132,7 +141,6 @@ export class KarmaBlockchainClient {
     } catch (error) {
       this.isOnline = false
       console.warn('Karma blockchain offline, using local fallback')
-      // Return a default balance for offline mode
       return { good: 0, neutral: 400, bad: 0 }
     }
   }
@@ -141,6 +149,9 @@ export class KarmaBlockchainClient {
    * Initialize a new wallet with starting balance
    */
   async initializeWallet(startingNeutral: number = 400): Promise<KarmaBalance> {
+    if (IS_PRODUCTION) {
+      return { good: 0, neutral: startingNeutral, bad: 0 }
+    }
     try {
       const response = await fetchWithTimeout(`${this.baseUrl}/karma/init`, {
         method: 'POST',
@@ -163,7 +174,6 @@ export class KarmaBlockchainClient {
       return await response.json()
     } catch (error) {
       this.isOnline = false
-      // Return default balance for offline
       return { good: 0, neutral: startingNeutral, bad: 0 }
     }
   }
@@ -186,6 +196,11 @@ export class KarmaBlockchainClient {
       amount,
       memo,
       synced: false,
+    }
+
+    if (IS_PRODUCTION) {
+      this.pendingTransactions.push(transaction)
+      return false
     }
 
     try {
@@ -249,6 +264,7 @@ export class KarmaBlockchainClient {
    * Add bad karma (consequences for dark choices)
    */
   async addBadKarma(amount: number, reason?: string): Promise<boolean> {
+    if (IS_PRODUCTION) return false
     try {
       const response = await fetchWithTimeout(`${this.baseUrl}/karma/contrition`, {
         method: 'POST',
@@ -273,6 +289,7 @@ export class KarmaBlockchainClient {
    * Sacrifice 2 good karma to receive 1 neutral karma
    */
   async convertGoodToNeutral(goodAmount: number): Promise<boolean> {
+    if (IS_PRODUCTION) return false
     const neutralReceived = Math.floor(goodAmount / 2)
 
     try {
@@ -315,6 +332,7 @@ export class KarmaBlockchainClient {
    * Absolve bad karma by sacrificing good karma
    */
   async absolveBadKarma(badAmount: number): Promise<boolean> {
+    if (IS_PRODUCTION) return false
     try {
       const response = await fetchWithTimeout(`${this.baseUrl}/karma/absolve`, {
         method: 'POST',
@@ -337,6 +355,7 @@ export class KarmaBlockchainClient {
    * Sync pending transactions when connection is restored
    */
   async syncPendingTransactions(): Promise<number> {
+    if (IS_PRODUCTION) return 0
     if (this.pendingTransactions.length === 0) return 0
     if (Date.now() - this.lastSyncAttempt < 5000) return 0 // Rate limit
 

@@ -23,8 +23,9 @@ const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 const REQUEST_TIMEOUT = 60000; // 60 seconds for generation
 
 // Proxy mode: route through server-side API routes
-const isProxyMode = typeof process !== 'undefined'
-  && process.env?.NEXT_PUBLIC_LLM_MODE === 'proxy';
+// Auto-detect production: if we're not on localhost, always use proxy mode
+const isProxyMode = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_LLM_MODE === 'proxy')
+  || (typeof window !== 'undefined' && window.location.hostname !== 'localhost');
 
 class OllamaService {
   private status: OllamaServiceStatus = {
