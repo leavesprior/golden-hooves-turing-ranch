@@ -1,16 +1,26 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   MapLocation,
   RandomEncounterZone,
   ChapterType,
   getLocationById,
-  getConnectedLocations,
   ENCOUNTER_ZONES,
   GOLD_COUNTRY_LOCATIONS,
   CHAPTER_1_WAYPOINTS,
 } from '../data/worldMaps'
+import {
+  MapSVGDefs,
+  MapTerrain,
+  MapIcon,
+  MapFogOfWar,
+  MapConnections,
+  MapTooltip,
+  MapCompass,
+  MapAnimations,
+  useMapInteraction,
+} from './map'
 
 // ============================================
 // TYPES
@@ -28,8 +38,8 @@ interface WorldMapProps {
   playerPosition?: { x: number; y: number }
   isMoving?: boolean
   graphicsTier?: 'retro_4bit' | 'classic_8bit' | 'enhanced_16bit' | 'modern_32bit' | 'ultra_64bit'
-  expertiseStat?: number  // Expertise stat for scouting range bonus
-  scoutingCostHours?: number  // Investigation hours scouting costs (default: 2)
+  expertiseStat?: number
+  scoutingCostHours?: number
 }
 
 interface Tooltip {
@@ -47,42 +57,6 @@ interface TravelAnimation {
   toY: number
   progress: number
   targetLocationId: string
-}
-
-// ============================================
-// CONSTANTS
-// ============================================
-
-const LOCATION_ICONS: Record<string, string> = {
-  town: '🏘️',
-  fort: '🏰',
-  river: '🌊',
-  landmark: '🗿',
-  mine: '⛏️',
-  ghost_town: '👻',
-  pass: '🏔️',
-  spring: '💧',
-  mountains: '⛰️',
-  destination: '⭐',
-}
-
-const DANGER_COLORS = {
-  safe: 'var(--pixel-forest-light)',
-  normal: 'var(--pixel-gold-mid)',
-  dangerous: 'var(--pixel-fire-orange)',
-}
-
-const SERVICE_ICONS: Record<string, string> = {
-  inn: '🛏️',
-  shop: '🏪',
-  telegraph: '📡',
-  saloon: '🍺',
-  mine: '⛏️',
-  assay: '⚖️',
-  church: '⛪',
-  stable: '🐴',
-  blacksmith: '🔨',
-  doctor: '⚕️',
 }
 
 // ============================================
@@ -107,179 +81,123 @@ export function WorldMap({
   const [tooltip, setTooltip] = useState<Tooltip>({ visible: false, x: 0, y: 0, location: null })
   const [hoveredLocationId, setHoveredLocationId] = useState<string | null>(null)
   const [travelAnimation, setTravelAnimation] = useState<TravelAnimation>({
-    active: false,
-    fromX: 0,
-    fromY: 0,
-    toX: 0,
-    toY: 0,
-    progress: 0,
-    targetLocationId: '',
+    active: false, fromX: 0, fromY: 0, toX: 0, toY: 0, progress: 0, targetLocationId: '',
   })
-  const [encounterFlash, setEncounterFlash] = useState(false)
   const [scoutingLocation, setScoutingLocation] = useState<string | null>(null)
   const [scoutAnimation, setScoutAnimation] = useState(false)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
 
-  // Scouting range: adjacent locations + bonus from Expertise
-  // Base: only immediate neighbors. With Expertise 5+: can see 2 hops away
+  const isRetro = graphicsTier === 'retro_4bit'
+
+  // Scouting range
   const scoutRange = expertiseStat >= 8 ? 3 : expertiseStat >= 5 ? 2 : 1
 
-  // Locations visible as "?" (adjacent to discovered but not discovered)
+  // BFS for scoutable locations
   const scoutableLocations = useMemo(() => {
     const scoutable = new Set<string>()
-    const discovered = discoveredLocations
-
-    // BFS from discovered locations up to scoutRange hops
     const visited = new Set<string>()
     const queue: Array<{ id: string; depth: number }> = []
-
-    discovered.forEach(locId => {
+    discoveredLocations.forEach(locId => {
       queue.push({ id: locId, depth: 0 })
       visited.add(locId)
     })
-
     while (queue.length > 0) {
       const { id, depth } = queue.shift()!
       if (depth >= scoutRange) continue
-
       const loc = getLocationById(id)
       if (!loc) continue
-
       for (const connId of loc.connectedTo) {
         if (!visited.has(connId)) {
           visited.add(connId)
-          if (!discovered.has(connId)) {
-            scoutable.add(connId)
-          }
+          if (!discoveredLocations.has(connId)) scoutable.add(connId)
           queue.push({ id: connId, depth: depth + 1 })
         }
       }
     }
-
     return scoutable
   }, [discoveredLocations, scoutRange])
 
-  // Handle scouting action
   const handleScout = useCallback((locationId: string) => {
     setScoutingLocation(locationId)
     setScoutAnimation(true)
-
-    // Animate scouting effect
     setTimeout(() => {
       setScoutAnimation(false)
       setScoutingLocation(null)
-      if (onScout) {
-        onScout(locationId)
-      }
+      onScout?.(locationId)
     }, 1200)
   }, [onScout])
 
-  // Get locations for current chapter
   const chapterLocations = useMemo(() => {
     switch (chapter) {
-      case 'journey_west':
-        return CHAPTER_1_WAYPOINTS
-      case 'gold_country':
-        return GOLD_COUNTRY_LOCATIONS
-      case 'return_visit':
-        return [...CHAPTER_1_WAYPOINTS, ...GOLD_COUNTRY_LOCATIONS]
-      default:
-        return []
+      case 'journey_west': return CHAPTER_1_WAYPOINTS
+      case 'gold_country': return GOLD_COUNTRY_LOCATIONS
+      case 'return_visit': return [...CHAPTER_1_WAYPOINTS, ...GOLD_COUNTRY_LOCATIONS]
+      default: return []
     }
   }, [chapter])
 
-  // Calculate player position
+  // Location coords map for animations
+  const locationCoords = useMemo(() => {
+    const coords = new Map<string, { x: number; y: number }>()
+    chapterLocations.forEach(loc => coords.set(loc.id, { x: loc.x, y: loc.y }))
+    return coords
+  }, [chapterLocations])
+
   const playerPosition = useMemo(() => {
     if (travelAnimation.active) {
-      const x = travelAnimation.fromX + (travelAnimation.toX - travelAnimation.fromX) * travelAnimation.progress
-      const y = travelAnimation.fromY + (travelAnimation.toY - travelAnimation.fromY) * travelAnimation.progress
-      return { x, y }
+      return {
+        x: travelAnimation.fromX + (travelAnimation.toX - travelAnimation.fromX) * travelAnimation.progress,
+        y: travelAnimation.fromY + (travelAnimation.toY - travelAnimation.fromY) * travelAnimation.progress,
+      }
     }
     if (externalPlayerPosition) return externalPlayerPosition
     const currentLoc = getLocationById(currentLocationId)
     return currentLoc ? { x: currentLoc.x, y: currentLoc.y } : { x: 50, y: 50 }
   }, [currentLocationId, travelAnimation, externalPlayerPosition])
 
-  // Flash encounter zones
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setEncounterFlash(prev => !prev)
-    }, 800)
-    return () => clearInterval(interval)
-  }, [])
-
   // Travel animation
   useEffect(() => {
     if (!travelAnimation.active) return
-
-    const animationDuration = 2000 // 2 seconds
+    const animationDuration = 2000
     const startTime = Date.now()
-
     const animate = () => {
       const elapsed = Date.now() - startTime
       const progress = Math.min(elapsed / animationDuration, 1)
-
       setTravelAnimation(prev => ({ ...prev, progress }))
-
-      // Check for random encounters during travel
       if (progress > 0.3 && progress < 0.7 && Math.random() < 0.01) {
+        const px = travelAnimation.fromX + (travelAnimation.toX - travelAnimation.fromX) * progress
+        const py = travelAnimation.fromY + (travelAnimation.toY - travelAnimation.fromY) * progress
         const encounterZone = ENCOUNTER_ZONES.find(zone => {
-          const px = travelAnimation.fromX + (travelAnimation.toX - travelAnimation.fromX) * progress
-          const py = travelAnimation.fromY + (travelAnimation.toY - travelAnimation.fromY) * progress
           const dist = Math.sqrt(Math.pow(px - zone.x, 2) + Math.pow(py - zone.y, 2))
           return dist <= zone.radius
         })
-        if (encounterZone && onRandomEncounter) {
-          onRandomEncounter(encounterZone)
-        }
+        if (encounterZone && onRandomEncounter) onRandomEncounter(encounterZone)
       }
-
       if (progress < 1) {
         requestAnimationFrame(animate)
       } else {
         setTravelAnimation(prev => ({ ...prev, active: false }))
-        if (onTravelComplete) {
-          onTravelComplete(travelAnimation.targetLocationId)
-        }
+        onTravelComplete?.(travelAnimation.targetLocationId)
       }
     }
-
     requestAnimationFrame(animate)
   }, [travelAnimation.active, travelAnimation.fromX, travelAnimation.fromY, travelAnimation.toX, travelAnimation.toY, travelAnimation.targetLocationId, onTravelComplete, onRandomEncounter])
 
-  // Handle travel to location
   const handleTravel = useCallback((targetId: string) => {
     const current = getLocationById(currentLocationId)
     const target = getLocationById(targetId)
-
-    if (!current || !target) return
-    if (!current.connectedTo.includes(targetId)) return
-    if (!discoveredLocations.has(targetId)) return
-
-    if (onTravelStart) {
-      onTravelStart(currentLocationId, targetId)
-    }
-
+    if (!current || !target || !current.connectedTo.includes(targetId) || !discoveredLocations.has(targetId)) return
+    onTravelStart?.(currentLocationId, targetId)
     setTravelAnimation({
-      active: true,
-      fromX: current.x,
-      fromY: current.y,
-      toX: target.x,
-      toY: target.y,
-      progress: 0,
-      targetLocationId: targetId,
+      active: true, fromX: current.x, fromY: current.y,
+      toX: target.x, toY: target.y, progress: 0, targetLocationId: targetId,
     })
   }, [currentLocationId, discoveredLocations, onTravelStart])
 
-  // Handle location hover
   const handleLocationHover = useCallback((location: MapLocation, event: React.MouseEvent) => {
     setHoveredLocationId(location.id)
     const rect = (event.target as HTMLElement).getBoundingClientRect()
-    setTooltip({
-      visible: true,
-      x: rect.right + 10,
-      y: rect.top,
-      location,
-    })
+    setTooltip({ visible: true, x: rect.right + 10, y: rect.top, location })
   }, [])
 
   const handleLocationLeave = useCallback(() => {
@@ -287,466 +205,241 @@ export function WorldMap({
     setTooltip(prev => ({ ...prev, visible: false }))
   }, [])
 
-  // Render fog of war overlay
-  // Enhanced: scoutable locations get lighter fog, fully hidden get dark fog
-  const renderFogOfWar = () => {
-    return (
-      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
-        {chapterLocations.map(location => {
-          if (discoveredLocations.has(location.id)) return null
+  // Zoom/pan interaction
+  const { svgTransform, handlers: interactionHandlers, containerRef } = useMapInteraction({
+    graphicsTier,
+  })
 
+  // Chapter titles
+  const chapterTitle = { journey_west: 'Chapter 1: Journey West', gold_country: 'Chapter 2: Gold Country', return_visit: 'Chapter 3: The Long Road Home' }[chapter]
+  const bgGradient = chapter === 'journey_west' ? 'url(#grad-ch1-bg)' : 'url(#grad-ch2-bg)'
+
+  return (
+    <div
+      ref={el => {
+        // Assign to both refs
+        (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+        ;(mapContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+      }}
+      className={`relative w-full aspect-[16/10] overflow-hidden border-4 border-[var(--pixel-ui-border)] rounded-lg map-tier-${graphicsTier}`}
+      {...interactionHandlers}
+    >
+      <svg
+        viewBox="0 0 100 62.5"
+        preserveAspectRatio="xMidYMid meet"
+        className="absolute inset-0 w-full h-full"
+        style={{ transform: svgTransform || undefined }}
+      >
+        <MapSVGDefs graphicsTier={graphicsTier} chapter={chapter} />
+
+        {/* Background */}
+        <rect x="0" y="0" width="100" height="62.5" fill={bgGradient} />
+
+        {/* Grid overlay */}
+        <g opacity="0.1">
+          {[...Array(10)].map((_, i) => (
+            <React.Fragment key={`grid-${i}`}>
+              <line x1={i * 10} y1="0" x2={i * 10} y2="62.5" stroke="var(--pixel-ui-text)" strokeWidth="0.1" />
+              <line x1="0" y1={i * 6.25} x2="100" y2={i * 6.25} stroke="var(--pixel-ui-text)" strokeWidth="0.1" />
+            </React.Fragment>
+          ))}
+        </g>
+
+        {/* Terrain */}
+        <MapTerrain chapter={chapter} graphicsTier={graphicsTier} />
+
+        {/* Encounter zones */}
+        {chapter !== 'journey_west' && ENCOUNTER_ZONES.map(zone => (
+          <circle
+            key={zone.id}
+            cx={zone.x} cy={zone.y} r={zone.radius}
+            fill={zone.dangerLevel === 'dangerous' ? 'url(#grad-danger-high)' : 'url(#grad-danger-normal)'}
+            className="map-encounter-zone"
+            style={{ pointerEvents: 'none' }}
+          />
+        ))}
+
+        {/* Connections */}
+        <MapConnections
+          locations={chapterLocations}
+          discoveredLocations={discoveredLocations}
+          scoutableLocations={scoutableLocations}
+          currentLocationId={currentLocationId}
+          hoveredLocationId={hoveredLocationId}
+          graphicsTier={graphicsTier}
+          chapter={chapter}
+        />
+
+        {/* Fog of war */}
+        <MapFogOfWar
+          locations={chapterLocations}
+          discoveredLocations={discoveredLocations}
+          scoutableLocations={scoutableLocations}
+          scoutingLocation={scoutingLocation}
+          graphicsTier={graphicsTier}
+        />
+
+        {/* Location markers */}
+        {chapterLocations.map(location => {
+          const isDiscovered = discoveredLocations.has(location.id)
+          const isCurrent = location.id === currentLocationId
+          const isHovered = location.id === hoveredLocationId
+          const isConnected = getLocationById(currentLocationId)?.connectedTo.includes(location.id)
+          const canTravel = isDiscovered && isConnected && !isCurrent && !travelAnimation.active
           const isScoutable = scoutableLocations.has(location.id)
           const isBeingScouted = scoutingLocation === location.id
+          const showQuestion = !isDiscovered && isScoutable
+          const canScout = !isDiscovered && isConnected && !!onScout && !travelAnimation.active && !scoutAnimation
 
-          // Scoutable locations get lighter fog (can see outline)
-          // Hidden locations get full dark fog
+          if (!isDiscovered && !showQuestion) return null
+
           return (
-            <div
-              key={`fog-${location.id}`}
-              className="absolute rounded-full transition-all duration-700"
-              style={{
-                left: `${location.x - 5}%`,
-                top: `${location.y - 5}%`,
-                width: '10%',
-                height: '10%',
-                background: isBeingScouted
-                  ? 'radial-gradient(circle, rgba(212,168,67,0.3) 20%, rgba(0,0,0,0.2) 60%, transparent 80%)'
-                  : isScoutable
-                  ? 'radial-gradient(circle, rgba(0,0,0,0.5) 20%, rgba(0,0,0,0.3) 50%, transparent 75%)'
-                  : 'radial-gradient(circle, rgba(0,0,0,0.9) 30%, transparent 70%)',
-                filter: isBeingScouted ? 'blur(5px)' : 'blur(10px)',
-                opacity: isBeingScouted ? 0.5 : 1,
+            <g
+              key={location.id}
+              transform={`translate(${location.x}, ${location.y})`}
+              style={{ cursor: canTravel ? 'pointer' : canScout ? 'crosshair' : showQuestion ? 'help' : 'default' }}
+              role="button"
+              tabIndex={0}
+              aria-label={isDiscovered ? location.name : 'Unknown location'}
+              onClick={() => {
+                if (canTravel) handleTravel(location.id)
+                else if (canScout) handleScout(location.id)
+                else onLocationClick(location.id)
               }}
-            />
-          )
-        })}
-      </div>
-    )
-  }
-
-  // Render connection lines between locations
-  const renderConnections = () => {
-    const connections: React.ReactNode[] = []
-    const rendered = new Set<string>()
-
-    chapterLocations.forEach(location => {
-      if (!discoveredLocations.has(location.id)) return
-
-      location.connectedTo.forEach(connectedId => {
-        const connectionKey = [location.id, connectedId].sort().join('-')
-        if (rendered.has(connectionKey)) return
-        rendered.add(connectionKey)
-
-        const connected = getLocationById(connectedId)
-        if (!connected) return
-
-        const connectedDiscovered = discoveredLocations.has(connectedId)
-        const connectedScoutable = scoutableLocations.has(connectedId)
-
-        // Skip if target is neither discovered nor scoutable
-        if (!connectedDiscovered && !connectedScoutable) return
-
-        const isCurrentPath =
-          (currentLocationId === location.id && hoveredLocationId === connectedId) ||
-          (currentLocationId === connectedId && hoveredLocationId === location.id)
-
-        // Faint dashed lines to scoutable (undiscovered) locations
-        const isToUndiscovered = !connectedDiscovered && connectedScoutable
-
-        connections.push(
-          <line
-            key={connectionKey}
-            x1={`${location.x}%`}
-            y1={`${location.y}%`}
-            x2={`${connected.x}%`}
-            y2={`${connected.y}%`}
-            stroke={
-              isCurrentPath
-                ? 'var(--pixel-gold-light)'
-                : isToUndiscovered
-                ? '#8b6914'
-                : 'var(--pixel-ui-border)'
-            }
-            strokeWidth={isCurrentPath ? 3 : 1}
-            strokeDasharray={isToUndiscovered ? '3,6' : isCurrentPath ? 'none' : '5,5'}
-            opacity={isToUndiscovered ? 0.3 : isCurrentPath ? 1 : 0.5}
-            className="transition-all duration-300"
-          />
-        )
-      })
-    })
-
-    return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 2 }}>
-        {connections}
-      </svg>
-    )
-  }
-
-  // Render encounter zones
-  const renderEncounterZones = () => {
-    return ENCOUNTER_ZONES.map(zone => {
-      // Only show in appropriate chapter
-      if (chapter === 'journey_west') return null
-
-      return (
-        <div
-          key={zone.id}
-          className="absolute rounded-full pointer-events-none transition-opacity duration-500"
-          style={{
-            left: `${zone.x - zone.radius}%`,
-            top: `${zone.y - zone.radius}%`,
-            width: `${zone.radius * 2}%`,
-            height: `${zone.radius * 2}%`,
-            background: zone.dangerLevel === 'dangerous'
-              ? `radial-gradient(circle, rgba(255,0,0,${encounterFlash ? 0.3 : 0.15}) 0%, transparent 70%)`
-              : `radial-gradient(circle, rgba(255,200,0,${encounterFlash ? 0.2 : 0.1}) 0%, transparent 70%)`,
-            zIndex: 1,
-          }}
-        />
-      )
-    })
-  }
-
-  // Render location markers
-  const renderLocations = () => {
-    return chapterLocations.map(location => {
-      const isDiscovered = discoveredLocations.has(location.id)
-      const isCurrent = location.id === currentLocationId
-      const isHovered = location.id === hoveredLocationId
-      const isConnected = getLocationById(currentLocationId)?.connectedTo.includes(location.id)
-      const canTravel = isDiscovered && isConnected && !isCurrent && !travelAnimation.active
-      const isScoutable = scoutableLocations.has(location.id)
-      const isBeingScouted = scoutingLocation === location.id
-
-      // Undiscovered but scoutable locations show as "?" markers
-      const showQuestionMark = !isDiscovered && isScoutable
-      // Adjacent undiscovered can be scouted
-      const canScout = !isDiscovered && isConnected && onScout && !travelAnimation.active && !scoutAnimation
-
-      if (!isDiscovered && !showQuestionMark) return null
-
-      return (
-        <button
-          key={location.id}
-          className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200
-            ${isCurrent ? 'z-30' : 'z-20'}
-            ${isHovered || isCurrent ? 'scale-125' : 'scale-100'}
-            ${canTravel ? 'cursor-pointer hover:scale-125' : canScout ? 'cursor-crosshair hover:scale-110' : showQuestionMark ? 'cursor-help' : 'cursor-default'}
-          `}
-          style={{
-            left: `${location.x}%`,
-            top: `${location.y}%`,
-          }}
-          onClick={() => {
-            if (canTravel) {
-              handleTravel(location.id)
-            } else if (canScout) {
-              handleScout(location.id)
-            } else {
-              onLocationClick(location.id)
-            }
-          }}
-          onMouseEnter={(e) => isDiscovered && handleLocationHover(location, e)}
-          onMouseLeave={handleLocationLeave}
-          disabled={!isDiscovered && !showQuestionMark && !canScout}
-        >
-          <div className="relative">
-            {/* Location icon */}
-            <span
-              className={`text-2xl sm:text-3xl drop-shadow-lg transition-all ${
-                showQuestionMark ? 'grayscale opacity-50' : ''
-              } ${isBeingScouted ? 'animate-pulse' : ''}`}
-              style={{
-                filter: isCurrent
-                  ? 'drop-shadow(0 0 8px gold)'
-                  : isBeingScouted
-                  ? 'drop-shadow(0 0 6px rgba(212,168,67,0.8)) brightness(1.3)'
-                  : undefined,
-              }}
+              onMouseEnter={(e) => isDiscovered && handleLocationHover(location, e as unknown as React.MouseEvent)}
+              onMouseLeave={handleLocationLeave}
             >
-              {showQuestionMark ? '❓' : (location.icon || LOCATION_ICONS[location.type])}
-            </span>
+              {/* Current location pulse */}
+              {isCurrent && (
+                <circle cx="0" cy="0" r={isRetro ? 3 : 2.5} fill="var(--pixel-gold-light)" opacity="0.3">
+                  <animate attributeName="r" values="2;3.5;2" dur="2s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite" />
+                </circle>
+              )}
 
-            {/* Current location pulse */}
-            {isCurrent && (
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-[var(--pixel-gold-light)] rounded-full animate-ping opacity-50" />
-            )}
+              {/* Scouting pulse */}
+              {isBeingScouted && (
+                <circle cx="0" cy="0" r="2" fill="none" stroke="#d4a843" strokeWidth="0.3" opacity="0.5">
+                  <animate attributeName="r" values="1;4;1" dur="1.2s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.5;0;0.5" dur="1.2s" repeatCount="indefinite" />
+                </circle>
+              )}
 
-            {/* Scouting pulse effect */}
-            {isBeingScouted && (
-              <div
-                className="absolute -inset-2 rounded-full animate-ping"
-                style={{ backgroundColor: 'rgba(212, 168, 67, 0.3)' }}
-              />
-            )}
-
-            {/* Danger indicator */}
-            {isDiscovered && location.dangerLevel !== 'safe' && (
-              <div
-                className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
-                style={{ backgroundColor: DANGER_COLORS[location.dangerLevel] }}
-              />
-            )}
-
-            {/* Travel indicator */}
-            {canTravel && !showQuestionMark && (
-              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-xs text-[var(--pixel-gold-light)] whitespace-nowrap">
-                Click to travel
-              </div>
-            )}
-
-            {/* Scout indicator for undiscovered adjacent */}
-            {canScout && !isBeingScouted && (
-              <div
-                className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap px-1 rounded"
+              {/* Icon */}
+              <foreignObject
+                x={isRetro ? -4 : -6}
+                y={isRetro ? -4 : -6}
+                width={isRetro ? 8 : 12}
+                height={isRetro ? 8 : 12}
                 style={{
-                  color: '#d4a843',
-                  backgroundColor: 'rgba(42, 31, 20, 0.85)',
-                  border: '1px solid #8b6914',
+                  overflow: 'visible',
+                  filter: isCurrent ? 'url(#filter-gold-glow)' : isBeingScouted ? 'url(#filter-scout-pulse)' : undefined,
+                  transform: isHovered || isCurrent ? 'scale(1.2)' : 'scale(1)',
+                  transformOrigin: 'center',
+                  transition: 'transform 0.2s ease',
                 }}
               >
-                Scout ({scoutingCostHours}hr)
-              </div>
-            )}
-          </div>
-        </button>
-      )
-    })
-  }
+                {showQuestion ? (
+                  <MapIcon type="question" tier={graphicsTier} size={isRetro ? 8 : 12} dimmed />
+                ) : (
+                  <MapIcon
+                    type={location.type}
+                    tier={graphicsTier}
+                    size={isRetro ? 8 : 12}
+                    glow={isCurrent}
+                    animated={isCurrent}
+                  />
+                )}
+              </foreignObject>
 
-  // Render player marker
-  const renderPlayer = () => {
-    const isAnimating = travelAnimation.active || isMoving
+              {/* Danger indicator */}
+              {isDiscovered && location.dangerLevel !== 'safe' && (
+                <circle
+                  cx={isRetro ? 3 : 4}
+                  cy={isRetro ? -3 : -4}
+                  r="1"
+                  fill={location.dangerLevel === 'dangerous' ? 'var(--pixel-fire-orange)' : 'var(--pixel-gold-mid)'}
+                />
+              )}
 
-    return (
-      <div
-        className={`absolute transform -translate-x-1/2 -translate-y-1/2 z-40 transition-all ${
-          isAnimating ? 'duration-0' : 'duration-500'
-        }`}
-        style={{
-          left: `${playerPosition.x}%`,
-          top: `${playerPosition.y}%`,
-        }}
-      >
-        <div className="relative">
-          {/* Player icon */}
-          <span
-            className="text-3xl sm:text-4xl drop-shadow-lg"
-            style={{
-              filter: 'drop-shadow(0 0 4px rgba(255,215,0,0.8))',
-              animation: isAnimating ? 'wagonBob 0.3s ease-in-out infinite' : undefined,
-            }}
-          >
-            🐴
-          </span>
+              {/* Travel indicator */}
+              {canTravel && !showQuestion && !isRetro && (
+                <text x="0" y={isRetro ? 6 : 8} textAnchor="middle" fill="var(--pixel-gold-light)" fontSize="1.5" fontFamily="monospace" opacity="0.7">
+                  Travel
+                </text>
+              )}
 
-          {/* Direction indicator during travel */}
-          {isAnimating && (
-            <div
-              className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs text-[var(--pixel-gold-light)]"
-            >
+              {/* Scout indicator */}
+              {canScout && !isBeingScouted && (
+                <g>
+                  <rect x="-6" y="6" width="12" height="3.5" rx="0.5" fill="rgba(42,31,20,0.85)" stroke="#8b6914" strokeWidth="0.2" />
+                  <text x="0" y="8.2" textAnchor="middle" fill="#d4a843" fontSize="1.5" fontFamily="monospace">
+                    Scout ({scoutingCostHours}hr)
+                  </text>
+                </g>
+              )}
+            </g>
+          )
+        })}
+
+        {/* Player marker */}
+        <g
+          transform={`translate(${playerPosition.x}, ${playerPosition.y})`}
+          className={(travelAnimation.active || isMoving) ? 'map-wagon-bob' : undefined}
+          style={{ transition: (travelAnimation.active || isMoving) ? 'none' : 'transform 0.5s ease' }}
+        >
+          <foreignObject x="-6" y="-6" width="12" height="12" style={{ overflow: 'visible' }}>
+            <MapIcon type="player" tier={graphicsTier} size={isRetro ? 10 : 14} glow />
+          </foreignObject>
+          {(travelAnimation.active || isMoving) && !isRetro && (
+            <text x="0" y="-7" textAnchor="middle" fill="var(--pixel-gold-light)" fontSize="1.5" fontFamily="monospace" opacity="0.8">
               Traveling...
-            </div>
+            </text>
           )}
+        </g>
+
+        {/* Animations overlay */}
+        <MapAnimations
+          travelAnimation={travelAnimation}
+          scoutingLocation={scoutingLocation}
+          graphicsTier={graphicsTier}
+          chapter={chapter}
+          locationCoords={locationCoords}
+        />
+
+        {/* Compass */}
+        <MapCompass graphicsTier={graphicsTier} />
+      </svg>
+
+      {/* Chapter title (HTML overlay) */}
+      <div className="absolute top-3 left-3 z-10 pointer-events-none">
+        <div className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-xs">
+          {chapterTitle}
         </div>
-      </div>
-    )
-  }
-
-  // Render tooltip
-  const renderTooltip = () => {
-    if (!tooltip.visible || !tooltip.location) return null
-
-    const location = tooltip.location
-
-    return (
-      <div
-        className="fixed bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] p-3 rounded-lg shadow-xl z-50 max-w-xs"
-        style={{
-          left: `${tooltip.x}px`,
-          top: `${tooltip.y}px`,
-        }}
-      >
-        <div className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-sm mb-1">
-          {location.icon || LOCATION_ICONS[location.type]} {location.name}
-        </div>
-
-        <div className="text-[8px] text-[var(--pixel-ui-text)] mb-2">
-          {location.description}
-        </div>
-
-        <div className="flex items-center gap-2 mb-2">
-          <span
-            className="text-[8px] px-2 py-0.5 rounded"
-            style={{
-              backgroundColor: DANGER_COLORS[location.dangerLevel],
-              color: 'black',
-            }}
-          >
-            {location.dangerLevel.toUpperCase()}
-          </span>
-          <span className="text-[8px] text-[var(--pixel-ui-text)]">
-            {location.type.replace('_', ' ').toUpperCase()}
-          </span>
-        </div>
-
-        {location.services.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {location.services.map(service => (
-              <span key={service} className="text-sm" title={service}>
-                {SERVICE_ICONS[service]}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {location.lore && (
-          <div className="mt-2 pt-2 border-t border-[var(--pixel-ui-border)]">
-            <div className="text-[8px] text-[var(--pixel-forest-light)] italic">
-              Est. {location.lore.founded}
-              {location.lore.peakPopulation > 0 && ` | Peak: ${location.lore.peakPopulation.toLocaleString()}`}
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // Render compass
-  const renderCompass = () => (
-    <div className="absolute top-4 right-4 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] z-10">
-      <div className="text-center">N</div>
-      <div className="flex">
-        <span>W</span>
-        <span className="mx-2 text-[var(--pixel-gold-light)]">✦</span>
-        <span>E</span>
-      </div>
-      <div className="text-center">S</div>
-    </div>
-  )
-
-  // Render chapter title
-  const renderChapterTitle = () => {
-    const titles = {
-      journey_west: 'Chapter 1: Journey West',
-      gold_country: 'Chapter 2: Gold Country',
-      return_visit: 'Chapter 3: The Long Road Home',
-    }
-
-    return (
-      <div className="absolute top-4 left-4 z-10">
-        <div className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-sm">
-          {titles[chapter]}
-        </div>
-        <div className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+        <div className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">
           {discoveredLocations.size} / {chapterLocations.length} locations discovered
         </div>
         {expertiseStat > 0 && (
-          <div className="font-[var(--font-pixel)] text-[7px] mt-0.5" style={{ color: '#8b6914' }}>
+          <div className="font-[var(--font-pixel)] text-[8px] mt-0.5" style={{ color: '#8b6914' }}>
             Scout range: {scoutRange} {scoutRange > 1 ? '(Expertise bonus)' : ''}
           </div>
         )}
       </div>
-    )
-  }
 
-  // Render map background
-  const renderBackground = () => {
-    if (chapter === 'journey_west') {
-      // Wide USA-style background for Chapter 1
-      return (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#3a5a40] via-[#588157] to-[#a3b18a]">
-          {/* Subtle terrain texture */}
-          <div
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30Z' fill='%23000' fill-opacity='0.05'/%3E%3C/svg%3E")`,
-            }}
-          />
-          {/* Mountain range indicator */}
-          <svg className="absolute bottom-0 w-full h-1/4 opacity-30" viewBox="0 0 100 25" preserveAspectRatio="none">
-            <path d="M0,25 L10,15 L25,20 L40,10 L55,18 L70,8 L85,15 L100,12 L100,25 Z" fill="#2d3e23" />
-          </svg>
-        </div>
-      )
-    }
-
-    // Gold Country style background for Chapter 2+
-    return (
-      <div className="absolute inset-0 bg-gradient-to-br from-[#8b7355] via-[#a08060] to-[#c4a574]">
-        {/* Mining terrain texture */}
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='20' cy='20' r='2' fill='%23000'/%3E%3C/svg%3E")`,
-          }}
-        />
-        {/* Sierra foothills */}
-        <svg className="absolute bottom-0 w-full h-1/3 opacity-40" viewBox="0 0 100 30" preserveAspectRatio="none">
-          <path d="M0,30 L5,22 L15,25 L30,15 L45,20 L60,10 L75,18 L90,12 L100,20 L100,30 Z" fill="#6b5040" />
-        </svg>
-      </div>
-    )
-  }
-
-  return (
-    <div className="relative w-full aspect-[16/10] overflow-hidden border-4 border-[var(--pixel-ui-border)] rounded-lg">
-      {/* Map background */}
-      {renderBackground()}
-
-      {/* Grid overlay */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ zIndex: 1 }}>
-        {[...Array(10)].map((_, i) => (
-          <div key={`h-${i}`} className="absolute w-full h-px bg-[var(--pixel-ui-text)]" style={{ top: `${i * 10}%` }} />
-        ))}
-        {[...Array(10)].map((_, i) => (
-          <div key={`v-${i}`} className="absolute h-full w-px bg-[var(--pixel-ui-text)]" style={{ left: `${i * 10}%` }} />
-        ))}
-      </div>
-
-      {/* Encounter zones */}
-      {renderEncounterZones()}
-
-      {/* Fog of war */}
-      {renderFogOfWar()}
-
-      {/* Connection lines */}
-      {renderConnections()}
-
-      {/* Location markers */}
-      {renderLocations()}
-
-      {/* Player marker */}
-      {renderPlayer()}
-
-      {/* Compass */}
-      {renderCompass()}
-
-      {/* Chapter title */}
-      {renderChapterTitle()}
-
-      {/* Tooltip */}
-      {renderTooltip()}
-
-      {/* CSS animations */}
-      <style jsx>{`
-        @keyframes wagonBob {
-          0%, 100% { transform: translate(-50%, -50%) translateY(0); }
-          50% { transform: translate(-50%, -50%) translateY(-3px); }
-        }
-        @keyframes scoutReveal {
-          0% { opacity: 0.3; transform: scale(0.8); }
-          50% { opacity: 1; transform: scale(1.1); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
+      {/* Tooltip (HTML overlay) */}
+      <MapTooltip
+        location={tooltip.location}
+        position={{ x: tooltip.x, y: tooltip.y }}
+        visible={tooltip.visible}
+        graphicsTier={graphicsTier}
+        containerRef={mapContainerRef}
+      />
     </div>
   )
 }
 
 // ============================================
-// MINI MAP COMPONENT (For travel screen)
+// MINI MAP COMPONENT
 // ============================================
 
 interface MiniMapProps {
@@ -757,40 +450,34 @@ interface MiniMapProps {
 
 export function MiniMap({ currentLocationId, discoveredLocations, chapter }: MiniMapProps) {
   const currentLocation = getLocationById(currentLocationId)
-  const connectedLocations = currentLocation ? getConnectedLocations(currentLocationId) : []
+  const connectedLocations = currentLocation
+    ? currentLocation.connectedTo.map(id => getLocationById(id)).filter((l): l is MapLocation => !!l)
+    : []
 
   return (
     <div className="relative w-32 h-24 bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] rounded overflow-hidden">
-      {/* Simple dot representation */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative w-24 h-16">
-          {/* Current location (center) */}
-          <div
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-[var(--pixel-gold-light)] rounded-full animate-pulse"
-          />
+      <svg viewBox="0 0 100 100" className="w-full h-full">
+        {/* Current location (center) */}
+        <circle cx="50" cy="50" r="4" fill="var(--pixel-gold-light)">
+          <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
+        </circle>
 
-          {/* Connected locations */}
-          {connectedLocations.slice(0, 4).map((loc, i) => {
-            const angles = [0, 90, 180, 270]
-            const angle = angles[i] * Math.PI / 180
-            const x = 50 + Math.cos(angle) * 35
-            const y = 50 + Math.sin(angle) * 25
-
-            return (
-              <div
-                key={loc.id}
-                className={`absolute w-2 h-2 rounded-full ${
-                  discoveredLocations.has(loc.id)
-                    ? 'bg-[var(--pixel-ui-text)]'
-                    : 'bg-[var(--pixel-ui-border)]'
-                }`}
-                style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}
-                title={discoveredLocations.has(loc.id) ? loc.name : '???'}
+        {/* Connected locations */}
+        {connectedLocations.slice(0, 4).map((loc, i) => {
+          const angles = [0, 90, 180, 270]
+          const angle = angles[i] * Math.PI / 180
+          const x = 50 + Math.cos(angle) * 30
+          const y = 50 + Math.sin(angle) * 25
+          return (
+            <React.Fragment key={loc.id}>
+              <line x1="50" y1="50" x2={x} y2={y} stroke="var(--pixel-ui-border)" strokeWidth="0.5" opacity="0.3" />
+              <circle cx={x} cy={y} r="3"
+                fill={discoveredLocations.has(loc.id) ? 'var(--pixel-ui-text)' : 'var(--pixel-ui-border)'}
               />
-            )
-          })}
-        </div>
-      </div>
+            </React.Fragment>
+          )
+        })}
+      </svg>
 
       {/* Location name */}
       <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-1 py-0.5">

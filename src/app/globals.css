@@ -399,3 +399,123 @@ body {
 .animate-moonlit-sparkle {
   animation: moonlit-sparkle 3s ease-in-out infinite;
 }
+
+/* ================================================
+   MAP COMPONENT ANIMATIONS & TIER STYLES
+   ================================================ */
+
+/* Active travel path dash animation */
+@keyframes path-dash-flow {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -8; }
+}
+
+.map-path-active {
+  stroke-dasharray: 4, 2;
+  animation: path-dash-flow 0.8s linear infinite;
+}
+
+/* Danger zone encounter pulse */
+@keyframes encounter-pulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.3; }
+}
+
+.map-encounter-zone {
+  animation: encounter-pulse 1.6s ease-in-out infinite;
+}
+
+/* Location discovery pop-in */
+@keyframes location-reveal {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.map-location-reveal {
+  animation: location-reveal 0.5s ease-out;
+}
+
+/* Scouting ripple effect */
+@keyframes scout-ripple {
+  0% { r: 0; opacity: 0.8; }
+  100% { r: 6; opacity: 0; }
+}
+
+.map-scout-ripple {
+  animation: scout-ripple 1.2s ease-out;
+}
+
+/* Compass subtle bob */
+@keyframes compass-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(0.3px); }
+}
+
+.map-compass {
+  animation: compass-bob 6s ease-in-out infinite;
+}
+
+/* Water shimmer for rivers */
+@keyframes water-shimmer-map {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.8; }
+}
+
+.map-water-animated {
+  animation: water-shimmer-map 3s ease-in-out infinite;
+}
+
+/* Wagon bob during travel */
+@keyframes wagon-bob-map {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
+}
+
+.map-wagon-bob {
+  animation: wagon-bob-map 0.3s ease-in-out infinite;
+}
+
+/* Icon subtle animation for ultra tier */
+@keyframes icon-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.1); }
+}
+
+.map-icon-animated {
+  animation: icon-breathe 4s ease-in-out infinite;
+}
+
+/* Fog wisp animation */
+@keyframes fog-wisp {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.1; }
+}
+
+.map-fog-wisp {
+  animation: fog-wisp 4s ease-in-out infinite;
+}
+
+/* ===== Tier visual filter classes ===== */
+
+.map-tier-retro_4bit {
+  image-rendering: pixelated;
+  filter: contrast(1.2) brightness(0.9);
+}
+
+.map-tier-classic_8bit {
+  image-rendering: pixelated;
+  filter: saturate(0.8) contrast(1.1);
+}
+
+.map-tier-enhanced_16bit {
+  filter: saturate(1.1) contrast(1.05);
+}
+
+.map-tier-modern_32bit {
+  filter: saturate(1.2) contrast(1);
+}
+
+.map-tier-ultra_64bit {
+  filter: saturate(1.3) contrast(1.05) brightness(1.05);
+}

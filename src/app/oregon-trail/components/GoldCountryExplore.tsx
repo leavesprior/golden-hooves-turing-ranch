@@ -8,6 +8,16 @@ import {
   getGoldCountryLocation,
   areLocationsAdjacent,
 } from '../data/goldCountryLocations'
+import {
+  MapSVGDefs,
+  MapTerrain,
+  MapIcon,
+  MapFogOfWar,
+  MapConnections,
+  MapCompass,
+  goldCountryIconToType,
+} from './map'
+import { type MapLocation } from '../data/worldMaps'
 
 interface GoldCountryExploreProps {
   onVisitLocation: (locationId: string) => void
@@ -15,6 +25,33 @@ interface GoldCountryExploreProps {
   onOpenSettlement: () => void
   onOpenQuestLog: () => void
   onLeave: () => void
+}
+
+// Map GoldCountryLocation data to MapLocation-compatible shape for shared components
+function toMapLocations(
+  locations: typeof GOLD_COUNTRY_LOCATIONS,
+  positions: Record<string, { x: number; y: number }>,
+): MapLocation[] {
+  return locations.map(loc => ({
+    id: loc.id,
+    name: loc.name,
+    x: positions[loc.id]?.x ?? 50,
+    y: positions[loc.id]?.y ?? 50,
+    type: 'town' as const,
+    chapter: 'gold_country' as const,
+    discovered: true,
+    lore: {
+      founded: '',
+      peakPopulation: 0,
+      historicalNote: loc.fact,
+      easterEggs: [],
+    },
+    services: [],
+    dangerLevel: 'safe' as const,
+    connectedTo: loc.adjacentTo,
+    travelTime: loc.travelDistance,
+    description: loc.description,
+  }))
 }
 
 export function GoldCountryExplore({
@@ -32,7 +69,7 @@ export function GoldCountryExplore({
   const currentLoc = state.currentGoldCountryLocation || 'bobr_cabin'
   const discovered = state.discoveredGoldLocations
 
-  // Map location positions (relative to SVG viewBox)
+  // Map location positions (relative to SVG viewBox 0-100)
   const locationPositions: Record<string, { x: number; y: number }> = useMemo(() => ({
     bobr_cabin: { x: 50, y: 25 },
     angels_camp: { x: 25, y: 55 },
@@ -47,18 +84,29 @@ export function GoldCountryExplore({
     natural_bridges: { x: 40, y: 30 },
   }), [])
 
-  // Determine which locations can be reached from current position
-  const reachableLocations = useMemo(() => {
-    return GOLD_COUNTRY_LOCATIONS.filter(loc =>
-      discovered.includes(loc.id) && loc.id !== currentLoc
-    ).map(loc => loc.id)
-  }, [discovered, currentLoc])
+  // Create MapLocation-compatible objects for shared components
+  const mapLocations = useMemo(
+    () => toMapLocations(GOLD_COUNTRY_LOCATIONS, locationPositions),
+    [locationPositions],
+  )
+
+  // Create discovered/scoutable sets
+  const discoveredSet = useMemo(() => new Set(discovered), [discovered])
+  const scoutableSet = useMemo(() => {
+    const scoutable = new Set<string>()
+    discovered.forEach(locId => {
+      const loc = GOLD_COUNTRY_LOCATIONS.find(l => l.id === locId)
+      if (!loc) return
+      loc.adjacentTo.forEach(adjId => {
+        if (!discovered.includes(adjId)) scoutable.add(adjId)
+      })
+    })
+    return scoutable
+  }, [discovered])
 
   const handleLocationClick = (locationId: string) => {
     if (!discovered.includes(locationId)) return
-
     if (locationId === currentLoc) {
-      // Already here, visit directly
       onVisitLocation(locationId)
     } else {
       setSelectedLocation(locationId)
@@ -69,10 +117,8 @@ export function GoldCountryExplore({
     if (!selectedLocation) return
     const isAdjacent = areLocationsAdjacent(currentLoc, selectedLocation)
     if (isAdjacent) {
-      // Adjacent: go directly, no travel encounter
       onVisitLocation(selectedLocation)
     } else {
-      // Distant: trigger travel phase with potential encounters
       onTravel(selectedLocation)
     }
     setSelectedLocation(null)
@@ -123,17 +169,27 @@ export function GoldCountryExplore({
         {/* Map Area */}
         <div className="flex-1 p-4">
           <div className="relative bg-green-950/20 border border-green-700/40 rounded-lg overflow-hidden aspect-[4/3]">
-            {/* Map background grid */}
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 75" preserveAspectRatio="xMidYMid meet">
+              {/* SVG Defs with CRT green filter */}
+              <MapSVGDefs graphicsTier="enhanced_16bit" chapter="gold_country" />
+
+              {/* Green-tinted background */}
+              <rect x="0" y="0" width="100" height="75" fill="rgba(0, 20, 0, 0.3)" />
+
               {/* Grid lines */}
               {Array.from({ length: 10 }).map((_, i) => (
                 <React.Fragment key={i}>
-                  <line x1={i * 10} y1={0} x2={i * 10} y2={100} stroke="rgba(34,197,94,0.1)" strokeWidth="0.2" />
-                  <line x1={0} y1={i * 10} x2={100} y2={i * 10} stroke="rgba(34,197,94,0.1)" strokeWidth="0.2" />
+                  <line x1={i * 10} y1={0} x2={i * 10} y2={75} stroke="rgba(34,197,94,0.1)" strokeWidth="0.2" />
+                  <line x1={0} y1={i * 7.5} x2={100} y2={i * 7.5} stroke="rgba(34,197,94,0.1)" strokeWidth="0.2" />
                 </React.Fragment>
               ))}
 
-              {/* Connection lines between discovered adjacent locations */}
+              {/* Terrain (visible through green CRT overlay) */}
+              <g filter="url(#filter-crt-green)" opacity="0.4">
+                <MapTerrain chapter="gold_country" graphicsTier="enhanced_16bit" />
+              </g>
+
+              {/* Connections between discovered adjacent locations */}
               {GOLD_COUNTRY_LOCATIONS.filter(loc => discovered.includes(loc.id)).map(loc =>
                 loc.adjacentTo
                   .filter(adjId => discovered.includes(adjId))
@@ -141,21 +197,34 @@ export function GoldCountryExplore({
                     const pos1 = locationPositions[loc.id]
                     const pos2 = locationPositions[adjId]
                     if (!pos1 || !pos2) return null
+                    const key = [loc.id, adjId].sort().join('-')
                     return (
                       <line
-                        key={`${loc.id}-${adjId}`}
+                        key={key}
                         x1={pos1.x} y1={pos1.y}
                         x2={pos2.x} y2={pos2.y}
-                        stroke="rgba(34,197,94,0.2)"
+                        stroke="rgba(34,197,94,0.25)"
                         strokeWidth="0.3"
                         strokeDasharray="1,1"
                       />
                     )
                   })
               )}
+
+              {/* Fog of war for undiscovered locations */}
+              <MapFogOfWar
+                locations={mapLocations}
+                discoveredLocations={discoveredSet}
+                scoutableLocations={scoutableSet}
+                scoutingLocation={null}
+                graphicsTier="enhanced_16bit"
+              />
+
+              {/* Compass */}
+              <MapCompass graphicsTier="enhanced_16bit" />
             </svg>
 
-            {/* Location markers */}
+            {/* Location markers (HTML overlay for click handling) */}
             {GOLD_COUNTRY_LOCATIONS.map(loc => {
               const pos = locationPositions[loc.id]
               if (!pos) return null
@@ -185,22 +254,31 @@ export function GoldCountryExplore({
                     <div className="absolute inset-0 -m-2 rounded-full border-2 border-amber-400 animate-ping opacity-50" />
                   )}
 
-                  {/* Marker */}
+                  {/* SVG icon marker */}
                   <div className={`
-                    w-8 h-8 rounded-full flex items-center justify-center text-sm
+                    w-8 h-8 rounded-full flex items-center justify-center
                     border-2 transition-all duration-200
                     ${isCurrent
-                      ? 'bg-amber-900/80 border-amber-400 text-amber-300 scale-125 shadow-[0_0_10px_rgba(251,191,36,0.4)]'
+                      ? 'bg-amber-900/80 border-amber-400 scale-125 shadow-[0_0_10px_rgba(251,191,36,0.4)]'
                       : isSelected
-                        ? 'bg-green-900/80 border-green-400 text-green-300 scale-110 shadow-[0_0_8px_rgba(34,197,94,0.4)]'
+                        ? 'bg-green-900/80 border-green-400 scale-110 shadow-[0_0_8px_rgba(34,197,94,0.4)]'
                         : isHovered
-                          ? 'bg-green-950/80 border-green-500 text-green-400 scale-110'
+                          ? 'bg-green-950/80 border-green-500 scale-110'
                           : isDiscovered
-                            ? 'bg-green-950/60 border-green-700 text-green-500'
-                            : 'bg-gray-900/40 border-gray-700 text-gray-600'
+                            ? 'bg-green-950/60 border-green-700'
+                            : 'bg-gray-900/40 border-gray-700'
                     }
                   `}>
-                    {isDiscovered ? loc.icon : '?'}
+                    {isDiscovered ? (
+                      <MapIcon
+                        type={goldCountryIconToType(loc.icon)}
+                        tier="enhanced_16bit"
+                        size={16}
+                        glow={isCurrent}
+                      />
+                    ) : (
+                      <MapIcon type="question" tier="enhanced_16bit" size={14} dimmed />
+                    )}
                   </div>
 
                   {/* Label */}
@@ -273,7 +351,10 @@ export function GoldCountryExplore({
             <h3 className="text-amber-400 font-pixel text-xs tracking-wider mb-2">CURRENT LOCATION</h3>
             {currentLocData && (
               <>
-                <p className="text-green-300 font-pixel text-sm">{currentLocData.icon} {currentLocData.name}</p>
+                <div className="flex items-center gap-2">
+                  <MapIcon type={goldCountryIconToType(currentLocData.icon)} tier="enhanced_16bit" size={18} />
+                  <p className="text-green-300 font-pixel text-sm">{currentLocData.name}</p>
+                </div>
                 <p className="text-green-600 text-xs font-mono mt-1">{currentLocData.description}</p>
                 <button
                   onClick={() => onVisitLocation(currentLoc)}
@@ -297,7 +378,10 @@ export function GoldCountryExplore({
           {hoveredLocData && hoveredLocation !== currentLoc && (
             <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-3">
               <h3 className="text-green-500 font-pixel text-xs tracking-wider mb-2">LOCATION INFO</h3>
-              <p className="text-green-300 text-sm">{hoveredLocData.icon} {hoveredLocData.name}</p>
+              <div className="flex items-center gap-2">
+                <MapIcon type={goldCountryIconToType(hoveredLocData.icon)} tier="enhanced_16bit" size={16} />
+                <p className="text-green-300 text-sm">{hoveredLocData.name}</p>
+              </div>
               <p className="text-green-700 text-xs font-mono mt-1">{hoveredLocData.driveTime}</p>
               <p className="text-green-600 text-xs mt-1">{hoveredLocData.fact}</p>
               <div className="mt-2 flex flex-wrap gap-1">
