@@ -2,17 +2,11 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  const proto = request.headers.get('x-forwarded-proto')
   const host = request.headers.get('host') || ''
-
-  // Skip HTTPS redirect for localhost/development
   const isLocalhost = host.startsWith('localhost') || host.startsWith('127.0.0.1')
 
-  if (proto === 'http' && !isLocalhost) {
-    const url = request.nextUrl.clone()
-    url.protocol = 'https'
-    return NextResponse.redirect(url, 301)
-  }
+  // Note: HTTPS redirect is handled by Railway's edge proxy.
+  // Doing it here breaks Railway's internal healthcheck (HTTP with x-forwarded-proto: http).
 
   const response = NextResponse.next()
 
