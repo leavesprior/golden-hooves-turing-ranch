@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useCallback, useEffect } from 'react'
+import { useEscapeKey } from '../lib/useEscapeKey'
 import { useCharacter, CHARACTER_TRAITS, BACKGROUND_DESCRIPTIONS, type CharacterBackground, type StatName } from '../characterContext'
 import { useOregonTrail } from '../oregonTrailContext'
 import { getAbsurdItem, type AbsurdItem } from '../data/absurdItems'
@@ -112,6 +113,7 @@ export function CharacterSheet({
   inventory = [],
   activeEffects = [],
 }: CharacterSheetProps) {
+  useEscapeKey(onClose)
   const { state: charState, getStat, getStatDescription } = useCharacter()
   const { state: trailState } = useOregonTrail()
 

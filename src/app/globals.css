@@ -192,6 +192,17 @@ body {
   box-shadow: inset 0 2px 0 rgba(0,0,0,0.3);
 }
 
+/* Focus-visible styles for keyboard navigation accessibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--pixel-gold-mid);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 12px;

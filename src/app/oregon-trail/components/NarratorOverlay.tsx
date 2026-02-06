@@ -36,6 +36,9 @@ export function NarratorOverlay({ position = 'bottom', autoHide = true, showReli
 
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-label="Narrator commentary"
       className={`fixed z-40 max-w-md transition-all duration-500 ${positionClasses[position]} ${
         isHiding ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'
       }`}
@@ -115,7 +118,7 @@ export function NarratorDialogue({ text, responses, onDismiss }: NarratorDialogu
   const { state } = useNarrator()
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label="Narrator dialogue">
       <div className="bg-gray-900 border-2 border-purple-600 rounded-lg max-w-lg w-full p-6">
         {/* Narrator Header */}
         <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-700">

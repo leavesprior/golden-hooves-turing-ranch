@@ -80,7 +80,6 @@ export function initAudio(): boolean {
     state.sfxGain.gain.value = 0.7
     state.sfxGain.connect(state.masterGain)
 
-    console.log('AudioManager: Initialized (Electro Swing Edition)')
     return true
   } catch (e) {
     console.error('AudioManager: Failed to initialize', e)
@@ -169,7 +168,6 @@ function playCurrentTrack(): void {
   if (!state.playlistActive) return
 
   const track = state.trackQueue[state.currentTrackIndex]
-  console.log(`AudioManager: Playing track ${state.currentTrackIndex + 1}/12 - ${track}`)
 
   // Crossfade: fade out over 2s, start new track
   if (state.musicGain && state.isPlaying) {
@@ -1792,7 +1790,6 @@ function playFalloutTrack(track: FalloutTrack): void {
   state.currentStyle = 'silent' // Clear synth style indicator
   state.isPlaying = true
 
-  console.log(`AudioManager: Fallout 2 - Now playing: ${track.title}`)
 }
 
 function advanceFalloutTrack(): void {

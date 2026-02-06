@@ -7,7 +7,8 @@
  * Remembers settings in localStorage.
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useEscapeKey } from '../lib/useEscapeKey'
 import * as AudioManager from '../lib/audioManager'
 
 type SoundtrackMode = 'synth' | 'parov' | 'western' | 'fallout'
@@ -60,13 +61,18 @@ export function VolumeControl() {
     }
   }, [])
 
-  // Save settings when they change
+  // Save settings when they change (debounced to avoid thrashing localStorage)
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    } catch {
-      // Storage not available
-    }
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+      } catch {
+        // Storage not available
+      }
+    }, 300)
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
   }, [state])
 
   const handleMuteToggle = useCallback(() => {
@@ -81,6 +87,8 @@ export function VolumeControl() {
       return { ...prev, isMuted: newMuted }
     })
   }, [prevMasterVolume])
+
+  useEscapeKey(useCallback(() => setIsOpen(false), []))
 
   const handleSoundtrackChange = useCallback((newMode: SoundtrackMode) => {
     setState(prev => {

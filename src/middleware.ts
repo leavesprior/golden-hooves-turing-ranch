@@ -8,6 +8,15 @@ export function middleware(request: NextRequest) {
   // Note: HTTPS redirect is handled by Railway's edge proxy.
   // Doing it here breaks Railway's internal healthcheck (HTTP with x-forwarded-proto: http).
 
+  // Canonical www → non-www redirect
+  if (host.startsWith('www.')) {
+    const canonicalHost = host.replace(/^www\./, '')
+    const url = request.nextUrl.clone()
+    url.host = canonicalHost
+    url.protocol = 'https'
+    return NextResponse.redirect(url, 301)
+  }
+
   const response = NextResponse.next()
 
   // Security headers (applied via middleware since standalone mode
@@ -19,7 +28,7 @@ export function middleware(request: NextRequest) {
     response.headers.set('X-XSS-Protection', '1; mode=block')
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
     response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-    response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; upgrade-insecure-requests")
+    response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; frame-ancestors 'none'; upgrade-insecure-requests")
   }
 
   return response

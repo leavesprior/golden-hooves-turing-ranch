@@ -18,7 +18,6 @@ import {
   PREFERRED_MODELS,
 } from './types';
 
-const OLLAMA_BASE_URL = 'http://localhost:11434';
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 const REQUEST_TIMEOUT = 60000; // 60 seconds for generation
 
@@ -26,6 +25,9 @@ const REQUEST_TIMEOUT = 60000; // 60 seconds for generation
 // Auto-detect production: if we're not on localhost, always use proxy mode
 const isProxyMode = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_LLM_MODE === 'proxy')
   || (typeof window !== 'undefined' && window.location.hostname !== 'localhost');
+
+// Only define direct Ollama URL in local dev - avoids http:// string in production bundles
+const OLLAMA_BASE_URL = isProxyMode ? '' : 'http://localhost:11434';
 
 class OllamaService {
   private status: OllamaServiceStatus = {

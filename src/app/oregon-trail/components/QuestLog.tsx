@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useEscapeKey } from '../lib/useEscapeKey'
 import { useOregonTrail } from '../oregonTrailContext'
 import {
   getAllQuests,
@@ -18,6 +19,7 @@ type QuestTab = 'active' | 'completed' | 'investigation'
 type CategoryFilter = 'all' | QuestCategory
 
 export function QuestLog({ onClose }: QuestLogProps) {
+  useEscapeKey(onClose)
   const { state } = useOregonTrail()
   const [activeTab, setActiveTab] = useState<QuestTab>('active')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')

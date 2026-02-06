@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, lazy, Suspense } from 'react'
 import Link from 'next/link'
 import { OregonTrailProvider, useOregonTrail, type GamePhase } from './oregonTrailContext'
 import { KarmaToastContainer } from '@/components/karma'
@@ -55,18 +55,18 @@ import { getRandomTwainQuote, getEasterEggsForLocation } from './data/easterEggs
 
 // Ranch Management System (Lords II-style)
 import { RanchProvider, useRanch } from './ranchContext'
-import { RanchManagement } from './components/RanchManagement'
 
 // Settlement System (Gold Country Endgame)
 import { SettlementProvider, useSettlement } from './settlementContext'
-import { SettlementHub } from './components/SettlementHub'
-import { SettlementVictory } from './components/SettlementVictory'
 
-// Gold Country Free-Roam (Fallout 2-style)
-import { GoldCountryExplore } from './components/GoldCountryExplore'
-import { GoldCountryLocation } from './components/GoldCountryLocation'
-import { GoldCountryTravel } from './components/GoldCountryTravel'
-import { QuestLog } from './components/QuestLog'
+// Lazy-loaded modules (code-split for faster initial load)
+const RanchManagement = lazy(() => import('./components/RanchManagement').then(m => ({ default: m.RanchManagement })))
+const SettlementHub = lazy(() => import('./components/SettlementHub').then(m => ({ default: m.SettlementHub })))
+const SettlementVictory = lazy(() => import('./components/SettlementVictory').then(m => ({ default: m.SettlementVictory })))
+const GoldCountryExplore = lazy(() => import('./components/GoldCountryExplore').then(m => ({ default: m.GoldCountryExplore })))
+const GoldCountryLocation = lazy(() => import('./components/GoldCountryLocation').then(m => ({ default: m.GoldCountryLocation })))
+const GoldCountryTravel = lazy(() => import('./components/GoldCountryTravel').then(m => ({ default: m.GoldCountryTravel })))
+const QuestLog = lazy(() => import('./components/QuestLog').then(m => ({ default: m.QuestLog })))
 
 // Title Screen and Chapter System
 import { TitleScreen } from './components/TitleScreen'
@@ -105,6 +105,7 @@ import { useSaveLoad } from '@/lib/saveLoadContext'
 import { useAuth } from '@/lib/authContext'
 
 // NEW: Golden Hooves Enhancements
+import { GameErrorBoundary } from './components/GameErrorBoundary'
 import HunkerDown from './components/HunkerDown'
 import GoldCountryBooking from './components/GoldCountryBooking'
 import { VolumeControl } from './components/VolumeControl'
@@ -2023,11 +2024,7 @@ function TravelScreen() {
             currentLandmark={state.currentLandmark}
             milesRemaining={2000 - state.distance}
             partySize={state.party.length}
-            onHunkerDown={(days) => {
-              // Rest the party for specified days (heal and consume food)
-              // This is a simple integration - could be expanded
-              console.log(`Hunkering down for ${days} days`)
-            }}
+            onHunkerDown={() => {}}
             graphicsTier={state.graphicsTier}
           />
         </div>
@@ -2413,11 +2410,21 @@ function WorldMapScreen() {
 }
 
 // Ranch Management Screen (Lords II-style building)
+function LazyFallback() {
+  return (
+    <div className="min-h-screen bg-stone-950 flex items-center justify-center">
+      <div className="text-amber-400 font-pixel text-sm animate-pulse">Loading...</div>
+    </div>
+  )
+}
+
 function RanchManagementScreen() {
   const { closeRanchManagement } = useOregonTrail()
 
   return (
-    <RanchManagement onClose={closeRanchManagement} />
+    <Suspense fallback={<LazyFallback />}>
+      <RanchManagement onClose={closeRanchManagement} />
+    </Suspense>
   )
 }
 
@@ -2532,9 +2539,7 @@ function GoldCountryArrivalScreen() {
           outlawsCaught={outlawsCaught}
           daysOnTrail={state.daysOnTrail}
           onClose={() => setShowBooking(false)}
-          onBookingIntent={(code) => {
-            console.log('Booking intent with code:', code)
-          }}
+          onBookingIntent={() => {}}
           graphicsTier={state.graphicsTier}
         />
       )}
@@ -2547,10 +2552,12 @@ function SettlementScreen() {
   const { leaveSettlement, completeSettlement, returnToGoldCountryMap } = useOregonTrail()
 
   return (
-    <SettlementHub
-      onLeave={returnToGoldCountryMap}
-      onComplete={completeSettlement}
-    />
+    <Suspense fallback={<LazyFallback />}>
+      <SettlementHub
+        onLeave={returnToGoldCountryMap}
+        onComplete={completeSettlement}
+      />
+    </Suspense>
   )
 }
 
@@ -2559,7 +2566,9 @@ function SettlementVictoryScreen() {
   const { resetGame } = useOregonTrail()
 
   return (
-    <SettlementVictory onPlayAgain={resetGame} />
+    <Suspense fallback={<LazyFallback />}>
+      <SettlementVictory onPlayAgain={resetGame} />
+    </Suspense>
   )
 }
 
@@ -2575,7 +2584,7 @@ function GoldCountryExploreScreen() {
   const [showQuestLog, setShowQuestLog] = useState(false)
 
   return (
-    <>
+    <Suspense fallback={<LazyFallback />}>
       <GoldCountryExplore
         onVisitLocation={(locationId) => {
           visitGoldCountryLocation(locationId)
@@ -2590,7 +2599,7 @@ function GoldCountryExploreScreen() {
         onLeave={leaveSettlement}
       />
       {showQuestLog && <QuestLog onClose={() => setShowQuestLog(false)} />}
-    </>
+    </Suspense>
   )
 }
 
@@ -2601,13 +2610,15 @@ function GoldCountryLocationScreen() {
   const locationId = state.currentGoldCountryLocation || 'bobr_cabin'
 
   return (
-    <GoldCountryLocation
-      locationId={locationId}
-      onReturnToMap={returnToGoldCountryMap}
-      onOpenSettlement={() => {
-        setPhase('settlement')
-      }}
-    />
+    <Suspense fallback={<LazyFallback />}>
+      <GoldCountryLocation
+        locationId={locationId}
+        onReturnToMap={returnToGoldCountryMap}
+        onOpenSettlement={() => {
+          setPhase('settlement')
+        }}
+      />
+    </Suspense>
   )
 }
 
@@ -2619,14 +2630,16 @@ function GoldCountryTravelScreen() {
   const toId = state.travelingToLocation || 'bobr_cabin'
 
   return (
-    <GoldCountryTravel
-      fromLocationId={fromId}
-      toLocationId={toId}
-      onArrive={(locationId) => {
-        arriveAtGoldCountryLocation(locationId)
-      }}
-      onReturnToMap={returnToGoldCountryMap}
-    />
+    <Suspense fallback={<LazyFallback />}>
+      <GoldCountryTravel
+        fromLocationId={fromId}
+        toLocationId={toId}
+        onArrive={(locationId) => {
+          arriveAtGoldCountryLocation(locationId)
+        }}
+        onReturnToMap={returnToGoldCountryMap}
+      />
+    </Suspense>
   )
 }
 
@@ -2866,34 +2879,32 @@ function OregonTrailGame() {
 // Main page export with all providers
 export default function OregonTrailPage() {
   return (
-    <KarmaWalletProvider>
-      <OregonTrailProvider>
-        <ChapterProvider
-          onChapterComplete={(chapter) => {
-            console.log(`Chapter ${chapter} complete!`)
-          }}
-          onEasterEggFound={(egg) => {
-            console.log(`Easter egg found: ${egg.title}`)
-          }}
-        >
-          <RanchProvider>
-            <SettlementProvider>
-              <CharacterProvider>
-                <ReputationProvider>
-                  <NarratorProvider>
-                    <MysteryProvider>
-                      <NPCProvider>
-                        <OregonTrailGame />
-                        <VolumeControl />
-                      </NPCProvider>
-                    </MysteryProvider>
-                  </NarratorProvider>
-                </ReputationProvider>
-              </CharacterProvider>
-            </SettlementProvider>
-          </RanchProvider>
-        </ChapterProvider>
-      </OregonTrailProvider>
-    </KarmaWalletProvider>
+    <GameErrorBoundary fallbackLabel="The wagon broke down!">
+      <KarmaWalletProvider>
+        <OregonTrailProvider>
+          <ChapterProvider
+            onChapterComplete={() => {}}
+            onEasterEggFound={() => {}}
+          >
+            <RanchProvider>
+              <SettlementProvider>
+                <CharacterProvider>
+                  <ReputationProvider>
+                    <NarratorProvider>
+                      <MysteryProvider>
+                        <NPCProvider>
+                          <OregonTrailGame />
+                          <VolumeControl />
+                        </NPCProvider>
+                      </MysteryProvider>
+                    </NarratorProvider>
+                  </ReputationProvider>
+                </CharacterProvider>
+              </SettlementProvider>
+            </RanchProvider>
+          </ChapterProvider>
+        </OregonTrailProvider>
+      </KarmaWalletProvider>
+    </GameErrorBoundary>
   )
 }

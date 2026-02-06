@@ -143,13 +143,8 @@ export function loadGame(): SavedGameState | null {
     let state: SavedGameState = JSON.parse(saved)
 
     // Version check for compatibility
-    if (!state.version) {
-      console.warn('GamePersistence: Old save format detected')
-    }
-
     // Migrate if needed (pre-2.0.0 saves have old Oregon Trail landmarks)
     if (!state.version || state.version < '2.0.0') {
-      console.log('GamePersistence: Migrating save from', state.version || 'unknown', 'to 2.0.0')
       state = migrateSave(state)
       // Re-save migrated state
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
@@ -157,7 +152,6 @@ export function loadGame(): SavedGameState | null {
 
     return state
   } catch (e) {
-    console.error('GamePersistence: Failed to load', e)
     return null
   }
 }
@@ -197,10 +191,8 @@ export function saveGame(state: Partial<SavedGameState>): boolean {
     }
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fullState))
-    console.log('GamePersistence: Saved at', new Date().toLocaleTimeString())
     return true
-  } catch (e) {
-    console.error('GamePersistence: Failed to save', e)
+  } catch {
     return false
   }
 }
@@ -212,7 +204,6 @@ export function deleteSave(): boolean {
   if (typeof window === 'undefined') return false
   try {
     localStorage.removeItem(STORAGE_KEY)
-    console.log('GamePersistence: Save deleted')
     return true
   } catch {
     return false

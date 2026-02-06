@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import { useEscapeKey } from '../lib/useEscapeKey'
 import { useMystery, type CollectedClue } from '../mysteryContext'
 import { type OutlawTraits, type Outlaw, TRAIT_DISPLAY_NAMES, TRAIT_VALUE_DISPLAY, OUTLAWS, findOutlawsByTraits, getOutlaw } from '../data/outlaws'
 
@@ -21,6 +22,7 @@ function groupCluesByOutlaw(clues: CollectedClue[]): Record<string, CollectedClu
 }
 
 export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJournalProps) {
+  useEscapeKey(onClose)
   const { state: mysteryState, getNarrowedDown } = useMystery()
   const [activeTab, setActiveTab] = useState<'bounties' | 'clues' | 'evidence' | 'suspects'>('bounties')
 
@@ -31,7 +33,7 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
   const cluesByLocation = groupCluesByLocation(mysteryState.collectedClues)
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-label="Clue Journal">
       <div className="bg-gray-900 border-2 border-amber-700 rounded-lg w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
         style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0 40L40 0H20L0 20V40zM40 40V20L20 40H40z\' fill=\'%23000\' fill-opacity=\'0.1\'/%3E%3C/svg%3E")', backgroundColor: '#1a1612' }}
       >
