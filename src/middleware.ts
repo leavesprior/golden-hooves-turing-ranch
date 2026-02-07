@@ -11,9 +11,7 @@ export function middleware(request: NextRequest) {
   // Canonical www → non-www redirect
   if (host.startsWith('www.')) {
     const canonicalHost = host.replace(/^www\./, '')
-    const url = request.nextUrl.clone()
-    url.host = canonicalHost
-    url.protocol = 'https'
+    const url = new URL(request.nextUrl.pathname + request.nextUrl.search, `https://${canonicalHost}`)
     return NextResponse.redirect(url, 301)
   }
 
