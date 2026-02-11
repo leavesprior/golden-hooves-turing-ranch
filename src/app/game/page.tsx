@@ -38,10 +38,10 @@ export default function GamePage() {
 
   const handleMenuSelect = (index: number) => {
     switch (index) {
-      case 0: // New Game
-        window.location.href = '/adventure/play'
+      case 0: // New Game — character creation first
+        window.location.href = '/adventure/character-creation'
         break
-      case 1: // Continue
+      case 1: // Continue — straight to adventure
         window.location.href = '/adventure/play'
         break
       case 2: // At the Ranch
@@ -54,7 +54,7 @@ export default function GamePage() {
   }
 
   const menuItems = [
-    { label: 'NEW GAME', icon: '/gold-nuggets.png', desc: 'Begin Tobias\'s journey' },
+    { label: 'NEW GAME', icon: '/gold-nuggets.png', desc: 'Forge your destiny' },
     { label: 'CONTINUE', icon: '/leather-journal.png', desc: 'Resume your adventure' },
     { label: 'AT THE RANCH', icon: '/pegasus-logo.webp', desc: 'QR treasure hunt' },
     { label: 'ABOUT', icon: '/treasure-map.png', desc: 'The story so far' },

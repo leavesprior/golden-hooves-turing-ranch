@@ -273,8 +273,20 @@ const initialState: CharacterState = {
   skillCheckHistory: []
 }
 
+const STORAGE_KEY = 'bobr_ot_character'
+
 export function CharacterProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<CharacterState>(initialState)
+  const [state, setState] = useState<CharacterState>(() => {
+    if (typeof window === 'undefined') return initialState
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const character = JSON.parse(saved) as Character
+        return { ...initialState, character }
+      }
+    } catch {}
+    return initialState
+  })
 
   // Create a new character
   const createCharacter = useCallback((name: string, background: CharacterBackground) => {
@@ -307,6 +319,11 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       ...prev,
       character
     }))
+
+    // Persist to localStorage so character survives page navigation
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(character))
+    } catch {}
   }, [])
 
   // Allocate additional stat points

@@ -12,7 +12,7 @@
  */
 
 // Updated discount tiers matching the plan
-export type DiscountTier = 'bronze' | 'silver' | 'gold' | 'platinum'
+export type DiscountTier = 'welcome' | 'bronze' | 'silver' | 'gold' | 'platinum'
 
 export interface TierInfo {
   minClues: number
@@ -27,6 +27,17 @@ export interface TierInfo {
 }
 
 export const DISCOUNT_TIERS: Record<DiscountTier, TierInfo> = {
+  welcome: {
+    minClues: 0,
+    minCasesSolved: 0,
+    requiresOutlawCaught: false,
+    discount: 5,
+    maxDiscount: 5,
+    validDays: 14,
+    prefix: 'W',
+    displayName: 'Welcome Prospector',
+    badge: '\u{1F331}'
+  },
   bronze: {
     minClues: 3,
     minCasesSolved: 0,
@@ -223,12 +234,15 @@ export interface ParsedCode {
 }
 
 /**
- * Get qualifying tier based on clues, cases solved, and outlaw status
+ * Get qualifying tier based on clues, cases solved, and outlaw status.
+ * The 'welcome' tier is special — awarded for early engagement (play time or location visits).
+ * Pass locationsVisited >= 2 OR playTimeMinutes >= 5 to qualify for welcome.
  */
 export function getQualifyingTier(
   cluesCollected: number,
   casesSolved: number = 0,
-  outlawCaught: boolean = false
+  outlawCaught: boolean = false,
+  welcomeEarned: boolean = false
 ): DiscountTier | null {
   if (
     cluesCollected >= DISCOUNT_TIERS.platinum.minClues &&
@@ -244,7 +258,19 @@ export function getQualifyingTier(
     casesSolved >= DISCOUNT_TIERS.silver.minCasesSolved
   ) return 'silver'
   if (cluesCollected >= DISCOUNT_TIERS.bronze.minClues) return 'bronze'
+  if (welcomeEarned) return 'welcome'
   return null
+}
+
+/**
+ * Check if player qualifies for the Welcome Prospector early reward.
+ * Criteria: visited 2+ locations OR played for 5+ minutes.
+ */
+export function checkWelcomeEligibility(
+  locationsVisited: number,
+  playTimeMinutes: number
+): boolean {
+  return locationsVisited >= 2 || playTimeMinutes >= 5
 }
 
 /**
@@ -452,7 +478,7 @@ export function getNextTierProgress(
   message: string
 } {
   const currentTier = getQualifyingTier(cluesCollected, casesSolved, outlawCaught)
-  const tiers: DiscountTier[] = ['bronze', 'silver', 'gold', 'platinum']
+  const tiers: DiscountTier[] = ['welcome', 'bronze', 'silver', 'gold', 'platinum']
   const currentIndex = currentTier ? tiers.indexOf(currentTier) : -1
 
   if (currentIndex >= tiers.length - 1) {
