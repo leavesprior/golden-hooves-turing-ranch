@@ -1011,6 +1011,83 @@ export default function Home() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════ */}
+      {/*  SEO CONTENT — Crawlable property details                 */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <section className="py-12 px-4 bg-[var(--pixel-bg-dark)] border-t border-[var(--pixel-ui-border)]/20">
+        <div className="max-w-4xl mx-auto font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] leading-relaxed space-y-8 opacity-80">
+
+          <div>
+            <h2 className="text-[var(--pixel-gold-light)] text-[10px] sm:text-xs mb-3">About Back of Beyond Ranch</h2>
+            <p className="mb-2">
+              Back of Beyond Ranch is a 10-acre mountain vacation rental in West Point, Calaveras County, in the heart of California&apos;s Gold Country. The cabin sleeps up to 12 guests across 4 bedrooms and 3 bathrooms, making it ideal for family reunions, group getaways, and multi-family vacations.
+            </p>
+            <p>
+              The property features a solar-powered Level 2 EV charger (220V), one of the few vacation rentals in the Sierra foothills to offer dedicated electric vehicle charging powered by on-site solar panels. Guests can charge overnight and reach three ski resorts on a single charge.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-[var(--pixel-gold-light)] text-[9px] sm:text-[10px] mb-2">Nearby Ski Resorts</h3>
+            <ul className="space-y-1 list-disc list-inside">
+              <li>Kirkwood Mountain Resort &mdash; 48 miles, approximately 45 minutes</li>
+              <li>Bear Valley Mountain Resort &mdash; 57 miles, approximately 1 hour</li>
+              <li>Sierra-at-Tahoe &mdash; 75 miles, approximately 1.5 hours</li>
+            </ul>
+            <p className="mt-2">All three ski resorts are reachable within a single EV charge from the ranch&apos;s solar-powered charger.</p>
+          </div>
+
+          <div>
+            <h3 className="text-[var(--pixel-gold-light)] text-[9px] sm:text-[10px] mb-2">Ranch Amenities</h3>
+            <ul className="grid grid-cols-2 sm:grid-cols-3 gap-1 list-disc list-inside">
+              <li>Solar-powered Level 2 EV charger</li>
+              <li>Hot tub under the stars</li>
+              <li>Game room with pool table</li>
+              <li>Fire pit &amp; BBQ area</li>
+              <li>Ranch animals (horses, emus, sheep, chickens)</li>
+              <li>Fishing lakes on property</li>
+              <li>Mountain bikes</li>
+              <li>Canoe</li>
+              <li>Hiking trails</li>
+              <li>Pet friendly</li>
+              <li>Minutes from Gold Country vineyards</li>
+              <li>Near Moaning Cavern &amp; Calaveras Big Trees</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-[var(--pixel-gold-light)] text-[9px] sm:text-[10px] mb-2">Frequently Asked Questions</h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-[var(--pixel-gold-mid)]">Does Back of Beyond Ranch have EV charging?</p>
+                <p>Yes. The ranch has a solar-powered Level 2 (220V) EV charger available for all guests. It can fully charge most electric vehicles overnight and is powered by the ranch&apos;s own solar panel system.</p>
+              </div>
+              <div>
+                <p className="text-[var(--pixel-gold-mid)]">How far is the ranch from Kirkwood?</p>
+                <p>Kirkwood Mountain Resort is approximately 48 miles from the ranch, about a 45-minute drive via Highway 88.</p>
+              </div>
+              <div>
+                <p className="text-[var(--pixel-gold-mid)]">What ski resorts are nearby?</p>
+                <p>Kirkwood (48 mi), Bear Valley (57 mi), and Sierra-at-Tahoe (75 mi) are all within driving range. All three are reachable on a single EV charge.</p>
+              </div>
+              <div>
+                <p className="text-[var(--pixel-gold-mid)]">How many guests can the ranch accommodate?</p>
+                <p>Up to 12 guests across 4 bedrooms and 3 bathrooms on 10 private acres.</p>
+              </div>
+              <div>
+                <p className="text-[var(--pixel-gold-mid)]">Is the ranch pet friendly?</p>
+                <p>Yes. The 10-acre property gives dogs plenty of room to explore. The ranch also has its own animals including horses, emus, sheep, and chickens.</p>
+              </div>
+              <div>
+                <p className="text-[var(--pixel-gold-mid)]">What is the Golden Frog Trail?</p>
+                <p>An interactive Gold Rush adventure game built into the ranch&apos;s website. Play online before your stay or explore QR-code challenges on the property. Your in-game karma choices can earn real booking discounts.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════ */}
       {/*  FOOTER                                                   */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <footer className="bg-[var(--pixel-bg-dark)] border-t-4 border-[var(--pixel-ui-border)] py-8 px-4">
