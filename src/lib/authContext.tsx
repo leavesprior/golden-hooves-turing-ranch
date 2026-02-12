@@ -137,7 +137,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             method: user.method,
           })
         } else {
-          setState(prev => ({ ...prev, isLoading: false }))
+          // Auto-login with device fingerprint
+          const fingerprint = generateDeviceFingerprint()
+          const usersStr = localStorage.getItem(USERS_STORAGE_KEY)
+          const users: StoredUser[] = usersStr ? JSON.parse(usersStr) : []
+          let user = users.find(u => u.id === fingerprint && u.method === 'device')
+          if (!user) {
+            user = { id: fingerprint, method: 'device', createdAt: new Date().toISOString() }
+            users.push(user)
+            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users))
+          }
+          const authUser: User = {
+            id: user.id,
+            method: 'device',
+            displayName: user.displayName || 'Pioneer',
+            createdAt: user.createdAt,
+            lastLoginAt: new Date().toISOString(),
+          }
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authUser))
+          setState({
+            user: authUser,
+            isAuthenticated: true,
+            isLoading: false,
+            method: 'device',
+          })
         }
       } catch (e) {
         console.error('Failed to load auth state:', e)

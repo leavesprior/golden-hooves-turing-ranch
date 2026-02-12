@@ -12,6 +12,7 @@ import {
   KARMA_MULTIPLIERS,
   ALIGNMENT_DISPLAY_NAMES,
 } from './data/discountEngine'
+import { KarmaStorage } from '@/lib/karmaStorage'
 
 export type WalletMode = 'new' | 'continue'
 
@@ -173,6 +174,29 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       }
     }
   }, [state.balance, state.isInitialized, state.walletMode, state.alignment])
+
+  // Sync alignment to unified karma storage for cross-branch carry-forward
+  useEffect(() => {
+    if (!state.isInitialized) return
+    // Map Trail alignment axes to unified storage axes
+    // Trail: lawfulChaotic positive=lawful, goodEvil positive=good
+    // Unified: lawfulChaotic negative=lawful, goodEvil negative=good
+    const unifiedLawful = -state.alignment.lawfulChaotic
+    const unifiedGood = -state.alignment.goodEvil
+    const current = KarmaStorage.load()
+    if (current) {
+      // Only update if significantly different (avoid thrashing)
+      const lawDiff = Math.abs(current.alignment.lawfulChaotic - unifiedLawful)
+      const goodDiff = Math.abs(current.alignment.goodEvil - unifiedGood)
+      if (lawDiff > 2 || goodDiff > 2) {
+        current.alignment.lawfulChaotic = unifiedLawful
+        current.alignment.goodEvil = unifiedGood
+        KarmaStorage.save(current)
+      }
+    } else {
+      KarmaStorage.applyAction('oregon_trail', 'Trail alignment sync', unifiedLawful, unifiedGood)
+    }
+  }, [state.alignment, state.isInitialized])
 
   // Check online status periodically
   useEffect(() => {

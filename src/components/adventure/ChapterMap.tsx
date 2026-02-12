@@ -139,16 +139,31 @@ export function ChapterMap({
               const adj = getChapterLocation(adjId)
               if (!adj || !discoveredSet.has(adjId)) return null
               const isTravelPath = currentLocationId === loc.id && selectedId === adjId
+              const isDangerous = loc.travelDanger === 'dangerous' || adj.travelDanger === 'dangerous'
+              const isRisky = loc.travelDanger === 'moderate' || adj.travelDanger === 'moderate'
+              const routeColor = isTravelPath ? '#fbbf24' : isDangerous ? '#f87171' : isRisky ? '#fb923c' : '#4a5568'
               return (
-                <line
-                  key={`${loc.id}-${adjId}`}
-                  x1={loc.x} y1={loc.y}
-                  x2={adj.x} y2={adj.y}
-                  stroke={isTravelPath ? '#fbbf24' : '#4a5568'}
-                  strokeWidth={isTravelPath ? 0.8 : 0.4}
-                  strokeDasharray={isTravelPath ? 'none' : '2 1'}
-                  opacity={isTravelPath ? 1 : 0.5}
-                />
+                <g key={`${loc.id}-${adjId}`}>
+                  <line
+                    x1={loc.x} y1={loc.y}
+                    x2={adj.x} y2={adj.y}
+                    stroke={routeColor}
+                    strokeWidth={isTravelPath ? 0.8 : 0.4}
+                    strokeDasharray={isTravelPath ? 'none' : isDangerous ? '1.5 1' : '2 1'}
+                    opacity={isTravelPath ? 1 : isDangerous ? 0.7 : 0.5}
+                  />
+                  {/* Danger skull on dangerous routes */}
+                  {isDangerous && !isTravelPath && (
+                    <text
+                      x={(loc.x + adj.x) / 2}
+                      y={(loc.y + adj.y) / 2 + 0.8}
+                      textAnchor="middle" fontSize={2}
+                      fill="#f87171" opacity={0.8}
+                    >
+                      {'\u2620'}
+                    </text>
+                  )}
+                </g>
               )
             })
           })}
@@ -185,11 +200,17 @@ export function ChapterMap({
                 onMouseLeave={() => setHoveredId(null)}
                 onClick={() => handleLocationClick(loc)}
               >
-                {/* Glow for current location */}
+                {/* Glow + position marker for current location */}
                 {isCurrent && (
-                  <circle cx={loc.x} cy={loc.y} r={4.5} fill={color} opacity={0.15}>
-                    <animate attributeName="opacity" values="0.1;0.25;0.1" dur="2s" repeatCount="indefinite" />
-                  </circle>
+                  <>
+                    <circle cx={loc.x} cy={loc.y} r={4.5} fill={color} opacity={0.15}>
+                      <animate attributeName="opacity" values="0.1;0.25;0.1" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx={loc.x} cy={loc.y} r={5.5} fill="none" stroke={color} strokeWidth={0.3} opacity={0.4}>
+                      <animate attributeName="r" values="4.5;6;4.5" dur="3s" repeatCount="indefinite" />
+                      <animate attributeName="opacity" values="0.4;0.1;0.4" dur="3s" repeatCount="indefinite" />
+                    </circle>
+                  </>
                 )}
 
                 {/* Location circle */}

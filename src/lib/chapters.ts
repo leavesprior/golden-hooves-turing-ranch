@@ -2504,7 +2504,7 @@ export const dialogues: Record<string, DialogueNode> = {
   ch5_intro: {
     id: 'ch5_intro',
     speaker: 'narrator',
-    text: 'The year is 1890. Tobias, now weathered and wise, looks over the ranch he built from nothing. His fortune is secure, but he knows his time grows short.',
+    text: 'The year is 1890. Pryor, now weathered and wise, looks over the ranch he built from nothing. His fortune is secure, but he knows his time grows short.',
     nextNode: 'ch5_intro_2',
   },
   ch5_intro_2: {
@@ -2516,7 +2516,7 @@ export const dialogues: Record<string, DialogueNode> = {
   ch5_intro_3: {
     id: 'ch5_intro_3',
     speaker: 'narrator',
-    text: 'Help Tobias place his clues around the ranch. Each location you choose will echo through time, waiting for a future treasure hunter to discover.',
+    text: 'Help Pryor place his clues around the ranch. Each location you choose will echo through time, waiting for a future treasure hunter to discover.',
   },
 
   ch5_hearth: {
@@ -3701,7 +3701,7 @@ export const chapters: Record<ChapterId, ChapterMeta> = {
     id: 4,
     title: 'The Ranch',
     subtitle: 'Building Back of Beyond',
-    description: 'With fortune in hand, Tobias builds his dream in the foothills. Explore the property that would become Back of Beyond Ranch - the same locations you can visit today.',
+    description: 'With fortune in hand, Pryor builds his dream in the foothills. Explore the property that would become Back of Beyond Ranch - the same locations you can visit today.',
     maps: ['ch4_ranch'],
     startMap: 'ch4_ranch',
     puzzleType: 'memory',

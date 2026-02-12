@@ -211,7 +211,7 @@ const TOBIAS_TIPS = [
   "Volcano once had 17,000 people. Now? About 85 souls remain.",
   "The Hotel Leger in Mokelumne Hill is said to be haunted by George Leger himself!",
   "Look for the Chinese tunnels beneath Volcano - they're still there if ye know where to look.",
-  "Cynthia's Inn in West Point has been serving travelers since 1851!",
+  "West Point was named by Kit Carson during his 1844 expedition through the Sierra foothills!",
   "The laundry mark that caught Black Bart? F.X.O.7 - traced to a San Francisco laundry.",
   "Carson Hill produced the largest gold nugget in California - 195 pounds!",
   "Old Abe, the cannon in Volcano, was going to be used in the Civil War but never fired.",

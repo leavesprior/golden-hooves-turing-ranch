@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+import { KarmaStorage, getAlignmentPosition, getDiscountMultiplier, type AlignmentPosition } from '@/lib/karmaStorage'
 
 const cabinPhotos = [
   '/cabin-photos/cabin-1.jpg',
@@ -94,9 +95,17 @@ export default function Home() {
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null)
   const [owlEyesOpen, setOwlEyesOpen] = useState(true)
   const [shootingStar, setShootingStar] = useState(false)
+  const [playerAlignment, setPlayerAlignment] = useState<AlignmentPosition | null>(null)
+  const [karmaMultiplier, setKarmaMultiplier] = useState<number | null>(null)
 
   useEffect(() => {
     setMounted(true)
+    // Load karma alignment for badge display
+    const karmaState = KarmaStorage.load()
+    if (karmaState && (karmaState.alignment.lawfulChaotic !== 0 || karmaState.alignment.goodEvil !== 0)) {
+      setPlayerAlignment(getAlignmentPosition(karmaState.alignment))
+      setKarmaMultiplier(getDiscountMultiplier(karmaState.alignment))
+    }
     const cursorInterval = setInterval(() => setShowCursor(prev => !prev), 500)
     const photoInterval = setInterval(() => setCurrentPhotoIndex(prev => (prev + 1) % cabinPhotos.length), 8000)
 
@@ -853,7 +862,7 @@ export default function Home() {
               </div>
               <PixelCard title="⚔️ Mystery Hunt">
                 <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed mb-3">
-                  At the ranch: scan QR codes, solve riddles, discover what Tobias left behind.
+                  At the ranch: scan QR codes, solve riddles, discover what Pryor left behind.
                 </p>
                 <div className="flex flex-wrap gap-1 mb-3">
                   <span className="adventure-tag bg-[var(--pixel-gold-dark)]/50">14 Locations</span>
@@ -909,6 +918,23 @@ export default function Home() {
 
           {/* Karma discount teaser */}
           <div className="mt-8 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)]/30 rounded-lg p-5 max-w-2xl mx-auto hover:border-[var(--pixel-gold-mid)]/30 transition-colors">
+            {playerAlignment && (
+              <div className="mb-4 pb-4 border-b border-[var(--pixel-ui-border)]/20 flex items-center justify-center gap-3">
+                <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">YOUR ALIGNMENT:</span>
+                <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] px-3 py-1 border border-[var(--pixel-gold-mid)] bg-[var(--pixel-bg-dark)]">
+                  {playerAlignment.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                </span>
+                {karmaMultiplier !== null && (
+                  <span className={`font-[var(--font-pixel)] text-[10px] px-2 py-1 border ${
+                    karmaMultiplier >= 1.2 ? 'text-[var(--pixel-forest-light)] border-[var(--pixel-forest-mid)]' :
+                    karmaMultiplier >= 0.8 ? 'text-[var(--pixel-ui-text)] border-[var(--pixel-ui-border)]' :
+                    'text-[var(--pixel-fire-red)] border-[var(--pixel-fire-red)]'
+                  }`}>
+                    {karmaMultiplier.toFixed(1)}x Discount
+                  </span>
+                )}
+              </div>
+            )}
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="text-center sm:text-left flex-1">
                 <h3 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-[9px] sm:text-[10px] mb-2">

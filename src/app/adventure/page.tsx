@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { useRPG, TRAITS, type TraitId, type AttributeName } from '@/lib/rpgContext'
 import {
@@ -13,6 +13,7 @@ import {
   type CreationMethod,
 } from '@/lib/rpgContext'
 import { chapters } from '@/lib/chapters'
+import { KarmaStorage, getAlignmentPosition, type AlignmentPosition } from '@/lib/karmaStorage'
 
 // Character creation steps
 type CreationStep = 'name' | 'method' | 'stats' | 'trait' | 'confirm'
@@ -165,6 +166,18 @@ export default function AdventurePage() {
   // Final stats for starting the game
   const [finalStats, setFinalStats] = useState<CharacterAttributes | null>(null)
 
+  // Unified karma carry-forward
+  const [karmaAlignment, setKarmaAlignment] = useState<AlignmentPosition | null>(null)
+  const [karmaImported, setKarmaImported] = useState(false)
+
+  useEffect(() => {
+    const karmaState = KarmaStorage.load()
+    if (karmaState && (karmaState.alignment.lawfulChaotic !== 0 || karmaState.alignment.goodEvil !== 0)) {
+      setKarmaAlignment(getAlignmentPosition(karmaState.alignment))
+      setKarmaImported(true)
+    }
+  }, [])
+
   const hasSavedGame = typeof window !== 'undefined' && localStorage.getItem('bobr_rpg_session')
   const discount = getDiscountCode()
 
@@ -208,16 +221,53 @@ export default function AdventurePage() {
     setCreationStep('trait')
   }, [])
 
+  // Apply karma alignment bonuses to stats
+  const applyKarmaBonuses = useCallback((base: CharacterAttributes | undefined): CharacterAttributes | undefined => {
+    if (!base || !karmaAlignment) return base
+    const bonused = { ...base }
+    // Alignment bonus table from plan
+    switch (karmaAlignment) {
+      case 'lawful_good':
+        bonused.cha = Math.min(20, bonused.cha + 2) // +2 Diplomacy via CHA
+        break
+      case 'chaotic_good':
+        bonused.wis = Math.min(20, bonused.wis + 2) // +2 Luck via WIS
+        break
+      case 'lawful_evil':
+        bonused.int = Math.min(20, bonused.int + 2) // +2 Shrewdness via INT
+        break
+      case 'chaotic_evil':
+        bonused.dex = Math.min(20, bonused.dex + 2) // +2 Agility via DEX
+        break
+      // Partial alignments get +1
+      case 'neutral_good':
+        bonused.cha = Math.min(20, bonused.cha + 1)
+        break
+      case 'lawful_neutral':
+        bonused.int = Math.min(20, bonused.int + 1)
+        break
+      case 'chaotic_neutral':
+        bonused.dex = Math.min(20, bonused.dex + 1)
+        break
+      case 'neutral_evil':
+        bonused.int = Math.min(20, bonused.int + 1)
+        break
+      // true_neutral: no bonuses
+    }
+    return bonused
+  }, [karmaAlignment])
+
   // Start the game
   const handleStartGame = useCallback(() => {
     const playerName = nameInput.trim() || 'Prospector'
+    const adjustedStats = applyKarmaBonuses(finalStats ?? undefined)
     startNewGame(playerName, {
-      attributes: finalStats || undefined,
+      attributes: adjustedStats,
       creationMethod: creationMethod || 'standard',
       rerollsUsed,
       traits: selectedTrait ? [selectedTrait] : [],
     })
-  }, [nameInput, finalStats, creationMethod, rerollsUsed, selectedTrait, startNewGame])
+  }, [nameInput, finalStats, creationMethod, rerollsUsed, selectedTrait, startNewGame, applyKarmaBonuses])
 
   const handleContinue = () => {
     loadGame()
@@ -523,6 +573,23 @@ export default function AdventurePage() {
             <PixelButton onClick={() => setShowNewGame(true)} variant="green" size="md">
               New Adventure
             </PixelButton>
+
+            {/* Karma carry-forward badge */}
+            {karmaImported && karmaAlignment && (
+              <div className="bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-mid)] p-3 text-center">
+                <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
+                  KARMA IMPORTED FROM TRAIL
+                </p>
+                <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mt-1">
+                  Alignment: <span className="text-[var(--pixel-gold-light)]">
+                    {karmaAlignment.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                  </span>
+                </p>
+                <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-forest-light)] mt-1">
+                  Starting attribute bonuses will be applied
+                </p>
+              </div>
+            )}
 
             {/* Preview chapters */}
             <div className="mt-8">

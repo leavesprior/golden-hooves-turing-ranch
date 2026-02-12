@@ -481,7 +481,7 @@ export const ENDINGS: Record<EndingType, EndingConfig> = {
     },
     badge: '🤠',
     color: 'gold',
-    ranchReference: 'You can visit what Tobias built at airbnb.com/h/backofbeyondranch',
+    ranchReference: 'You can visit Pryor\'s Back of Beyond Ranch at airbnb.com/h/backofbeyondranch',
     discountPresentation: 'property_deed',
   },
   prospector: {
@@ -546,7 +546,7 @@ export const ENDINGS: Record<EndingType, EndingConfig> = {
     },
     badge: '🎰',
     color: 'gold',
-    ranchReference: 'Tobias won the ranch in a card game. Lady Luck still smiles there.',
+    ranchReference: 'Pryor won Back of Beyond Ranch in a card game. Lady Luck still smiles there.',
     discountPresentation: 'winning_hand',
   },
   golden_hooves: {
