@@ -41,6 +41,7 @@ interface DialogueViewProps {
   onClose: () => void
   onEffect: (effects: DialogueOption['effects']) => void
   onSkillCheck: (stat: StatName, dc: number) => { success: boolean; roll: number; modifier: number; total: number }
+  onGameStateChanged?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -326,6 +327,7 @@ export function DialogueView({
   onClose,
   onEffect,
   onSkillCheck,
+  onGameStateChanged,
 }: DialogueViewProps) {
   // Resolve the starting node
   const getNode = useCallback((id: string): DialogueNode | undefined => {
@@ -388,6 +390,7 @@ export function DialogueView({
     if (option.effects) {
       onEffect(option.effects)
       setPendingEffects(option.effects)
+      onGameStateChanged?.()
     }
 
     // If stat-gated, perform the skill check

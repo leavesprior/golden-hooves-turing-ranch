@@ -11,6 +11,7 @@ import { ReputationProvider, useReputation, type FactionId } from '@/app/oregon-
 import { NarratorProvider, useNarrator } from '@/app/oregon-trail/narratorContext'
 import { NPCProvider } from '@/app/oregon-trail/npcContext'
 import { MysteryProvider, useMystery } from '@/app/oregon-trail/mysteryContext'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
 
 // Adventure Components
 import { ChapterMap } from '@/components/adventure/ChapterMap'
@@ -80,7 +81,14 @@ function saveAdventureState(state: AdventureState) {
 function createNewAdventureState(): AdventureState {
   const defaultLoc = getDefaultLocation(1)
   const chapterLocs = getChapterLocations(1)
-  const discovered = chapterLocs.filter(l => l.discoveredByDefault).map(l => l.id)
+  const defaultDiscovered = chapterLocs.filter(l => l.discoveredByDefault).map(l => l.id)
+  // Also discover connectedTo neighbors of default locations (fog-of-war fix)
+  const neighborIds = new Set(defaultDiscovered)
+  for (const locId of defaultDiscovered) {
+    const loc = chapterLocs.find(l => l.id === locId)
+    if (loc) loc.connectedTo.forEach(id => neighborIds.add(id))
+  }
+  const discovered = Array.from(neighborIds)
 
   return {
     chapter: 1,
@@ -568,6 +576,20 @@ function AdventureContent() {
   // === COMPLETE CHAPTER ===
   const handleCompleteChapter = useCallback(() => {
     if (!adventureState) return
+
+    // Record cross-game milestone
+    const milestoneMap: Record<number, string> = {
+      1: 'adventure_chapter_1',
+      2: 'adventure_chapter_2',
+      3: 'adventure_chapter_3',
+      4: 'adventure_chapter_4',
+      5: 'adventure_chapter_5',
+    }
+    const milestoneId = milestoneMap[adventureState.chapter]
+    if (milestoneId) {
+      CrossGameStorage.recordMilestone(milestoneId as import('@/lib/crossGameProgression').MilestoneId, 'rpg_adventure')
+    }
+
     if (adventureState.chapter >= 5) {
       // Game complete
       narratorComment('And so the story ends. Or does it? Check the ranch for the real treasure.', 'fourth_wall')
@@ -606,7 +628,14 @@ function AdventureContent() {
     const nextChapter = adventureState.chapter + 1
     const defaultLoc = getDefaultLocation(nextChapter)
     const nextLocs = getChapterLocations(nextChapter)
-    const defaultDiscovered = nextLocs.filter(l => l.discoveredByDefault).map(l => l.id)
+    const defaultDiscoveredIds = nextLocs.filter(l => l.discoveredByDefault).map(l => l.id)
+    // Also discover connectedTo neighbors (fog-of-war fix)
+    const neighborIds = new Set(defaultDiscoveredIds)
+    for (const locId of defaultDiscoveredIds) {
+      const loc = nextLocs.find(l => l.id === locId)
+      if (loc) loc.connectedTo.forEach(id => neighborIds.add(id))
+    }
+    const defaultDiscovered = Array.from(neighborIds)
 
     updateState({
       chapter: nextChapter,
@@ -719,6 +748,7 @@ function AdventureContent() {
                 onSpendKarma={handleSpendKarma}
                 onAddXP={handleAddXP}
                 onClueAnswered={handleClueAnswered}
+                onGameStateChanged={() => { if (adventureState) saveAdventureState(adventureState) }}
                 playerStats={playerStats}
               />
             )}

@@ -507,7 +507,7 @@ export const CHAPTER_2_LOCATIONS: ChapterLocation[] = [
         question: 'What minimum reputation level with Settlers is needed to enter the Masonic Lodge?',
         answer: '0',
         acceptableAnswers: ['0', 'zero', 'neutral'],
-        hintText: 'Check the requiredReputation field for this location.',
+        hintText: 'The Masonic Lodge welcomes all who arrive with no ill will.',
         isListingClue: false,
         xpReward: 10,
         karmaReward: { lawful: 1, good: 0 },

@@ -1,6 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
 
 // Faction definitions
 export type FactionId = 'pinkerton' | 'settlers' | 'natives' | 'outlaws'
@@ -100,6 +101,8 @@ export type ServiceType = 'shop' | 'information' | 'shelter' | 'medical' | 'tele
 
 const ReputationContext = createContext<ReputationContextValue | undefined>(undefined)
 
+const REPUTATION_STORAGE_KEY = 'bobr_reputation_state'
+
 const initialReputations: Record<FactionId, number> = {
   pinkerton: 25,   // Start with some agency trust
   settlers: 0,     // Neutral with common folk
@@ -112,8 +115,35 @@ const initialState: ReputationState = {
   reputationHistory: []
 }
 
+function loadReputationFromStorage(): ReputationState | null {
+  try {
+    if (typeof window === 'undefined') return null
+    const data = localStorage.getItem(REPUTATION_STORAGE_KEY)
+    return data ? JSON.parse(data) : null
+  } catch {
+    return null
+  }
+}
+
 export function ReputationProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<ReputationState>(initialState)
+  const [state, setState] = useState<ReputationState>(() => {
+    const saved = loadReputationFromStorage()
+    if (saved) return saved
+    // Try cross-game store for persisted reputation
+    const crossGame = CrossGameStorage.getReputation()
+    if (crossGame) {
+      return { reputations: crossGame.reputations, reputationHistory: [] }
+    }
+    return initialState
+  })
+
+  // Persist reputation to localStorage and cross-game store on state change
+  useEffect(() => {
+    try {
+      localStorage.setItem(REPUTATION_STORAGE_KEY, JSON.stringify(state))
+      CrossGameStorage.syncReputation(state.reputations)
+    } catch {}
+  }, [state])
 
   // Modify reputation with a faction
   const modifyReputation = useCallback((

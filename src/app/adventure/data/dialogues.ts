@@ -1866,6 +1866,893 @@ const ch5_tobias_journal: Dialogue = {
 }
 
 // ============================================================
+// CHAPTER 4 — Additional NPCs
+// ============================================================
+
+const ch4_big_jim: Dialogue = {
+  id: 'ch4_big_jim',
+  npcId: 'ch4_foreman',
+  npcName: 'Big Jim Taggart',
+  chapter: 4,
+  title: 'The Ranch Foreman',
+  nodes: [
+    {
+      id: 'start',
+      text: '"Howdy. Name\'s Jim. I run this ranch — or what\'s left of it. Tobias left me in charge when he passed, but the land\'s been picked at by vultures ever since."',
+      speaker: 'Big Jim Taggart',
+      options: [
+        {
+          id: 'ask_ranch',
+          text: 'What happened to the ranch?',
+          nextNodeId: 'ranch_troubles',
+        },
+        {
+          id: 'ask_discount',
+          text: '[Diplomacy DC 10] I could use a fair deal on supplies.',
+          nextNodeId: 'fair_deal',
+          requirement: { stat: 'Diplomacy', dc: 10 },
+        },
+        {
+          id: 'ask_quality',
+          text: '[Expertise DC 12] These cattle look thin. What\'s the real story?',
+          nextNodeId: 'real_story',
+          requirement: { stat: 'Expertise', dc: 12 },
+        },
+        {
+          id: 'leave',
+          text: 'Just passing through.',
+          nextNodeId: undefined,
+        },
+      ],
+    },
+    {
+      id: 'ranch_troubles',
+      text: '"Henderson\'s mill is squeezing us on water rights. Clemson — the lawyer — he\'s got his fingers in everything. And someone\'s been filing false claims on Tobias\'s land."',
+      speaker: 'Big Jim Taggart',
+      options: [
+        {
+          id: 'fraud_info',
+          text: 'False claims? Who\'s behind it?',
+          nextNodeId: 'fraud_reveal',
+          effects: {
+            xp: 10,
+            flag: 'jim_land_fraud_hint',
+          },
+        },
+        {
+          id: 'understood',
+          text: 'Sounds like you\'ve got your hands full.',
+          nextNodeId: undefined,
+          effects: { xp: 5 },
+        },
+      ],
+    },
+    {
+      id: 'fraud_reveal',
+      text: '"I can\'t prove nothing yet. But I\'ve seen Clemson\'s clerk riding out here at night. And Henderson\'s been awful friendly with the county surveyor lately."',
+      speaker: 'Big Jim Taggart',
+      options: [
+        {
+          id: 'investigate',
+          text: 'I\'ll look into it.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 15,
+            flag: 'ch4_land_fraud_started',
+            questStart: 'ch4_land_fraud',
+            reputation: { faction: 'settlers', delta: 5 },
+          },
+        },
+      ],
+    },
+    {
+      id: 'fair_deal',
+      text: '"Well now, anyone who talks straight gets a fair shake from me. I can let you have supplies at cost — no markup. Tobias would\'ve wanted it that way."',
+      speaker: 'Big Jim Taggart',
+      options: [
+        {
+          id: 'accept',
+          text: 'Much obliged, Jim.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 10,
+            gold: 20,
+            flag: 'jim_discount',
+            reputation: { faction: 'settlers', delta: 3 },
+          },
+        },
+      ],
+    },
+    {
+      id: 'real_story',
+      text: '"Sharp eyes. The water\'s been diverted upstream. Henderson\'s mill takes more than its share. These animals are starving because the creek runs dry half the summer now."',
+      speaker: 'Big Jim Taggart',
+      options: [
+        {
+          id: 'water_quest',
+          text: 'Someone should fix the water rights.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 20,
+            flag: 'ch4_water_rights_known',
+            questStart: 'ch4_water_rights',
+          },
+        },
+      ],
+    },
+  ],
+}
+
+const ch4_walt_henderson: Dialogue = {
+  id: 'ch4_walt_henderson',
+  npcId: 'ch4_mill_owner',
+  npcName: 'Walt Henderson',
+  chapter: 4,
+  title: 'The Mill Owner',
+  nodes: [
+    {
+      id: 'start',
+      text: '"Welcome to Henderson\'s Mill. Finest lumber and grain processing in the county. What can I do for you?"',
+      speaker: 'Walt Henderson',
+      options: [
+        {
+          id: 'prices',
+          text: 'I hear your prices are fair.',
+          nextNodeId: 'price_talk',
+        },
+        {
+          id: 'notice_prices',
+          text: '[Shrewdness DC 10] These prices seem inflated compared to Jackson.',
+          nextNodeId: 'caught',
+          requirement: { stat: 'Shrewdness', dc: 10 },
+        },
+        {
+          id: 'water',
+          text: 'I want to talk about the water situation.',
+          nextNodeId: 'water_deflect',
+        },
+      ],
+    },
+    {
+      id: 'price_talk',
+      text: '"Fair? They\'re generous! Transportation costs, you understand. Everything has to come up the mountain road. I\'m practically running a charity here."',
+      speaker: 'Walt Henderson',
+      options: [
+        {
+          id: 'buy',
+          text: 'I\'ll take some supplies then.',
+          nextNodeId: undefined,
+          effects: { xp: 5, gold: -15 },
+        },
+        {
+          id: 'haggle',
+          text: '[Diplomacy DC 12] I think we can do better than that.',
+          nextNodeId: 'haggle_result',
+          requirement: { stat: 'Diplomacy', dc: 12 },
+        },
+      ],
+    },
+    {
+      id: 'caught',
+      text: 'Henderson\'s smile freezes. "Well, well. Someone who\'s done their homework. Fine — I\'ll give you the real rate. But don\'t go spreading that around."',
+      speaker: 'Walt Henderson',
+      options: [
+        {
+          id: 'press',
+          text: 'Why the markup? Who else are you gouging?',
+          nextNodeId: 'gouging',
+          effects: {
+            xp: 15,
+            flag: 'henderson_prices_exposed',
+          },
+        },
+        {
+          id: 'accept_deal',
+          text: 'Fair enough. I\'ll keep quiet.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 10,
+            gold: 10,
+          },
+        },
+      ],
+    },
+    {
+      id: 'gouging',
+      text: '"Look, a man\'s got to make a living. The settlers pay what I ask because there\'s nowhere else to go. That\'s just business."',
+      speaker: 'Walt Henderson',
+      options: [
+        {
+          id: 'report',
+          text: 'The settlers deserve to know.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 15,
+            karma: { lawful: 2, good: 1 },
+            reputation: { faction: 'settlers', delta: 10 },
+            flag: 'henderson_fraud_reported',
+          },
+          karmaTag: 'lawful',
+        },
+        {
+          id: 'blackmail',
+          text: 'Maybe you and I can work something out.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 10,
+            gold: 50,
+            karma: { lawful: -2, good: -1 },
+            flag: 'henderson_blackmailed',
+          },
+          karmaTag: 'evil',
+        },
+      ],
+    },
+    {
+      id: 'water_deflect',
+      text: '"The water? That\'s a county matter. My mill has permits, all legal-like. Take it up with the surveyor if you\'ve got complaints."',
+      speaker: 'Walt Henderson',
+      options: [
+        {
+          id: 'push',
+          text: '[Shrewdness DC 12] Legal permits don\'t explain why the creek runs dry downstream.',
+          nextNodeId: 'water_truth',
+          requirement: { stat: 'Shrewdness', dc: 12 },
+        },
+        {
+          id: 'drop_it',
+          text: 'I see. Never mind then.',
+          nextNodeId: undefined,
+          effects: { xp: 5 },
+        },
+      ],
+    },
+    {
+      id: 'water_truth',
+      text: 'Henderson goes pale. "You don\'t know what you\'re getting into. Clemson arranged the permits. If you cross him, you cross everyone he\'s connected to."',
+      speaker: 'Walt Henderson',
+      options: [
+        {
+          id: 'noted',
+          text: 'Good to know who\'s really in charge.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 20,
+            flag: 'clemson_water_connection',
+            questProgress: { questId: 'ch4_water_rights', objectiveId: 'find_source' },
+          },
+        },
+      ],
+    },
+    {
+      id: 'haggle_result',
+      text: '"Ha! Fine, you drive a hard bargain. Ten percent off — but only because I like your spirit."',
+      speaker: 'Walt Henderson',
+      options: [
+        {
+          id: 'deal',
+          text: 'Deal.',
+          nextNodeId: undefined,
+          effects: { xp: 10, gold: 5 },
+        },
+      ],
+    },
+  ],
+}
+
+const ch4_samuel_clemson: Dialogue = {
+  id: 'ch4_samuel_clemson',
+  npcId: 'ch4_lawyer',
+  npcName: 'Samuel Clemson, Esq.',
+  chapter: 4,
+  title: 'The Lawyer',
+  nodes: [
+    {
+      id: 'start',
+      text: '"Good day. I am Samuel Clemson, attorney at law. I handle property matters for most of the county. How may I be of service?"',
+      speaker: 'Samuel Clemson',
+      options: [
+        {
+          id: 'land_question',
+          text: 'I have questions about land claims near the ranch.',
+          nextNodeId: 'land_claims',
+        },
+        {
+          id: 'confront',
+          text: '[Shrewdness DC 14] I know about the false filings, Clemson.',
+          nextNodeId: 'confronted',
+          requirement: { stat: 'Shrewdness', dc: 14 },
+        },
+        {
+          id: 'hire',
+          text: 'I might need a lawyer myself.',
+          nextNodeId: 'hire_talk',
+        },
+      ],
+    },
+    {
+      id: 'land_claims',
+      text: '"All property claims are filed at the county seat. Everything is in order, I assure you. I\'ve personally reviewed every document."',
+      speaker: 'Samuel Clemson',
+      options: [
+        {
+          id: 'suspicious',
+          text: '[Shrewdness DC 10] That\'s convenient — reviewing your own work.',
+          nextNodeId: 'slip',
+          requirement: { stat: 'Shrewdness', dc: 10 },
+        },
+        {
+          id: 'accept',
+          text: 'Good to know things are in order.',
+          nextNodeId: undefined,
+          effects: { xp: 5 },
+        },
+      ],
+    },
+    {
+      id: 'slip',
+      text: 'Clemson adjusts his collar. "I serve the community. If there were irregularities, I\'d be the first to catch them."',
+      speaker: 'Samuel Clemson',
+      options: [
+        {
+          id: 'push_harder',
+          text: 'Or the first to create them.',
+          nextNodeId: 'threat',
+          effects: {
+            xp: 15,
+            flag: 'clemson_suspicious',
+          },
+        },
+      ],
+    },
+    {
+      id: 'confronted',
+      text: 'Clemson\'s veneer cracks. He closes his office door. "You\'re either very brave or very foolish. What exactly do you think you know?"',
+      speaker: 'Samuel Clemson',
+      options: [
+        {
+          id: 'bribe',
+          text: 'I know enough. But everyone has a price.',
+          nextNodeId: 'bribe_offer',
+          karmaTag: 'evil',
+        },
+        {
+          id: 'report',
+          text: 'I know enough to go to the county seat.',
+          nextNodeId: 'report_threat',
+          karmaTag: 'lawful',
+        },
+      ],
+    },
+    {
+      id: 'bribe_offer',
+      text: '"Ah. A practical person. I can make it worth your while to forget what you\'ve seen. Say... two hundred dollars? And a clear title to whatever land you\'re eyeing?"',
+      speaker: 'Samuel Clemson',
+      options: [
+        {
+          id: 'take_bribe',
+          text: 'You\'ve got a deal.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 10,
+            gold: 200,
+            karma: { lawful: -3, good: -2 },
+            flag: 'clemson_bribed',
+          },
+          karmaTag: 'evil',
+        },
+        {
+          id: 'refuse_bribe',
+          text: 'On second thought, no amount of money is worth my soul.',
+          nextNodeId: 'report_threat',
+          effects: {
+            karma: { lawful: 2, good: 2 },
+          },
+          karmaTag: 'good',
+        },
+      ],
+    },
+    {
+      id: 'report_threat',
+      text: '"You\'ll regret this. I have friends in places you can\'t imagine. But..." He sighs. "Perhaps it\'s time. This weight has been too heavy to carry."',
+      speaker: 'Samuel Clemson',
+      options: [
+        {
+          id: 'end',
+          text: 'Justice will be done.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 30,
+            karma: { lawful: 3, good: 2 },
+            reputation: { faction: 'settlers', delta: 15 },
+            flag: 'clemson_reported',
+            questProgress: { questId: 'ch4_land_fraud', objectiveId: 'expose_clemson' },
+          },
+          karmaTag: 'lawful',
+        },
+      ],
+    },
+    {
+      id: 'threat',
+      text: '"Be very careful. This is a small community. Accusations have consequences — for everyone."',
+      speaker: 'Samuel Clemson',
+      options: [
+        {
+          id: 'noted',
+          text: 'I\'ll remember that.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 10,
+            flag: 'clemson_warned',
+          },
+        },
+      ],
+    },
+    {
+      id: 'hire_talk',
+      text: '"A wise decision. My retainer is quite reasonable — fifty dollars. I can handle everything from land disputes to... shall we say, creative property arrangements."',
+      speaker: 'Samuel Clemson',
+      options: [
+        {
+          id: 'hire_him',
+          text: 'Here\'s your fifty.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 5,
+            gold: -50,
+            flag: 'clemson_hired',
+          },
+        },
+        {
+          id: 'decline',
+          text: 'I\'ll think about it.',
+          nextNodeId: undefined,
+          effects: { xp: 3 },
+        },
+      ],
+    },
+  ],
+}
+
+// ============================================================
+// CHAPTER 5 — Additional Locations
+// ============================================================
+
+const ch5_barn_spirit: Dialogue = {
+  id: 'ch5_barn_spirit',
+  npcId: 'ch5_barn_ghost',
+  npcName: "Memory of Tobias's Horse",
+  chapter: 5,
+  title: 'The Barn Spirit',
+  nodes: [
+    {
+      id: 'start',
+      text: 'The barn is quiet except for the creak of old timbers. Then you hear it — a soft whinny, though no horses stand in the stalls. An inscription gleams on the far wall, carved decades ago.',
+      options: [
+        {
+          id: 'read',
+          text: 'Read the inscription.',
+          nextNodeId: 'inscription',
+        },
+        {
+          id: 'listen',
+          text: 'Listen to the ghostly sounds.',
+          nextNodeId: 'spirit_voice',
+        },
+      ],
+    },
+    {
+      id: 'inscription',
+      text: '"Old Thunder — faithful unto death, 1852-1868. Where he rests, the first piece waits." Below it, a rough map fragment is carved into the wood.',
+      options: [
+        {
+          id: 'take_rubbing',
+          text: 'Take a charcoal rubbing of the map.',
+          nextNodeId: 'rubbing_taken',
+          effects: {
+            xp: 20,
+            flag: 'barn_map_piece',
+            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'barn_piece' },
+          },
+        },
+      ],
+    },
+    {
+      id: 'spirit_voice',
+      text: 'The whinny comes again, stronger. A cold breeze stirs the hay. For a moment, you swear you see the outline of a great horse, its coat catching moonlight that isn\'t there.',
+      options: [
+        {
+          id: 'approach',
+          text: 'Approach the spirit.',
+          nextNodeId: 'inscription',
+          effects: { xp: 10 },
+        },
+      ],
+    },
+    {
+      id: 'rubbing_taken',
+      text: 'The charcoal captures the carved lines perfectly. One quarter of a treasure map — showing the barn and the path to the first cache.',
+      options: [
+        {
+          id: 'done',
+          text: 'Three more pieces to find.',
+          nextNodeId: undefined,
+          effects: { xp: 10 },
+        },
+      ],
+    },
+  ],
+}
+
+const ch5_orchard_memory: Dialogue = {
+  id: 'ch5_orchard_memory',
+  npcId: 'ch5_orchard_tree',
+  npcName: 'The Ancient Apple Tree',
+  chapter: 5,
+  title: 'Orchard Memory',
+  nodes: [
+    {
+      id: 'start',
+      text: 'The oldest apple tree in the orchard has a hollow in its trunk, barely visible under layers of bark growth. Something leather peeks out from within.',
+      options: [
+        {
+          id: 'reach',
+          text: 'Reach into the hollow.',
+          nextNodeId: 'journal_found',
+        },
+        {
+          id: 'examine',
+          text: '[Shrewdness DC 8] Examine the tree more carefully first.',
+          nextNodeId: 'careful_look',
+          requirement: { stat: 'Shrewdness', dc: 8 },
+        },
+      ],
+    },
+    {
+      id: 'careful_look',
+      text: 'You notice marks on the bark — old knife carvings. "T.P. 1867" and below it, a compass rose pointing to four directions. Each direction has a symbol: horse, apple, pickaxe, eye.',
+      options: [
+        {
+          id: 'decode',
+          text: 'The four treasure locations. Now reach in.',
+          nextNodeId: 'journal_found',
+          effects: {
+            xp: 15,
+            flag: 'orchard_symbols_decoded',
+          },
+        },
+      ],
+    },
+    {
+      id: 'journal_found',
+      text: 'Inside is a small oilskin-wrapped package. It contains a folded piece of parchment — another section of Tobias\'s treasure map, showing the orchard and a path leading underground.',
+      options: [
+        {
+          id: 'take',
+          text: 'Take the map piece.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 20,
+            flag: 'orchard_map_piece',
+            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'orchard_piece' },
+          },
+        },
+      ],
+    },
+  ],
+}
+
+const ch5_mine_voice: Dialogue = {
+  id: 'ch5_mine_voice',
+  npcId: 'ch5_mine_echo',
+  npcName: 'Echoes in the Mine',
+  chapter: 5,
+  title: 'The Old Mine',
+  nodes: [
+    {
+      id: 'start',
+      text: 'The mine entrance yawns before you, shored up with rotting timbers. From deep within comes a sound — not wind, but something like whispered words echoing off stone.',
+      options: [
+        {
+          id: 'descend',
+          text: '[Durability DC 10] Descend into the mine.',
+          nextNodeId: 'inside_mine',
+          requirement: { stat: 'Durability', dc: 10 },
+        },
+        {
+          id: 'call_out',
+          text: 'Call into the darkness.',
+          nextNodeId: 'echo_response',
+        },
+        {
+          id: 'leave',
+          text: 'This place feels wrong. Leave.',
+          nextNodeId: undefined,
+          effects: { xp: 3 },
+        },
+      ],
+    },
+    {
+      id: 'echo_response',
+      text: 'Your voice bounces back, distorted. But between the echoes, you hear: "...third piece... where I first... struck color..." The mine wants you to enter.',
+      options: [
+        {
+          id: 'descend_now',
+          text: '[Durability DC 10] Steel yourself and go in.',
+          nextNodeId: 'inside_mine',
+          requirement: { stat: 'Durability', dc: 10 },
+        },
+        {
+          id: 'too_scared',
+          text: 'Not today.',
+          nextNodeId: undefined,
+          effects: { xp: 5 },
+        },
+      ],
+    },
+    {
+      id: 'inside_mine',
+      text: 'The tunnel narrows, then opens into a chamber. Pickaxe marks scar the walls where gold was once gouged out. On the far wall, behind a loose stone, you find a metal tube.',
+      options: [
+        {
+          id: 'open_tube',
+          text: 'Open the tube.',
+          nextNodeId: 'map_found',
+        },
+        {
+          id: 'search_more',
+          text: '[Expertise DC 12] Search the chamber thoroughly.',
+          nextNodeId: 'hidden_passage',
+          requirement: { stat: 'Expertise', dc: 12 },
+        },
+      ],
+    },
+    {
+      id: 'map_found',
+      text: 'Inside the tube is a rolled map piece, protected from moisture for decades. It shows the mine tunnels and marks a passage leading deeper — to the hidden chamber.',
+      options: [
+        {
+          id: 'take',
+          text: 'Take the map piece.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 20,
+            flag: 'mine_map_piece',
+            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'mine_piece' },
+          },
+        },
+      ],
+    },
+    {
+      id: 'hidden_passage',
+      text: 'Behind a fall of loose rock, you find a narrow passage sloping down. Cool air flows from below — this connects to something deeper. You also find the map tube wedged in a crevice.',
+      options: [
+        {
+          id: 'take_and_note',
+          text: 'Take the map piece and mark the passage.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 30,
+            flag: 'mine_map_piece_and_passage',
+            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'mine_piece' },
+            unlockLocation: 'ch5_hidden_chamber',
+          },
+        },
+      ],
+    },
+  ],
+}
+
+const ch5_lookout_vision: Dialogue = {
+  id: 'ch5_lookout_vision',
+  npcId: 'ch5_lookout',
+  npcName: 'The Panoramic View',
+  chapter: 5,
+  title: 'Lookout Point Vision',
+  nodes: [
+    {
+      id: 'start',
+      text: 'From the lookout point, the entire ranch spreads below you. The barn, the orchard, the mine entrance, the creek — all visible at once. The view shimmers in the heat.',
+      options: [
+        {
+          id: 'look_closely',
+          text: '[Luck DC 8] Study the landscape for patterns.',
+          nextNodeId: 'vision',
+          requirement: { stat: 'Luck', dc: 8 },
+        },
+        {
+          id: 'search_cairn',
+          text: 'Search the stone cairn at the summit.',
+          nextNodeId: 'cairn',
+        },
+      ],
+    },
+    {
+      id: 'vision',
+      text: 'The shimmer intensifies. For a moment, you see the ranch as it was — Tobias walking the property, burying something at each of the four points. The vision clears, leaving you with perfect clarity of where each cache lies.',
+      options: [
+        {
+          id: 'mark_locations',
+          text: 'Mark the treasure positions on your map.',
+          nextNodeId: 'cairn',
+          effects: {
+            xp: 25,
+            flag: 'lookout_vision_seen',
+          },
+        },
+      ],
+    },
+    {
+      id: 'cairn',
+      text: 'The stone cairn has been here since before the ranch. Beneath the topmost stone, a flat piece of slate bears the final map section — the fourth piece showing the lookout and the convergence point.',
+      options: [
+        {
+          id: 'take',
+          text: 'Take the final map piece.',
+          nextNodeId: 'map_complete',
+          effects: {
+            xp: 20,
+            flag: 'lookout_map_piece',
+            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'lookout_piece' },
+          },
+        },
+      ],
+    },
+    {
+      id: 'map_complete',
+      text: 'Four pieces assembled. The complete map reveals a hidden chamber beneath the ranch — accessible through the old mine. Tobias\'s true legacy awaits.',
+      options: [
+        {
+          id: 'go',
+          text: 'Time to find the hidden chamber.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 15,
+            flag: 'all_map_pieces',
+            unlockLocation: 'ch5_hidden_chamber',
+          },
+        },
+      ],
+    },
+  ],
+}
+
+const ch5_chamber_final: Dialogue = {
+  id: 'ch5_chamber_final',
+  npcId: 'ch5_chamber',
+  npcName: 'The Hidden Chamber',
+  chapter: 5,
+  title: "Tobias's Hidden Chamber",
+  nodes: [
+    {
+      id: 'start',
+      text: 'The chamber is carved from living rock, lit by crystals that catch your lantern light and scatter it like stars. The walls are covered in inscriptions — some by Tobias, some far older. Miwok symbols interweave with prospector\'s marks.',
+      options: [
+        {
+          id: 'read_walls',
+          text: '[Expertise DC 14] Interpret the inscriptions.',
+          nextNodeId: 'interpreted',
+          requirement: { stat: 'Expertise', dc: 14 },
+        },
+        {
+          id: 'find_treasure',
+          text: 'Search for the treasure.',
+          nextNodeId: 'treasure_found',
+        },
+      ],
+    },
+    {
+      id: 'interpreted',
+      text: 'The inscriptions tell a story spanning centuries. The Miwok knew this place as a sacred site — a meeting point of earth and sky. Tobias discovered it during the Gold Rush and chose to protect it rather than exploit it. His gold sits in a iron strongbox, but the true treasure is the chamber itself.',
+      options: [
+        {
+          id: 'open_box',
+          text: 'Open the strongbox.',
+          nextNodeId: 'choice',
+          effects: {
+            xp: 30,
+            flag: 'inscriptions_read',
+          },
+        },
+      ],
+    },
+    {
+      id: 'treasure_found',
+      text: 'Behind a stone panel, an iron strongbox sits undisturbed. Inside: gold nuggets, old coins, and a deed to the ranch property — signed by Tobias, witnessed by the Miwok elder White Feather.',
+      options: [
+        {
+          id: 'examine',
+          text: 'Examine everything carefully.',
+          nextNodeId: 'choice',
+          effects: {
+            xp: 20,
+            flag: 'treasure_found',
+          },
+        },
+      ],
+    },
+    {
+      id: 'choice',
+      text: 'The gold is worth a fortune. The deed transfers the ranch to whoever finds it. But Tobias\'s final note reads: "Share the gold with those who helped you get here. Or keep it all. The land remembers what you choose."',
+      options: [
+        {
+          id: 'share',
+          text: 'Share the treasure with the community.',
+          nextNodeId: 'shared',
+          karmaTag: 'good',
+        },
+        {
+          id: 'keep',
+          text: 'Keep it all. I earned this.',
+          nextNodeId: 'kept',
+          karmaTag: 'evil',
+        },
+        {
+          id: 'preserve',
+          text: 'Preserve the chamber as a sacred site.',
+          nextNodeId: 'preserved',
+          karmaTag: 'lawful',
+        },
+      ],
+    },
+    {
+      id: 'shared',
+      text: 'You emerge from the chamber and divide the gold among the settlers, Jim Taggart, and the Miwok descendants. The ranch becomes a community trust. Tobias\'s spirit — if such things exist — would be proud.',
+      options: [
+        {
+          id: 'end',
+          text: 'The true treasure was the community we built.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 50,
+            gold: 100,
+            karma: { lawful: 2, good: 5 },
+            reputation: { faction: 'settlers', delta: 25 },
+            flag: 'treasure_shared',
+          },
+        },
+      ],
+    },
+    {
+      id: 'kept',
+      text: 'You pocket the gold and the deed. The ranch is yours, free and clear. But as you leave the chamber, the crystal light seems dimmer. The walls feel closer.',
+      options: [
+        {
+          id: 'end',
+          text: 'Wealth has its own rewards.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 30,
+            gold: 500,
+            karma: { lawful: -1, good: -3 },
+            reputation: { faction: 'settlers', delta: -10 },
+            flag: 'treasure_hoarded',
+          },
+        },
+      ],
+    },
+    {
+      id: 'preserved',
+      text: 'You seal the chamber entrance and share only the deed — designating the ranch as protected land. The Miwok elders nod in approval. Some treasures are better left underground.',
+      options: [
+        {
+          id: 'end',
+          text: 'The land endures.',
+          nextNodeId: undefined,
+          effects: {
+            xp: 50,
+            gold: 50,
+            karma: { lawful: 5, good: 3 },
+            reputation: { faction: 'settlers', delta: 15 },
+            flag: 'chamber_preserved',
+          },
+        },
+      ],
+    },
+  ],
+}
+
+// ============================================================
 // Dialogue Registry
 // ============================================================
 
@@ -1885,8 +2772,16 @@ export const DIALOGUES: Dialogue[] = [
   // Chapter 4
   ch4_judge_whitfield,
   ch4_sarah_mcgraw,
+  ch4_big_jim,
+  ch4_walt_henderson,
+  ch4_samuel_clemson,
   // Chapter 5
   ch5_tobias_journal,
+  ch5_barn_spirit,
+  ch5_orchard_memory,
+  ch5_mine_voice,
+  ch5_lookout_vision,
+  ch5_chamber_final,
 ]
 
 // ============================================================

@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useKarma, ALIGNMENT_DISPLAY_NAMES } from '@/lib/karmaContext'
+import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import { AlignmentCompass, KarmaToastContainer, HouseRulesQuiz } from '@/components/karma'
 
 // Game card component
@@ -14,17 +15,22 @@ interface GameCardProps {
   available: boolean
   comingSoon?: boolean
   isNew?: boolean
+  locked?: boolean
+  lockHint?: string
   features?: string[]
 }
 
-function GameCard({ title, description, href, icon, available, comingSoon, isNew, features }: GameCardProps) {
+function GameCard({ title, description, href, icon, available, comingSoon, isNew, locked, lockHint, features }: GameCardProps) {
+  const isAccessible = available && !locked
   const content = (
     <div
       className={`
         relative p-6 border-4 rounded-lg transition-all duration-300 group
-        ${available
+        ${isAccessible
           ? 'bg-gradient-to-b from-amber-800/80 to-amber-900/80 border-amber-500 hover:border-amber-400 hover:scale-105 cursor-pointer'
-          : 'bg-gradient-to-b from-gray-800/60 to-gray-900/60 border-gray-600 cursor-not-allowed opacity-60'}
+          : locked
+            ? 'bg-gradient-to-b from-purple-900/40 to-gray-900/60 border-purple-700/60 cursor-not-allowed opacity-75'
+            : 'bg-gradient-to-b from-gray-800/60 to-gray-900/60 border-gray-600 cursor-not-allowed opacity-60'}
       `}
     >
       {comingSoon && (
@@ -32,14 +38,24 @@ function GameCard({ title, description, href, icon, available, comingSoon, isNew
           Coming Soon
         </div>
       )}
-      {isNew && !comingSoon && (
+      {isNew && !comingSoon && !locked && (
         <div className="absolute -top-3 -right-3 bg-green-600 text-white text-[8px] font-pixel px-2 py-1 rounded transform rotate-12 animate-pulse">
           NEW!
         </div>
       )}
-      <div className="text-4xl mb-4 text-center group-hover:scale-110 transition-transform">{icon}</div>
+      {locked && (
+        <div className="absolute -top-3 -right-3 bg-purple-700 text-purple-100 text-[8px] font-pixel px-2 py-1 rounded transform rotate-12">
+          Locked
+        </div>
+      )}
+      <div className="text-4xl mb-4 text-center group-hover:scale-110 transition-transform">
+        {locked ? '\uD83D\uDD12' : icon}
+      </div>
       <h3 className="font-pixel text-amber-200 text-sm text-center mb-2">{title}</h3>
       <p className="text-amber-400/80 text-xs text-center">{description}</p>
+      {locked && lockHint && (
+        <p className="text-purple-300/70 text-[9px] text-center mt-2 italic">{lockHint}</p>
+      )}
       {features && features.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1 justify-center">
           {features.map((feature, i) => (
@@ -52,7 +68,7 @@ function GameCard({ title, description, href, icon, available, comingSoon, isNew
     </div>
   )
 
-  if (available) {
+  if (isAccessible) {
     return <Link href={href}>{content}</Link>
   }
   return content
@@ -60,11 +76,31 @@ function GameCard({ title, description, href, icon, available, comingSoon, isNew
 
 export default function HubPage() {
   const { karma, alignmentPosition, discountMultiplier, hasCompletedHouseRules, houseRulesScore } = useKarma()
+  const { isUnlocked, unlockToasts, dismissUnlockToast } = useCrossGame()
   const [showQuiz, setShowQuiz] = useState(false)
+
+  const prologueUnlocked = isUnlocked('prologue')
+  const ranchHuntUnlocked = isUnlocked('ranch_treasure_hunt')
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-950 via-amber-900 to-amber-950">
       <KarmaToastContainer />
+      {/* Cross-game unlock toasts */}
+      {unlockToasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+          {unlockToasts.map(toast => (
+            <div
+              key={toast.id}
+              className="bg-gradient-to-r from-purple-900 to-purple-800 border-2 border-purple-400 rounded-lg p-4 shadow-lg animate-slide-in max-w-sm cursor-pointer"
+              onClick={() => dismissUnlockToast(toast.id)}
+            >
+              <div className="font-pixel text-purple-200 text-xs">{'\uD83D\uDD13'} Game Unlocked!</div>
+              <div className="font-pixel text-amber-200 text-sm mt-1">{toast.gameName}</div>
+              <div className="text-purple-300 text-xs mt-1">{toast.message}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <HouseRulesQuiz isOpen={showQuiz} onClose={() => setShowQuiz(false)} />
 
       {/* Header with ranch name */}
@@ -154,10 +190,32 @@ export default function HubPage() {
                 features={['Photo Mode', 'Challenges']}
               />
               <GameCard
+                title="Play The Prologue"
+                description="600-1500 AD: Four civilizations, one ancient mystery"
+                href="/prologue"
+                icon={'\uD83C\uDFDB\uFE0F'}
+                available={true}
+                isNew={true}
+                locked={!prologueUnlocked}
+                lockHint="Verify your booking to unlock"
+                features={['4 Characters', 'Investigation', 'Puzzles']}
+              />
+              <GameCard
+                title="Ranch Treasure Hunt"
+                description="Discover hidden treasures at Back of Beyond Ranch"
+                href="/ranch-treasure-hunt"
+                icon={'\uD83D\uDCE6'}
+                available={true}
+                isNew={true}
+                locked={!ranchHuntUnlocked}
+                lockHint="Reach West Point in The Prospector's Tale"
+                features={['Bounties', 'QR Codes', 'Rewards']}
+              />
+              <GameCard
                 title="Cynthia's Inn"
                 description="Crossroads tavern connecting all adventures"
                 href="/oregon-trail"
-                icon="🏨"
+                icon={'\uD83C\uDFE8'}
                 available={true}
                 comingSoon={true}
                 features={['NPCs', 'Side Quests']}

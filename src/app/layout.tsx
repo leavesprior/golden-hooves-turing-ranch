@@ -6,6 +6,7 @@ import { RPGProvider } from "@/lib/rpgContext";
 import { KarmaProvider } from "@/lib/karmaContext";
 import { AuthProvider } from "@/lib/authContext";
 import { SaveLoadProvider } from "@/lib/saveLoadContext";
+import { CrossGameProgressionProvider } from "@/lib/crossGameProgressionContext";
 
 const pressStart2P = Press_Start_2P({
   weight: "400",
@@ -181,13 +182,15 @@ export default function RootLayout({
       <body className="antialiased">
         <AuthProvider>
           <KarmaProvider>
-            <SaveLoadProvider>
-              <GameProvider>
-                <RPGProvider>
-                  {children}
-                </RPGProvider>
-              </GameProvider>
-            </SaveLoadProvider>
+            <CrossGameProgressionProvider>
+              <SaveLoadProvider>
+                <GameProvider>
+                  <RPGProvider>
+                    {children}
+                  </RPGProvider>
+                </GameProvider>
+              </SaveLoadProvider>
+            </CrossGameProgressionProvider>
           </KarmaProvider>
         </AuthProvider>
       </body>

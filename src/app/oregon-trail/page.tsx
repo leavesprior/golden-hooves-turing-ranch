@@ -98,6 +98,7 @@ import {
 
 // NPC Context for Ollama-powered dialogue
 import { NPCProvider } from './npcContext'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
 
 // Authentication & Save/Load System
 import { AuthSavePanel } from '@/components/game/AuthSavePanel'
@@ -2107,6 +2108,14 @@ function TelegraphScreen() {
       modifyReputation('pinkerton', 15, 'Successful warrant execution', state.currentLandmark)
       addExperience(100) // OUTLAW_CAPTURED
       addInvestigationXP('suspectIdentification', 15)
+      // Create a cross-game bounty for Ranch Treasure Hunt
+      CrossGameStorage.addBounty({
+        id: `bounty_${Date.now()}`,
+        targetName: message || 'Outlaw',
+        description: `Warrant executed at ${state.currentLandmark || 'unknown location'}. Bounty: $${bounty}.`,
+        reward: bounty,
+        originGame: 'prospectors_tale',
+      })
     } else {
       setMood('amused')
       comment("Wrong suspect! The real outlaw escapes while you arrest an innocent. How embarrassing.", 'observation')

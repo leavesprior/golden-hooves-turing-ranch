@@ -19,6 +19,7 @@ interface LocationViewProps {
   onSpendKarma?: (amount: number, memo: string) => boolean
   onAddXP: (amount: number) => void
   onClueAnswered?: (clue: DiscoveryClue, correct: boolean) => void
+  onGameStateChanged?: () => void
   playerStats: Record<StatName, number>
 }
 
@@ -89,6 +90,7 @@ export function LocationView({
   onSpendKarma,
   onAddXP,
   onClueAnswered,
+  onGameStateChanged,
   playerStats,
 }: LocationViewProps) {
   const [view, setView] = useState<ViewMode>('main')
@@ -140,6 +142,7 @@ export function LocationView({
       setAnsweredClueIds(updated)
       try { localStorage.setItem('bobr_answered_clues', JSON.stringify([...updated])) } catch {}
       onClueAnswered?.(clue, true)
+      onGameStateChanged?.()
     } else {
       setClueResult({ correct: false, message: 'Not quite right. Perhaps the hint can guide you...' })
       onClueAnswered?.(clue, false)
@@ -159,8 +162,9 @@ export function LocationView({
         setSearchResult('You search thoroughly but find nothing of note. The area has been picked clean.')
       }
       setIsSearching(false)
+      onGameStateChanged?.()
     }, 1500)
-  }, [onSkillCheck, onAddXP])
+  }, [onSkillCheck, onAddXP, onGameStateChanged])
 
   // Open a service sub-view, resetting messages
   const openService = (svcType: string) => {
@@ -221,6 +225,7 @@ export function LocationView({
       setSvcSuccess(false)
       setSvcMessage(`${rolled}\n${failMsg} (+${failXP} XP)`)
     }
+    onGameStateChanged?.()
   }
 
   return (

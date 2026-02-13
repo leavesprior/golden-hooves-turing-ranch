@@ -9,9 +9,9 @@ import type { StatName } from '@/app/oregon-trail/characterContext'
 import type { FactionId } from '@/app/oregon-trail/reputationContext'
 import type { AlignmentPosition } from '@/lib/karmaStorage'
 
-const OLLAMA_URL = 'http://localhost:11434/api/generate'
-const OLLAMA_TIMEOUT = 8000 // 8s timeout
-const MODEL = 'llama3.2' // Default model, can be overridden
+// Use the Next.js API route which handles Ollama -> OpenRouter fallback
+// and works both locally and in production (browser can't reach localhost:11434 directly)
+const LLM_API = '/api/llm/generate'
 
 export interface DMContext {
   playerName: string
@@ -33,21 +33,43 @@ export interface DMResponse {
 }
 
 const SYSTEM_PROMPT = `You are the Dungeon Master for a Gold Rush adventure set in 1850s California Gold Country.
-Your tone is: atmospheric, historically grounded, with dry frontier humor.
-Keep responses to 2-3 sentences max. Be vivid but concise.
-Never break character. Reference real Gold Country history when appropriate.
-Towns include: Volcano, Angels Camp, Murphys, Jackson, West Point, Columbia, Sonora.
-Historical figures: Mark Twain, Black Bart, Joaquin Murieta, Kit Carson, Bret Harte.`
+
+SETTING: Sierra Nevada foothills — Placerville (Hangtown), Coloma, Nevada City, Volcano, Angels Camp, Murphys, Jackson, West Point, Columbia, Sonora, Chinese Camp, and the Back of Beyond Ranch area.
+
+TONE: Gritty but warm. Think Deadwood meets Oregon Trail. Characters are complex — miners desperate, merchants shrewd, Indigenous peoples displaced, Chinese immigrants persecuted, women resourceful. Nobody is purely good or evil.
+
+HISTORICAL ACCURACY: Reference real Gold Rush history — James Marshall's discovery at Sutter's Mill (1848), Black Bart the poet-bandit, Mark Twain's jumping frog contest at Angels Camp, Joaquin Murieta, Kit Carson, Bret Harte, the Chinese Exclusion era, hydraulic mining devastation.
+
+RULES:
+- Keep responses to 2-3 sentences max. Be vivid but concise.
+- Write in present tense when describing scenes.
+- NPCs speak in character with period-appropriate dialect.
+- Never break character or mention game mechanics.
+- Include sensory details (sounds, smells, weather).
+- End NPC dialogue with a hook or question to keep conversation flowing.
+- React to player alignment subtly (lawful characters get more trust, chaotic ones get suspicion).`
 
 function buildPrompt(context: DMContext, request: string): string {
-  const parts = [SYSTEM_PROMPT, '']
+  const parts: string[] = []
 
   if (context.playerName) parts.push(`Player: ${context.playerName}`)
-  if (context.alignment) parts.push(`Alignment: ${context.alignment.replace(/_/g, ' ')}`)
+  if (context.alignment) {
+    const align = context.alignment.replace(/_/g, ' ')
+    parts.push(`Alignment: ${align}`)
+  }
   if (context.currentLocation) parts.push(`Location: ${context.currentLocation}`)
   if (context.currentChapter) parts.push(`Chapter: ${context.currentChapter}/5`)
   if (context.level) parts.push(`Level: ${context.level}`)
   if (context.gold !== undefined) parts.push(`Gold: ${context.gold}`)
+  if (context.factionReps) {
+    const reps = Object.entries(context.factionReps)
+      .filter(([, v]) => v !== undefined && v !== 0)
+      .map(([k, v]) => `${k}: ${v! > 0 ? '+' : ''}${v}`)
+    if (reps.length) parts.push(`Reputation: ${reps.join(', ')}`)
+  }
+  if (context.activeQuests?.length) {
+    parts.push(`Active quests: ${context.activeQuests.slice(0, 2).join('; ')}`)
+  }
   if (context.recentEvents?.length) {
     parts.push(`Recent: ${context.recentEvents.slice(-3).join('; ')}`)
   }
@@ -58,47 +80,48 @@ function buildPrompt(context: DMContext, request: string): string {
   return parts.join('\n')
 }
 
-let ollamaAvailable: boolean | null = null
+let llmAvailable: boolean | null = null
 let lastCheck = 0
 
-async function checkOllama(): Promise<boolean> {
+async function checkLLM(): Promise<boolean> {
   const now = Date.now()
   // Cache the check for 30 seconds
-  if (ollamaAvailable !== null && now - lastCheck < 30000) {
-    return ollamaAvailable
+  if (llmAvailable !== null && now - lastCheck < 30000) {
+    return llmAvailable
   }
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3000)
-    const res = await fetch('http://localhost:11434/api/tags', { signal: controller.signal })
+    const res = await fetch('/api/llm/health', { signal: controller.signal })
     clearTimeout(timeout)
-    ollamaAvailable = res.ok
+    if (res.ok) {
+      const data = await res.json()
+      llmAvailable = data.available === true
+    } else {
+      llmAvailable = false
+    }
     lastCheck = now
-    return ollamaAvailable
+    return llmAvailable
   } catch {
-    ollamaAvailable = false
+    llmAvailable = false
     lastCheck = now
     return false
   }
 }
 
-async function generateWithOllama(prompt: string): Promise<string | null> {
+async function generateWithLLM(prompt: string, system?: string): Promise<string | null> {
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT)
+    const timeout = setTimeout(() => controller.abort(), 12000)
 
-    const res = await fetch(OLLAMA_URL, {
+    const res = await fetch(LLM_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: MODEL,
         prompt,
-        stream: false,
-        options: {
-          temperature: 0.8,
-          top_p: 0.9,
-          num_predict: 150,
-        },
+        system: system || SYSTEM_PROMPT,
+        temperature: 0.8,
+        maxTokens: 200,
       }),
       signal: controller.signal,
     })
@@ -108,7 +131,8 @@ async function generateWithOllama(prompt: string): Promise<string | null> {
     if (!res.ok) return null
 
     const data = await res.json()
-    return data.response?.trim() || null
+    if (data.provider === 'none' || !data.response) return null
+    return data.response.trim()
   } catch {
     return null
   }
@@ -236,14 +260,14 @@ export const AIDM = {
     playerSaid: string,
     mood: 'friendly' | 'hostile' | 'mysterious' | 'default' = 'default',
   ): Promise<DMResponse> {
-    const available = await checkOllama()
+    const available = await checkLLM()
 
     if (available) {
       const prompt = buildPrompt(
         context,
         `${npcName} (${npcRole}) responds to the player who said: "${playerSaid}"\nMood: ${mood}\nWrite ${npcName}'s response in first person, 2-3 sentences:`
       )
-      const text = await generateWithOllama(prompt)
+      const text = await generateWithLLM(prompt)
       if (text) return { text, source: 'ai' }
     }
 
@@ -260,14 +284,14 @@ export const AIDM = {
     encounterName: string,
     encounterDesc: string,
   ): Promise<DMResponse> {
-    const available = await checkOllama()
+    const available = await checkLLM()
 
     if (available) {
       const prompt = buildPrompt(
         context,
         `Describe this encounter vividly in 2-3 sentences:\nEncounter: ${encounterName}\nSituation: ${encounterDesc}`
       )
-      const text = await generateWithOllama(prompt)
+      const text = await generateWithLLM(prompt)
       if (text) return { text, source: 'ai' }
     }
 
@@ -283,14 +307,14 @@ export const AIDM = {
     success: boolean,
     margin: number,
   ): Promise<DMResponse> {
-    const available = await checkOllama()
+    const available = await checkLLM()
 
     if (available) {
       const prompt = buildPrompt(
         context,
         `Narrate a ${stat} check that ${success ? 'succeeded' : 'failed'} by ${Math.abs(margin)}.\n${success ? 'Describe the success' : 'Describe the failure'} in 1-2 vivid sentences:`
       )
-      const text = await generateWithOllama(prompt)
+      const text = await generateWithLLM(prompt)
       if (text) return { text, source: 'ai' }
     }
 
@@ -308,14 +332,14 @@ export const AIDM = {
     locationName: string,
     atmosphere: string,
   ): Promise<DMResponse> {
-    const available = await checkOllama()
+    const available = await checkLLM()
 
     if (available) {
       const prompt = buildPrompt(
         context,
         `Describe the atmosphere of ${locationName} (mood: ${atmosphere}) as the player arrives. 2 sentences max, evocative and period-appropriate:`
       )
-      const text = await generateWithOllama(prompt)
+      const text = await generateWithLLM(prompt)
       if (text) return { text, source: 'ai' }
     }
 
@@ -326,7 +350,7 @@ export const AIDM = {
    * Check if Ollama is available
    */
   async isAvailable(): Promise<boolean> {
-    return checkOllama()
+    return checkLLM()
   },
 }
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import type { AlignmentPosition } from '@/lib/karmaStorage'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
 
 interface ClueGameUnlockProps {
   karmaAlignment: AlignmentPosition | null
@@ -28,13 +29,16 @@ export function ClueGameUnlock({
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('bobr_clue_game_unlocked')
-      if (stored === 'true') setUnlocked(true)
+      const state = CrossGameStorage.load()
+      const hasMilestone = state?.milestones.some(m => m.id === 'clue_game_unlocked') ?? false
+      // Also check legacy key for backwards compat
+      const legacy = localStorage.getItem('bobr_clue_game_unlocked') === 'true'
+      if (hasMilestone || legacy) setUnlocked(true)
     }
   }, [])
 
   const handleUnlock = () => {
-    localStorage.setItem('bobr_clue_game_unlocked', 'true')
+    CrossGameStorage.recordMilestone('clue_game_unlocked', 'clue_game')
     setUnlocked(true)
   }
 

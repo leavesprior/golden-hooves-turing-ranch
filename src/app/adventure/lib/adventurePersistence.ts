@@ -123,6 +123,37 @@ function migrateAdventureSave(oldData: Partial<AdventureSaveData>): AdventureSav
  * Call this in your top-level adventure component.
  * Returns cleanup function.
  */
+/**
+ * Save a named checkpoint (e.g. chapter completions, camp rests)
+ */
+export function saveCheckpoint(data: Omit<AdventureSaveData, 'version' | 'savedAt'>, label: string): boolean {
+  try {
+    const saveData: AdventureSaveData = {
+      ...data,
+      version: SAVE_VERSION,
+      savedAt: new Date().toISOString(),
+    }
+    localStorage.setItem(`${STORAGE_KEY}_checkpoint_${label}`, JSON.stringify(saveData))
+    return true
+  } catch (e) {
+    console.error('Failed to save checkpoint:', e)
+    return false
+  }
+}
+
+/**
+ * Load a named checkpoint
+ */
+export function loadCheckpoint(label: string): AdventureSaveData | null {
+  try {
+    const stored = localStorage.getItem(`${STORAGE_KEY}_checkpoint_${label}`)
+    if (!stored) return null
+    return JSON.parse(stored) as AdventureSaveData
+  } catch {
+    return null
+  }
+}
+
 export function setupAutoSave(
   getState: () => Omit<AdventureSaveData, 'version' | 'savedAt'> | null,
 ): () => void {

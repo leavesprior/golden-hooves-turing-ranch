@@ -11,6 +11,7 @@ import {
   CHAPTERS,
 } from './data/worldMaps'
 import { EasterEgg, checkEasterEggTrigger, EASTER_EGGS } from './data/easterEggs'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
 
 // ============================================
 // TYPES
@@ -149,6 +150,18 @@ export function ChapterProvider({
       setProgress(saved)
     }
   }, [])
+
+  // Record milestones based on current progress
+  useEffect(() => {
+    // When player visits west_point, record milestone
+    if (progress.visitedLocations.has('west_point')) {
+      CrossGameStorage.recordMilestone('reached_west_point', 'prospectors_tale')
+    }
+    // When Black Bart is captured
+    if (progress.outlawsCaptured.includes('black_bart')) {
+      CrossGameStorage.recordMilestone('captured_black_bart', 'prospectors_tale')
+    }
+  }, [progress.visitedLocations, progress.outlawsCaptured])
 
   // Check if can advance to next chapter
   const canAdvanceChapter = (() => {
@@ -289,6 +302,17 @@ export function ChapterProvider({
 
     if (onChapterComplete) {
       onChapterComplete(progress.chapter)
+    }
+
+    // Record milestones in cross-game progression
+    if (progress.chapter === 'journey_west') {
+      CrossGameStorage.recordMilestone('completed_journey_west', 'prospectors_tale')
+    }
+    if (nextChapter === 'gold_country') {
+      CrossGameStorage.recordMilestone('reached_west_point', 'prospectors_tale')
+    }
+    if (progress.chapter === 'gold_country') {
+      CrossGameStorage.recordMilestone('completed_gold_country', 'prospectors_tale')
     }
 
     setTimeout(() => {
