@@ -84,6 +84,7 @@ export function PuzzleWorkbench({ inventory, onTransform, onCombine, availableAc
                   handleCombine(obj.id)
                 } else {
                   setSelectedObject(isSelected ? null : obj.id)
+                  if (isSelected) setCombineMode(false)
                 }
               }}
               className={`p-3 rounded border text-center transition-all ${

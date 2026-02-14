@@ -303,7 +303,7 @@ export default function ProloguePlayPage() {
   }, [characterId, gameState.inventoryObjectIds, gameState.objectStates])
 
   const availablePuzzleActions = useMemo(() => {
-    return ALL_TRANSFORMATIONS.map(t => t.name)
+    return ALL_TRANSFORMATIONS.filter(t => t.id !== 'transform_combine').map(t => t.name)
   }, [])
 
   // ─── Location map data ───────────────────────────────────────────────────
@@ -735,7 +735,10 @@ export default function ProloguePlayPage() {
   }, [activeArtifact, recordPuzzleSolved, applyKarma, rollSkillCheck, addExperience, addInvestigationXP, syncCrossGame])
 
   const handleTransform = useCallback((objectId: string, actionName: string): boolean => {
-    if (!spendAction()) return false
+    if (gameState.actionsRemaining <= 0) {
+      setActionFeedback('No actions remaining today. Rest at camp to start a new day.')
+      return false
+    }
 
     const transformation = ALL_TRANSFORMATIONS.find(t => t.name === actionName)
     if (!transformation) return false
@@ -745,13 +748,16 @@ export default function ProloguePlayPage() {
 
     const applicable = getApplicableTransformations(
       currentStates,
-      currentLocation?.id,
+      currentLocation?.tags,
       gameState.inventoryObjectIds
     )
     if (!applicable.find(t => t.id === transformation.id)) {
       setActionFeedback(transformation.failureMessage || 'Nothing happens.')
       return false
     }
+
+    // Spend action only on success
+    spendAction()
 
     // Apply transformation
     const newStates = { ...currentStates, ...transformation.appliesState }
@@ -783,7 +789,10 @@ export default function ProloguePlayPage() {
   }, [gameState.objectStates, gameState.inventoryObjectIds, currentLocation, spendAction, addExperience])
 
   const handleCombine = useCallback((objectId1: string, objectId2: string): boolean => {
-    if (!spendAction()) return false
+    if (gameState.actionsRemaining <= 0) {
+      setActionFeedback('No actions remaining today. Rest at camp to start a new day.')
+      return false
+    }
 
     const characterObjects = getPuzzleObjectsByCharacter(characterId)
     const obj1 = characterObjects.find(o => o.id === objectId1)
@@ -793,6 +802,9 @@ export default function ProloguePlayPage() {
       setActionFeedback('These objects don\'t seem to fit together.')
       return false
     }
+
+    // Spend action only on success
+    spendAction()
 
     setGameState(prev => ({
       ...prev,

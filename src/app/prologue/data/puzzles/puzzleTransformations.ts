@@ -290,7 +290,7 @@ export function getTransformationById(id: string): PuzzleTransformation | undefi
 
 export function getApplicableTransformations(
   objectStates: Record<string, boolean>,
-  currentLocation?: string,
+  locationTags?: string[],
   inventoryIds?: string[],
 ): PuzzleTransformation[] {
   return ALL_TRANSFORMATIONS.filter(t => {
@@ -308,8 +308,8 @@ export function getApplicableTransformations(
     )
     if (!wouldChange) return false
 
-    // Check location requirement (caller passes location tag, not raw ID)
-    if (t.requiresLocation && currentLocation !== t.requiresLocation) return false
+    // Check location requirement (caller passes location tags array)
+    if (t.requiresLocation && (!locationTags || !locationTags.includes(t.requiresLocation))) return false
 
     // Check required companion object
     if (t.requiresObject && inventoryIds && !inventoryIds.includes(t.requiresObject)) return false

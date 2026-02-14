@@ -14,6 +14,7 @@ export interface PrologueLocation {
   clueIds: string[]
   puzzleIds: string[]
   witnessTypes: string[]
+  tags?: string[]
   historicalNote?: string
   guideEntry?: string
 }
@@ -226,6 +227,7 @@ export const NORSEMAN_LOCATIONS: PrologueLocation[] = [
     clueIds: ['kensington_runestone'],
     puzzleIds: ['kensington_analysis'],
     witnessTypes: [],
+    tags: ['solar_aligned'],
     historicalNote: 'The Kensington Runestone (discovered 1898) claims Norse presence in 1362. Widely considered a hoax, but debate continues.',
     guideEntry: 'kensington_runestone',
   },
@@ -292,6 +294,7 @@ export const NORSEMAN_LOCATIONS: PrologueLocation[] = [
     clueIds: ['norse_cahokia_artifact', 'act_transition_clue'],
     puzzleIds: ['fylgja_final_vision'],
     witnessTypes: ['cahokia_priest', 'dream_walker'],
+    tags: ['observatory'],
     historicalNote: 'Monks Mound is the largest pre-Columbian earthwork in the Americas — 100 feet tall, 14 acres at its base.',
     guideEntry: 'monks_mound',
   },

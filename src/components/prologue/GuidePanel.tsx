@@ -41,10 +41,8 @@ export function GuidePanel({ isOpen, onClose, currentLocation, currentCulture, o
     setQuery('')
   }
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-y-0 right-0 w-96 max-w-[90vw] bg-gradient-to-b from-indigo-950 to-purple-950 border-l-4 border-purple-600 z-50 flex flex-col shadow-2xl">
+    <div className={`fixed inset-y-0 right-0 w-96 max-w-[90vw] bg-gradient-to-b from-indigo-950 to-purple-950 border-l-4 border-purple-600 z-50 flex flex-col shadow-2xl transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
       {/* Header */}
       <div className="p-4 border-b border-purple-700 flex items-center justify-between">
         <div className="flex items-center gap-2">

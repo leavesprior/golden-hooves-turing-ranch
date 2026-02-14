@@ -66,6 +66,7 @@ export const CALIFIA_LOCATIONS: PrologueLocation[] = [
     clueIds: ['chumash_cosmology', 'spiral_symbol_connection'],
     puzzleIds: ['cave_painting_puzzle'],
     witnessTypes: ['cave_keeper', 'shaman'],
+    tags: ['solar_aligned'],
     historicalNote: 'Chumash rock art shows sophisticated astronomical knowledge and cosmological understanding.',
   },
 
@@ -194,6 +195,7 @@ export const CALIFIA_LOCATIONS: PrologueLocation[] = [
     clueIds: ['spiral_pattern_match', 'boat_petroglyphs'],
     puzzleIds: ['petroglyph_analysis'],
     witnessTypes: [],
+    tags: ['observatory'],
     historicalNote: 'Spiral petroglyphs appear across the Americas, suggesting either cultural diffusion or universal symbolic language.',
   },
 
