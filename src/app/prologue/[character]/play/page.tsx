@@ -96,19 +96,19 @@ const EPISODE_GATES: Record<PrologueCharacterId, { episodeId: string; condition:
     { episodeId: 'act_i_ep_3', condition: (gs) => gs.visitedLocationIds.some(id => id.includes('cahokia')), label: 'Reach Cahokia' },
   ],
   native: [
-    { episodeId: 'act_ii_ep_1', condition: (gs) => gs.cluesGathered.length >= 3, label: 'Gather 3 clues' },
-    { episodeId: 'act_ii_ep_2', condition: (gs) => gs.visitedLocationIds.length >= 5, label: 'Visit 5 locations' },
-    { episodeId: 'act_ii_ep_3', condition: (gs) => gs.cluesGathered.length >= 8, label: 'Gather 8 clues' },
+    { episodeId: 'act_ii_ep_1', condition: (gs) => gs.cluesGathered.some(c => c.includes('serpent') || c.includes('quetzalcoatl')), label: 'Discover the Serpent Mound connection' },
+    { episodeId: 'act_ii_ep_2', condition: (gs) => gs.visitedLocationIds.some(id => id.includes('spiro') || id.includes('ohio')), label: 'Reach the western trade networks' },
+    { episodeId: 'act_ii_ep_3', condition: (gs) => gs.visitedLocationIds.some(id => id.includes('pueblo_bonito') || id.includes('chaco')), label: 'Reach Chaco Canyon' },
   ],
   califia: [
-    { episodeId: 'act_iii_ep_1', condition: (gs) => gs.cluesGathered.length >= 3, label: 'Gather 3 clues' },
-    { episodeId: 'act_iii_ep_2', condition: (gs) => gs.visitedLocationIds.length >= 5, label: 'Visit 5 locations' },
-    { episodeId: 'act_iii_ep_3', condition: (gs) => gs.cluesGathered.length >= 8, label: 'Gather 8 clues' },
+    { episodeId: 'act_iii_ep_1', condition: (gs) => gs.cluesGathered.some(c => c.includes('spiral') || c.includes('cosmology')), label: 'Decode the Painted Cave symbols' },
+    { episodeId: 'act_iii_ep_2', condition: (gs) => gs.cluesGathered.some(c => c.includes('jade') || c.includes('trans_pacific')), label: 'Trace the jade mystery' },
+    { episodeId: 'act_iii_ep_3', condition: (gs) => gs.visitedLocationIds.some(id => id.includes('convergence_vision')), label: 'Complete the Vision Quest' },
   ],
   incan: [
-    { episodeId: 'act_iv_ep_1', condition: (gs) => gs.cluesGathered.length >= 3, label: 'Gather 3 clues' },
-    { episodeId: 'act_iv_ep_2', condition: (gs) => gs.visitedLocationIds.length >= 5, label: 'Visit 5 locations' },
-    { episodeId: 'act_iv_ep_3', condition: (gs) => gs.cluesGathered.length >= 8, label: 'Gather 8 clues' },
+    { episodeId: 'act_iv_ep_1', condition: (gs) => gs.cluesGathered.some(c => c.includes('puma_punku') || c.includes('gate_of_sun')), label: 'Uncover the Tiwanaku mysteries' },
+    { episodeId: 'act_iv_ep_2', condition: (gs) => gs.cluesGathered.some(c => c.includes('machu_picchu') || c.includes('astronomical_quipu')), label: 'Discover the hidden quipus of Machu Picchu' },
+    { episodeId: 'act_iv_ep_3', condition: (gs) => gs.visitedLocationIds.some(id => id.includes('tenochtitlan')), label: 'Reach Tenochtitlan — the Great Convergence' },
   ],
 }
 
@@ -387,13 +387,14 @@ export default function ProloguePlayPage() {
         }
       }
 
-      // Fylguir spirit mechanic (Norseman-only): after travel, Luck check for spirit clue
+      // ── Character-specific travel mechanics ──
       let fylguirTarget = prev.fylguirTarget
+
       if (characterId === 'norseman' && !fylguirTarget) {
+        // Fylgjur Spirit Tracking: Luck check reveals undiscovered artifact locations
         const luckStat = getStat('Luck')
         const roll = Math.floor(Math.random() * 20) + 1
         if (roll + luckStat >= 12) {
-          // Find an undiscovered location with artifacts
           const undiscovered = locations.filter(
             l => !newDiscovered.has(l.id) && getArtifactsByLocation(l.id).length > 0
           )
@@ -401,8 +402,58 @@ export default function ProloguePlayPage() {
             fylguirTarget = undiscovered[Math.floor(Math.random() * undiscovered.length)].id
           }
         }
+      } else if (characterId === 'native' && !fylguirTarget) {
+        // Dream Walking: Diplomacy check at sacred sites reveals vision hints
+        const targetLoc2 = locations.find(l => l.id === locationId)
+        if (targetLoc2 && targetLoc2.puzzleIds.length > 0) {
+          const dipStat = getStat('Diplomacy')
+          const roll = Math.floor(Math.random() * 20) + 1
+          if (roll + dipStat >= 10) {
+            const unvisited = locations.filter(
+              l => !newVisited.has(l.id) && l.witnessTypes.length > 0
+            )
+            if (unvisited.length > 0) {
+              fylguirTarget = unvisited[Math.floor(Math.random() * unvisited.length)].id
+            }
+          }
+        }
+      } else if (characterId === 'califia' && !fylguirTarget) {
+        // Warrior Strategy: Agility check scouts ahead, revealing distant locations
+        const agiStat = getStat('Agility')
+        const roll = Math.floor(Math.random() * 20) + 1
+        if (roll + agiStat >= 11) {
+          // Reveal a location two hops away (beyond normal fog of war)
+          const twoHopIds = new Set<string>()
+          for (const adjId of targetLoc.connectedTo) {
+            const adj = locations.find(l => l.id === adjId)
+            if (adj) {
+              for (const farId of adj.connectedTo) {
+                if (!newDiscovered.has(farId)) twoHopIds.add(farId)
+              }
+            }
+          }
+          if (twoHopIds.size > 0) {
+            const arr = Array.from(twoHopIds)
+            const scoutedId = arr[Math.floor(Math.random() * arr.length)]
+            newDiscovered.add(scoutedId)
+            fylguirTarget = scoutedId
+          }
+        }
+      } else if (characterId === 'incan' && !fylguirTarget) {
+        // Quipu Cipher: Shrewdness check hints toward puzzle locations
+        const shrStat = getStat('Shrewdness')
+        const roll = Math.floor(Math.random() * 20) + 1
+        if (roll + shrStat >= 10) {
+          const puzzleLocs = locations.filter(
+            l => !newVisited.has(l.id) && l.puzzleIds.length > 0
+          )
+          if (puzzleLocs.length > 0) {
+            fylguirTarget = puzzleLocs[Math.floor(Math.random() * puzzleLocs.length)].id
+          }
+        }
       }
-      // Clear fylguir target if we arrived at it
+
+      // Clear spirit/vision target if we arrived at it
       if (fylguirTarget === locationId) {
         fylguirTarget = null
       }
@@ -424,11 +475,19 @@ export default function ProloguePlayPage() {
     let feedback = `Traveled to ${targetLoc.name}.`
     if (targetLoc.travelTime > 3) feedback += ' A long journey.'
 
-    // Fylguir feedback
-    if (characterId === 'norseman' && gameState.fylguirTarget && gameState.fylguirTarget !== locationId) {
+    // Character-specific spirit/vision feedback
+    if (gameState.fylguirTarget && gameState.fylguirTarget !== locationId) {
       const targetName = locations.find(l => l.id === gameState.fylguirTarget)?.name
       if (targetName) {
-        feedback += ` A raven circles above ${targetName}...`
+        if (characterId === 'norseman') {
+          feedback += ` A raven circles above ${targetName}...`
+        } else if (characterId === 'native') {
+          feedback += ` The Dreamtime whispers of ${targetName}...`
+        } else if (characterId === 'califia') {
+          feedback += ` Your scouts report activity near ${targetName}.`
+        } else if (characterId === 'incan') {
+          feedback += ` The quipu knots point toward ${targetName}...`
+        }
       }
     }
 
@@ -531,7 +590,36 @@ export default function ProloguePlayPage() {
     })
     setTimeout(() => setShowSkillCheck(null), 3000)
 
-    if (foundSomething) {
+    // Character-specific search bonuses
+    if (characterId === 'native' && currentLocation.puzzleIds.length > 0 && foundSomething) {
+      // Dream Walking: bonus XP at sacred sites with puzzles
+      addExperience(10)
+      setActionFeedback(`You search ${currentLocation.name} and the Dreamtime reveals hidden connections! (+10 bonus XP)`)
+    } else if (characterId === 'califia' && foundSomething) {
+      // Warrior Strategy: reveal danger levels in feedback
+      const nearby = locations.filter(l => currentLocation.connectedTo.includes(l.id))
+      const dangerInfo = nearby.map(l => `${l.name}: ${l.dangerLevel}`).join(', ')
+      setActionFeedback(`You search ${currentLocation.name} and find something! Scouts report nearby conditions: ${dangerInfo}`)
+    } else if (characterId === 'incan' && gameState.activeArtifactId && gameState.revealedTraits.length < 6) {
+      // Quipu Cipher: Shrewdness check to auto-reveal a trait on search
+      const shrResult = rollSkillCheck('Shrewdness', 10)
+      if (shrResult.success) {
+        const allTraits: string[] = ['material', 'origin_culture', 'age_period', 'purpose', 'symbol_family', 'provenance']
+        const unrevealed = allTraits.filter(t => !gameState.revealedTraits.includes(t))
+        if (unrevealed.length > 0) {
+          const revealed = unrevealed[0]
+          setGameState(prev => ({
+            ...prev,
+            revealedTraits: [...prev.revealedTraits, revealed],
+          }))
+          setActionFeedback(`You search ${currentLocation.name} and the quipu cipher reveals a trait: ${revealed.replace(/_/g, ' ')}!`)
+        } else if (foundSomething) {
+          setActionFeedback(`You search ${currentLocation.name} and find something interesting!`)
+        }
+      } else if (foundSomething) {
+        setActionFeedback(`You search ${currentLocation.name} and find something interesting!`)
+      }
+    } else if (foundSomething) {
       setActionFeedback(`You search ${currentLocation.name} and find something interesting!`)
     } else if (!gameState.activeArtifactId) {
       // Check if a new artifact was assigned by the fallback
@@ -547,7 +635,7 @@ export default function ProloguePlayPage() {
     } else {
       setActionFeedback(`You search thoroughly but find nothing new at ${currentLocation.name}.`)
     }
-  }, [currentLocation, characterId, spendAction, locationArtifacts, locations, gameState.dayNumber, gameState.activeArtifactId, gameState.identifiedArtifactIds, recordClue, rollSkillCheck, addExperience, addInvestigationXP, getInvestigationBonus])
+  }, [currentLocation, characterId, spendAction, locationArtifacts, locations, gameState.dayNumber, gameState.activeArtifactId, gameState.identifiedArtifactIds, gameState.revealedTraits, gameState.inventoryObjectIds, gameState.cluesGathered, recordClue, rollSkillCheck, addExperience, addInvestigationXP, getInvestigationBonus])
 
   const handleRestAtCamp = useCallback(() => {
     setGameState(prev => ({
@@ -836,13 +924,20 @@ export default function ProloguePlayPage() {
       )}
 
       {/* Fylguir spirit message (Norseman only) */}
-      {characterId === 'norseman' && gameState.fylguirTarget && (
-        <div className="sticky top-[52px] z-30 bg-blue-950/70 border-b border-blue-700/30 px-4 py-1 text-center">
-          <span className="text-blue-300 text-[9px] font-pixel italic">
-            A raven circles above {locations.find(l => l.id === gameState.fylguirTarget)?.name || 'a distant location'}...
-          </span>
-        </div>
-      )}
+      {gameState.fylguirTarget && (() => {
+        const targetName = locations.find(l => l.id === gameState.fylguirTarget)?.name || 'a distant location'
+        const config = {
+          norseman: { bg: 'bg-blue-950/70', border: 'border-blue-700/30', text: 'text-blue-300', msg: `A raven circles above ${targetName}...` },
+          native: { bg: 'bg-purple-950/70', border: 'border-purple-700/30', text: 'text-purple-300', msg: `The Dreamtime whispers of ${targetName}...` },
+          califia: { bg: 'bg-amber-950/70', border: 'border-amber-700/30', text: 'text-amber-300', msg: `Scouts report activity near ${targetName}.` },
+          incan: { bg: 'bg-emerald-950/70', border: 'border-emerald-700/30', text: 'text-emerald-300', msg: `The quipu knots point toward ${targetName}...` },
+        }[characterId]
+        return config ? (
+          <div className={`sticky top-[52px] z-30 ${config.bg} border-b ${config.border} px-4 py-1 text-center`}>
+            <span className={`${config.text} text-[9px] font-pixel italic`}>{config.msg}</span>
+          </div>
+        ) : null
+      })()}
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* Phase tabs */}
