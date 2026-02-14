@@ -447,23 +447,29 @@ export default function ProloguePlayPage() {
     addInvestigationXP('crimeSceneAnalysis', 5)
 
     const characterObjects = getPuzzleObjectsByCharacter(characterId)
-    let foundSomething = false
     const newClueIds: string[] = []
+
+    // Compute found-something BEFORE setState to avoid React 18 closure bug
+    // (setState updater is queued, not executed synchronously)
+    const findBonus = result.success ? 1 : 0
+    const hasNewObjects = characterObjects.some(
+      obj => !gameState.inventoryObjectIds.includes(obj.id) && obj.actNumber <= Math.ceil(gameState.dayNumber / 10) + 1 + findBonus
+    )
+    const hasNewClues = currentLocation.clueIds.some(
+      clueId => !gameState.cluesGathered.includes(clueId)
+    )
+    const foundSomething = hasNewObjects || hasNewClues
 
     setGameState(prev => {
       const newInventory = [...prev.inventoryObjectIds]
       const newObjectStates = { ...prev.objectStates }
       const newClues = [...prev.cluesGathered]
 
-      // Better find rate with higher Expertise
-      const findBonus = result.success ? 1 : 0
-
       // Add puzzle objects from this location
       for (const obj of characterObjects) {
         if (!newInventory.includes(obj.id) && obj.actNumber <= Math.ceil(gameState.dayNumber / 10) + 1 + findBonus) {
           newInventory.push(obj.id)
           newObjectStates[obj.id] = { ...obj.initialStates }
-          foundSomething = true
         }
       }
 
@@ -471,7 +477,6 @@ export default function ProloguePlayPage() {
       for (const clueId of currentLocation.clueIds) {
         if (!newClues.includes(clueId)) {
           newClues.push(clueId)
-          foundSomething = true
           newClueIds.push(clueId)
         }
       }
@@ -845,7 +850,10 @@ export default function ProloguePlayPage() {
           {(['exploring', 'investigating', 'puzzling'] as const).map(phase => (
             <button
               key={phase}
-              onClick={() => setGamePhase(phase)}
+              onClick={() => {
+                setGamePhase(phase)
+                if (phase === 'investigating') setActiveWitnessIdx(0)
+              }}
               className={`font-pixel text-[10px] px-4 py-2 border-b-2 transition-colors ${
                 gamePhase === phase
                   ? 'text-purple-200 border-purple-400'

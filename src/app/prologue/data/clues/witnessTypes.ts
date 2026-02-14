@@ -372,6 +372,135 @@ export const WITNESS_TYPES: Record<string, WitnessType> = {
     specialAbility: 'Knows trade networks extending from the Arctic to the Amazon',
   },
 
+  // Beothuk witnesses
+  beothuk_trader: {
+    id: 'beothuk_trader',
+    name: 'Beothuk Trader',
+    description: 'A Beothuk man who trades red ochre and furs with the Norse settlers. He speaks some Old Norse and bridges two worlds.',
+    culturalAffiliation: ['beothuk'],
+    reliability: 'moderate',
+    clueQuality: 'moderate',
+    specialAbility: 'Can identify goods traded between Norse and indigenous peoples',
+  },
+
+  // Wabanaki witnesses
+  wabanaki_trader: {
+    id: 'wabanaki_trader',
+    name: 'Wabanaki Trader',
+    description: 'Travels the river networks from the coast to the interior, carrying copper, shells, and stories from distant peoples.',
+    culturalAffiliation: ['wabanaki'],
+    reliability: 'high',
+    clueQuality: 'strong',
+    specialAbility: 'Knows the continental trade routes and what goods travel along them',
+  },
+
+  // Iroquois/Great Lakes witnesses (additional)
+  iroquois_merchant: {
+    id: 'iroquois_merchant',
+    name: 'Iroquois Merchant',
+    description: 'Trades obsidian, copper, and rare stones across the Great Lakes region. Has seen artifacts from very far away.',
+    culturalAffiliation: ['iroquois', 'haudenosaunee'],
+    reliability: 'high',
+    clueQuality: 'strong',
+    specialAbility: 'Can identify the origin of trade goods by material and workmanship',
+  },
+
+  iroquois_smith: {
+    id: 'iroquois_smith',
+    name: 'Iroquois Metalworker',
+    description: 'Works copper into tools and ornaments. Immediately recognizes that certain bronze artifacts use techniques unknown to his people.',
+    culturalAffiliation: ['iroquois', 'haudenosaunee'],
+    reliability: 'high',
+    clueQuality: 'strong',
+    specialAbility: 'Can analyze metallurgy and identify foreign metalworking techniques',
+  },
+
+  // St. Lawrence Iroquoian witnesses
+  st_lawrence_iroquoian: {
+    id: 'st_lawrence_iroquoian',
+    name: 'St. Lawrence Iroquoian',
+    description: 'One of the river people who will mysteriously vanish within centuries. Knows the waterways better than anyone alive.',
+    culturalAffiliation: ['st_lawrence_iroquoian'],
+    reliability: 'high',
+    clueQuality: 'strong',
+    bias: 'Knowledge limited to the river corridor',
+  },
+
+  hochelaga_chief: {
+    id: 'hochelaga_chief',
+    name: 'Hochelaga Chief',
+    description: 'Leader of the fortified village on Montreal Island. Commands respect from river traders and maintains the palisade walls.',
+    culturalAffiliation: ['st_lawrence_iroquoian'],
+    reliability: 'very_high',
+    clueQuality: 'definitive',
+    specialAbility: 'Has access to the village archives and ancestral knowledge',
+  },
+
+  iroquoian_elder: {
+    id: 'iroquoian_elder',
+    name: 'Iroquoian Elder',
+    description: 'Ancient keeper of the longhouse traditions. Remembers stories from before the great confederacy was formed.',
+    culturalAffiliation: ['st_lawrence_iroquoian', 'iroquois'],
+    reliability: 'very_high',
+    clueQuality: 'definitive',
+    specialAbility: 'Oral history spans generations of contact with distant travelers',
+  },
+
+  // Neutral Nation witnesses
+  neutral_nation_priest: {
+    id: 'neutral_nation_priest',
+    name: 'Neutral Nation Priest',
+    description: 'Spiritual leader of the people who keep peace between the warring nations. Guards the sacred portage around the Thunder of Waters.',
+    culturalAffiliation: ['neutral_nation'],
+    reliability: 'high',
+    clueQuality: 'strong',
+    bias: 'Interprets artifacts through spiritual significance rather than origin',
+    specialAbility: 'Knowledge of sacred sites and their astronomical alignments',
+  },
+
+  // Erie Nation witnesses
+  erie_trader: {
+    id: 'erie_trader',
+    name: 'Erie Trader',
+    description: 'Merchant of the Erie Nation who controls the southern lake shore trade. Has seen goods from the Mississippi and beyond.',
+    culturalAffiliation: ['erie'],
+    reliability: 'high',
+    clueQuality: 'strong',
+    specialAbility: 'Connects Great Lakes trade networks to the Mississippi corridor',
+  },
+
+  western_lake_traveler: {
+    id: 'western_lake_traveler',
+    name: 'Western Lake Traveler',
+    description: 'A wanderer who has journeyed to the far western lakes and returned with tales of strange stones carved with unknown symbols.',
+    culturalAffiliation: ['erie', 'ojibwe'],
+    reliability: 'moderate',
+    clueQuality: 'moderate',
+    bias: 'Stories may be embellished from retelling across many campfires',
+  },
+
+  // Ojibwe witnesses
+  ojibwe_elder: {
+    id: 'ojibwe_elder',
+    name: 'Ojibwe Elder',
+    description: 'Keeper of the Midewiwin lodge and its sacred scrolls. Knows the migration stories of the Anishinaabe people from the eastern sea.',
+    culturalAffiliation: ['ojibwe', 'anishinaabe'],
+    reliability: 'very_high',
+    clueQuality: 'definitive',
+    specialAbility: 'Birch bark scrolls contain migration records spanning centuries',
+  },
+
+  // Cahokia outer witnesses
+  cahokia_scout: {
+    id: 'cahokia_scout',
+    name: 'Cahokia Scout',
+    description: 'Patrol who watches the approaches to the great city. Has seen travelers from every direction and knows what they carry.',
+    culturalAffiliation: ['mississippian', 'cahokia'],
+    reliability: 'moderate',
+    clueQuality: 'moderate',
+    specialAbility: 'Can describe the diversity of peoples who visit Cahokia',
+  },
+
   // Special convergence witnesses
   spirit_guide: {
     id: 'spirit_guide',
