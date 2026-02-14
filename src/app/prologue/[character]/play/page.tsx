@@ -247,7 +247,7 @@ export default function ProloguePlayPage() {
           ...prev,
           completedEpisodes: [...prev.completedEpisodes, gate.episodeId],
         }))
-        setShowEpisodeGate(gate.episodeId)
+        setShowEpisodeGate(gate.label)
         addExperience(50)
       }
     }
@@ -713,8 +713,8 @@ export default function ProloguePlayPage() {
 
   const handleIdentifyArtifact = useCallback(() => {
     if (!activeArtifact) return
-    if (!spendAction()) return
 
+    // Identification is free — it's the culmination of investigation work
     // Expertise skill check for identification
     const result = rollSkillCheck('Expertise', 10)
     addInvestigationXP('suspectIdentification', 10)
@@ -732,7 +732,7 @@ export default function ProloguePlayPage() {
 
     applyKarma('oregon_trail', `Identified artifact: ${activeArtifact.name}`, 3, 2)
     syncCrossGame()
-  }, [activeArtifact, spendAction, recordPuzzleSolved, applyKarma, rollSkillCheck, addExperience, addInvestigationXP, syncCrossGame])
+  }, [activeArtifact, recordPuzzleSolved, applyKarma, rollSkillCheck, addExperience, addInvestigationXP, syncCrossGame])
 
   const handleTransform = useCallback((objectId: string, actionName: string): boolean => {
     if (!spendAction()) return false
