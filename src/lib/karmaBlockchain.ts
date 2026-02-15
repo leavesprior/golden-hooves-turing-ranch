@@ -5,6 +5,7 @@
  */
 
 export type KarmaType = 'good' | 'neutral' | 'bad'
+export type KarmaTransactionType = 'transfer' | 'market_purchase' | 'donation' | 'treat' | 'momento'
 
 export interface KarmaBalance {
   good: number    // 🍪 Good Karma - earned via virtuous acts, used for premium items
@@ -21,6 +22,7 @@ export interface KarmaTransaction {
   amount: number
   memo?: string
   synced: boolean
+  transactionType?: KarmaTransactionType
 }
 
 export interface BlockchainError {
@@ -405,9 +407,46 @@ export class KarmaBlockchainClient {
   get agent(): string {
     return this.agentId
   }
+
+  /**
+   * Get market state from blockchain (optional sync)
+   */
+  async getMarketState(): Promise<Record<string, unknown> | null> {
+    if (IS_PRODUCTION) return null
+    try {
+      const response = await fetchWithTimeout(`${this.baseUrl}/karma/market-state/${this.agentId}`)
+      if (!response.ok) return null
+      return await response.json()
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Set market state on blockchain (optional sync)
+   */
+  async setMarketState(state: Record<string, unknown>): Promise<boolean> {
+    if (IS_PRODUCTION) return false
+    try {
+      const response = await fetchWithTimeout(`${this.baseUrl}/karma/market-state`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: this.agentId,
+          market_state: state,
+        }),
+      })
+      return response.ok
+    } catch {
+      return false
+    }
+  }
 }
 
 // Export singleton instance for Oregon Trail
 export const oregonTrailKarma = new KarmaBlockchainClient()
+
+// Export singleton instance for Karma Market
+export const karmaMarketClient = new KarmaBlockchainClient('bobr_karma_market')
 
 export default KarmaBlockchainClient

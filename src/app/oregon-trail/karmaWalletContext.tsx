@@ -64,6 +64,7 @@ interface KarmaWalletContextValue {
   earnNeutral: (amount: number, memo?: string) => Promise<void>
   earnGood: (amount: number, memo?: string) => Promise<void>
   addBadKarma: (amount: number, reason: string) => Promise<void>
+  earnFromDonation: (neutralAmount: number, goodAmount: number, memo?: string) => Promise<void>
 
   // Conversion
   convertGoodToNeutral: (goodAmount: number) => Promise<boolean>
@@ -394,6 +395,44 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     oregonTrailKarma.addBadKarma(amount, reason).catch(() => {})
   }, [addTransaction])
 
+  // Earn karma from donation (neutral + good in one call)
+  const earnFromDonation = useCallback(async (neutralAmount: number, goodAmount: number, memo?: string): Promise<void> => {
+    setState(prev => ({
+      ...prev,
+      balance: {
+        ...prev.balance,
+        neutral: prev.balance.neutral + neutralAmount,
+        good: prev.balance.good + goodAmount,
+      },
+      // Record as a good action in alignment system
+      alignment: {
+        ...prev.alignment,
+        goodEvil: clampAlignment(prev.alignment.goodEvil + Math.min(20, Math.floor(neutralAmount / 10))),
+      },
+    }))
+
+    addTransaction({
+      type: 'earn',
+      karmaType: 'neutral',
+      amount: neutralAmount,
+      memo: memo || 'Donation',
+    })
+
+    if (goodAmount > 0) {
+      addTransaction({
+        type: 'earn',
+        karmaType: 'good',
+        amount: goodAmount,
+        memo: `Donation bonus: ${memo || ''}`,
+      })
+    }
+
+    oregonTrailKarma.earnNeutral(neutralAmount, `DONATION: ${memo}`).catch(() => {})
+    if (goodAmount > 0) {
+      oregonTrailKarma.earnGood(goodAmount, `DONATION_BONUS: ${memo}`).catch(() => {})
+    }
+  }, [addTransaction])
+
   // Convert good to neutral (2:1 ratio)
   const convertGoodToNeutral = useCallback(async (goodAmount: number): Promise<boolean> => {
     const neutralReceived = Math.floor(goodAmount / 2)
@@ -596,6 +635,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     earnNeutral,
     earnGood,
     addBadKarma,
+    earnFromDonation,
 
     // Conversion
     convertGoodToNeutral,

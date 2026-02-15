@@ -834,7 +834,27 @@ export default function Home() {
             Your karma alignment shapes your experience.
           </p>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
+            {/* Karma Market */}
+            <div className="adventure-card group relative">
+              <div className="absolute inset-0 rounded-lg overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-b from-[#2a1a00] to-[#4a3520] opacity-20 group-hover:opacity-40 transition-opacity" />
+              </div>
+              <PixelCard title={'\uD83C\uDFEA Karma Market'}>
+                <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed mb-3">
+                  Support the ranch animals! Donate, buy treats, and collect momentos.
+                </p>
+                <div className="flex flex-wrap gap-1 mb-3">
+                  <span className="adventure-tag bg-[var(--pixel-gold-dark)]/50">Donations</span>
+                  <span className="adventure-tag bg-[var(--pixel-forest-dark)]/50">Animal Treats</span>
+                  <span className="adventure-tag bg-[var(--pixel-fire-orange)]/30">NEW</span>
+                </div>
+                <PixelButton href="/karma-market" variant="gold" size="sm">
+                  Visit Market
+                </PixelButton>
+              </PixelCard>
+            </div>
+
             {/* Prospector's Tale */}
             <div className="adventure-card group relative">
               <div className="absolute inset-0 rounded-lg overflow-hidden">
@@ -1006,6 +1026,9 @@ export default function Home() {
             <PixelButton href="/hub" variant="gold" size="lg">
               🎮 Game Hub
             </PixelButton>
+            <PixelButton href="/karma-market" variant="gold" size="lg">
+              🏪 Karma Market
+            </PixelButton>
           </div>
         </div>
       </section>
@@ -1107,6 +1130,7 @@ export default function Home() {
                 <Link href="/oregon-trail" className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Prospector&apos;s Quest</Link>
                 <Link href="/explore" className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Gold Country Map</Link>
                 <Link href="/game" className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Mystery Hunt</Link>
+                <Link href="/karma-market" className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Karma Market</Link>
                 <Link href="/hub" className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Game Hub</Link>
               </div>
             </div>

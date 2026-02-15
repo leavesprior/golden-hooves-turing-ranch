@@ -26,6 +26,7 @@ export type GameId =
   | 'prologue'
   | 'ranch_treasure_hunt'
   | 'clue_game'
+  | 'karma_marketplace'
 
 // ============================================
 // MILESTONE SYSTEM
@@ -53,6 +54,11 @@ export type MilestoneId =
   | 'prologue_convergence_complete'
   // Booking verification
   | 'booking_verified'
+  // Karma Marketplace milestones
+  | 'first_donation'
+  | 'treat_all_animals'
+  | 'momento_collector'
+  | 'complete_momentos'
 
 export interface Milestone {
   id: MilestoneId

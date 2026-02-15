@@ -6,6 +6,7 @@ const navItems = [
   { href: '/', label: '🏠 Home' },
   { href: '/explore', label: '🗺️ Map' },
   { href: '/game', label: '⚔️ Quest' },
+  { href: '/karma-market', label: '🏪 Market' },
   { href: '/rentals', label: '🏨 Stay' },
   { href: '/leaderboard', label: '🏆 Ranks' },
 ]
