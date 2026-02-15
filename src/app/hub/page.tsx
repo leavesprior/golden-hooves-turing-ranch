@@ -212,6 +212,15 @@ export default function HubPage() {
                 features={['Bounties', 'QR Codes', 'Rewards']}
               />
               <GameCard
+                title="Karma Market"
+                description="Support the ranch, trade karma, collect momentos"
+                href="/karma-market"
+                icon={'\uD83C\uDFEA'}
+                available={true}
+                isNew={true}
+                features={['Donations', 'Animal Treats', 'Momentos', 'Market Tracker']}
+              />
+              <GameCard
                 title="Cynthia's Inn"
                 description="Crossroads tavern connecting all adventures"
                 href="/oregon-trail"
@@ -323,6 +332,14 @@ export default function HubPage() {
       <footer className="border-t-2 border-amber-800 bg-amber-950/50 px-4 py-4 mt-8">
         <div className="max-w-4xl mx-auto text-center text-amber-600 text-xs">
           &copy; 2026 Back of Beyond Ranch | Gold Country, California
+        </div>
+        <div className="max-w-4xl mx-auto text-center mt-2">
+          <Link
+            href="/neoma"
+            className="inline-block w-2 h-2 rounded-full bg-amber-950 hover:bg-purple-900/60 transition-colors duration-700 opacity-30 hover:opacity-60"
+            title=""
+            aria-label=""
+          />
         </div>
       </footer>
     </div>
