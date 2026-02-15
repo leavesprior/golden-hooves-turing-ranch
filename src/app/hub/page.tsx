@@ -120,22 +120,88 @@ export default function HubPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* Ranch aerial view placeholder */}
+        {/* Ranch scenic view with hidden rope bridge */}
         <div className="mb-8 relative overflow-hidden rounded-lg border-4 border-amber-600">
-          <div className="aspect-[21/9] bg-gradient-to-b from-green-800 to-green-900 relative">
-            {/* Simplified pixel-art ranch representation */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-6xl mb-2">\ud83c\udfde\ufe0f</div>
-                <div className="font-pixel text-green-200 text-sm">Ranch Aerial View</div>
-                <div className="text-green-400 text-xs mt-1">[ Placeholder for pixel art ]</div>
+          <div className="aspect-[21/9] relative" style={{
+            background: 'linear-gradient(180deg, #1a3a2a 0%, #1e4d2e 30%, #2d5a3a 50%, #3b6b44 65%, #2a4a32 80%, #1f3828 100%)'
+          }}>
+            {/* Sky hints */}
+            <div className="absolute top-3 left-[22%] text-xl opacity-60">{'\u2601\ufe0f'}</div>
+            <div className="absolute top-5 right-[28%] text-lg opacity-50">{'\u2601\ufe0f'}</div>
+
+            {/* Distant mountains */}
+            <div className="absolute top-[15%] left-0 right-0 h-[20%]" style={{
+              background: 'linear-gradient(180deg, transparent 0%, rgba(30,60,40,0.8) 40%, rgba(45,80,55,0.6) 100%)',
+              clipPath: 'polygon(0% 100%, 5% 40%, 12% 60%, 20% 20%, 28% 50%, 35% 10%, 42% 45%, 50% 25%, 58% 55%, 65% 15%, 72% 50%, 80% 30%, 88% 55%, 95% 35%, 100% 60%, 100% 100%)'
+            }} />
+
+            {/* Left rock cliff */}
+            <div className="absolute bottom-0 left-[15%] w-[18%] h-[55%] rounded-t-lg" style={{
+              background: 'linear-gradient(135deg, #4a3a2a 0%, #5c4a38 30%, #3d2f22 70%, #2e2218 100%)',
+              clipPath: 'polygon(10% 0%, 30% 5%, 60% 0%, 85% 8%, 100% 15%, 100% 100%, 0% 100%, 0% 10%)'
+            }} />
+
+            {/* Right rock cliff */}
+            <div className="absolute bottom-0 right-[15%] w-[18%] h-[55%] rounded-t-lg" style={{
+              background: 'linear-gradient(225deg, #4a3a2a 0%, #5c4a38 30%, #3d2f22 70%, #2e2218 100%)',
+              clipPath: 'polygon(15% 8%, 40% 0%, 70% 5%, 90% 0%, 100% 10%, 100% 100%, 0% 100%, 0% 15%)'
+            }} />
+
+            {/* === THE ROPE BRIDGE (hidden in plain sight) === */}
+            <Link href="/neoma" className="group absolute z-10" style={{
+              left: '33%', right: '33%', bottom: '28%', height: '12%'
+            }}>
+              {/* Main rope/plank line */}
+              <div className="absolute top-[45%] left-0 right-0 h-[3px]" style={{
+                background: 'linear-gradient(90deg, #5c4a38 0%, #8b7355 15%, #6b5b43 30%, #8b7355 50%, #6b5b43 70%, #8b7355 85%, #5c4a38 100%)'
+              }} />
+              {/* Plank marks */}
+              <div className="absolute top-[40%] left-[10%] right-[10%] h-[18%] flex justify-between opacity-40">
+                {[...Array(12)].map((_, i) => (
+                  <div key={i} className="w-[2px] h-full bg-amber-800/70" />
+                ))}
               </div>
-            </div>
-            {/* Decorative elements */}
-            <div className="absolute bottom-4 left-4 text-3xl">\ud83c\udf32</div>
-            <div className="absolute bottom-4 right-4 text-3xl">\ud83c\udf32</div>
-            <div className="absolute top-4 left-1/4 text-2xl">\u2601\ufe0f</div>
-            <div className="absolute top-8 right-1/3 text-2xl">\u2601\ufe0f</div>
+              {/* Upper rope */}
+              <div className="absolute top-[20%] left-0 right-0 h-[1px] bg-amber-800/30" style={{
+                clipPath: 'polygon(0% 100%, 5% 0%, 15% 80%, 25% 10%, 35% 70%, 50% 100%, 65% 70%, 75% 10%, 85% 80%, 95% 0%, 100% 100%)'
+              }} />
+              {/* Lower rope */}
+              <div className="absolute top-[70%] left-0 right-0 h-[1px] bg-amber-800/20" style={{
+                clipPath: 'polygon(0% 0%, 5% 100%, 15% 20%, 25% 90%, 35% 30%, 50% 0%, 65% 30%, 75% 90%, 85% 20%, 95% 100%, 100% 0%)'
+              }} />
+              {/* Subtle hover glow - barely perceptible */}
+              <div className="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/[0.06] transition-all duration-1000 rounded" />
+            </Link>
+
+            {/* Gorge/gap shadow between cliffs */}
+            <div className="absolute bottom-0 left-[32%] right-[32%] h-[25%]" style={{
+              background: 'linear-gradient(180deg, rgba(10,15,10,0.3) 0%, rgba(5,8,5,0.8) 60%, #0a0f0a 100%)'
+            }} />
+
+            {/* Conifer trees - left cluster */}
+            <div className="absolute bottom-[8%] left-[3%] text-3xl">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[12%] left-[8%] text-4xl">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[6%] left-[12%] text-2xl">{'\ud83c\udf32'}</div>
+
+            {/* Conifer trees - on/near left cliff */}
+            <div className="absolute bottom-[52%] left-[16%] text-2xl">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[48%] left-[22%] text-xl">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[42%] left-[28%] text-lg opacity-80">{'\ud83c\udf32'}</div>
+
+            {/* Conifer trees - on/near right cliff */}
+            <div className="absolute bottom-[50%] right-[17%] text-2xl">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[46%] right-[23%] text-xl">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[40%] right-[28%] text-lg opacity-80">{'\ud83c\udf32'}</div>
+
+            {/* Conifer trees - right cluster */}
+            <div className="absolute bottom-[10%] right-[4%] text-4xl">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[6%] right-[10%] text-3xl">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[14%] right-[14%] text-2xl">{'\ud83c\udf32'}</div>
+
+            {/* Foreground grass/ground */}
+            <div className="absolute bottom-0 left-0 right-0 h-[8%]" style={{
+              background: 'linear-gradient(180deg, #2a4a32 0%, #1f3828 100%)'
+            }} />
           </div>
         </div>
 
@@ -332,14 +398,6 @@ export default function HubPage() {
       <footer className="border-t-2 border-amber-800 bg-amber-950/50 px-4 py-4 mt-8">
         <div className="max-w-4xl mx-auto text-center text-amber-600 text-xs">
           &copy; 2026 Back of Beyond Ranch | Gold Country, California
-        </div>
-        <div className="max-w-4xl mx-auto text-center mt-2">
-          <Link
-            href="/neoma"
-            className="inline-block w-2 h-2 rounded-full bg-amber-950 hover:bg-purple-900/60 transition-colors duration-700 opacity-30 hover:opacity-60"
-            title=""
-            aria-label=""
-          />
         </div>
       </footer>
     </div>
