@@ -123,83 +123,143 @@ export default function HubPage() {
         {/* Ranch scenic view with hidden rope bridge */}
         <div className="mb-8 relative overflow-hidden rounded-lg border-4 border-amber-600">
           <div className="aspect-[21/9] relative" style={{
-            background: 'linear-gradient(180deg, #1a3a2a 0%, #1e4d2e 30%, #2d5a3a 50%, #3b6b44 65%, #2a4a32 80%, #1f3828 100%)'
+            background: 'linear-gradient(180deg, #2a4a5a 0%, #3a6a6a 15%, #2a5a4a 30%, #1e4d2e 45%, #2d5a3a 60%, #3b6b44 75%, #2a4a32 90%, #1f3828 100%)'
           }}>
-            {/* Sky hints */}
-            <div className="absolute top-3 left-[22%] text-xl opacity-60">{'\u2601\ufe0f'}</div>
-            <div className="absolute top-5 right-[28%] text-lg opacity-50">{'\u2601\ufe0f'}</div>
+            {/* Sky with clouds */}
+            <div className="absolute top-2 left-[18%] text-xl opacity-50">{'\u2601\ufe0f'}</div>
+            <div className="absolute top-4 left-[45%] text-sm opacity-40">{'\u2601\ufe0f'}</div>
+            <div className="absolute top-3 right-[22%] text-lg opacity-45">{'\u2601\ufe0f'}</div>
 
-            {/* Distant mountains */}
-            <div className="absolute top-[15%] left-0 right-0 h-[20%]" style={{
-              background: 'linear-gradient(180deg, transparent 0%, rgba(30,60,40,0.8) 40%, rgba(45,80,55,0.6) 100%)',
-              clipPath: 'polygon(0% 100%, 5% 40%, 12% 60%, 20% 20%, 28% 50%, 35% 10%, 42% 45%, 50% 25%, 58% 55%, 65% 15%, 72% 50%, 80% 30%, 88% 55%, 95% 35%, 100% 60%, 100% 100%)'
+            {/* Distant mountain range */}
+            <div className="absolute top-[12%] left-0 right-0 h-[22%]" style={{
+              background: 'linear-gradient(180deg, transparent 0%, rgba(25,55,45,0.9) 50%, rgba(40,75,55,0.5) 100%)',
+              clipPath: 'polygon(0% 100%, 3% 50%, 8% 70%, 14% 25%, 20% 55%, 26% 15%, 32% 50%, 38% 30%, 44% 60%, 50% 20%, 56% 55%, 62% 10%, 68% 45%, 74% 25%, 80% 55%, 86% 35%, 92% 60%, 97% 40%, 100% 65%, 100% 100%)'
             }} />
 
-            {/* Left rock cliff */}
-            <div className="absolute bottom-0 left-[15%] w-[18%] h-[55%] rounded-t-lg" style={{
-              background: 'linear-gradient(135deg, #4a3a2a 0%, #5c4a38 30%, #3d2f22 70%, #2e2218 100%)',
-              clipPath: 'polygon(10% 0%, 30% 5%, 60% 0%, 85% 8%, 100% 15%, 100% 100%, 0% 100%, 0% 10%)'
-            }} />
+            {/* Mountain meadow behind left cliff */}
+            <div className="absolute top-[28%] left-0 w-[20%] h-[40%]" style={{
+              background: 'linear-gradient(180deg, #3a6b44 0%, #4a7b54 40%, #3a6b44 100%)'
+            }}>
+              {/* Meadow wildflowers */}
+              <div className="absolute bottom-[20%] left-[20%] text-[8px] opacity-70">{'\ud83c\udf3c'}</div>
+              <div className="absolute bottom-[35%] left-[50%] text-[8px] opacity-60">{'\ud83c\udf3b'}</div>
+              <div className="absolute bottom-[15%] left-[70%] text-[8px] opacity-50">{'\ud83c\udf3c'}</div>
+            </div>
 
-            {/* Right rock cliff */}
-            <div className="absolute bottom-0 right-[15%] w-[18%] h-[55%] rounded-t-lg" style={{
-              background: 'linear-gradient(225deg, #4a3a2a 0%, #5c4a38 30%, #3d2f22 70%, #2e2218 100%)',
-              clipPath: 'polygon(15% 8%, 40% 0%, 70% 5%, 90% 0%, 100% 10%, 100% 100%, 0% 100%, 0% 15%)'
-            }} />
+            {/* Mountain meadow behind right cliff */}
+            <div className="absolute top-[28%] right-0 w-[20%] h-[40%]" style={{
+              background: 'linear-gradient(180deg, #3a6b44 0%, #4a7b54 40%, #3a6b44 100%)'
+            }}>
+              {/* Meadow wildflowers */}
+              <div className="absolute bottom-[25%] right-[25%] text-[8px] opacity-70">{'\ud83c\udf3c'}</div>
+              <div className="absolute bottom-[40%] right-[55%] text-[8px] opacity-60">{'\ud83c\udf3b'}</div>
+              <div className="absolute bottom-[18%] right-[75%] text-[8px] opacity-50">{'\ud83c\udf3c'}</div>
+            </div>
+
+            {/* Left rock cliff (ranch side) */}
+            <div className="absolute bottom-0 left-[15%] w-[20%] h-[55%] rounded-t-lg z-[2]" style={{
+              background: 'linear-gradient(135deg, #4a3a2a 0%, #5c4a38 20%, #4a3a2a 50%, #3d2f22 80%, #2e2218 100%)',
+              clipPath: 'polygon(5% 0%, 25% 4%, 50% 0%, 75% 6%, 95% 2%, 100% 12%, 100% 100%, 0% 100%, 0% 8%)'
+            }}>
+              {/* Rock texture lines */}
+              <div className="absolute top-[30%] left-[10%] w-[35%] h-[1px] bg-amber-900/20" />
+              <div className="absolute top-[50%] left-[20%] w-[50%] h-[1px] bg-amber-900/15" />
+              <div className="absolute top-[70%] left-[5%] w-[40%] h-[1px] bg-amber-900/20" />
+            </div>
+
+            {/* Ranch house on left cliff */}
+            <div className="absolute bottom-[52%] left-[18%] text-2xl z-[3]">{'\ud83c\udfe0'}</div>
+            {/* Barn next to ranch house */}
+            <div className="absolute bottom-[51%] left-[25%] text-xl z-[3]" style={{ transform: 'scaleX(-1)' }}>{'\ud83c\udfda\ufe0f'}</div>
+
+            {/* Right rock cliff (creature side) */}
+            <div className="absolute bottom-0 right-[15%] w-[20%] h-[55%] rounded-t-lg z-[2]" style={{
+              background: 'linear-gradient(225deg, #4a3a2a 0%, #5c4a38 20%, #4a3a2a 50%, #3d2f22 80%, #2e2218 100%)',
+              clipPath: 'polygon(5% 2%, 25% 6%, 50% 0%, 75% 4%, 95% 0%, 100% 8%, 100% 100%, 0% 100%, 0% 12%)'
+            }}>
+              {/* Rock texture lines */}
+              <div className="absolute top-[35%] right-[10%] w-[35%] h-[1px] bg-amber-900/20" />
+              <div className="absolute top-[55%] right-[15%] w-[45%] h-[1px] bg-amber-900/15" />
+              <div className="absolute top-[72%] right-[8%] w-[38%] h-[1px] bg-amber-900/20" />
+            </div>
+
+            {/* Creatures on right cliff */}
+            <div className="absolute bottom-[53%] right-[17%] text-lg z-[3]">{'\ud83d\udc34'}</div>
+            <div className="absolute bottom-[51%] right-[23%] text-base z-[3]">{'\ud83d\udc04'}</div>
+            <div className="absolute bottom-[50%] right-[29%] text-sm z-[3]">{'\ud83d\udc11'}</div>
+            <div className="absolute bottom-[52%] right-[33%] text-sm z-[3]">{'\ud83d\udc10'}</div>
+            <div className="absolute bottom-[49%] right-[19%] text-xs z-[3]">{'\ud83d\udc14'}</div>
+            <div className="absolute bottom-[54%] right-[27%] text-xs z-[3]">{'\ud83e\udd8c'}</div>
 
             {/* === THE ROPE BRIDGE (hidden in plain sight) === */}
-            <Link href="/neoma" className="group absolute z-10" style={{
-              left: '33%', right: '33%', bottom: '28%', height: '12%'
+            <Link href="/neoma" className="group absolute z-[5]" style={{
+              left: '34%', right: '34%', bottom: '26%', height: '14%'
             }}>
-              {/* Main rope/plank line */}
-              <div className="absolute top-[45%] left-0 right-0 h-[3px]" style={{
-                background: 'linear-gradient(90deg, #5c4a38 0%, #8b7355 15%, #6b5b43 30%, #8b7355 50%, #6b5b43 70%, #8b7355 85%, #5c4a38 100%)'
+              {/* Left post */}
+              <div className="absolute left-0 top-[15%] bottom-[15%] w-[3px]" style={{
+                background: 'linear-gradient(180deg, #6b5b43, #4a3a2a)'
               }} />
-              {/* Plank marks */}
-              <div className="absolute top-[40%] left-[10%] right-[10%] h-[18%] flex justify-between opacity-40">
-                {[...Array(12)].map((_, i) => (
-                  <div key={i} className="w-[2px] h-full bg-amber-800/70" />
+              {/* Right post */}
+              <div className="absolute right-0 top-[15%] bottom-[15%] w-[3px]" style={{
+                background: 'linear-gradient(180deg, #6b5b43, #4a3a2a)'
+              }} />
+              {/* Upper rope (handrail) - slight sag */}
+              <div className="absolute top-[25%] left-[1%] right-[1%] h-[2px]" style={{
+                background: '#7b6b53',
+                clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 50% 200%, 0% 100%)'
+              }} />
+              {/* Main plank walkway */}
+              <div className="absolute top-[48%] left-0 right-0 h-[4px]" style={{
+                background: 'linear-gradient(90deg, #5c4a38 0%, #8b7355 10%, #7b6545 25%, #8b7355 40%, #6b5b43 55%, #8b7355 70%, #7b6545 85%, #5c4a38 100%)'
+              }} />
+              {/* Plank slats */}
+              <div className="absolute top-[42%] left-[6%] right-[6%] h-[20%] flex justify-between">
+                {[...Array(16)].map((_, i) => (
+                  <div key={i} className="w-[2px] h-full bg-amber-700/40" />
                 ))}
               </div>
-              {/* Upper rope */}
-              <div className="absolute top-[20%] left-0 right-0 h-[1px] bg-amber-800/30" style={{
-                clipPath: 'polygon(0% 100%, 5% 0%, 15% 80%, 25% 10%, 35% 70%, 50% 100%, 65% 70%, 75% 10%, 85% 80%, 95% 0%, 100% 100%)'
-              }} />
               {/* Lower rope */}
-              <div className="absolute top-[70%] left-0 right-0 h-[1px] bg-amber-800/20" style={{
-                clipPath: 'polygon(0% 0%, 5% 100%, 15% 20%, 25% 90%, 35% 30%, 50% 0%, 65% 30%, 75% 90%, 85% 20%, 95% 100%, 100% 0%)'
+              <div className="absolute top-[72%] left-[1%] right-[1%] h-[2px]" style={{
+                background: '#6b5b43',
+                opacity: 0.5,
+                clipPath: 'polygon(0% 100%, 100% 100%, 100% 0%, 50% -100%, 0% 0%)'
               }} />
-              {/* Subtle hover glow - barely perceptible */}
+              {/* Rope V-supports connecting upper rope to planks */}
+              <div className="absolute top-[25%] left-[15%] w-[1px] h-[25%] bg-amber-800/25 origin-top" style={{ transform: 'rotate(-8deg)' }} />
+              <div className="absolute top-[25%] left-[35%] w-[1px] h-[25%] bg-amber-800/25 origin-top" style={{ transform: 'rotate(5deg)' }} />
+              <div className="absolute top-[25%] right-[35%] w-[1px] h-[25%] bg-amber-800/25 origin-top" style={{ transform: 'rotate(-5deg)' }} />
+              <div className="absolute top-[25%] right-[15%] w-[1px] h-[25%] bg-amber-800/25 origin-top" style={{ transform: 'rotate(8deg)' }} />
+              {/* Subtle hover glow */}
               <div className="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/[0.06] transition-all duration-1000 rounded" />
             </Link>
 
             {/* Gorge/gap shadow between cliffs */}
-            <div className="absolute bottom-0 left-[32%] right-[32%] h-[25%]" style={{
-              background: 'linear-gradient(180deg, rgba(10,15,10,0.3) 0%, rgba(5,8,5,0.8) 60%, #0a0f0a 100%)'
+            <div className="absolute bottom-0 left-[34%] right-[34%] h-[28%] z-[1]" style={{
+              background: 'linear-gradient(180deg, rgba(10,15,10,0.2) 0%, rgba(8,12,8,0.6) 30%, rgba(5,8,5,0.85) 60%, #080c08 100%)'
             }} />
 
-            {/* Conifer trees - left cluster */}
-            <div className="absolute bottom-[8%] left-[3%] text-3xl">{'\ud83c\udf32'}</div>
-            <div className="absolute bottom-[12%] left-[8%] text-4xl">{'\ud83c\udf32'}</div>
-            <div className="absolute bottom-[6%] left-[12%] text-2xl">{'\ud83c\udf32'}</div>
+            {/* Conifer trees - far left meadow */}
+            <div className="absolute bottom-[18%] left-[2%] text-3xl z-[2]">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[25%] left-[6%] text-4xl z-[2]">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[15%] left-[10%] text-2xl z-[2]">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[30%] left-[1%] text-2xl opacity-80 z-[2]">{'\ud83c\udf32'}</div>
 
-            {/* Conifer trees - on/near left cliff */}
-            <div className="absolute bottom-[52%] left-[16%] text-2xl">{'\ud83c\udf32'}</div>
-            <div className="absolute bottom-[48%] left-[22%] text-xl">{'\ud83c\udf32'}</div>
-            <div className="absolute bottom-[42%] left-[28%] text-lg opacity-80">{'\ud83c\udf32'}</div>
+            {/* Conifer trees - on left cliff edges */}
+            <div className="absolute bottom-[54%] left-[14%] text-xl z-[3]">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[48%] left-[31%] text-lg opacity-80 z-[3]">{'\ud83c\udf32'}</div>
 
-            {/* Conifer trees - on/near right cliff */}
-            <div className="absolute bottom-[50%] right-[17%] text-2xl">{'\ud83c\udf32'}</div>
-            <div className="absolute bottom-[46%] right-[23%] text-xl">{'\ud83c\udf32'}</div>
-            <div className="absolute bottom-[40%] right-[28%] text-lg opacity-80">{'\ud83c\udf32'}</div>
+            {/* Conifer trees - on right cliff edges */}
+            <div className="absolute bottom-[53%] right-[14%] text-xl z-[3]">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[47%] right-[32%] text-lg opacity-80 z-[3]">{'\ud83c\udf32'}</div>
 
-            {/* Conifer trees - right cluster */}
-            <div className="absolute bottom-[10%] right-[4%] text-4xl">{'\ud83c\udf32'}</div>
-            <div className="absolute bottom-[6%] right-[10%] text-3xl">{'\ud83c\udf32'}</div>
-            <div className="absolute bottom-[14%] right-[14%] text-2xl">{'\ud83c\udf32'}</div>
+            {/* Conifer trees - far right meadow */}
+            <div className="absolute bottom-[20%] right-[3%] text-4xl z-[2]">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[14%] right-[8%] text-3xl z-[2]">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[28%] right-[1%] text-2xl opacity-80 z-[2]">{'\ud83c\udf32'}</div>
+            <div className="absolute bottom-[16%] right-[12%] text-2xl z-[2]">{'\ud83c\udf32'}</div>
 
-            {/* Foreground grass/ground */}
-            <div className="absolute bottom-0 left-0 right-0 h-[8%]" style={{
+            {/* Foreground grass */}
+            <div className="absolute bottom-0 left-0 right-0 h-[6%] z-[6]" style={{
               background: 'linear-gradient(180deg, #2a4a32 0%, #1f3828 100%)'
             }} />
           </div>
