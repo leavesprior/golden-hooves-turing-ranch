@@ -12,6 +12,8 @@ import { NarratorProvider, useNarrator } from '@/app/oregon-trail/narratorContex
 import { NPCProvider } from '@/app/oregon-trail/npcContext'
 import { MysteryProvider, useMystery } from '@/app/oregon-trail/mysteryContext'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
+import { saveToCloud, loadFromCloud, hasCloudSave, cachePassphrase, getCachedPassphrase, getDeviceId } from '@/lib/cloudSave'
+import { getPlayerIdentifier } from '@/lib/trophyStateCollector'
 
 // Adventure Components
 import { ChapterMap } from '@/components/adventure/ChapterMap'
@@ -196,6 +198,100 @@ const STAT_DISPLAY: Record<StatName, { icon: string; color: string }> = {
   Expertise: { icon: '\uD83C\uDF32', color: '#fb923c' },
 }
 
+// ============================================
+// PASSPHRASE MODAL
+// ============================================
+function PassphraseModal({
+  mode,
+  status,
+  onSubmit,
+  onClose,
+}: {
+  mode: 'save' | 'load'
+  status: 'idle' | 'working' | 'success' | 'error'
+  onSubmit: (passphrase: string) => void
+  onClose: () => void
+}) {
+  const [passphrase, setPassphrase] = useState('')
+  const [confirm, setConfirm] = useState('')
+
+  const needsConfirm = mode === 'save' && !getCachedPassphrase()
+  const canSubmit = passphrase.length >= 4 && (!needsConfirm || passphrase === confirm)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+      <div className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-ui-border)] p-6 max-w-sm w-full mx-4">
+        <h3 className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)] mb-4">
+          {mode === 'save' ? 'Cloud Save' : 'Cloud Load'}
+        </h3>
+
+        {status === 'success' ? (
+          <div className="text-center py-4">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)] mb-4">
+              {mode === 'save' ? 'Saved to cloud!' : 'Game loaded from cloud!'}
+            </p>
+            <button onClick={onClose} className="font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-forest-dark)] border-2 border-[var(--pixel-forest-light)] text-[var(--pixel-ui-text)] px-4 py-2">
+              OK
+            </button>
+          </div>
+        ) : status === 'error' ? (
+          <div className="text-center py-4">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-fire-orange)] mb-4">
+              {mode === 'load' ? 'Wrong passphrase or no save found.' : 'Save failed. Try again.'}
+            </p>
+            <button onClick={onClose} className="font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] px-4 py-2">
+              Close
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] mb-3">
+              {mode === 'save'
+                ? 'Enter a Trail Passphrase to encrypt your save. Remember it — there is no recovery.'
+                : 'Enter your Trail Passphrase to decrypt your cloud save.'}
+            </p>
+            <input
+              type="password"
+              placeholder="Trail Passphrase"
+              value={passphrase}
+              onChange={e => setPassphrase(e.target.value)}
+              className="w-full mb-2 px-3 py-2 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] outline-none focus:border-[var(--pixel-gold-dark)]"
+              autoFocus
+            />
+            {needsConfirm && (
+              <input
+                type="password"
+                placeholder="Confirm Passphrase"
+                value={confirm}
+                onChange={e => setConfirm(e.target.value)}
+                className="w-full mb-2 px-3 py-2 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] outline-none focus:border-[var(--pixel-gold-dark)]"
+              />
+            )}
+            {needsConfirm && passphrase && confirm && passphrase !== confirm && (
+              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-fire-orange)] mb-2">Passphrases don&apos;t match</p>
+            )}
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => { if (canSubmit) onSubmit(passphrase) }}
+                disabled={!canSubmit || status === 'working'}
+                className="flex-1 py-2 font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] disabled:opacity-50"
+              >
+                {status === 'working' ? 'Working...' : mode === 'save' ? 'ENCRYPT & SAVE' : 'DECRYPT & LOAD'}
+              </button>
+              <button
+                onClick={onClose}
+                className="py-2 px-3 font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)]"
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function StatsSidebar({
   stats,
   level,
@@ -203,6 +299,9 @@ function StatsSidebar({
   chapter,
   onOpenSkillTree,
   onSaveGame,
+  onCloudSave,
+  onCloudLoad,
+  hasCloud,
 }: {
   stats: SaddleStats
   level: number
@@ -210,6 +309,9 @@ function StatsSidebar({
   chapter: number
   onOpenSkillTree: () => void
   onSaveGame: () => void
+  onCloudSave: () => void
+  onCloudLoad: () => void
+  hasCloud: boolean
 }) {
   return (
     <div className="space-y-3">
@@ -275,6 +377,20 @@ function StatsSidebar({
         >
           {'\uD83D\uDCBE'} SAVE GAME
         </button>
+        <button
+          onClick={onCloudSave}
+          className="w-full py-2 px-3 font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-gold-light)] hover:border-[var(--pixel-gold-dark)]"
+        >
+          {'\u2601'} CLOUD SAVE
+        </button>
+        {hasCloud && (
+          <button
+            onClick={onCloudLoad}
+            className="w-full py-2 px-3 font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]"
+          >
+            {'\u2601'} CLOUD LOAD
+          </button>
+        )}
         <PixelButton href="/game" variant="orange" size="sm">
           {'\u2190'} EXIT TO MENU
         </PixelButton>
@@ -670,6 +786,71 @@ function AdventureContent() {
     narratorComment('Progress saved. Not that it matters in the grand scheme of things.', 'sarcasm')
   }, [adventureState, narratorComment])
 
+  // === CLOUD SAVE/LOAD ===
+  const [cloudModal, setCloudModal] = useState<{ mode: 'save' | 'load'; status: 'idle' | 'working' | 'success' | 'error' } | null>(null)
+  const [hasCloudSaveFlag, setHasCloudSaveFlag] = useState(false)
+
+  // Check for existing cloud save on mount
+  useEffect(() => {
+    const { id } = getPlayerIdentifier()
+    hasCloudSave(id, 'adventure_save').then(result => {
+      setHasCloudSaveFlag(result.exists)
+    }).catch(() => {})
+  }, [])
+
+  const handleCloudSave = useCallback(() => {
+    const cached = getCachedPassphrase()
+    if (cached && adventureState) {
+      // Use cached passphrase
+      setCloudModal({ mode: 'save', status: 'working' })
+      const { id } = getPlayerIdentifier()
+      saveToCloud(id, 'adventure_save', adventureState, cached).then(result => {
+        setCloudModal({ mode: 'save', status: result.action === 'error' ? 'error' : 'success' })
+        if (result.action !== 'error') {
+          setHasCloudSaveFlag(true)
+          narratorComment('Your journey echoes in the clouds now.', 'observation')
+        }
+      })
+    } else {
+      setCloudModal({ mode: 'save', status: 'idle' })
+    }
+  }, [adventureState, narratorComment])
+
+  const handleCloudLoad = useCallback(() => {
+    const cached = getCachedPassphrase()
+    if (cached) {
+      setCloudModal({ mode: 'load', status: 'working' })
+      const { id } = getPlayerIdentifier()
+      loadFromCloud(id, 'adventure_save', cached).then(result => {
+        if (result.data) {
+          const loaded = result.data as AdventureState
+          setAdventureState({
+            ...loaded,
+            playStartTime: loaded.playStartTime || Date.now(),
+            cluesAnswered: loaded.cluesAnswered ?? 0,
+            welcomeRewardClaimed: loaded.welcomeRewardClaimed ?? false,
+          })
+          saveAdventureState(loaded)
+          setCloudModal({ mode: 'load', status: 'success' })
+          narratorComment('The clouds have returned your story.', 'observation')
+        } else {
+          setCloudModal({ mode: 'load', status: 'error' })
+        }
+      })
+    } else {
+      setCloudModal({ mode: 'load', status: 'idle' })
+    }
+  }, [narratorComment])
+
+  const handlePassphraseSubmit = useCallback((passphrase: string) => {
+    cachePassphrase(passphrase)
+    if (cloudModal?.mode === 'save') {
+      handleCloudSave()
+    } else {
+      handleCloudLoad()
+    }
+  }, [cloudModal, handleCloudSave, handleCloudLoad])
+
   // Check if chapter is completable (visited enough locations)
   const canCompleteChapter = useMemo(() => {
     if (!adventureState) return false
@@ -766,6 +947,9 @@ function AdventureContent() {
               chapter={adventureState.chapter}
               onOpenSkillTree={() => setShowSkillTree(true)}
               onSaveGame={handleSave}
+              onCloudSave={handleCloudSave}
+              onCloudLoad={handleCloudLoad}
+              hasCloud={hasCloudSaveFlag}
             />
           </div>
         </div>
@@ -780,6 +964,16 @@ function AdventureContent() {
           playTimeMinutes={Math.floor((Date.now() - adventureState.playStartTime) / 60000)}
           cluesAnswered={adventureState.cluesAnswered}
           onUseHint={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
+        />
+      )}
+
+      {/* Cloud Save Passphrase Modal */}
+      {cloudModal && (
+        <PassphraseModal
+          mode={cloudModal.mode}
+          status={cloudModal.status}
+          onSubmit={handlePassphraseSubmit}
+          onClose={() => setCloudModal(null)}
         />
       )}
 

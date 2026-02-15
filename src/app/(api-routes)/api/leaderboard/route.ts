@@ -43,6 +43,9 @@ function extractText(prop: unknown): string {
   if (p.type === 'select' && p.select && typeof p.select === 'object') {
     return (p.select as { name?: string }).name || ''
   }
+  if (p.type === 'date' && p.date && typeof p.date === 'object') {
+    return (p.date as { start?: string }).start || ''
+  }
   return ''
 }
 
@@ -113,10 +116,16 @@ export async function GET(request: NextRequest) {
   const filter = searchParams.get('filter') || 'all'
 
   try {
-    // Build Notion query
+    // Build Notion query — only return leaderboard entries (not game saves)
     const queryBody: Record<string, unknown> = {
       sorts: [{ property: 'Score', direction: 'descending' }],
       page_size: limit,
+    }
+
+    // Base filter: only leaderboard entries
+    const leaderboardFilter = {
+      property: 'SaveType',
+      select: { equals: 'leaderboard' },
     }
 
     // Time filter
@@ -124,9 +133,16 @@ export async function GET(request: NextRequest) {
       const daysAgo = filter === 'week' ? 7 : 30
       const since = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000)
       queryBody.filter = {
-        property: 'SubmittedAt',
-        date: { on_or_after: since.toISOString().split('T')[0] },
+        and: [
+          leaderboardFilter,
+          {
+            property: 'SubmittedAt',
+            date: { on_or_after: since.toISOString().split('T')[0] },
+          },
+        ],
       }
+    } else {
+      queryBody.filter = leaderboardFilter
     }
 
     const response = await notionFetch(`${NOTION_BASE}/databases/${NOTION_DATABASE_ID}/query`, {
@@ -198,6 +214,7 @@ export async function POST(request: NextRequest) {
       Level: { number: level || 1 },
       IsNPC: { checkbox: false },
       SubmittedAt: { date: { start: new Date().toISOString() } },
+      SaveType: { select: { name: 'leaderboard' } },
     }
 
     if (Array.isArray(trophies) && trophies.length > 0) {

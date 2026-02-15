@@ -35,9 +35,10 @@ function fromBase64(str: string): Uint8Array {
 async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
   // Convert passphrase to key material
   const encoder = new TextEncoder();
+  const encoded = encoder.encode(passphrase);
   const passphraseKey = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(passphrase),
+    encoded.buffer as ArrayBuffer,
     'PBKDF2',
     false,
     ['deriveBits', 'deriveKey']
@@ -47,7 +48,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: salt.buffer as ArrayBuffer,
       iterations: 100000,
       hash: 'SHA-256'
     },
@@ -84,17 +85,17 @@ export async function encryptSave(
   const ciphertext = await crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
-      iv: iv
+      iv: iv.buffer as ArrayBuffer
     },
     key,
-    plaintext
+    plaintext.buffer as ArrayBuffer
   );
 
   // Return all components as base64 strings
   return {
     ciphertext: toBase64(ciphertext),
-    salt: toBase64(salt),
-    iv: toBase64(iv)
+    salt: toBase64(salt.buffer as ArrayBuffer),
+    iv: toBase64(iv.buffer as ArrayBuffer)
   };
 }
 
@@ -123,10 +124,10 @@ export async function decryptSave(
     const plaintext = await crypto.subtle.decrypt(
       {
         name: 'AES-GCM',
-        iv: iv
+        iv: iv.buffer as ArrayBuffer
       },
       key,
-      ciphertext
+      ciphertext.buffer as ArrayBuffer
     );
 
     // Convert bytes back to object

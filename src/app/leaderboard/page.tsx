@@ -75,6 +75,9 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     fetchHall(timeFilter)
+    // Live leaderboard: poll every 60 seconds
+    const interval = setInterval(() => fetchHall(timeFilter), 60_000)
+    return () => clearInterval(interval)
   }, [timeFilter, fetchHall])
 
   // Submit score to Notion
