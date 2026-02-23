@@ -248,7 +248,7 @@ function SensorScan({ onDone }: { onDone: () => void }) {
       <div className="scan-header">{'>'} SENSOR SCAN IN PROGRESS</div>
       {scanData.map((scan, i) => (
         <div key={i} className={`scan-row ${scan.filled ? 'filled' : ''}`}>
-          <span className="scan-label">{scan.label}</span>
+          <span className="scan-label">{scan.label}:</span>
           <span className="scan-bar">
             <span className="scan-fill" style={{ width: scan.filled ? '100%' : '0%' }} />
           </span>
@@ -540,10 +540,10 @@ function WorkshopContent() {
             </div>
 
             <div className="complete-info">
-              <div className="info-row"><span className="info-label">DEVICE</span><span className="info-value">{bootstrapData.name}</span></div>
-              <div className="info-row"><span className="info-label">ROLE</span><span className="info-value">{bootstrapData.role.toUpperCase()}</span></div>
-              <div className="info-row"><span className="info-label">VPN IP</span><span className="info-value">{bootstrapData.vpn_ip}</span></div>
-              <div className="info-row"><span className="info-label">PLATFORM</span><span className="info-value">{bootstrapData.platform.toUpperCase()}</span></div>
+              <div className="info-row"><span className="info-label">DEVICE:</span><span className="info-value">{bootstrapData.name}</span></div>
+              <div className="info-row"><span className="info-label">ROLE:</span><span className="info-value">{bootstrapData.role.toUpperCase()}</span></div>
+              <div className="info-row"><span className="info-label">VPN IP:</span><span className="info-value">{bootstrapData.vpn_ip}</span></div>
+              <div className="info-row"><span className="info-label">PLATFORM:</span><span className="info-value">{bootstrapData.platform.toUpperCase()}</span></div>
             </div>
 
             <div className="download-section">
@@ -799,9 +799,10 @@ function WorkshopContent() {
         .scan-bar {
           flex: 1;
           height: 4px;
-          background: #1a1a1a;
+          background: #1a3a1a;
           position: relative;
           overflow: hidden;
+          min-width: 40px;
         }
 
         .scan-fill {
