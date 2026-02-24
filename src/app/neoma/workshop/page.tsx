@@ -346,9 +346,14 @@ function WorkshopContent() {
       return
     }
 
-    if (!/^[a-f0-9]{32}$/.test(token)) {
+    if (!/^[a-f0-9]{32,64}$/.test(token)) {
       setPhase('denied')
       return
+    }
+
+    // Scrub token from URL bar to prevent leakage via history/referrer
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/neoma/workshop')
     }
 
     fetch(`/api/neoma/onboard?t=${token}`)

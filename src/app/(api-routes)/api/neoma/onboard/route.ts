@@ -1,51 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { execSync } from 'child_process'
+import { execFileSync } from 'child_process'
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, unlinkSync, statSync } from 'fs'
+import { join } from 'path'
 
-// ===================== RATE LIMITING =====================
+// ===================== RATE LIMITING (FILE-BASED, PERSISTENT) =====================
+// Survives server restarts. /tmp auto-cleans on reboot.
 
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
-const RATE_LIMIT = 3 // attempts per minute
+const RATE_DIR = '/tmp/neoma-onboard-ratelimit'
+const RATE_LIMIT = 3 // attempts per window
 const RATE_WINDOW_MS = 60_000
+const RATE_CLEANUP_MS = 300_000
+
+try { mkdirSync(RATE_DIR, { recursive: true, mode: 0o700 }) } catch {}
+
+// Set of trusted reverse proxy IPs. Only trust x-forwarded-for from these.
+const TRUSTED_PROXIES = new Set<string>(['127.0.0.1', '::1'])
+
+function sanitizeIPForFile(ip: string): string {
+  return ip.replace(/[^0-9a-f.:]/gi, '_').slice(0, 45)
+}
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now()
-  const entry = rateLimitStore.get(ip)
+  const file = join(RATE_DIR, sanitizeIPForFile(ip))
 
-  if (!entry || now > entry.resetAt) {
-    rateLimitStore.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS })
+  try {
+    const raw = readFileSync(file, 'utf-8')
+    const entry = JSON.parse(raw) as { count: number; resetAt: number }
+
+    if (now > entry.resetAt) {
+      writeFileSync(file, JSON.stringify({ count: 1, resetAt: now + RATE_WINDOW_MS }), { mode: 0o600 })
+      return true
+    }
+    if (entry.count >= RATE_LIMIT) return false
+    entry.count++
+    writeFileSync(file, JSON.stringify(entry), { mode: 0o600 })
+    return true
+  } catch {
+    writeFileSync(file, JSON.stringify({ count: 1, resetAt: now + RATE_WINDOW_MS }), { mode: 0o600 })
     return true
   }
-
-  if (entry.count >= RATE_LIMIT) {
-    return false
-  }
-
-  entry.count++
-  return true
 }
 
-// Periodic cleanup
+// Periodic cleanup of stale rate limit files
 let cleanupTimer: ReturnType<typeof setInterval> | null = null
 function ensureCleanup() {
   if (cleanupTimer) return
   cleanupTimer = setInterval(() => {
-    const now = Date.now()
-    for (const [ip, entry] of rateLimitStore) {
-      if (now > entry.resetAt + 300_000) {
-        rateLimitStore.delete(ip)
+    try {
+      const now = Date.now()
+      for (const f of readdirSync(RATE_DIR)) {
+        try {
+          const st = statSync(join(RATE_DIR, f))
+          if (now - st.mtimeMs > RATE_CLEANUP_MS) unlinkSync(join(RATE_DIR, f))
+        } catch {}
       }
-    }
-  }, 300_000)
+    } catch {}
+  }, RATE_CLEANUP_MS)
 }
 
 // ===================== HELPERS =====================
 
 function getClientIP(request: NextRequest): string {
-  return (
-    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown'
-  )
+  // H1: Don't blindly trust x-forwarded-for — it's client-settable.
+  // Only trust it if the connecting IP is a known reverse proxy.
+  const socketIP = request.headers.get('x-real-ip') || '127.0.0.1'
+
+  if (TRUSTED_PROXIES.has(socketIP)) {
+    // Request came from a trusted proxy — use the forwarded client IP
+    const forwarded = request.headers.get('x-forwarded-for')
+    if (forwarded) {
+      return forwarded.split(',')[0].trim()
+    }
+  }
+
+  // Direct connection or untrusted proxy — use socket IP
+  return socketIP
 }
 
 // ===================== VALIDATE TOKEN (GET) =====================
@@ -62,13 +92,14 @@ export async function GET(request: NextRequest) {
   }
 
   const token = request.nextUrl.searchParams.get('t')
-  if (!token || !/^[a-f0-9]{32}$/.test(token)) {
+  if (!token || !/^[a-f0-9]{32,64}$/.test(token)) {
     return NextResponse.json({ ok: false, error: 'Invalid token format' }, { status: 400 })
   }
 
   try {
-    const result = execSync(
-      `neoma-device-onboard get-pending "${token.replace(/[^a-f0-9]/g, '')}"`,
+    const result = execFileSync(
+      'neoma-device-onboard',
+      ['get-pending', token],
       { timeout: 5000, encoding: 'utf-8' }
     )
     const data = JSON.parse(result.trim().split('\n').pop() || '{}')
@@ -123,16 +154,15 @@ export async function POST(request: NextRequest) {
 
   const { token, platform = 'linux' } = body
 
-  if (!token || !/^[a-f0-9]{32}$/.test(token)) {
+  if (!token || !/^[a-f0-9]{32,64}$/.test(token)) {
     return NextResponse.json({ ok: false, error: 'Invalid token format' }, { status: 400 })
   }
 
-  const safeToken = token.replace(/[^a-f0-9]/g, '')
-
   try {
     // Get pending config with bootstrap scripts
-    const result = execSync(
-      `neoma-device-onboard get-pending "${safeToken}"`,
+    const result = execFileSync(
+      'neoma-device-onboard',
+      ['get-pending', token],
       { timeout: 5000, encoding: 'utf-8' }
     )
     const data = JSON.parse(result.trim().split('\n').pop() || '{}')
@@ -146,8 +176,9 @@ export async function POST(request: NextRequest) {
 
     // Activate the device
     try {
-      execSync(
-        `neoma-device-onboard activate "${safeToken}"`,
+      execFileSync(
+        'neoma-device-onboard',
+        ['activate', token],
         { timeout: 10000, encoding: 'utf-8' }
       )
     } catch {
