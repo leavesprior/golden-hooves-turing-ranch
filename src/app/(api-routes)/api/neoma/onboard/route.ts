@@ -78,6 +78,21 @@ function getClientIP(request: NextRequest): string {
   return socketIP
 }
 
+// L3: Security headers for all onboard API responses
+const SECURITY_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'no-referrer',
+}
+
+function secureJson(data: Record<string, unknown>, init?: { status?: number }) {
+  return NextResponse.json(data, {
+    ...init,
+    headers: SECURITY_HEADERS,
+  })
+}
+
 // ===================== VALIDATE TOKEN (GET) =====================
 
 export async function GET(request: NextRequest) {
@@ -85,7 +100,7 @@ export async function GET(request: NextRequest) {
 
   const ip = getClientIP(request)
   if (!checkRateLimit(ip)) {
-    return NextResponse.json(
+    return secureJson(
       { ok: false, error: 'Rate limit exceeded. Try again in 60 seconds.' },
       { status: 429 }
     )
@@ -93,7 +108,7 @@ export async function GET(request: NextRequest) {
 
   const token = request.nextUrl.searchParams.get('t')
   if (!token || !/^[a-f0-9]{32,64}$/.test(token)) {
-    return NextResponse.json({ ok: false, error: 'Invalid token format' }, { status: 400 })
+    return secureJson({ ok: false, error: 'Invalid token format' }, { status: 400 })
   }
 
   try {
@@ -105,14 +120,14 @@ export async function GET(request: NextRequest) {
     const data = JSON.parse(result.trim().split('\n').pop() || '{}')
 
     if (!data.ok) {
-      return NextResponse.json(
+      return secureJson(
         { ok: false, error: data.error || 'Token invalid' },
         { status: 404 }
       )
     }
 
     // Return safe info (no private keys)
-    return NextResponse.json({
+    return secureJson({
       ok: true,
       name: data.name,
       role: data.role,
@@ -120,7 +135,7 @@ export async function GET(request: NextRequest) {
       node_type: data.node_type,
     })
   } catch {
-    return NextResponse.json(
+    return secureJson(
       { ok: false, error: 'Token validation failed' },
       { status: 500 }
     )
@@ -139,7 +154,7 @@ export async function POST(request: NextRequest) {
 
   const ip = getClientIP(request)
   if (!checkRateLimit(ip)) {
-    return NextResponse.json(
+    return secureJson(
       { ok: false, error: 'Rate limit exceeded. Try again in 60 seconds.' },
       { status: 429 }
     )
@@ -149,13 +164,13 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ ok: false, error: 'Invalid JSON' }, { status: 400 })
+    return secureJson({ ok: false, error: 'Invalid JSON' }, { status: 400 })
   }
 
   const { token, platform = 'linux' } = body
 
   if (!token || !/^[a-f0-9]{32,64}$/.test(token)) {
-    return NextResponse.json({ ok: false, error: 'Invalid token format' }, { status: 400 })
+    return secureJson({ ok: false, error: 'Invalid token format' }, { status: 400 })
   }
 
   try {
@@ -168,7 +183,7 @@ export async function POST(request: NextRequest) {
     const data = JSON.parse(result.trim().split('\n').pop() || '{}')
 
     if (!data.ok) {
-      return NextResponse.json(
+      return secureJson(
         { ok: false, error: data.error || 'Token invalid' },
         { status: 404 }
       )
@@ -207,7 +222,7 @@ export async function POST(request: NextRequest) {
         contentType = 'text/x-shellscript'
     }
 
-    return NextResponse.json({
+    return secureJson({
       ok: true,
       name: data.name,
       role: data.role,
@@ -218,7 +233,7 @@ export async function POST(request: NextRequest) {
       filename,
     })
   } catch {
-    return NextResponse.json(
+    return secureJson(
       { ok: false, error: 'Onboarding failed' },
       { status: 500 }
     )
