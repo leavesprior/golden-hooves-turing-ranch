@@ -374,7 +374,13 @@ function WorkshopContent() {
   }, [token])
 
   const handleBootDone = useCallback(() => setPhase('scan'), [])
-  const handleScanDone = useCallback(() => setPhase('select'), [])
+  const handleScanDone = useCallback(() => {
+    // M4: Auto-select the server-assigned role
+    if (deviceInfo?.role === 'node' || deviceInfo?.role === 'observer') {
+      setSelectedRole(deviceInfo.role)
+    }
+    setPhase('select')
+  }, [deviceInfo])
 
   const handleInitiateLink = useCallback(async () => {
     if (!token || !selectedRole) return
@@ -460,20 +466,20 @@ function WorkshopContent() {
           </div>
         )}
 
-        {/* ROLE SELECTION */}
+        {/* ROLE DISPLAY — M4: role is server-assigned, show it instead of letting user pick */}
         {phase === 'select' && deviceInfo && (
           <div className="select-screen">
             <div className="select-header">
-              <TypedText text={`OPERATOR: ${deviceInfo.name} — SELECT INTEGRATION MODE`} speed={25} />
+              <TypedText text={`OPERATOR: ${deviceInfo.name} — INTEGRATION MODE ASSIGNED`} speed={25} />
             </div>
 
             <div className="role-cards">
               <div
-                className={`role-card ${selectedRole === 'node' ? 'selected' : ''}`}
-                onClick={() => setSelectedRole('node')}
+                className={`role-card ${deviceInfo.role === 'node' ? 'selected' : 'disabled'}`}
+                onClick={deviceInfo.role === 'node' ? () => setSelectedRole('node') : undefined}
               >
                 <div className="role-mech">
-                  <MechSVG powered={selectedRole === 'node'} variant="node" open={false} />
+                  <MechSVG powered={deviceInfo.role === 'node'} variant="node" open={false} />
                 </div>
                 <div className="role-info">
                   <div className="role-title">[NODE] FULL MECH INTEGRATION</div>
@@ -486,15 +492,16 @@ function WorkshopContent() {
                     <span className="cap-badge cap-green">WHEELWRIGHT</span>
                     <span className="cap-badge cap-green">FULL MB ACCESS</span>
                   </div>
+                  {deviceInfo.role === 'node' && <div className="role-assigned">ASSIGNED</div>}
                 </div>
               </div>
 
               <div
-                className={`role-card ${selectedRole === 'observer' ? 'selected' : ''}`}
-                onClick={() => setSelectedRole('observer')}
+                className={`role-card ${deviceInfo.role === 'observer' ? 'selected' : 'disabled'}`}
+                onClick={deviceInfo.role === 'observer' ? () => setSelectedRole('observer') : undefined}
               >
                 <div className="role-mech">
-                  <MechSVG powered={selectedRole === 'observer'} variant="observer" open={false} />
+                  <MechSVG powered={deviceInfo.role === 'observer'} variant="observer" open={false} />
                 </div>
                 <div className="role-info">
                   <div className="role-title">[OBSERVER] RECON MODULE ONLY</div>
@@ -507,6 +514,7 @@ function WorkshopContent() {
                     <span className="cap-badge cap-amber">MONITOR</span>
                     <span className="cap-badge cap-dim">NO COMPUTE</span>
                   </div>
+                  {deviceInfo.role === 'observer' && <div className="role-assigned">ASSIGNED</div>}
                 </div>
               </div>
             </div>
@@ -867,6 +875,28 @@ function WorkshopContent() {
         .role-card.selected {
           border-color: #33ff33;
           box-shadow: 0 0 30px rgba(51, 255, 51, 0.25), inset 0 0 30px rgba(51, 255, 51, 0.05);
+        }
+
+        .role-card.disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+          pointer-events: none;
+        }
+
+        .role-card.disabled:hover {
+          border-color: #1a2a1a;
+          box-shadow: none;
+        }
+
+        .role-assigned {
+          text-align: center;
+          font-size: 0.65rem;
+          letter-spacing: 0.2em;
+          color: #33ff33;
+          border: 1px solid #33ff33;
+          padding: 2px 12px;
+          margin-top: 4px;
+          animation: glow-pulse 2s ease-in-out infinite;
         }
 
         .role-mech {
