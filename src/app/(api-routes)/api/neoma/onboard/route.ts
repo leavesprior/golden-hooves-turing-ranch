@@ -93,10 +93,27 @@ function secureJson(data: Record<string, unknown>, init?: { status?: number }) {
   })
 }
 
+// H2: Reject non-HTTPS in production (tokens in URL leak over HTTP)
+function requireHTTPS(request: NextRequest): NextResponse | null {
+  const proto = request.headers.get('x-forwarded-proto') || 'http'
+  const host = request.headers.get('host') || ''
+  const isLocal = host.startsWith('localhost') || host.startsWith('127.0.0.1')
+  if (!isLocal && proto !== 'https') {
+    return secureJson(
+      { ok: false, error: 'HTTPS required for onboarding.' },
+      { status: 403 }
+    )
+  }
+  return null
+}
+
 // ===================== VALIDATE TOKEN (GET) =====================
 
 export async function GET(request: NextRequest) {
   ensureCleanup()
+
+  const httpsCheck = requireHTTPS(request)
+  if (httpsCheck) return httpsCheck
 
   const ip = getClientIP(request)
   if (!checkRateLimit(ip)) {
@@ -151,6 +168,9 @@ interface OnboardRequestBody {
 
 export async function POST(request: NextRequest) {
   ensureCleanup()
+
+  const httpsCheck = requireHTTPS(request)
+  if (httpsCheck) return httpsCheck
 
   const ip = getClientIP(request)
   if (!checkRateLimit(ip)) {
