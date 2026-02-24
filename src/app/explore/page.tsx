@@ -907,9 +907,79 @@ function ExplorerMap() {
             ))}
           </div>
 
-          {/* Mountain silhouette */}
-          <svg className="absolute top-0 w-full h-1/4 fill-[var(--pixel-earth-mid)] opacity-20" viewBox="0 0 100 25">
-            <polygon points="0,25 15,10 25,18 35,5 50,15 65,8 80,20 90,12 100,25" />
+          {/* Gold Country Map Background */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 75" preserveAspectRatio="xMidYMid slice">
+            {/* Mountain ranges */}
+            <polygon points="0,20 8,8 16,14 24,3 32,12 40,6 48,14 56,4 64,10 72,2 80,12 88,7 96,14 100,10 100,22 0,22"
+              fill="var(--pixel-earth-mid)" opacity="0.2" />
+            <polygon points="0,26 12,16 20,22 28,12 36,18 44,10 52,20 60,14 68,8 76,18 84,13 92,20 100,16 100,28 0,28"
+              fill="var(--pixel-earth-dark)" opacity="0.15" />
+
+            {/* Rivers — Mokelumne and Calaveras */}
+            <path d="M 0,35 Q 10,32 18,38 Q 26,44 35,40 Q 42,36 50,42 Q 58,48 65,44 Q 75,38 85,45 Q 92,50 100,48"
+              fill="none" stroke="#4a90d9" strokeWidth="0.6" opacity="0.35" strokeLinecap="round" />
+            <path d="M 0,55 Q 8,52 15,56 Q 22,60 30,58 Q 38,54 45,60 Q 52,65 60,62 Q 68,58 78,64 Q 88,68 100,65"
+              fill="none" stroke="#4a90d9" strokeWidth="0.5" opacity="0.25" strokeLinecap="round" />
+
+            {/* Mother Lode gold belt — diagonal band NW to SE */}
+            <path d="M 10,15 Q 20,25 25,35 Q 30,45 35,55 Q 42,65 50,75"
+              fill="none" stroke="var(--pixel-gold-mid)" strokeWidth="8" opacity="0.06" strokeLinecap="round" />
+
+            {/* Trail connections between towns */}
+            {/* Volcano (35,35) -> West Point (55,40) */}
+            <path d="M 35,26 Q 42,28 48,30 Q 52,32 55,30"
+              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
+            {/* Volcano (35,35) -> Mokelumne Hill (20,50) */}
+            <path d="M 35,26 Q 30,32 26,38 Q 22,43 20,38"
+              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
+            {/* Mokelumne Hill (20,50) -> Angels Camp (25,65) */}
+            <path d="M 20,38 Q 20,45 22,52 Q 24,58 25,49"
+              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
+            {/* Mokelumne Hill (20,50) -> San Andreas (35,75) */}
+            <path d="M 20,38 Q 24,45 28,52 Q 32,58 35,56"
+              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
+            {/* San Andreas (35,75) -> Angels Camp (25,65) */}
+            <path d="M 35,56 Q 32,52 28,50 Q 26,49 25,49"
+              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
+            {/* West Point (55,40) -> BOBR Ranch (50,50) */}
+            <path d="M 55,30 Q 54,35 52,38 Q 51,42 50,38"
+              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
+
+            {/* Forest patches — scattered pine treeline shapes */}
+            <g opacity="0.12" fill="var(--pixel-forest-mid)">
+              <polygon points="5,30 7,22 9,30" />
+              <polygon points="8,31 10,24 12,31" />
+              <polygon points="60,20 62,13 64,20" />
+              <polygon points="63,21 65,15 67,21" />
+              <polygon points="75,28 77,21 79,28" />
+              <polygon points="85,35 87,28 89,35" />
+              <polygon points="12,45 14,38 16,45" />
+              <polygon points="70,50 72,43 74,50" />
+              <polygon points="80,55 82,48 84,55" />
+              <polygon points="45,22 47,15 49,22" />
+              <polygon points="90,42 92,35 94,42" />
+            </g>
+
+            {/* Mining symbols along the Mother Lode */}
+            <g opacity="0.15" fill="var(--pixel-gold-dark)">
+              <circle cx="22" cy="33" r="0.8" />
+              <circle cx="28" cy="42" r="0.6" />
+              <circle cx="33" cy="52" r="0.7" />
+              <circle cx="38" cy="60" r="0.5" />
+              <circle cx="30" cy="48" r="0.5" />
+            </g>
+
+            {/* Compass rose — bottom right */}
+            <g transform="translate(88,65)" opacity="0.2">
+              <line x1="0" y1="-4" x2="0" y2="4" stroke="var(--pixel-gold-light)" strokeWidth="0.3" />
+              <line x1="-4" y1="0" x2="4" y2="0" stroke="var(--pixel-gold-light)" strokeWidth="0.3" />
+              <polygon points="0,-5 -1,-2 1,-2" fill="var(--pixel-gold-mid)" />
+              <text x="0" y="-6" textAnchor="middle" fontSize="2.5" fill="var(--pixel-gold-light)" fontFamily="serif">N</text>
+            </g>
+
+            {/* "GOLD COUNTRY" label */}
+            <text x="50" y="72" textAnchor="middle" fontSize="3" fill="var(--pixel-gold-mid)" opacity="0.15"
+              fontFamily="serif" letterSpacing="3">GOLD COUNTRY</text>
           </svg>
 
           {/* Town markers */}

@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Multi-Agent Showdown | Neoma</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky-dark: #1a1c2c;
+    --sky-mid: #5d275d;
+    --sky-light: #b13e53;
+    --gold-dark: #a7511a;
+    --gold-mid: #e8a027;
+    --gold-light: #f4d76b;
+    --forest-dark: #1e4d2b;
+    --forest-mid: #3e8948;
+    --forest-light: #a4d23d;
+    --earth-dark: #3b2a1f;
+    --earth-mid: #5c3d2e;
+    --earth-light: #8f6845;
+    --ui-bg: #29366f;
+    --ui-border: #41a6f6;
+    --ui-text: #c0cbdc;
+    --bg-dark: #0f0f1b;
+    --bg-mid: #1a1c2c;
+    --bg-light: #262b44;
+    --fire-orange: #ef7d57;
+    --fire-red: #b13e53;
+    --font: 'Press Start 2P', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; image-rendering: pixelated; }
+
+  body {
+    background: var(--bg-dark);
+    color: var(--ui-text);
+    font-family: var(--font);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* Stars background */
+  .stars {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .star {
+    position: absolute;
+    width: 2px; height: 2px;
+    background: var(--gold-light);
+    border-radius: 50%;
+    animation: twinkle var(--dur, 3s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+    opacity: 0.3;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.5); }
+  }
+
+  /* Slide container */
+  .slideshow {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+  }
+  .slide {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    pointer-events: none;
+  }
+  .slide.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Shared card styles */
+  .card {
+    border: 4px solid var(--ui-border);
+    background: var(--bg-mid);
+    padding: 24px;
+    max-width: 900px;
+    width: 100%;
+  }
+  .card-title {
+    font-size: 14px;
+    color: var(--gold-light);
+    border-bottom: 2px solid var(--ui-border);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    line-height: 1.6;
+  }
+
+  h1 { font-size: 28px; line-height: 1.4; }
+  h2 { font-size: 18px; line-height: 1.4; }
+  h3 { font-size: 14px; line-height: 1.4; }
+  p, li { font-size: 10px; line-height: 2; }
+  .small { font-size: 8px; line-height: 2; }
+
+  .gold { color: var(--gold-light); }
+  .green { color: var(--forest-light); }
+  .blue { color: var(--ui-border); }
+  .red { color: var(--fire-red); }
+  .orange { color: var(--fire-orange); }
+
+  /* Pixel badge */
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border: 2px solid;
+    font-size: 8px;
+    margin: 4px;
+  }
+  .badge-gold { border-color: var(--gold-mid); color: var(--gold-light); background: rgba(167,81,26,0.3); }
+  .badge-green { border-color: var(--forest-mid); color: var(--forest-light); background: rgba(30,77,43,0.3); }
+  .badge-blue { border-color: var(--ui-border); color: var(--ui-border); background: rgba(41,54,111,0.3); }
+  .badge-red { border-color: var(--fire-red); color: var(--fire-red); background: rgba(177,62,83,0.2); }
+
+  /* Comparison grid */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    max-width: 1000px;
+    width: 100%;
+  }
+  .compare-col {
+    border: 3px solid var(--ui-border);
+    background: var(--bg-mid);
+    padding: 16px;
+  }
+  .compare-col.highlight {
+    border-color: var(--gold-mid);
+    box-shadow: 0 0 20px rgba(232,160,39,0.2);
+  }
+
+  /* Stats bar */
+  .stat-bar {
+    height: 12px;
+    background: var(--bg-light);
+    margin: 6px 0;
+    position: relative;
+    border: 1px solid var(--ui-border);
+  }
+  .stat-fill {
+    height: 100%;
+    transition: width 1.5s ease;
+  }
+  .stat-fill.gold { background: var(--gold-mid); }
+  .stat-fill.green { background: var(--forest-mid); }
+  .stat-fill.blue { background: var(--ui-border); }
+
+  /* Meter display */
+  .meter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+  }
+  .meter-label { font-size: 8px; min-width: 120px; }
+  .meter-bar { flex: 1; height: 10px; background: var(--bg-light); border: 1px solid rgba(192,203,220,0.2); }
+  .meter-fill { height: 100%; }
+  .meter-val { font-size: 8px; min-width: 40px; text-align: right; }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 12px 0;
+    flex-wrap: wrap;
+  }
+  .flow-box {
+    border: 2px solid var(--ui-border);
+    padding: 8px 16px;
+    font-size: 8px;
+    background: var(--bg-mid);
+    text-align: center;
+  }
+  .flow-arrow {
+    color: var(--gold-mid);
+    font-size: 14px;
+  }
+
+  /* Navigation */
+  .nav {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .nav-btn {
+    background: var(--ui-bg);
+    border: 3px solid var(--ui-border);
+    color: var(--ui-text);
+    font-family: var(--font);
+    font-size: 12px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .nav-btn:hover { background: var(--ui-border); color: var(--bg-dark); }
+  .nav-btn:active { transform: translateY(2px); }
+  .nav-counter { font-size: 10px; color: var(--gold-light); }
+
+  /* Dot indicators */
+  .dots {
+    position: fixed;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border: 2px solid var(--ui-border);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .dot.active { background: var(--gold-mid); border-color: var(--gold-mid); }
+
+  /* Glow pulse for emphasis */
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 5px rgba(232,160,39,0.3); }
+    50% { box-shadow: 0 0 25px rgba(232,160,39,0.6); }
+  }
+  .glow { animation: glow-pulse 2s ease-in-out infinite; }
+
+  /* Score animation */
+  @keyframes count-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-in { animation: count-up 0.5s ease forwards; }
+
+  /* Table */
+  .pixel-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8px;
+  }
+  .pixel-table th, .pixel-table td {
+    border: 2px solid var(--ui-border);
+    padding: 8px;
+    text-align: left;
+  }
+  .pixel-table th {
+    background: var(--ui-bg);
+    color: var(--gold-light);
+  }
+  .pixel-table tr:nth-child(even) { background: rgba(41,54,111,0.2); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .compare-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 18px; }
+    h2 { font-size: 14px; }
+    h3 { font-size: 10px; }
+    p, li { font-size: 8px; }
+    .slide { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Stars -->
+<div class="stars" id="stars"></div>
+
+<!-- SLIDES -->
+<div class="slideshow" id="slideshow">
+
+  <!-- SLIDE 1: Title -->
+  <div class="slide active" data-slide="0">
+    <div style="text-align:center">
+      <p class="small gold" style="margin-bottom:16px">NEOMA RESEARCH LAB PRESENTS</p>
+      <h1 class="gold" style="margin-bottom:24px">THE MULTI-AGENT<br>SHOWDOWN</h1>
+      <div style="width:200px;height:4px;background:var(--ui-border);margin:0 auto 24px"></div>
+      <h3 class="blue" style="margin-bottom:32px">THREE APPROACHES TO<br>AI COORDINATION</h3>
+      <div style="margin-bottom:40px">
+        <span class="badge badge-red">GROK 4.20</span>
+        <span class="badge badge-blue">CC AGENT</span>
+        <span class="badge badge-green">WHEELWRIGHT</span>
+      </div>
+      <p class="small" style="opacity:0.6">PRESS ARROW KEYS OR CLICK TO NAVIGATE</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: The Contenders -->
+  <div class="slide" data-slide="1">
+    <h2 class="gold" style="margin-bottom:24px;text-align:center">THE CONTENDERS</h2>
+    <div class="compare-grid">
+      <div class="compare-col" style="border-color:var(--fire-red)">
+        <h3 class="red" style="margin-bottom:12px">GROK 4.20 BETA</h3>
+        <p class="small gold">xAI / Elon Musk</p>
+        <div style="height:2px;background:var(--fire-red);margin:12px 0"></div>
+        <p>Native 4-agent swarm</p>
+        <p>Always-on parallel AI</p>
+        <p class="small" style="margin-top:8px;opacity:0.7">Captain + Harper + Benjamin + Lucas</p>
+      </div>
+      <div class="compare-col" style="border-color:var(--ui-border)">
+        <h3 class="blue" style="margin-bottom:12px">CC AGENT</h3>
+        <p class="small gold">Anthropic / Claude Code</p>
+        <div style="height:2px;background:var(--ui-border);margin:12px 0"></div>
+        <p>Tool-wielding specialists</p>
+        <p>Parallel Task spawning</p>
+        <p class="small" style="margin-top:8px;opacity:0.7">Bash + Explore + Plan + Browser + Custom</p>
+      </div>
+      <div class="compare-col highlight">
+        <h3 class="green" style="margin-bottom:12px">NEOMA WHEELWRIGHT</h3>
+        <p class="small gold">Open Source / Community</p>
+        <div style="height:2px;background:var(--gold-mid);margin:12px 0"></div>
+        <p>Progressive deployment</p>
+        <p>Self-healing consensus</p>
+        <p class="small" style="margin-top:8px;opacity:0.7">4-Tier Pipeline + Flagpole + Governance</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: Grok Deep Dive -->
+  <div class="slide" data-slide="2">
+    <div class="card" style="border-color:var(--fire-red)">
+      <div class="card-title"><span class="red">GROK 4.20 BETA</span> &mdash; THE NATIVE SWARM</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <h3 style="margin-bottom:12px">HOW IT WORKS</h3>
+          <p>Four specialized agents run <span class="gold">in true parallel</span> on every complex query.</p>
+          <p style="margin-top:8px">No toggle. No setup. Always on.</p>
+          <div style="margin-top:16px">
+            <p class="small gold">THE TEAM:</p>
+            <p class="small"><span class="red">GROK</span> &mdash; Captain / Synthesis</p>
+            <p class="small"><span class="blue">HARPER</span> &mdash; Research / Facts</p>
+            <p class="small"><span class="green">BENJAMIN</span> &mdash; Logic / Code</p>
+            <p class="small"><span class="orange">LUCAS</span> &mdash; Creative / Novel</p>
+          </div>
+        </div>
+        <div>
+          <h3 style="margin-bottom:12px">LIVE TEST RESULT</h3>
+          <div class="meter">
+            <span class="meter-label small">THINK TIME</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:70%;background:var(--fire-red)"></div></div>
+            <span class="meter-val gold">42s</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small">SOURCES</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:91%;background:var(--fire-red)"></div></div>
+            <span class="meter-val gold">182</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small">AGENTS</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:40%;background:var(--fire-red)"></div></div>
+            <span class="meter-val gold">4</span>
+          </div>
+          <div style="margin-top:16px;padding:8px;border:2px solid var(--fire-red);background:rgba(177,62,83,0.1)">
+            <p class="small red">KEY STAT: 65% HALLUCINATION REDUCTION</p>
+            <p class="small" style="margin-top:4px">Error rate: 12% -> 4.2%</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: CC Agent Deep Dive -->
+  <div class="slide" data-slide="3">
+    <div class="card" style="border-color:var(--ui-border)">
+      <div class="card-title"><span class="blue">CC AGENT</span> &mdash; THE TOOL MASTER</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <h3 style="margin-bottom:12px">HOW IT WORKS</h3>
+          <p>Spawns <span class="gold">specialized subagents</span> via Task tool. Each gets tools suited to its role.</p>
+          <p style="margin-top:8px">Direct file I/O, code execution, browser automation.</p>
+          <div style="margin-top:16px">
+            <p class="small gold">AGENT TYPES:</p>
+            <p class="small"><span class="blue">BASH</span> &mdash; Command execution</p>
+            <p class="small"><span class="green">EXPLORE</span> &mdash; Codebase search</p>
+            <p class="small"><span class="orange">BROWSER</span> &mdash; Web automation</p>
+            <p class="small"><span class="red">PLAN</span> &mdash; Architecture design</p>
+          </div>
+        </div>
+        <div>
+          <h3 style="margin-bottom:12px">LIVE TEST RESULT</h3>
+          <div class="meter">
+            <span class="meter-label small">WALL CLOCK</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:37%;background:var(--ui-border)"></div></div>
+            <span class="meter-val gold">3.7s</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small">AGENTS</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:50%;background:var(--ui-border)"></div></div>
+            <span class="meter-val gold">5</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small">CHECKS</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:100%;background:var(--forest-mid)"></div></div>
+            <span class="meter-val green">5/5</span>
+          </div>
+          <div style="margin-top:16px;padding:8px;border:2px solid var(--ui-border);background:rgba(41,54,111,0.2)">
+            <p class="small blue">KEY STAT: 511 SCRIPTS MANAGED</p>
+            <p class="small" style="margin-top:4px">6/6 ports healthy, 184 tests tracked</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: Neoma Wheelwright Deep Dive -->
+  <div class="slide" data-slide="4">
+    <div class="card glow" style="border-color:var(--gold-mid)">
+      <div class="card-title"><span class="green">NEOMA WHEELWRIGHT</span> &mdash; THE IMMUNE SYSTEM</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <h3 style="margin-bottom:12px">HOW IT WORKS</h3>
+          <p><span class="gold">4-tier progressive pipeline</span> with multi-agent consensus verification.</p>
+          <p style="margin-top:8px">Self-healing. Flagpole routing. Governance framework.</p>
+          <div class="flow" style="margin-top:16px">
+            <div class="flow-box" style="border-color:var(--forest-light)">BENCH</div>
+            <span class="flow-arrow">&#9654;</span>
+            <div class="flow-box" style="border-color:var(--gold-mid)">CANARY</div>
+            <span class="flow-arrow">&#9654;</span>
+            <div class="flow-box" style="border-color:var(--ui-border)">STAGING</div>
+            <span class="flow-arrow">&#9654;</span>
+            <div class="flow-box" style="border-color:var(--fire-red)">PRIMARY</div>
+          </div>
+          <p class="small" style="margin-top:8px;opacity:0.7">Tests must prove stability at each tier before promotion</p>
+        </div>
+        <div>
+          <h3 style="margin-bottom:12px">LIVE TEST RESULT</h3>
+          <div class="meter">
+            <span class="meter-label small">TESTS RUN</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:100%;background:var(--forest-mid)"></div></div>
+            <span class="meter-val gold">168</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small">PASSED</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:98.2%;background:var(--forest-light)"></div></div>
+            <span class="meter-val green">165</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small">PASS RATE</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:98.2%;background:var(--gold-mid)"></div></div>
+            <span class="meter-val gold">98.2%</span>
+          </div>
+          <div style="margin-top:16px;padding:8px;border:2px solid var(--forest-mid);background:rgba(30,77,43,0.2)">
+            <p class="small green">KEY STAT: SELF-HEALING PIPELINE</p>
+            <p class="small" style="margin-top:4px">3 red = auto-restart, 6 = rollback</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: The Comparison Matrix -->
+  <div class="slide" data-slide="5">
+    <h2 class="gold" style="margin-bottom:20px;text-align:center">HEAD TO HEAD</h2>
+    <div class="card" style="max-width:1000px">
+      <table class="pixel-table">
+        <thead>
+          <tr>
+            <th style="width:22%">DIMENSION</th>
+            <th style="width:26%"><span class="red">GROK 4.20</span></th>
+            <th style="width:26%"><span class="blue">CC AGENT</span></th>
+            <th style="width:26%"><span class="green">WHEELWRIGHT</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="gold">ARCHITECTURE</td>
+            <td>Native inference swarm</td>
+            <td>Spawned tool specialists</td>
+            <td>Progressive pipeline</td>
+          </tr>
+          <tr>
+            <td class="gold">SETUP COST</td>
+            <td><span class="green">ZERO</span> (always on)</td>
+            <td><span class="gold">LOW</span> (prompt-based)</td>
+            <td><span class="orange">HIGH</span> (infrastructure)</td>
+          </tr>
+          <tr>
+            <td class="gold">CUSTOMIZATION</td>
+            <td><span class="orange">LOW</span> (fixed roles)</td>
+            <td><span class="green">HIGH</span> (any agent type)</td>
+            <td><span class="green">HIGH</span> (configurable)</td>
+          </tr>
+          <tr>
+            <td class="gold">TOOL ACCESS</td>
+            <td>Web + X + code exec</td>
+            <td>Files, shell, browser, MCP</td>
+            <td>Full system + services</td>
+          </tr>
+          <tr>
+            <td class="gold">SELF-HEALING</td>
+            <td><span class="red">NO</span></td>
+            <td><span class="red">NO</span></td>
+            <td><span class="green">YES</span> (3-tier escalation)</td>
+          </tr>
+          <tr>
+            <td class="gold">VERIFICATION</td>
+            <td>Peer cross-check</td>
+            <td>Agent per task</td>
+            <td>N-agent consensus</td>
+          </tr>
+          <tr>
+            <td class="gold">PERSISTENCE</td>
+            <td>Session-scoped</td>
+            <td>Session-scoped</td>
+            <td><span class="green">PERMANENT</span> (MB + tiers)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: Strength Spectrum -->
+  <div class="slide" data-slide="6">
+    <h2 class="gold" style="margin-bottom:20px;text-align:center">WHERE EACH EXCELS</h2>
+    <div class="compare-grid">
+      <div class="compare-col" style="border-color:var(--fire-red)">
+        <h3 class="red" style="margin-bottom:16px">GROK 4.20</h3>
+        <p class="small gold" style="margin-bottom:8px">BEST AT:</p>
+        <p>Research & synthesis</p>
+        <p>Real-time fact-checking</p>
+        <p>Creative-technical hybrids</p>
+        <p>One-shot complex tasks</p>
+        <div style="margin-top:16px;padding:8px;border:2px solid var(--fire-red)">
+          <p class="small">BENCHMARK: 182 sources in 42s</p>
+          <p class="small orange">Vending-Bench: $4,694 net worth</p>
+        </div>
+      </div>
+      <div class="compare-col" style="border-color:var(--ui-border)">
+        <h3 class="blue" style="margin-bottom:16px">CC AGENT</h3>
+        <p class="small gold" style="margin-bottom:8px">BEST AT:</p>
+        <p>Code exploration</p>
+        <p>Parallel tool execution</p>
+        <p>File system operations</p>
+        <p>Browser automation</p>
+        <div style="margin-top:16px;padding:8px;border:2px solid var(--ui-border)">
+          <p class="small">BENCHMARK: 5 parallel checks in 3.7s</p>
+          <p class="small blue">511 scripts, 6 services managed</p>
+        </div>
+      </div>
+      <div class="compare-col" style="border-color:var(--gold-mid)">
+        <h3 class="green" style="margin-bottom:16px">WHEELWRIGHT</h3>
+        <p class="small gold" style="margin-bottom:8px">BEST AT:</p>
+        <p>Production reliability</p>
+        <p>Progressive validation</p>
+        <p>Self-healing systems</p>
+        <p>Continuous monitoring</p>
+        <div style="margin-top:16px;padding:8px;border:2px solid var(--gold-mid)">
+          <p class="small">BENCHMARK: 168 tests, 98.2% green</p>
+          <p class="small green">Auto-repair + 4-tier promotion</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: The Key Insight -->
+  <div class="slide" data-slide="7">
+    <div style="text-align:center;max-width:800px">
+      <h2 class="gold" style="margin-bottom:32px">THE KEY INSIGHT</h2>
+      <div class="card glow" style="border-color:var(--gold-mid);margin-bottom:24px">
+        <p style="font-size:12px;line-height:2.2">
+          These aren't <span class="red">competitors</span>.
+        </p>
+        <p style="font-size:12px;line-height:2.2">
+          They're <span class="gold">complementary layers</span>.
+        </p>
+      </div>
+      <div class="flow" style="margin:32px 0">
+        <div class="flow-box" style="border-color:var(--fire-red)">
+          <p class="small red">GROK 4.20</p>
+          <p class="small">THINKING LAYER</p>
+          <p class="small" style="opacity:0.6">Research + Synthesis</p>
+        </div>
+        <span class="flow-arrow">+</span>
+        <div class="flow-box" style="border-color:var(--ui-border)">
+          <p class="small blue">CC AGENT</p>
+          <p class="small">ACTION LAYER</p>
+          <p class="small" style="opacity:0.6">Code + Tools + Files</p>
+        </div>
+        <span class="flow-arrow">+</span>
+        <div class="flow-box" style="border-color:var(--gold-mid)">
+          <p class="small green">WHEELWRIGHT</p>
+          <p class="small">TRUST LAYER</p>
+          <p class="small" style="opacity:0.6">Validate + Heal + Ship</p>
+        </div>
+      </div>
+      <p style="margin-top:24px;opacity:0.8">Together, they form a <span class="gold">full-stack AI operating system</span>.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 9: The Neoma Stack -->
+  <div class="slide" data-slide="8">
+    <h2 class="gold" style="margin-bottom:20px;text-align:center">THE NEOMA STACK</h2>
+    <div class="card" style="max-width:800px;border-color:var(--gold-mid)">
+      <div class="card-title">HOW NEOMA ORCHESTRATES ALL THREE</div>
+      <div style="text-align:center">
+        <div class="flow">
+          <div class="flow-box" style="border-color:var(--gold-mid);padding:12px 24px">
+            <p class="small gold">FLAGPOLE ROUTER</p>
+            <p class="small">Confidence-scored task dispatch</p>
+          </div>
+        </div>
+        <p class="small gold" style="margin:8px 0">ROUTES TO BEST AGENT</p>
+        <div style="display:flex;justify-content:center;gap:4px;margin:8px 0">
+          <span style="color:var(--gold-mid)">&#9660;</span>
+          <span style="color:var(--gold-mid)">&#9660;</span>
+          <span style="color:var(--gold-mid)">&#9660;</span>
+        </div>
+        <div class="flow">
+          <div class="flow-box" style="border-color:var(--fire-red)">
+            <p class="small red">GROK</p>
+            <p class="small">Research</p>
+          </div>
+          <div class="flow-box" style="border-color:var(--ui-border)">
+            <p class="small blue">CC AGENT</p>
+            <p class="small">Execute</p>
+          </div>
+          <div class="flow-box" style="border-color:var(--forest-mid)">
+            <p class="small green">CODEX</p>
+            <p class="small">Code</p>
+          </div>
+          <div class="flow-box" style="border-color:var(--sky-mid)">
+            <p class="small" style="color:var(--sky-light)">GEMINI</p>
+            <p class="small">Validate</p>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:4px;margin:8px 0">
+          <span style="color:var(--forest-mid)">&#9660;</span>
+          <span style="color:var(--forest-mid)">&#9660;</span>
+          <span style="color:var(--forest-mid)">&#9660;</span>
+        </div>
+        <div class="flow">
+          <div class="flow-box" style="border-color:var(--forest-light);padding:12px 24px">
+            <p class="small green">WHEELWRIGHT PIPELINE</p>
+            <p class="small">Bench &#9654; Canary &#9654; Staging &#9654; Primary</p>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:center;margin:8px 0">
+          <span style="color:var(--gold-mid)">&#9660;</span>
+        </div>
+        <div class="flow">
+          <div class="flow-box" style="border-color:var(--gold-mid);background:rgba(167,81,26,0.15)">
+            <p class="small gold">MEMORY BRIDGE</p>
+            <p class="small">Persistent shared state across all agents</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 10: By the Numbers -->
+  <div class="slide" data-slide="9">
+    <h2 class="gold" style="margin-bottom:20px;text-align:center">NEOMA BY THE NUMBERS</h2>
+    <div class="card" style="max-width:800px;border-color:var(--gold-mid)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+        <div>
+          <div class="meter">
+            <span class="meter-label small gold">SCRIPTS</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:100%;background:var(--gold-mid)"></div></div>
+            <span class="meter-val">511</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small gold">WHEEL TESTS</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:92%;background:var(--forest-mid)"></div></div>
+            <span class="meter-val">184</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small gold">AGENTS</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:40%;background:var(--ui-border)"></div></div>
+            <span class="meter-val">4+</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small gold">FLAGS</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:78%;background:var(--fire-orange)"></div></div>
+            <span class="meter-val">156</span>
+          </div>
+        </div>
+        <div>
+          <div class="meter">
+            <span class="meter-label small gold">SERVICES</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:60%;background:var(--forest-light)"></div></div>
+            <span class="meter-val green">6/6</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small gold">PASS RATE</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:98%;background:var(--gold-mid)"></div></div>
+            <span class="meter-val gold">98.2%</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small gold">TASK TYPES</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:66%;background:var(--ui-border)"></div></div>
+            <span class="meter-val">33</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label small gold">UPTIME</span>
+            <div class="meter-bar"><div class="meter-fill" style="width:100%;background:var(--forest-mid)"></div></div>
+            <span class="meter-val green">24/7</span>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:20px;padding-top:16px;border-top:2px solid var(--ui-border)">
+        <p class="small" style="opacity:0.8">All numbers from live system test &mdash; February 24, 2026</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 11: Closing -->
+  <div class="slide" data-slide="10">
+    <div style="text-align:center;max-width:700px">
+      <h2 class="gold" style="margin-bottom:24px">THE FUTURE IS<br>MULTI-AGENT</h2>
+      <div style="width:200px;height:4px;background:var(--gold-mid);margin:0 auto 24px"></div>
+      <p style="margin-bottom:24px;line-height:2.4">
+        Not one AI to rule them all.
+      </p>
+      <p style="margin-bottom:32px;line-height:2.4">
+        A <span class="gold">team of specialists</span>,<br>
+        each doing what they do best,<br>
+        verified through <span class="green">progressive trust</span>.
+      </p>
+      <div style="margin-bottom:32px">
+        <span class="badge badge-red">THINK</span>
+        <span class="flow-arrow">&#9654;</span>
+        <span class="badge badge-blue">ACT</span>
+        <span class="flow-arrow">&#9654;</span>
+        <span class="badge badge-green">VERIFY</span>
+        <span class="flow-arrow">&#9654;</span>
+        <span class="badge badge-gold">SHIP</span>
+      </div>
+      <p class="small" style="opacity:0.5;margin-top:32px">NEOMA &mdash; A COGNITIVE PROSTHETIC FRAMEWORK</p>
+      <p class="small" style="opacity:0.3;margin-top:8px">OPEN SOURCE &bull; COMMUNITY DRIVEN</p>
+      <div style="margin-top:40px">
+        <a href="https://backofbeyondranch.farm/hub" style="display:inline-block;padding:8px 20px;border:3px solid var(--gold-mid);color:var(--gold-light);font-family:var(--font);font-size:8px;text-decoration:none;transition:all 0.15s;background:rgba(167,81,26,0.2);" onmouseover="this.style.background='var(--gold-mid)';this.style.color='var(--bg-dark)'" onmouseout="this.style.background='rgba(167,81,26,0.2)';this.style.color='var(--gold-light)'">EXPLORE THE HUB &#9654;</a>
+        <p class="small" style="opacity:0.4;margin-top:12px">Look for the rope bridge between the cliffs</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="dots" id="dots"></div>
+<div class="nav">
+  <button class="nav-btn" id="prev-btn">&#9664; PREV</button>
+  <span class="nav-counter" id="counter">1 / 11</span>
+  <button class="nav-btn" id="next-btn">NEXT &#9654;</button>
+</div>
+
+<script>
+  // Generate stars
+  const starsEl = document.getElementById('stars');
+  for (let i = 0; i < 80; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    star.style.left = Math.random() * 100 + '%';
+    star.style.top = Math.random() * 100 + '%';
+    star.style.setProperty('--dur', (2 + Math.random() * 4) + 's');
+    star.style.setProperty('--delay', Math.random() * 3 + 's');
+    if (Math.random() > 0.7) star.style.background = '#41a6f6';
+    if (Math.random() > 0.9) star.style.background = '#ef7d57';
+    starsEl.appendChild(star);
+  }
+
+  // Slideshow logic
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  const dotsEl = document.getElementById('dots');
+  for (let i = 0; i < total; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => goTo(i);
+    dotsEl.appendChild(dot);
+  }
+
+  function goTo(n) {
+    slides[current].classList.remove('active');
+    dotsEl.children[current].classList.remove('active');
+    current = Math.max(0, Math.min(n, total - 1));
+    slides[current].classList.add('active');
+    dotsEl.children[current].classList.add('active');
+    document.getElementById('counter').textContent = (current + 1) + ' / ' + total;
+  }
+
+  document.getElementById('prev-btn').onclick = () => goTo(current - 1);
+  document.getElementById('next-btn').onclick = () => goTo(current + 1);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') goTo(current + 1);
+    if (e.key === 'ArrowLeft') goTo(current - 1);
+  });
+
+  // Touch support
+  let touchStart = 0;
+  document.addEventListener('touchstart', (e) => { touchStart = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    const diff = touchStart - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      diff > 0 ? goTo(current + 1) : goTo(current - 1);
+    }
+  });
+</script>
+</body>
+</html>

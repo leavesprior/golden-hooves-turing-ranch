@@ -32,6 +32,7 @@ import {
 } from './data/businessConfig'
 import { useKarmaWallet } from './karmaWalletContext'
 import { useRanch } from './ranchContext'
+import { useMystery } from './mysteryContext'
 
 // ============================================================
 // TYPES
@@ -181,6 +182,7 @@ function getInitialState(): SettlementState {
 export function SettlementProvider({ children }: SettlementProviderProps) {
   const { balance, spendNeutral, spendGood, earnNeutral } = useKarmaWallet()
   const ranch = useRanch()
+  const { state: mysteryState, addClue, generateClueForWitness, getAllCases } = useMystery()
 
   const [state, setState] = useState<SettlementState>(getInitialState)
 
@@ -613,7 +615,10 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
 
       // Check for artifact (mystery clue)
       if (Math.random() < MINING_CLAIM.artifactChance) {
-        // TODO: Integrate with mystery system
+        const clue = generateClueForWitness('settler', 'Gold Country')
+        if (clue) {
+          addClue(clue)
+        }
       }
     }
 
@@ -625,7 +630,7 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
     }))
 
     return totalGold
-  }, [state.miningClaims, earnNeutral])
+  }, [state.miningClaims, earnNeutral, generateClueForWitness, addClue])
 
   // ============================================================
   // SETTLEMENT COMPLETION
@@ -654,8 +659,9 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
 
   const getCurrentEnding = useCallback(() => {
     const totalLivestock = ranch?.getTotalLivestock?.() || 0
-    // TODO: Get mysterySolved from mysteryContext
-    const mysterySolved = false
+    const mysterySolved = mysteryState.casesSolved.length > 0 || mysteryState.outlawsCaught > 0
+    const allCasesSolved = mysteryState.casesSolved.length >= getAllCases().length
+    const outlawCaught = mysteryState.outlawsCaught > 0
 
     return determineEnding(
       state.propertyTier,
@@ -668,13 +674,13 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
       state.goldMined,
       mysterySolved,
       state.hasLeftSettlement,
-      false, // allCasesSolved
-      false, // outlawCaught
+      allCasesSolved,
+      outlawCaught,
       5,     // luckStat
       false, // isChaotic
       state.businessTier,
     )
-  }, [state, ranch, getNetWorth])
+  }, [state, ranch, getNetWorth, mysteryState, getAllCases])
 
   const leaveSettlement = useCallback(() => {
     setState(prev => ({

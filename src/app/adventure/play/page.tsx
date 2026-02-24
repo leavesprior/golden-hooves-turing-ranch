@@ -34,6 +34,8 @@ import {
 } from '@/app/adventure/data/chapterLocations'
 import { getSkillTreeBonuses } from '@/app/adventure/data/skillTree'
 import type { ActivityResult } from '@/app/adventure/data/campActivities'
+import { rollConfrontation, type ConfrontationEnemy } from '@/app/adventure/data/confrontationEnemies'
+import { ConfrontationView, type ConfrontationResult } from '@/components/adventure/ConfrontationView'
 
 // ============================================
 // ADVENTURE STATE
@@ -53,6 +55,8 @@ interface AdventureState {
   playStartTime: number  // Timestamp when play started (ms)
   cluesAnswered: number  // Discovery clues answered correctly
   welcomeRewardClaimed: boolean
+  confrontationsWon: number
+  confrontationsLost: number
 }
 
 const SAVE_KEY = 'bobr_adventure_state'
@@ -69,6 +73,8 @@ function loadAdventureState(): AdventureState | null {
       playStartTime: parsed.playStartTime || Date.now(),
       cluesAnswered: parsed.cluesAnswered ?? 0,
       welcomeRewardClaimed: parsed.welcomeRewardClaimed ?? false,
+      confrontationsWon: parsed.confrontationsWon ?? 0,
+      confrontationsLost: parsed.confrontationsLost ?? 0,
     }
   } catch {
     return null
@@ -104,6 +110,8 @@ function createNewAdventureState(): AdventureState {
     playStartTime: Date.now(),
     cluesAnswered: 0,
     welcomeRewardClaimed: false,
+    confrontationsWon: 0,
+    confrontationsLost: 0,
   }
 }
 
@@ -474,7 +482,7 @@ function ReputationDisplay() {
 
 function AdventureContent() {
   const router = useRouter()
-  const { state: charState, rollSkillCheck, addExperience, getStat } = useCharacter()
+  const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter } = useCharacter()
   const { balance, earnNeutral, spendNeutral } = useKarmaWallet()
   const { state: repState, modifyReputation, getReputationLevel, getReputation } = useReputation()
   const { comment: narratorComment } = useNarrator()
@@ -484,6 +492,7 @@ function AdventureContent() {
   const [travelEncounter, setTravelEncounter] = useState<TravelEncounter | null>(null)
   const [travelDestination, setTravelDestination] = useState<string | null>(null)
   const [showCamp, setShowCamp] = useState(false)
+  const [activeConfrontation, setActiveConfrontation] = useState<ConfrontationEnemy | null>(null)
 
   // Initialize state
   useEffect(() => {
@@ -545,12 +554,21 @@ function AdventureContent() {
   const handleTravelTo = useCallback((locationId: string) => {
     if (!adventureState) return
 
-    // Check for travel encounter
+    // Check for travel encounter first
     const encounter = rollTravelEncounter()
     if (encounter) {
       setTravelDestination(locationId)
       setTravelEncounter(encounter)
       narratorComment('Hmm, the road between here and there is never as simple as a map suggests.', 'observation')
+      return
+    }
+
+    // Check for confrontation encounter
+    const enemy = rollConfrontation(adventureState.chapter, adventureState.unlockedSkillNodes)
+    if (enemy) {
+      setTravelDestination(locationId)
+      setActiveConfrontation(enemy)
+      narratorComment(enemy.description, 'observation')
       return
     }
 
@@ -598,6 +616,40 @@ function AdventureContent() {
     setTravelDestination(null)
     handleTravelTo(destId)
   }, [travelEncounter, travelDestination, addExperience, earnNeutral, handleTravelTo])
+
+  // Resolve confrontation encounter
+  const handleConfrontationEnd = useCallback((result: ConfrontationResult) => {
+    if (!activeConfrontation) return
+
+    addExperience(result.xpEarned)
+    if (result.goldEarned > 0) {
+      earnNeutral(result.goldEarned, `Confrontation: ${activeConfrontation.name}`)
+    }
+    if (result.karmaEffect?.lawful) {
+      modifyReputation('pinkerton', result.karmaEffect.lawful, `Confrontation: ${activeConfrontation.name}`)
+    }
+
+    // Update confrontation counters
+    if (result.outcome === 'victory') {
+      updateState({ confrontationsWon: (adventureState?.confrontationsWon ?? 0) + 1 })
+      narratorComment('The dust settles. You stand victorious.', 'observation')
+    } else if (result.outcome === 'defeat') {
+      updateState({ confrontationsLost: (adventureState?.confrontationsLost ?? 0) + 1 })
+      narratorComment(activeConfrontation.defeatText, 'observation')
+    } else if (result.outcome === 'fled') {
+      narratorComment(activeConfrontation.fleeText, 'observation')
+    } else if (result.outcome === 'talked') {
+      narratorComment('Words prove mightier than fists. A peaceful resolution.', 'observation')
+    }
+
+    // Continue travel to destination
+    setActiveConfrontation(null)
+    if (travelDestination) {
+      const destId = travelDestination
+      setTravelDestination(null)
+      handleTravelTo(destId)
+    }
+  }, [activeConfrontation, adventureState, travelDestination, addExperience, earnNeutral, modifyReputation, updateState, narratorComment, handleTravelTo])
 
   // === VISIT LOCATION ===
   const handleVisitLocation = useCallback((locationId: string) => {
@@ -804,7 +856,12 @@ function AdventureContent() {
       // Use cached passphrase
       setCloudModal({ mode: 'save', status: 'working' })
       const { id } = getPlayerIdentifier()
-      saveToCloud(id, 'adventure_save', adventureState, cached).then(result => {
+      // Include character data alongside adventure state
+      const cloudPayload = {
+        ...adventureState,
+        _character: charState.character ?? undefined,
+      }
+      saveToCloud(id, 'adventure_save', cloudPayload, cached).then(result => {
         setCloudModal({ mode: 'save', status: result.action === 'error' ? 'error' : 'success' })
         if (result.action !== 'error') {
           setHasCloudSaveFlag(true)
@@ -814,7 +871,7 @@ function AdventureContent() {
     } else {
       setCloudModal({ mode: 'save', status: 'idle' })
     }
-  }, [adventureState, narratorComment])
+  }, [adventureState, narratorComment, charState.character])
 
   const handleCloudLoad = useCallback(() => {
     const cached = getCachedPassphrase()
@@ -823,14 +880,26 @@ function AdventureContent() {
       const { id } = getPlayerIdentifier()
       loadFromCloud(id, 'adventure_save', cached).then(result => {
         if (result.data) {
-          const loaded = result.data as AdventureState
-          setAdventureState({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const raw = result.data as any
+          // Extract character data if present (added in cloud save v2)
+          const savedCharacter = raw._character
+          const { _character, ...adventureFields } = raw
+          const loaded = adventureFields as AdventureState
+          const restored = {
             ...loaded,
             playStartTime: loaded.playStartTime || Date.now(),
             cluesAnswered: loaded.cluesAnswered ?? 0,
             welcomeRewardClaimed: loaded.welcomeRewardClaimed ?? false,
-          })
-          saveAdventureState(loaded)
+            confrontationsWon: loaded.confrontationsWon ?? 0,
+            confrontationsLost: loaded.confrontationsLost ?? 0,
+          }
+          setAdventureState(restored)
+          saveAdventureState(restored)
+          // Restore character if it was included in the cloud save
+          if (savedCharacter) {
+            loadCharacter(savedCharacter)
+          }
           setCloudModal({ mode: 'load', status: 'success' })
           narratorComment('The clouds have returned your story.', 'observation')
         } else {
@@ -840,7 +909,7 @@ function AdventureContent() {
     } else {
       setCloudModal({ mode: 'load', status: 'idle' })
     }
-  }, [narratorComment])
+  }, [narratorComment, loadCharacter])
 
   const handlePassphraseSubmit = useCallback((passphrase: string) => {
     cachePassphrase(passphrase)
@@ -986,6 +1055,19 @@ function AdventureContent() {
           encounter={travelEncounter}
           onResolve={handleEncounterResolved}
           playerStats={playerStats}
+          onSkillCheck={handleSkillCheck}
+        />
+      )}
+
+      {/* Confrontation Overlay */}
+      {activeConfrontation && charState.character && (
+        <ConfrontationView
+          enemy={activeConfrontation}
+          playerName={charState.character.name}
+          playerHealth={Math.max(20, 20 + (charState.character.stats.Durability - 8) * 5)}
+          playerMaxHealth={Math.max(20, 20 + (charState.character.stats.Durability - 8) * 5)}
+          playerStats={playerStats}
+          onEnd={handleConfrontationEnd}
           onSkillCheck={handleSkillCheck}
         />
       )}

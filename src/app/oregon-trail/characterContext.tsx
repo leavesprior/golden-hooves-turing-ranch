@@ -78,6 +78,7 @@ interface CharacterContextValue {
 
   // Character creation
   createCharacter: (name: string, background: CharacterBackground) => void
+  loadCharacter: (character: Character) => void
   allocateStatPoints: (stats: Partial<SaddleStats>) => void
 
   // Stats
@@ -321,6 +322,14 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     }))
 
     // Persist to localStorage so character survives page navigation
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(character))
+    } catch {}
+  }, [])
+
+  // Load a character from cloud save
+  const loadCharacter = useCallback((character: Character) => {
+    setState(prev => ({ ...prev, character }))
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(character))
     } catch {}
@@ -583,6 +592,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   const value: CharacterContextValue = {
     state,
     createCharacter,
+    loadCharacter,
     allocateStatPoints,
     getStat,
     getStatModifier,

@@ -417,7 +417,7 @@ function startSaloonSwing(): void {
     if (!state.isPlaying) return
     playOpenHat(ctx, dest, 0.05)
   }, bt * 2)
-  setTimeout(() => { if (state.isPlaying) state.intervalIds.push(ohId) }, bt)
+  state.intervalIds.push(ohId)
 
   // Honky-tonk piano chords (swing rhythm)
   const chords = [
@@ -502,7 +502,7 @@ function startFrontierShuffle(): void {
     playPianoChord(ctx, dest, compChords[cci], 0.08, 0.15)
     cci = (cci + 1) % compChords.length
   }, bt * 2)
-  setTimeout(() => { if (state.isPlaying) state.intervalIds.push(compId) }, bt)
+  state.intervalIds.push(compId)
 }
 
 /** Track 3: Dusty Groove (130 BPM) - Dirty Harry funk + electro swing */
@@ -758,7 +758,7 @@ function startGoldRushRave(): void {
     if (!state.isPlaying) return
     playClosedHat(ctx, dest, 0.05)
   }, bt)
-  setTimeout(() => { if (state.isPlaying) state.intervalIds.push(hatId) }, bt / 2)
+  state.intervalIds.push(hatId)
 
   // Driving bass (E minor)
   const bassNotes = [N.E2, N.E2, N.G2, N.E2, N.A2, N.G2, N.E2, N.B2]
@@ -884,7 +884,7 @@ function startCoyoteTechno(): void {
     if (!state.isPlaying) return
     playClosedHat(ctx, dest, 0.08)
   }, bt)
-  setTimeout(() => { if (state.isPlaying) state.intervalIds.push(hatId) }, bt / 2)
+  state.intervalIds.push(hatId)
 
   // Howl synth lead (pitch bend up like a coyote)
   const howlId = setInterval(() => {
