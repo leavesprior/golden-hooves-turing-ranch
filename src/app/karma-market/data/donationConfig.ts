@@ -19,9 +19,9 @@ export const PAYMENT_SERVICES: PaymentService[] = [
     id: 'venmo',
     name: 'Venmo',
     emoji: '\uD83D\uDCB2',
-    urlTemplate: 'https://venmo.com/Leif-Pryor?txn=pay&amount={amount}&note=Karma%20Donation',
+    urlTemplate: 'https://venmo.com/u/Leif-Pryor?txn=pay&amount={amount}&note=Karma%20Donation',
     color: '#3D95CE',
-    instructions: 'Open Venmo and scan the QR code, or tap the link on mobile.',
+    instructions: 'Scan with your phone camera to open in Venmo, or tap the link on mobile.',
   },
   {
     id: 'paypal',

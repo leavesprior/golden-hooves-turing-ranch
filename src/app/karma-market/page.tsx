@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useKarmaWallet } from '@/app/oregon-trail/karmaWalletContext'
 import { useMarket } from './marketContext'
@@ -24,10 +24,12 @@ export default function KarmaMarketPage() {
   const [activeTab, setActiveTab] = useState<MarketTab>('market')
   const { balance, isInitialized, initializeWallet } = useKarmaWallet()
 
-  // Auto-initialize wallet if needed
-  if (!isInitialized) {
-    initializeWallet('continue')
-  }
+  // Auto-initialize wallet if needed (must be in useEffect, not render body)
+  useEffect(() => {
+    if (!isInitialized) {
+      initializeWallet('continue')
+    }
+  }, [isInitialized, initializeWallet])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-950 via-amber-900 to-amber-950">
