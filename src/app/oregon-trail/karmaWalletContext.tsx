@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
 import {
   KarmaBlockchainClient,
   KarmaBalance,
@@ -132,6 +132,9 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     recentTransactions: [],
     alignment: DEFAULT_ALIGNMENT,
   })
+  // Ref to always hold current state for use in callbacks (avoids React 18 batch timing issues)
+  const stateRef = useRef(state)
+  useEffect(() => { stateRef.current = state }, [state])
 
   // Modal state
   const [showConvertModal, setShowConvertModal] = useState(false)
@@ -298,13 +301,13 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
   // Spend neutral karma
   const spendNeutral = useCallback(async (amount: number, memo?: string): Promise<boolean> => {
-    let success = false
+    // Check affordability using ref to avoid React 18 async batch timing issue
+    if (stateRef.current.balance.neutral < amount) return false
+
     setState(prev => {
-      if (prev.balance.neutral < amount) return prev
-      success = true
+      if (prev.balance.neutral < amount) return prev // Double-check in updater for safety
       return { ...prev, balance: { ...prev.balance, neutral: prev.balance.neutral - amount } }
     })
-    if (!success) return false
 
     addTransaction({
       type: 'spend',
@@ -323,13 +326,12 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
   // Spend good karma
   const spendGood = useCallback(async (amount: number, memo?: string): Promise<boolean> => {
-    let success = false
+    // Check affordability using ref to avoid React 18 async batch timing issue
+    if (stateRef.current.balance.good < amount) return false
     setState(prev => {
-      if (prev.balance.good < amount) return prev
-      success = true
+      if (prev.balance.good < amount) return prev // Double-check in updater for safety
       return { ...prev, balance: { ...prev.balance, good: prev.balance.good - amount } }
     })
-    if (!success) return false
 
     addTransaction({
       type: 'spend',
@@ -437,10 +439,10 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
   const convertGoodToNeutral = useCallback(async (goodAmount: number): Promise<boolean> => {
     const neutralReceived = Math.floor(goodAmount / 2)
 
-    let success = false
+    // Check affordability using ref to avoid React 18 async batch timing issue
+    if (stateRef.current.balance.good < goodAmount) return false
     setState(prev => {
-      if (prev.balance.good < goodAmount) return prev
-      success = true
+      if (prev.balance.good < goodAmount) return prev // Double-check in updater for safety
       return {
         ...prev,
         balance: {
@@ -450,7 +452,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
         },
       }
     })
-    if (!success) return false
 
     addTransaction({
       type: 'convert',

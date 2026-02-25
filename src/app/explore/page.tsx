@@ -15,6 +15,11 @@ import {
   EXPLORER_LEVELS,
   COLLECTION_BADGES,
 } from './explorerContext'
+import {
+  getMysteryForTown,
+  getClueForAttraction,
+  type TownMystery,
+} from './data/townMysteries'
 
 // ============================================
 // TOWN & ATTRACTION DATA
@@ -516,10 +521,26 @@ function TownDrawer({
     getTownCompletionPercent,
     toggleFavorite,
     isFavorite,
+    discoverClue,
+    attemptMysteryDeduction,
+    getMysteryProgress,
+    isMysteryClueFound,
+    isMysteryDeductionUnlocked,
+    isMysterySolved,
   } = useExplorer()
 
   const [selectedCategory, setSelectedCategory] = useState<AttractionCategory | 'all'>('all')
   const [expandedAttraction, setExpandedAttraction] = useState<string | null>(null)
+  const [clueNotification, setClueNotification] = useState<{ text: string; discoveryText: string } | null>(null)
+  const [showDeduction, setShowDeduction] = useState(false)
+  const [deductionResult, setDeductionResult] = useState<{ correct: boolean; response: string } | null>(null)
+
+  // Reset deduction state when town changes
+  useEffect(() => {
+    setShowDeduction(false)
+    setDeductionResult(null)
+    setClueNotification(null)
+  }, [town?.id])
 
   if (!town) return null
 
@@ -538,13 +559,36 @@ function TownDrawer({
     return false
   })
 
+  const mystery = getMysteryForTown(town.id)
+  const mysteryProgress = mystery ? getMysteryProgress(mystery.id) : null
+  const mysterySolved = mystery ? isMysterySolved(mystery.id) : false
+  const deductionUnlocked = mystery ? isMysteryDeductionUnlocked(mystery.id) : false
+
   const handleVisitAttraction = (attraction: Attraction) => {
     if (!isAttractionVisited(attraction.id)) {
       visitTown(town.id)
       const result = visitAttraction(attraction.id, town.id)
-      // Could show a toast/notification here
+
+      // Check for mystery clue discovery
+      if (mystery && !mysterySolved) {
+        const clue = getClueForAttraction(town.id, attraction.id)
+        if (clue && !isMysteryClueFound(mystery.id, clue.id)) {
+          discoverClue(mystery.id, clue.id)
+          setClueNotification({ text: clue.text, discoveryText: clue.discoveryText })
+          setTimeout(() => setClueNotification(null), 8000)
+        }
+      }
     }
     setExpandedAttraction(expandedAttraction === attraction.id ? null : attraction.id)
+  }
+
+  const handleDeduction = (optionId: string) => {
+    if (!mystery) return
+    const result = attemptMysteryDeduction(mystery.id, optionId)
+    setDeductionResult({ correct: result.correct, response: result.response })
+    if (result.correct) {
+      setTimeout(() => setShowDeduction(false), 6000)
+    }
   }
 
   return (
@@ -630,6 +674,145 @@ function TownDrawer({
           <p className="text-slate-300 text-xs leading-relaxed">{town.description}</p>
         </div>
 
+        {/* Clue Discovery Notification */}
+        {clueNotification && (
+          <div className="mx-4 mt-3 p-3 bg-indigo-900/60 border-2 border-indigo-400 rounded-lg animate-pulse">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">🔍</span>
+              <span className="font-[var(--font-pixel)] text-indigo-300 text-xs font-bold">Clue Discovered!</span>
+            </div>
+            <p className="text-indigo-200 text-xs italic mb-1">{clueNotification.discoveryText}</p>
+            <p className="text-white text-xs">{clueNotification.text}</p>
+          </div>
+        )}
+
+        {/* Mystery Panel */}
+        {mystery && (
+          <div className="mx-4 mt-3 p-3 bg-slate-800 border-2 border-indigo-500/50 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{mysterySolved ? '✅' : '🔎'}</span>
+                <div>
+                  <h3 className="font-[var(--font-pixel)] text-indigo-300 text-sm">{mystery.title}</h3>
+                  <span className={`text-[10px] px-2 py-0.5 rounded ${
+                    mystery.difficulty === 'easy' ? 'bg-green-800 text-green-300' :
+                    mystery.difficulty === 'medium' ? 'bg-amber-800 text-amber-300' :
+                    'bg-red-800 text-red-300'
+                  }`}>
+                    {mystery.difficulty} | {mystery.era}
+                  </span>
+                </div>
+              </div>
+              {mysterySolved && (
+                <span className="text-green-400 text-xs font-bold">SOLVED</span>
+              )}
+            </div>
+
+            {!mysterySolved && (
+              <p className="text-slate-300 text-xs leading-relaxed mb-2">{mystery.briefing}</p>
+            )}
+
+            {/* Clue Progress */}
+            <div className="mb-2">
+              <div className="flex justify-between text-[10px] mb-1">
+                <span className="text-indigo-400">Clues: {mysteryProgress?.cluesFound.length || 0}/{mystery.clues.length}</span>
+                <span className="text-indigo-300">
+                  {deductionUnlocked ? 'Deduction ready!' : `Need ${mystery.deduction.minCluesRequired - (mysteryProgress?.cluesFound.length || 0)} more`}
+                </span>
+              </div>
+              <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 ${mysterySolved ? 'bg-green-500' : 'bg-indigo-500'}`}
+                  style={{ width: `${mysterySolved ? 100 : ((mysteryProgress?.cluesFound.length || 0) / mystery.clues.length) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Found Clues */}
+            {mysteryProgress && mysteryProgress.cluesFound.length > 0 && !mysterySolved && (
+              <div className="space-y-1 mb-2">
+                {mystery.clues
+                  .filter(c => mysteryProgress.cluesFound.includes(c.id))
+                  .sort((a, b) => a.order - b.order)
+                  .map(clue => (
+                    <div key={clue.id} className="flex items-start gap-2 text-xs p-1.5 bg-indigo-900/30 rounded">
+                      <span className="text-indigo-400 mt-0.5">📜</span>
+                      <p className="text-indigo-200">{clue.text}</p>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            {/* Deduction Button / Panel */}
+            {!mysterySolved && deductionUnlocked && !showDeduction && (
+              <button
+                onClick={() => { setShowDeduction(true); setDeductionResult(null) }}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded transition-colors"
+              >
+                🧩 Make Your Deduction
+              </button>
+            )}
+
+            {showDeduction && !mysterySolved && (
+              <div className="mt-2 p-3 bg-indigo-950/60 border border-indigo-400/30 rounded">
+                <p className="text-indigo-200 text-xs font-bold mb-3">{mystery.deduction.question}</p>
+                <div className="space-y-2">
+                  {mystery.deduction.options.map(option => (
+                    <button
+                      key={option.id}
+                      onClick={() => handleDeduction(option.id)}
+                      disabled={!!deductionResult}
+                      className={`w-full text-left p-2 rounded text-xs transition-colors ${
+                        deductionResult
+                          ? option.correct
+                            ? 'bg-green-800 border border-green-500 text-green-200'
+                            : 'bg-slate-800 border border-slate-600 text-slate-400'
+                          : 'bg-slate-700 hover:bg-indigo-700 border border-slate-500 text-slate-200'
+                      }`}
+                    >
+                      {option.text}
+                    </button>
+                  ))}
+                </div>
+                {deductionResult && (
+                  <div className={`mt-3 p-2 rounded border text-xs ${
+                    deductionResult.correct
+                      ? 'bg-green-900/50 border-green-500 text-green-200'
+                      : 'bg-red-900/50 border-red-500 text-red-200'
+                  }`}>
+                    <p className="font-bold mb-1">{deductionResult.correct ? '🎉 Correct!' : '❌ Not quite...'}</p>
+                    <p>{deductionResult.response}</p>
+                    {deductionResult.correct && (
+                      <p className="mt-2 text-amber-300">+{mystery.xpReward} XP earned!</p>
+                    )}
+                    {!deductionResult.correct && (
+                      <button
+                        onClick={() => setDeductionResult(null)}
+                        className="mt-2 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-xs"
+                      >
+                        Try Again
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Solved Display */}
+            {mysterySolved && (
+              <div className="space-y-2">
+                <div className="p-2 bg-green-900/30 border border-green-600/50 rounded">
+                  <p className="text-green-200 text-xs">{mystery.solvedText}</p>
+                </div>
+                <div className="p-2 bg-amber-900/20 border border-amber-600/30 rounded">
+                  <span className="text-amber-400 text-[10px] font-bold">Historical Note</span>
+                  <p className="text-amber-200 text-xs mt-1">{mystery.historicalNote}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Attractions List */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           {allAttractions.map(attraction => {
@@ -655,6 +838,12 @@ function TownDrawer({
                         <h3 className={`font-[var(--font-pixel)] text-sm ${visited ? 'text-green-300' : 'text-white'}`}>
                           {attraction.name}
                           {visited && <span className="ml-2 text-green-400">✓</span>}
+                          {mystery && !mysterySolved && (() => {
+                            const clue = getClueForAttraction(town.id, attraction.id)
+                            if (!clue) return null
+                            const found = isMysteryClueFound(mystery.id, clue.id)
+                            return <span className="ml-1 text-xs" title={found ? 'Clue found here' : 'Mystery clue here'}>{found ? '📜' : '🔍'}</span>
+                          })()}
                         </h3>
                         <span className={`text-[10px] px-2 py-0.5 rounded border ${categoryColors[attraction.category]}`}>
                           {attraction.category}
@@ -872,7 +1061,7 @@ function ExplorerHUD() {
 function ExplorerMap() {
   const [selectedTown, setSelectedTown] = useState<Town | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const { progress, isTownVisited, getTownCompletionPercent } = useExplorer()
+  const { progress, isTownVisited, getTownCompletionPercent, isMysterySolved, getMysteryProgress } = useExplorer()
 
   const handleTownClick = (town: Town) => {
     setSelectedTown(town)
@@ -1034,6 +1223,22 @@ function ExplorerMap() {
                      town.id === 'mokelumne_hill' ? '💀' :
                      town.id === 'san_andreas' ? '⚖️' : '📍'}
                   </span>
+
+                  {/* Mystery indicator */}
+                  {(() => {
+                    const townMystery = getMysteryForTown(town.id)
+                    if (!townMystery) return null
+                    const solved = isMysterySolved(townMystery.id)
+                    const mp = getMysteryProgress(townMystery.id)
+                    const hasClues = mp && mp.cluesFound.length > 0
+                    return (
+                      <span className={`absolute -top-1 -right-2 text-xs z-20 ${solved ? '' : 'animate-bounce'}`}
+                        style={{ animationDuration: '2s' }}
+                        title={solved ? `Mystery solved: ${townMystery.title}` : `Mystery: ${townMystery.title}`}>
+                        {solved ? '✅' : hasClues ? '🔍' : '❓'}
+                      </span>
+                    )
+                  })()}
 
                   {/* Label */}
                   <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
