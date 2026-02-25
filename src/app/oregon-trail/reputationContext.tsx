@@ -119,7 +119,12 @@ function loadReputationFromStorage(): ReputationState | null {
   try {
     if (typeof window === 'undefined') return null
     const data = localStorage.getItem(REPUTATION_STORAGE_KEY)
-    return data ? JSON.parse(data) : null
+    if (!data) return null
+    const parsed = JSON.parse(data)
+    return {
+      ...parsed,
+      reputationHistory: Array.isArray(parsed.reputationHistory) ? parsed.reputationHistory : []
+    }
   } catch {
     return null
   }
@@ -169,7 +174,7 @@ export function ReputationProvider({ children }: { children: ReactNode }) {
           ...prev.reputations,
           [faction]: newRep
         },
-        reputationHistory: [...prev.reputationHistory, event]
+        reputationHistory: [...(prev.reputationHistory || []), event]
       }
     })
 
