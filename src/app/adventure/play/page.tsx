@@ -314,6 +314,8 @@ function StatsSidebar({
   onCloudSave,
   onCloudLoad,
   hasCloud,
+  recruitedAllies,
+  onDismissAlly,
 }: {
   stats: SaddleStats
   level: number
@@ -324,6 +326,8 @@ function StatsSidebar({
   onCloudSave: () => void
   onCloudLoad: () => void
   hasCloud: boolean
+  recruitedAllies: RecruitedAlly[]
+  onDismissAlly: (enemyName: string) => void
 }) {
   return (
     <div className="space-y-3">
@@ -374,6 +378,60 @@ function StatsSidebar({
           </div>
         </div>
       </PixelCard>
+
+      {/* Recruited Allies */}
+      {recruitedAllies.length > 0 && (
+        <PixelCard title={`ALLIES (${recruitedAllies.length}/2)`}>
+          <div className="space-y-2">
+            {recruitedAllies.map(ally => (
+              <div key={ally.enemyName} className="p-2 bg-[var(--pixel-bg-dark)] border border-[var(--pixel-ui-border)] rounded">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{ally.icon}</span>
+                    <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)]">
+                      {ally.enemyName}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => onDismissAlly(ally.enemyName)}
+                    className="text-[8px] text-red-400 hover:text-red-300 font-[var(--font-pixel)]"
+                    title="Dismiss ally"
+                  >
+                    {'\u2715'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-xs">{STAT_DISPLAY[ally.bonusStat]?.icon ?? ''}</span>
+                  <span className="font-[var(--font-pixel)] text-[8px]" style={{ color: STAT_DISPLAY[ally.bonusStat]?.color ?? '#ccc' }}>
+                    +{ally.bonusAmount} {ally.bonusStat}
+                  </span>
+                </div>
+                <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-70 mb-1">
+                  {ally.passiveEffect}
+                </p>
+                {ally.specialAbility && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px]">{'\u2728'}</span>
+                    <span className="font-[var(--font-pixel)] text-[7px] text-purple-300">
+                      {ally.specialAbility.name}
+                    </span>
+                  </div>
+                )}
+                <div className="mt-1 flex justify-between items-center">
+                  <span className="font-[var(--font-pixel)] text-[7px] text-amber-400">
+                    {ally.chaptersRemaining === 0 ? 'Permanent' : `${ally.chaptersRemaining} ch. left`}
+                  </span>
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: Math.min(ally.chaptersRemaining, 5) }).map((_, i) => (
+                      <div key={i} className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </PixelCard>
+      )}
 
       {/* Actions */}
       <div className="space-y-2">
@@ -670,6 +728,13 @@ function AdventureContent() {
       handleTravelTo(destId)
     }
   }, [activeConfrontation, adventureState, travelDestination, addExperience, earnNeutral, spendNeutral, modifyReputation, updateState, narratorComment, handleTravelTo])
+
+  // === DISMISS ALLY ===
+  const handleDismissAlly = useCallback((enemyName: string) => {
+    const currentAllies = adventureState?.recruitedAllies ?? []
+    updateState({ recruitedAllies: currentAllies.filter(a => a.enemyName !== enemyName) })
+    narratorComment(`${enemyName} parts ways with you. The road grows lonelier.`, 'observation')
+  }, [adventureState?.recruitedAllies, updateState, narratorComment])
 
   // === VISIT LOCATION ===
   const handleVisitLocation = useCallback((locationId: string) => {
@@ -980,6 +1045,16 @@ function AdventureContent() {
           </div>
           <div className="flex items-center gap-4">
             <ReputationDisplay />
+            {adventureState.recruitedAllies.length > 0 && (
+              <div className="flex items-center gap-1" title={adventureState.recruitedAllies.map(a => a.enemyName).join(', ')}>
+                {adventureState.recruitedAllies.map(ally => (
+                  <span key={ally.enemyName} className="text-sm">{ally.icon}</span>
+                ))}
+                <span className="font-[var(--font-pixel)] text-[8px] text-purple-300">
+                  {adventureState.recruitedAllies.length}/2
+                </span>
+              </div>
+            )}
             {canCompleteChapter && adventureState.phase === 'exploring' && (
               <button
                 onClick={handleCompleteChapter}
@@ -1040,6 +1115,8 @@ function AdventureContent() {
               onCloudSave={handleCloudSave}
               onCloudLoad={handleCloudLoad}
               hasCloud={hasCloudSaveFlag}
+              recruitedAllies={adventureState.recruitedAllies}
+              onDismissAlly={handleDismissAlly}
             />
           </div>
         </div>
