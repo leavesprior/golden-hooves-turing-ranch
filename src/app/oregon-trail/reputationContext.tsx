@@ -293,7 +293,7 @@ export function ReputationProvider({ children }: { children: ReactNode }) {
 
   // Get recent reputation events
   const getRecentEvents = useCallback((count: number = 10): ReputationEvent[] => {
-    return state.reputationHistory.slice(-count)
+    return (state.reputationHistory || []).slice(-count)
   }, [state.reputationHistory])
 
   const value: ReputationContextValue = {
