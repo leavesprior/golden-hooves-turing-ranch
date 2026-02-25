@@ -1845,20 +1845,20 @@ export default function OregonTrailPage() {
             onEasterEggFound={() => {}}
           >
             <RanchProvider>
-              <SettlementProvider>
-                <CharacterProvider>
-                  <ReputationProvider>
-                    <NarratorProvider>
-                      <MysteryProvider>
+              <MysteryProvider>
+                <SettlementProvider>
+                  <CharacterProvider>
+                    <ReputationProvider>
+                      <NarratorProvider>
                         <NPCProvider>
                           <OregonTrailGame />
                           <VolumeControl />
                         </NPCProvider>
-                      </MysteryProvider>
-                    </NarratorProvider>
-                  </ReputationProvider>
-                </CharacterProvider>
-              </SettlementProvider>
+                      </NarratorProvider>
+                    </ReputationProvider>
+                  </CharacterProvider>
+                </SettlementProvider>
+              </MysteryProvider>
             </RanchProvider>
           </ChapterProvider>
         </OregonTrailProvider>
