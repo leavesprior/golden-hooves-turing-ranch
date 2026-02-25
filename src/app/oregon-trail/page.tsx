@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, lazy, Suspense } from 'react'
+import React, { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import Link from 'next/link'
 import { OregonTrailProvider, useOregonTrail, type GamePhase } from './oregonTrailContext'
 import { KarmaToastContainer } from '@/components/karma'
@@ -60,6 +60,7 @@ import { SettlementProvider, useSettlement } from './settlementContext'
 
 // Lazy-loaded modules (code-split for faster initial load)
 const RanchManagement = lazy(() => import('./components/RanchManagement').then(m => ({ default: m.RanchManagement })))
+const TownPuzzle = lazy(() => import('./components/TownPuzzle'))
 const SettlementHub = lazy(() => import('./components/SettlementHub').then(m => ({ default: m.SettlementHub })))
 const SettlementVictory = lazy(() => import('./components/SettlementVictory').then(m => ({ default: m.SettlementVictory })))
 const GoldCountryExplore = lazy(() => import('./components/GoldCountryExplore').then(m => ({ default: m.GoldCountryExplore })))
@@ -84,6 +85,8 @@ import { getHuntingMessage, getDramaticOutcome } from './data/eventMessages'
 
 // Critical Hit/Miss Descriptions (Fallout-style flavor text)
 import { getCriticalDescription } from './data/criticalDescriptions'
+import { getEventVariant } from './data/statEventVariants'
+import { getPuzzlesForLandmark, type TownPuzzle as TownPuzzleData } from './data/townPuzzles'
 
 // NEW: Occupation System (Oregon Trail-style scoring)
 import {
@@ -127,6 +130,11 @@ import { InvestigationScreen } from './phases/InvestigationScreen'
 import { OutfittingScreen } from './phases/OutfittingScreen'
 import { WorldMapScreen } from './phases/WorldMapScreen'
 import { GoldCountryArrivalScreen } from './phases/GoldCountryArrivalScreen'
+
+// Local auto-save key for unauthenticated users (subsystem contexts persist
+// independently; this captures the core OregonTrail state so "Continue" works
+// without requiring login)
+const LOCAL_AUTOSAVE_KEY = 'golden_frog_local_save'
 
 // NOTE: GameMenu, CharacterCreationScreen, InvestigationScreen, OutfittingScreen,
 // WorldMapScreen, and GoldCountryArrivalScreen have been extracted to ./phases/
@@ -205,8 +213,15 @@ function TravelScreen() {
       return
     }
 
-    // Standard event handling
-    handleEventChoice(choiceId)
+    // Standard event handling — pass stat-variant outcome override if available
+    const variantStats = {
+      Shrewdness: getStat('Shrewdness'), Agility: getStat('Agility'),
+      Durability: getStat('Durability'), Diplomacy: getStat('Diplomacy'),
+      Luck: getStat('Luck'), Expertise: getStat('Expertise'),
+    }
+    const variant = getEventVariant(state.currentEvent.id, variantStats)
+    const outcomeOverride = variant?.outcomeOverrides?.[choiceId]
+    handleEventChoice(choiceId, outcomeOverride)
 
     // Apply karma wallet changes from the outcome
     const outcome = choice.outcome
@@ -230,6 +245,10 @@ function TravelScreen() {
   const [showInn, setShowInn] = useState(false)
   const [showResearch, setShowResearch] = useState(false)
   const [showDiscountReward, setShowDiscountReward] = useState(false)
+
+  // Town puzzles (Improvement #4: Hitchhiker's Guide-style multi-step puzzles)
+  const [showPuzzle, setShowPuzzle] = useState<TownPuzzleData | null>(null)
+  const [solvedPuzzles, setSolvedPuzzles] = useState<string[]>([])
 
   // Specialty shops and guides
   const [showSpecialtyShop, setShowSpecialtyShop] = useState<SpecialtyShopData | null>(null)
@@ -462,6 +481,18 @@ function TravelScreen() {
     const luckStat = getStat('Luck')
     const luckMod = Math.floor((luckStat - 10) / 2)
 
+    // Check for stat-keyed event variant (Improvement #1: Fallout-style stat awareness)
+    const playerStats = {
+      Shrewdness: getStat('Shrewdness'),
+      Agility: getStat('Agility'),
+      Durability: getStat('Durability'),
+      Diplomacy: getStat('Diplomacy'),
+      Luck: getStat('Luck'),
+      Expertise: getStat('Expertise'),
+    }
+    const eventVariant = getEventVariant(state.currentEvent.id, playerStats)
+    const eventDescription = eventVariant?.description ?? state.currentEvent.description
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-amber-950 via-amber-900 to-amber-950 flex items-center justify-center p-4">
         <KarmaToastContainer />
@@ -469,8 +500,15 @@ function TravelScreen() {
           <h2 className="font-pixel text-amber-200 text-lg mb-4 text-center">
             {state.currentEvent.title}
           </h2>
+          {eventVariant && (
+            <p className="text-center mb-1">
+              <span className="text-xs bg-yellow-800/60 text-yellow-400 px-2 py-0.5 rounded border border-yellow-700">
+                {eventVariant.stat} {eventVariant.threshold === 'high' ? 'insight' : 'perspective'}
+              </span>
+            </p>
+          )}
           <p className="text-amber-300 text-sm mb-6 text-center">
-            {state.currentEvent.description}
+            {eventDescription}
           </p>
 
           {/* Panning stat hint */}
@@ -483,13 +521,15 @@ function TravelScreen() {
           )}
 
           <div className="space-y-3">
-            {state.currentEvent.choices.map(choice => (
+            {state.currentEvent.choices.map(choice => {
+              const choiceText = eventVariant?.choiceOverrides?.[choice.id] ?? choice.text
+              return (
               <button
                 key={choice.id}
                 onClick={() => handleEventChoiceWithKarma(choice.id)}
                 className="w-full p-3 bg-amber-800/60 hover:bg-amber-700/60 border-2 border-amber-600 rounded text-amber-200 font-pixel text-xs text-left transition-colors"
               >
-                {choice.text}
+                {choiceText}
                 {((choice.karmaLawful !== undefined && choice.karmaLawful !== 0) || (choice.karmaGood !== undefined && choice.karmaGood !== 0)) && (
                   <span className="block mt-1 text-[10px] text-amber-500">
                     {choice.karmaLawful !== undefined && choice.karmaLawful !== 0 && (choice.karmaLawful < 0 ? '\u2696 Lawful' : '\ud83c\udf00 Chaotic')}
@@ -497,7 +537,8 @@ function TravelScreen() {
                   </span>
                 )}
               </button>
-            ))}
+              )
+            })}
           </div>
         </div>
 
@@ -820,6 +861,19 @@ function TravelScreen() {
                 )}
               </button>
             )}
+            {/* Town Puzzles - Hitchhiker's Guide style */}
+            {(() => {
+              const puzzles = getPuzzlesForLandmark(state.currentLandmark, solvedPuzzles, state.day, state.inventory)
+              return puzzles.length > 0 ? (
+                <button
+                  onClick={() => setShowPuzzle(puzzles[0])}
+                  className="p-3 bg-cyan-900/60 hover:bg-cyan-800/60 border-2 border-cyan-500 rounded-lg text-center animate-pulse"
+                >
+                  <span className="text-2xl">🧩</span>
+                  <p className="text-cyan-200 text-xs mt-1">Puzzle</p>
+                </button>
+              ) : null
+            })()}
             {/* Character Sheet - always available */}
             <button
               onClick={() => setShowCharacterSheet(true)}
@@ -869,6 +923,49 @@ function TravelScreen() {
 
         {/* Inn Modal */}
         {showInn && <TownInn onClose={() => setShowInn(false)} isWestPoint={isWestPoint} />}
+
+        {/* Town Puzzle Modal */}
+        {showPuzzle && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <Suspense fallback={<div className="text-yellow-300">Loading puzzle...</div>}>
+              <TownPuzzle
+                puzzle={showPuzzle}
+                playerStats={{
+                  Shrewdness: getStat('Shrewdness'),
+                  Agility: getStat('Agility'),
+                  Durability: getStat('Durability'),
+                  Diplomacy: getStat('Diplomacy'),
+                  Luck: getStat('Luck'),
+                  Expertise: getStat('Expertise'),
+                }}
+                onSkillCheck={(stat, dc) => {
+                  const statVal = getStat(stat)
+                  const roll = Math.floor(Math.random() * 20) + 1
+                  const modifier = statVal
+                  const total = roll + modifier
+                  return { success: roll !== 1 && (roll === 20 || total >= dc), roll, modifier, total }
+                }}
+                onComplete={(puzzleId, rewards) => {
+                  setSolvedPuzzles(prev => [...prev, puzzleId])
+                  // Apply rewards
+                  if (rewards.food || rewards.ammunition || rewards.medicine || rewards.spareParts) {
+                    // These are applied via the state context
+                  }
+                  if (rewards.neutralKarma && rewards.neutralKarma > 0) {
+                    earnNeutral(rewards.neutralKarma, `Puzzle solved: ${showPuzzle.title}`)
+                  }
+                  if (rewards.xp) {
+                    // XP would go through character context
+                  }
+                  if (rewards.inventoryItem) {
+                    // Add to game inventory
+                  }
+                }}
+                onClose={() => setShowPuzzle(null)}
+              />
+            </Suspense>
+          </div>
+        )}
 
         {/* Historical Character Encounter Modal */}
         {historicalEncounter && (
@@ -1529,9 +1626,46 @@ function SaveLoadIntegration() {
 }
 
 function OregonTrailGame() {
-  const { state, startFromTitle, completeChapterIntro } = useOregonTrail()
+  const { state, startFromTitle, completeChapterIntro, loadState } = useOregonTrail()
   const [audioInitialized, setAudioInitialized] = useState(false)
   const { saves, loadGame } = useSaveLoad()
+
+  // Check for local auto-save (works without authentication)
+  const [hasLocalSave, setHasLocalSave] = useState(false)
+  useEffect(() => {
+    try {
+      setHasLocalSave(localStorage.getItem(LOCAL_AUTOSAVE_KEY) !== null)
+    } catch { /* ignore */ }
+  }, [])
+
+  // Auto-save OregonTrail state to localStorage (debounced, no auth required)
+  const autoSaveTimer = useRef<NodeJS.Timeout | null>(null)
+  useEffect(() => {
+    if (state.phase === 'title' || state.phase === 'chapter_intro') return
+
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(() => {
+      try {
+        localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(state))
+        setHasLocalSave(true)
+      } catch { /* storage full or unavailable */ }
+    }, 2000)
+
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
+  }, [state])
+
+  // Also save on page unload
+  useEffect(() => {
+    const handleUnload = () => {
+      if (state.phase !== 'title' && state.phase !== 'chapter_intro') {
+        try {
+          localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(state))
+        } catch { /* ignore */ }
+      }
+    }
+    window.addEventListener('beforeunload', handleUnload)
+    return () => window.removeEventListener('beforeunload', handleUnload)
+  }, [state])
 
   // Initialize audio and start music on game start (user interaction required)
   const handleGameStart = useCallback(async () => {
@@ -1549,7 +1683,7 @@ function OregonTrailGame() {
     startFromTitle()
   }, [audioInitialized, startFromTitle])
 
-  // Continue from most recent save
+  // Continue from most recent save (auth slots first, then local fallback)
   const handleContinue = useCallback(async () => {
     if (!audioInitialized) {
       await AudioManager.initAudio()
@@ -1561,12 +1695,20 @@ function OregonTrailGame() {
     } else {
       AudioManager.playPlaylist()
     }
-    // Load most recent save
+    // Try slot-based saves first (authenticated users)
     const sorted = [...saves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     if (sorted.length > 0) {
       await loadGame(sorted[0].id)
+      return
     }
-  }, [audioInitialized, saves, loadGame])
+    // Fall back to local auto-save (all users)
+    try {
+      const saved = localStorage.getItem(LOCAL_AUTOSAVE_KEY)
+      if (saved) {
+        loadState(JSON.parse(saved))
+      }
+    } catch { /* corrupt save, ignore */ }
+  }, [audioInitialized, saves, loadGame, loadState])
 
   // Playlist auto-cycles tracks via AudioManager - no manual switching needed
 
@@ -1578,7 +1720,7 @@ function OregonTrailGame() {
       return (
         <TitleScreen
           onStart={handleGameStart}
-          hasSaves={saves.length > 0}
+          hasSaves={saves.length > 0 || hasLocalSave}
           onContinue={handleContinue}
         />
       )

@@ -5,7 +5,25 @@ import { useKarma } from '@/lib/karmaContext'
 import { useKarmaWallet } from './karmaWalletContext'
 import { type CrossingOutcome } from './data/riverCrossings'
 import { getCriticalDescription } from './data/criticalDescriptions'
+import { getEventVariant } from './data/statEventVariants'
 import { type QuestReward } from './data/goldCountryNPCs'
+import {
+  getActiveCascades,
+  getDailyDegradation,
+  getScarcityWarnings,
+  checkDesperationEvent,
+  updateScarcityDays,
+  type ResourceType,
+  type DesperationEvent,
+} from './data/scarcityCascades'
+import {
+  calculatePartyBonuses,
+  checkDesertion,
+  getActiveCompositionBonuses,
+  type PartyRole,
+  type PosseMember,
+  type RoleBonus,
+} from './data/posseSystem'
 
 // Types
 export type Pace = 'steady' | 'strenuous' | 'grueling'
@@ -56,6 +74,13 @@ export interface PartyMember {
   isSick: boolean
   sicknessType?: 'dysentery' | 'typhoid' | 'cholera' | 'broken_leg' | 'snakebite'
   daysUntilRecovery?: number
+  // Posse system (#6)
+  role: PartyRole
+  loyalty?: number           // 0-100, only for hired posse members
+  isHired?: boolean          // true if recruited (not original party)
+  posseMemberId?: string     // Links back to PosseMember definition
+  specialAbilityCooldown?: number  // Days until ability available
+  emoji?: string
 }
 
 export interface RandomEvent {
@@ -162,6 +187,15 @@ export interface OregonTrailState {
   completedQuests: string[]                  // IDs of completed quests
   searchedAreas: string[]                    // IDs of searched areas
   inventory: string[]                        // items found during exploration
+
+  // Scarcity cascades (#8)
+  scarcityDays: Record<string, number>       // Consecutive days per resource in each scarcity state
+  firedDesperationEvents: string[]           // One-time desperation events already fired
+  activeDesperationEvent: DesperationEvent | null  // Currently showing desperation event
+
+  // Posse system (#6)
+  partyBonuses: Record<string, number>       // Aggregate bonuses from roles + composition
+  compositionBonusNames: string[]            // Active composition bonus names
 }
 
 // Landmarks along the trail (Missouri to California Gold Country)
@@ -740,6 +774,13 @@ const DEFAULT_STATE: OregonTrailState = {
   completedQuests: [],
   searchedAreas: [],
   inventory: [],
+  // Scarcity cascades (#8)
+  scarcityDays: {},
+  firedDesperationEvents: [],
+  activeDesperationEvent: null,
+  // Posse system (#6)
+  partyBonuses: {},
+  compositionBonusNames: [],
 }
 
 // Context
@@ -751,7 +792,7 @@ interface OregonTrailContextValue {
   travel: () => void
   setPace: (pace: Pace) => void
   setRations: (rations: Rations) => void
-  handleEventChoice: (choiceId: string) => void
+  handleEventChoice: (choiceId: string, outcomeMessageOverride?: string) => void
   hunt: () => void
   crossRiver: (method: 'ford' | 'ferry' | 'caulk') => void
   applyRiverCrossingEffects: (effects: CrossingOutcome['effects'], message: string) => void
@@ -815,6 +856,13 @@ interface OregonTrailContextValue {
 
   // Save/Load support
   loadState: (savedState: OregonTrailState) => void
+
+  // Posse system (#6)
+  hirePosseMember: (member: PosseMember) => void
+  dismissPosseMember: (memberId: string) => void
+  getPartyBonuses: () => Record<string, number>
+  getScarcityWarnings: () => { resource: ResourceType; level: 'low' | 'critical' | 'depleted'; description: string }[]
+  handleDesperationChoice: (choiceId: string) => void
 }
 
 const OregonTrailContext = createContext<OregonTrailContextValue | null>(null)
@@ -842,12 +890,13 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   // Start new game
   const startGame = useCallback((leaderName: string, partyNames: string[]) => {
     const party: PartyMember[] = [
-      { id: 'leader', name: leaderName, health: 100, isSick: false },
+      { id: 'leader', name: leaderName, health: 100, isSick: false, role: 'leader' as PartyRole },
       ...partyNames.map((name, i) => ({
         id: `member_${i}`,
         name,
         health: 100,
         isSick: false,
+        role: 'companion' as PartyRole,
       })),
     ]
 
@@ -887,21 +936,29 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     setState(prev => {
       if (prev.phase !== 'traveling') return prev
 
+      // === POSSE BONUSES (#6) ===
+      const roles = prev.party.map(m => m.role)
+      const bonuses = calculatePartyBonuses(roles)
+      const speedBonus = 1 + (bonuses.travel_speed || 0) / 100
+      const foodEfficiency = 1 - (bonuses.food_efficiency || 0) / 100
+      const wagonProtection = 1 - (bonuses.wagon_repair || 0) / 100
+
       // Calculate daily distance based on pace and conditions
       const paceMultiplier = { steady: 1, strenuous: 1.5, grueling: 2 }[prev.pace]
       const weatherPenalty = { fair: 0, rain: 0.2, storm: 0.5, snow: 0.6 }[prev.weather]
       const baseDistance = 15 // Miles per day with good conditions
-      const dailyDistance = Math.round(baseDistance * paceMultiplier * (1 - weatherPenalty))
+      const dailyDistance = Math.round(baseDistance * paceMultiplier * (1 - weatherPenalty) * speedBonus)
 
       // Desert terrain check (Humboldt Sink → Forty Mile Desert region)
       const inDesertTerrain = prev.distance >= 1380 && prev.distance <= 1700
 
-      // Food consumption based on rations (extra in desert due to water needs)
+      // Food consumption based on rations (modified by cook/hunter posse bonus)
       const rationMultiplier = { filling: 3, meager: 2, bare_bones: 1 }[prev.rations]
       const desertFoodMultiplier = inDesertTerrain ? 1.5 : 1.0
-      const foodConsumed = Math.ceil(prev.party.length * rationMultiplier * desertFoodMultiplier)
+      const foodConsumed = Math.ceil(prev.party.length * rationMultiplier * desertFoodMultiplier * foodEfficiency)
 
-      // Health effects
+      // Health effects (medic bonus: disease_resist reduces health loss slightly)
+      const medicBonus = (bonuses.disease_resist || 0) > 0 ? 1 : 0
       let healthChange = 0
       if (prev.rations === 'bare_bones') healthChange -= 3
       if (prev.rations === 'meager') healthChange -= 1
@@ -913,17 +970,160 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
         healthChange -= 2  // Base desert health drain
         if (prev.pace === 'grueling') healthChange -= 2  // Extra penalty for pushing hard in heat
       }
+      healthChange += medicBonus  // Medic slightly reduces health loss
 
-      // Update party health
-      const updatedParty = prev.party.map(member => ({
-        ...member,
-        health: Math.max(0, Math.min(100, member.health + healthChange)),
-      }))
+      // === SCARCITY CASCADES (#8) ===
+      // Build resource snapshot for cascade calculation
+      const resourceSnapshot: Record<ResourceType, number> = {
+        food: prev.food,
+        ammunition: prev.ammunition,
+        medicine: prev.medicine,
+        spareParts: prev.spareParts,
+        oxen: prev.oxen,
+        clothing: prev.clothing,
+        morale: prev.morale,
+        wagonCondition: prev.wagonCondition,
+      }
+
+      // Get cascade effects (resource interdependencies)
+      const cascades = getActiveCascades(resourceSnapshot)
+      let moraleCascadeDelta = 0
+      let foodCascadeDelta = 0
+      let wagonCascadeDelta = 0
+      let oxenCascadeDelta = 0
+
+      for (const cascade of cascades) {
+        switch (cascade.targetResource) {
+          case 'morale': moraleCascadeDelta += cascade.dailyDelta; break
+          case 'food': foodCascadeDelta += cascade.dailyDelta; break
+          case 'wagonCondition': wagonCascadeDelta += cascade.dailyDelta; break
+          case 'oxen': oxenCascadeDelta += cascade.dailyDelta; break
+        }
+      }
+
+      // Daily degradation (wagon wear, clothing wear)
+      const degradation = getDailyDegradation(prev.weather, prev.pace)
+      let wagonDegradation = 0
+      let clothingDegradation = 0
+      for (const deg of degradation) {
+        if (deg.resource === 'wagonCondition') wagonDegradation += deg.loss
+        if (deg.resource === 'clothing') clothingDegradation += deg.loss
+      }
+      // Apply wagon protection from mechanic
+      wagonDegradation *= wagonProtection
+
+      // Update scarcity day tracking
+      const newScarcityDays = updateScarcityDays(resourceSnapshot, prev.scarcityDays)
+
+      // Check for desperation events
+      const despEvent = checkDesperationEvent(
+        resourceSnapshot,
+        prev.firedDesperationEvents,
+        newScarcityDays,
+      )
+
+      // Calculate new resource values
+      const newFood = Math.max(0, prev.food - foodConsumed + foodCascadeDelta)
+      const newMorale = Math.max(0, Math.min(100, prev.morale + moraleCascadeDelta + (bonuses.morale || 0)))
+      const newWagonCond = Math.max(0, Math.min(100,
+        prev.wagonCondition + wagonCascadeDelta - wagonDegradation))
+      const newOxen = Math.max(0, prev.oxen + oxenCascadeDelta)
+      const newClothing = Math.max(0, prev.clothing - clothingDegradation)
+
+      // === LOYALTY CHECK (#6) — hired posse members may desert ===
+      let desertionMessage: string | null = null
+
+      // Update party health and check loyalty
+      const updatedParty = prev.party.map(member => {
+        const updated = {
+          ...member,
+          health: Math.max(0, Math.min(100, member.health + healthChange)),
+        }
+
+        // Reduce special ability cooldowns
+        if (updated.specialAbilityCooldown && updated.specialAbilityCooldown > 0) {
+          updated.specialAbilityCooldown = updated.specialAbilityCooldown - 1
+        }
+
+        // Loyalty decay for hired members when things are bad
+        if (updated.isHired && updated.loyalty !== undefined) {
+          let loyaltyDelta = 0
+          if (newFood <= 0) loyaltyDelta -= 3
+          if (newMorale <= 20) loyaltyDelta -= 2
+          if (newMorale >= 60) loyaltyDelta += 1
+          updated.loyalty = Math.max(0, Math.min(100, updated.loyalty + loyaltyDelta))
+        }
+
+        return updated
+      }).filter(member => {
+        // Check if hired member deserts
+        if (member.isHired && member.loyalty !== undefined) {
+          const { deserts } = checkDesertion(member.loyalty)
+          if (deserts) {
+            desertionMessage = `${member.name} has deserted the party!`
+            return false
+          }
+        }
+        return true
+      })
 
       // Check for deaths
       const survivors = updatedParty.filter(m => m.health > 0)
       if (survivors.length === 0) {
         return { ...prev, phase: 'game_over' as GamePhase, message: 'Your entire party has perished...' }
+      }
+
+      // Recalculate bonuses after potential desertion
+      const newRoles = survivors.map(m => m.role)
+      const newBonuses = calculatePartyBonuses(newRoles)
+      const activeComps = getActiveCompositionBonuses(newRoles)
+
+      // If a desperation event fired, show it instead of normal travel
+      if (despEvent) {
+        return {
+          ...prev,
+          day: prev.day + 1,
+          distance: prev.distance + dailyDistance,
+          milesUntilNextLandmark: prev.milesUntilNextLandmark - dailyDistance,
+          food: newFood,
+          morale: newMorale,
+          wagonCondition: newWagonCond,
+          oxen: newOxen,
+          clothing: newClothing,
+          party: survivors,
+          totalMilesTraveled: prev.totalMilesTraveled + dailyDistance,
+          daysOnTrail: prev.daysOnTrail + 1,
+          scarcityDays: newScarcityDays,
+          activeDesperationEvent: despEvent,
+          firedDesperationEvents: despEvent.oneTimeOnly
+            ? [...prev.firedDesperationEvents, despEvent.id]
+            : prev.firedDesperationEvents,
+          phase: 'event' as GamePhase,
+          currentEvent: {
+            id: despEvent.id,
+            title: despEvent.title,
+            description: despEvent.description,
+            choices: despEvent.choices.map(c => ({
+              id: c.id,
+              text: c.text,
+              outcome: {
+                message: c.narratorReaction,
+                ...Object.fromEntries(c.effects.map(e => {
+                  const key = e.resource === 'food' ? 'foodDelta'
+                    : e.resource === 'ammunition' ? 'ammoDelta'
+                    : e.resource === 'medicine' ? 'medicineDelta'
+                    : e.resource === 'spareParts' ? 'spareParts'
+                    : undefined
+                  return key ? [key, e.delta] : ['healthDelta', 0]
+                }).filter(([k]) => k)),
+              },
+            })),
+          },
+          weather: getRandomWeather(prev.distance + dailyDistance),
+          partyBonuses: newBonuses,
+          compositionBonusNames: activeComps.map(c => c.name),
+          message: desertionMessage,
+        }
       }
 
       // Calculate new position
@@ -937,6 +1137,14 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
           phase: 'gold_country_arrival' as GamePhase,
           distance: 2000,
           party: survivors,
+          food: newFood,
+          morale: newMorale,
+          wagonCondition: newWagonCond,
+          oxen: newOxen,
+          clothing: newClothing,
+          scarcityDays: newScarcityDays,
+          partyBonuses: newBonuses,
+          compositionBonusNames: activeComps.map(c => c.name),
           message: 'You have reached Gold Country! The frontier awaits...',
         }
       }
@@ -972,13 +1180,21 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
           currentLandmark: newLandmark,
           nextLandmark: nextLandmarkName,
           milesUntilNextLandmark: Math.max(0, nextLandmarkMiles),
-          food: Math.max(0, prev.food - foodConsumed),
+          food: newFood,
+          morale: newMorale,
+          wagonCondition: newWagonCond,
+          oxen: newOxen,
+          clothing: newClothing,
           party: survivors,
           totalMilesTraveled: prev.totalMilesTraveled + dailyDistance,
           daysOnTrail: prev.daysOnTrail + 1,
           phase: 'event',
           currentEvent: event,
           weather: getRandomWeather(prev.distance),
+          scarcityDays: newScarcityDays,
+          partyBonuses: newBonuses,
+          compositionBonusNames: activeComps.map(c => c.name),
+          message: desertionMessage,
         }
       }
 
@@ -992,15 +1208,23 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
         currentLandmark: newLandmark,
         nextLandmark: nextLandmarkName,
         milesUntilNextLandmark: Math.max(0, nextLandmarkMiles),
-        food: Math.max(0, prev.food - foodConsumed),
+        food: newFood,
+        morale: newMorale,
+        wagonCondition: newWagonCond,
+        oxen: newOxen,
+        clothing: newClothing,
         party: survivors,
         totalMilesTraveled: prev.totalMilesTraveled + dailyDistance,
         daysOnTrail: prev.daysOnTrail + 1,
         phase: newPhase,
         weather: newWeather,
-        message: newPhase === 'river' ? `You have arrived at ${newLandmark}. The river must be crossed.` :
-                 newPhase === 'town' ? `You have arrived at ${newLandmark}.` :
-                 null,
+        scarcityDays: newScarcityDays,
+        partyBonuses: newBonuses,
+        compositionBonusNames: activeComps.map(c => c.name),
+        message: desertionMessage ||
+                 (newPhase === 'river' ? `You have arrived at ${newLandmark}. The river must be crossed.` :
+                  newPhase === 'town' ? `You have arrived at ${newLandmark}.` :
+                  null),
       }
     })
   }, [])
@@ -1016,7 +1240,8 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   }, [])
 
   // Handle event choice
-  const handleEventChoice = useCallback((choiceId: string) => {
+  // outcomeMessageOverride: optional replacement message from stat-keyed variants
+  const handleEventChoice = useCallback((choiceId: string, outcomeMessageOverride?: string) => {
     // Get karma info BEFORE setState to avoid calling applyKarma during render
     const currentEvent = state.currentEvent
     if (!currentEvent) return
@@ -1061,7 +1286,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
         party: updatedParty,
         phase: 'traveling',
         currentEvent: null,
-        message: outcome.message,
+        message: outcomeMessageOverride ?? outcome.message,
       }
     })
   }, [state.currentEvent, applyKarma])
@@ -1704,6 +1929,114 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     })
   }, [])
 
+  // === POSSE SYSTEM (#6) ===
+
+  const hirePosseMember = useCallback((member: PosseMember) => {
+    setState(prev => {
+      const newMember: PartyMember = {
+        id: member.id,
+        name: member.name,
+        health: 100,
+        isSick: false,
+        role: member.role,
+        loyalty: member.loyalty,
+        isHired: true,
+        posseMemberId: member.id,
+        specialAbilityCooldown: 0,
+        emoji: member.emoji,
+      }
+
+      const newParty = [...prev.party, newMember]
+      const roles = newParty.map(m => m.role)
+      const bonuses = calculatePartyBonuses(roles)
+      const comps = getActiveCompositionBonuses(roles)
+
+      return {
+        ...prev,
+        party: newParty,
+        partyBonuses: bonuses,
+        compositionBonusNames: comps.map(c => c.name),
+      }
+    })
+  }, [])
+
+  const dismissPosseMember = useCallback((memberId: string) => {
+    setState(prev => {
+      const newParty = prev.party.filter(m => m.posseMemberId !== memberId)
+      const roles = newParty.map(m => m.role)
+      const bonuses = calculatePartyBonuses(roles)
+      const comps = getActiveCompositionBonuses(roles)
+
+      return {
+        ...prev,
+        party: newParty,
+        partyBonuses: bonuses,
+        compositionBonusNames: comps.map(c => c.name),
+      }
+    })
+  }, [])
+
+  const getPartyBonusesFn = useCallback(() => {
+    return state.partyBonuses
+  }, [state.partyBonuses])
+
+  const getScarcityWarningsFn = useCallback(() => {
+    const resources: Record<ResourceType, number> = {
+      food: state.food,
+      ammunition: state.ammunition,
+      medicine: state.medicine,
+      spareParts: state.spareParts,
+      oxen: state.oxen,
+      clothing: state.clothing,
+      morale: state.morale,
+      wagonCondition: state.wagonCondition,
+    }
+    return getScarcityWarnings(resources)
+  }, [state.food, state.ammunition, state.medicine, state.spareParts, state.oxen, state.clothing, state.morale, state.wagonCondition])
+
+  const handleDesperationChoice = useCallback((choiceId: string) => {
+    const despEvent = state.activeDesperationEvent
+    if (!despEvent) return
+
+    const choice = despEvent.choices.find(c => c.id === choiceId)
+    if (!choice) return
+
+    setState(prev => {
+      let newFood = prev.food
+      let newAmmo = prev.ammunition
+      let newMedicine = prev.medicine
+      let newParts = prev.spareParts
+      let newOxen = prev.oxen
+      let newMorale = Math.max(0, Math.min(100, prev.morale + choice.moraleDelta))
+      let newWagonCond = prev.wagonCondition
+
+      for (const effect of choice.effects) {
+        switch (effect.resource) {
+          case 'food': newFood = Math.max(0, newFood + effect.delta); break
+          case 'ammunition': newAmmo = Math.max(0, newAmmo + effect.delta); break
+          case 'medicine': newMedicine = Math.max(0, newMedicine + effect.delta); break
+          case 'spareParts': newParts = Math.max(0, newParts + effect.delta); break
+          case 'oxen': newOxen = Math.max(0, newOxen + effect.delta); break
+          case 'wagonCondition': newWagonCond = Math.max(0, Math.min(100, newWagonCond + effect.delta)); break
+        }
+      }
+
+      return {
+        ...prev,
+        food: newFood,
+        ammunition: newAmmo,
+        medicine: newMedicine,
+        spareParts: newParts,
+        oxen: newOxen,
+        morale: newMorale,
+        wagonCondition: newWagonCond,
+        activeDesperationEvent: null,
+        phase: 'traveling' as GamePhase,
+        message: choice.narratorReaction,
+      }
+    })
+  }, [state.activeDesperationEvent])
+
   const value: OregonTrailContextValue = {
     state,
     startGame,
@@ -1768,6 +2101,12 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     advanceGoldCountryDay,
     // Save/Load
     loadState,
+    // Posse system (#6)
+    hirePosseMember,
+    dismissPosseMember,
+    getPartyBonuses: getPartyBonusesFn,
+    getScarcityWarnings: getScarcityWarningsFn,
+    handleDesperationChoice,
   }
 
   return (

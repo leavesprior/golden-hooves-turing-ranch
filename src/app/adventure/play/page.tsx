@@ -36,6 +36,7 @@ import { getSkillTreeBonuses } from '@/app/adventure/data/skillTree'
 import type { ActivityResult } from '@/app/adventure/data/campActivities'
 import { rollConfrontation, type ConfrontationEnemy } from '@/app/adventure/data/confrontationEnemies'
 import { ConfrontationView, type ConfrontationResult } from '@/components/adventure/ConfrontationView'
+import { type RecruitedAlly, updateAllyDurations, getAllyStatBonuses, rollAllyAbility } from '@/app/adventure/data/enemyRecruitment'
 
 // ============================================
 // ADVENTURE STATE
@@ -57,6 +58,7 @@ interface AdventureState {
   welcomeRewardClaimed: boolean
   confrontationsWon: number
   confrontationsLost: number
+  recruitedAllies: RecruitedAlly[]
 }
 
 const SAVE_KEY = 'bobr_adventure_state'
@@ -75,6 +77,7 @@ function loadAdventureState(): AdventureState | null {
       welcomeRewardClaimed: parsed.welcomeRewardClaimed ?? false,
       confrontationsWon: parsed.confrontationsWon ?? 0,
       confrontationsLost: parsed.confrontationsLost ?? 0,
+      recruitedAllies: parsed.recruitedAllies ?? [],
     }
   } catch {
     return null
@@ -112,6 +115,7 @@ function createNewAdventureState(): AdventureState {
     welcomeRewardClaimed: false,
     confrontationsWon: 0,
     confrontationsLost: 0,
+    recruitedAllies: [],
   }
 }
 
@@ -537,13 +541,22 @@ function AdventureContent() {
     })
   }, [])
 
-  // Get player stats safely
+  // Get player stats safely (includes recruited ally bonuses)
   const playerStats = useMemo((): Record<StatName, number> => {
-    if (!charState.character) {
-      return { Shrewdness: 8, Agility: 8, Durability: 8, Diplomacy: 8, Luck: 8, Expertise: 8 }
+    const base = charState.character
+      ? { ...charState.character.stats }
+      : { Shrewdness: 8, Agility: 8, Durability: 8, Diplomacy: 8, Luck: 8, Expertise: 8 }
+
+    // Apply recruited ally stat bonuses
+    const allyBonuses = getAllyStatBonuses(adventureState?.recruitedAllies ?? [])
+    for (const [stat, bonus] of Object.entries(allyBonuses)) {
+      if (stat in base) {
+        base[stat as StatName] += bonus
+      }
     }
-    return charState.character.stats
-  }, [charState.character])
+
+    return base
+  }, [charState.character, adventureState?.recruitedAllies])
 
   // Get faction reps
   const factionReps = useMemo((): Record<FactionId, number> => {
@@ -625,6 +638,9 @@ function AdventureContent() {
     if (result.goldEarned > 0) {
       earnNeutral(result.goldEarned, `Confrontation: ${activeConfrontation.name}`)
     }
+    if (result.goldSpent > 0) {
+      spendNeutral(result.goldSpent, `Recruited: ${activeConfrontation.name}`)
+    }
     if (result.karmaEffect?.lawful) {
       modifyReputation('pinkerton', result.karmaEffect.lawful, `Confrontation: ${activeConfrontation.name}`)
     }
@@ -638,6 +654,10 @@ function AdventureContent() {
       narratorComment(activeConfrontation.defeatText, 'observation')
     } else if (result.outcome === 'fled') {
       narratorComment(activeConfrontation.fleeText, 'observation')
+    } else if (result.outcome === 'recruited' && result.recruitedAlly) {
+      const currentAllies = adventureState?.recruitedAllies ?? []
+      updateState({ recruitedAllies: [...currentAllies, result.recruitedAlly] })
+      narratorComment(`${result.recruitedAlly.enemyName} has joined your party! ${result.recruitedAlly.passiveEffect}`, 'observation')
     } else if (result.outcome === 'talked') {
       narratorComment('Words prove mightier than fists. A peaceful resolution.', 'observation')
     }
@@ -649,7 +669,7 @@ function AdventureContent() {
       setTravelDestination(null)
       handleTravelTo(destId)
     }
-  }, [activeConfrontation, adventureState, travelDestination, addExperience, earnNeutral, modifyReputation, updateState, narratorComment, handleTravelTo])
+  }, [activeConfrontation, adventureState, travelDestination, addExperience, earnNeutral, spendNeutral, modifyReputation, updateState, narratorComment, handleTravelTo])
 
   // === VISIT LOCATION ===
   const handleVisitLocation = useCallback((locationId: string) => {
@@ -893,6 +913,7 @@ function AdventureContent() {
             welcomeRewardClaimed: loaded.welcomeRewardClaimed ?? false,
             confrontationsWon: loaded.confrontationsWon ?? 0,
             confrontationsLost: loaded.confrontationsLost ?? 0,
+            recruitedAllies: loaded.recruitedAllies ?? [],
           }
           setAdventureState(restored)
           saveAdventureState(restored)
@@ -1067,6 +1088,9 @@ function AdventureContent() {
           playerHealth={Math.max(20, 20 + (charState.character.stats.Durability - 8) * 5)}
           playerMaxHealth={Math.max(20, 20 + (charState.character.stats.Durability - 8) * 5)}
           playerStats={playerStats}
+          playerGold={balance.neutral}
+          currentChapter={adventureState?.chapter ?? 1}
+          recruitedAllies={adventureState?.recruitedAllies ?? []}
           onEnd={handleConfrontationEnd}
           onSkillCheck={handleSkillCheck}
         />

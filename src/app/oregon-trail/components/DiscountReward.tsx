@@ -373,23 +373,42 @@ export function DiscountReward({
             }}
           >
             <p className="text-sm" style={{ color: '#a08050' }}>
-              <span className="font-bold">How to use:</span> Enter this code when booking your
-              stay at Back of Beyond Ranch to receive your discount.
+              <span className="font-bold">How to use:</span> Click &quot;Book Now&quot; below, then
+              mention your code in the message to the host to receive your discount.
             </p>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="p-4" style={{ borderTop: '1px solid #5a4020' }}>
+        <div className="p-4 space-y-2" style={{ borderTop: '1px solid #5a4020' }}>
+          <button
+            onClick={() => {
+              window.open(
+                'https://www.airbnb.com/rooms/30045739',
+                '_blank',
+                'noopener,noreferrer'
+              )
+            }}
+            className="w-full py-3 rounded font-bold flex items-center justify-center gap-2"
+            style={{ backgroundColor: '#d4a843', color: '#2a1f14' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#e8c060'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#d4a843'
+            }}
+          >
+            <span>Save {discountCode.finalDiscount}% at Back of Beyond Ranch</span>
+          </button>
           <button
             onClick={onClose}
             className="w-full py-2 rounded font-bold"
-            style={{ backgroundColor: '#8b6914', color: '#2a1f14' }}
+            style={{ backgroundColor: '#5a4020', color: '#a08050' }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#d4a843'
+              e.currentTarget.style.backgroundColor = '#6a5030'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#8b6914'
+              e.currentTarget.style.backgroundColor = '#5a4020'
             }}
           >
             Continue Adventure

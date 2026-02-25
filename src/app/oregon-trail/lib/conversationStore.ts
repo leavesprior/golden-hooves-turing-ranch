@@ -6,6 +6,16 @@
  */
 
 import type { ConversationTurn, NPCConversationState, NPCMood } from '@/lib/ollama/types'
+import {
+  type NPCRelationship,
+  type RelationshipMemory,
+  createRelationship,
+  applyDispositionChange,
+  getDispositionLevel,
+  getRelationshipGreeting,
+  getShopPriceMultiplier,
+  generateOpinion,
+} from '../data/npcRelationships'
 
 const STORAGE_KEY = 'bobr_conversation_store'
 const STORE_VERSION = '1.0.0'
@@ -26,6 +36,8 @@ interface StoredConversation {
   visitCount: number
   firstVisit: number
   lastVisit: number
+  // Relationship system (#5)
+  relationship?: NPCRelationship
 }
 
 interface StoredTurn {
@@ -347,6 +359,133 @@ export const ConversationStore = {
       console.error('[ConversationStore] Failed to import:', e)
       return false
     }
+  },
+
+  // === RELATIONSHIP SYSTEM (#5) ===
+
+  /**
+   * Get or create the relationship for an NPC
+   */
+  getRelationship(npcId: string, startingDisposition?: number): NPCRelationship {
+    const conv = this.getConversation(npcId)
+    if (conv?.relationship) return conv.relationship
+    return createRelationship(npcId, startingDisposition)
+  },
+
+  /**
+   * Apply a disposition modifier to an NPC's relationship
+   */
+  applyDisposition(npcId: string, modifierId: string, gameDay: number): NPCRelationship | null {
+    const store = this.load()
+    const conv = store.conversations[npcId]
+    if (!conv) return null
+
+    const relationship = conv.relationship || createRelationship(npcId)
+    const updated = applyDispositionChange(relationship, modifierId, gameDay)
+
+    conv.relationship = updated
+    this.save(store)
+    return updated
+  },
+
+  /**
+   * Record a relationship memory directly (for custom events)
+   */
+  addRelationshipMemory(npcId: string, memory: RelationshipMemory): boolean {
+    const store = this.load()
+    const conv = store.conversations[npcId]
+    if (!conv) return false
+
+    if (!conv.relationship) {
+      conv.relationship = createRelationship(npcId)
+    }
+
+    const newDisp = Math.max(0, Math.min(100, conv.relationship.disposition + memory.delta))
+    conv.relationship.disposition = newDisp
+    conv.relationship.level = getDispositionLevel(newDisp)
+    conv.relationship.memories = [...conv.relationship.memories.slice(-19), memory]
+    conv.relationship.lastInteraction = memory.timestamp
+    conv.relationship.personalOpinion = generateOpinion(conv.relationship)
+
+    if (memory.delta > 0) conv.relationship.timesHelped++
+    if (memory.delta < 0) conv.relationship.timesAntagonized++
+
+    return this.save(store)
+  },
+
+  /**
+   * Get a greeting appropriate for the current relationship level
+   */
+  getRelationshipGreetingFor(npcId: string): string {
+    const rel = this.getRelationship(npcId)
+    return getRelationshipGreeting(rel.disposition)
+  },
+
+  /**
+   * Get shop price multiplier based on NPC relationship
+   */
+  getShopDiscount(npcId: string): number {
+    const rel = this.getRelationship(npcId)
+    return getShopPriceMultiplier(rel.disposition)
+  },
+
+  /**
+   * Record a gift given to an NPC
+   */
+  recordGift(npcId: string, itemId: string, gameDay: number): boolean {
+    const store = this.load()
+    const conv = store.conversations[npcId]
+    if (!conv) return false
+
+    if (!conv.relationship) {
+      conv.relationship = createRelationship(npcId)
+    }
+
+    if (!conv.relationship.giftsGiven.includes(itemId)) {
+      conv.relationship.giftsGiven.push(itemId)
+    }
+
+    return this.save(store)
+  },
+
+  /**
+   * Record a quest completed for an NPC
+   */
+  recordQuestForNPC(npcId: string, questId: string, gameDay: number): boolean {
+    const store = this.load()
+    const conv = store.conversations[npcId]
+    if (!conv) return false
+
+    if (!conv.relationship) {
+      conv.relationship = createRelationship(npcId)
+    }
+
+    if (!conv.relationship.questsCompletedFor.includes(questId)) {
+      conv.relationship.questsCompletedFor.push(questId)
+    }
+
+    // Also apply the quest_completed disposition modifier
+    conv.relationship = applyDispositionChange(conv.relationship, 'quest_completed', gameDay)
+
+    return this.save(store)
+  },
+
+  /**
+   * Get all NPCs with relationship level at or above a threshold
+   */
+  getNPCsAtDisposition(minLevel: string): string[] {
+    const store = this.load()
+    const levels = ['hostile', 'unfriendly', 'neutral', 'friendly', 'trusted', 'devoted']
+    const minIndex = levels.indexOf(minLevel)
+    if (minIndex < 0) return []
+
+    return Object.values(store.conversations)
+      .filter(conv => {
+        if (!conv.relationship) return false
+        const convIndex = levels.indexOf(conv.relationship.level)
+        return convIndex >= minIndex
+      })
+      .map(conv => conv.npcId)
   },
 }
 

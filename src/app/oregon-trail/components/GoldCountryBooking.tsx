@@ -130,6 +130,12 @@ export default function GoldCountryBooking({
     if (onBookingIntent) {
       onBookingIntent(discountCode)
     }
+    // Copy discount code to clipboard so user can paste it in Airbnb message
+    try {
+      navigator.clipboard.writeText(
+        `Hi! I played the Golden Frog Trail game and earned discount code: ${discountCode} (${discountTier.discountPercent}% off - ${discountTier.tierName}). I'd love to book a stay!`
+      )
+    } catch { /* clipboard may fail on some browsers */ }
     // Open Airbnb listing for Back of Beyond Ranch
     window.open(
       'https://www.airbnb.com/rooms/30045739',
@@ -259,8 +265,11 @@ export default function GoldCountryBooking({
             onClick={handleBookNow}
             className="w-full bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-500 hover:from-yellow-400 hover:via-yellow-300 hover:to-yellow-400 text-black font-bold py-4 text-lg transition-all"
           >
-            🔗 Book Now on Airbnb
+            Save {discountTier.discountPercent}% at Back of Beyond Ranch
           </button>
+          <p className="text-yellow-600 text-xs text-center">
+            Your discount code will be copied to clipboard
+          </p>
 
           <button
             onClick={onClose}

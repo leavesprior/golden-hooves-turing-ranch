@@ -37,6 +37,9 @@ export interface DialogueOption {
   requirement?: DialogueRequirement
   effects?: DialogueEffect
   karmaTag?: 'lawful' | 'chaotic' | 'good' | 'evil'
+  // Low-Shrewdness variant text (Fallout low-INT inspired)
+  // Shown when player's Shrewdness <= 3 — funnier, blunter, still functional
+  lowShrewdnessText?: string
 }
 
 export interface DialogueNode {
@@ -80,11 +83,13 @@ const ch1_shaw_intro: Dialogue = {
         {
           id: 'ask_advice',
           text: 'What should I know before we set out?',
+          lowShrewdnessText: 'Uh... which way is west?',
           nextNodeId: 'advice',
         },
         {
           id: 'ask_about_gold',
           text: 'Tell me about the gold fields.',
+          lowShrewdnessText: 'I heard there\'s shiny rocks somewhere?',
           nextNodeId: 'gold_talk',
         },
         {
@@ -96,6 +101,7 @@ const ch1_shaw_intro: Dialogue = {
         {
           id: 'leave',
           text: 'I\'ll figure it out myself.',
+          lowShrewdnessText: '*wander off mid-sentence*',
           nextNodeId: undefined,
         },
       ],
@@ -108,11 +114,13 @@ const ch1_shaw_intro: Dialogue = {
         {
           id: 'ask_pawnee',
           text: 'What do you know about the Pawnee?',
+          lowShrewdnessText: 'What\'s a Pawnee? Is it like a pony?',
           nextNodeId: 'pawnee_info',
         },
         {
           id: 'thanks',
           text: 'Good advice. Thank you, Captain.',
+          lowShrewdnessText: 'Okay! Bye mister!',
           nextNodeId: undefined,
           effects: { xp: 10, flag: 'met_shaw' },
         },
@@ -126,12 +134,14 @@ const ch1_shaw_intro: Dialogue = {
         {
           id: 'worth_it',
           text: 'That\'s a risk I\'m willing to take.',
+          lowShrewdnessText: 'Big rock! Me want!',
           nextNodeId: undefined,
           effects: { xp: 5, flag: 'met_shaw' },
         },
         {
           id: 'ask_route',
           text: 'What\'s the safest route?',
+          lowShrewdnessText: 'Which way has less of the dying?',
           nextNodeId: 'route_info',
         },
       ],

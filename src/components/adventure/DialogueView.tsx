@@ -29,6 +29,9 @@ export interface DialogueOption {
   }
   failNodeId?: string
   lockedText?: string
+  // Low-stat variant text — shown when player's Shrewdness is <= 3
+  // Inspired by Fallout's low-INT dialogue: funnier, blunter, but still functional
+  lowShrewdnessText?: string
 }
 
 interface DialogueViewProps {
@@ -539,6 +542,13 @@ export function DialogueView({
             const locked = isLocked(option)
             const karmaTags = getKarmaTags(option.effects)
             const hasReq = !!option.requirement
+            // Low-Shrewdness dialogue variant (Fallout low-INT inspired)
+            const isLowShrewdness = (playerStats.Shrewdness ?? 5) <= 3
+            const displayText = locked && option.lockedText
+              ? option.lockedText
+              : (isLowShrewdness && option.lowShrewdnessText)
+                ? option.lowShrewdnessText
+                : option.text
 
             return (
               <button
@@ -551,7 +561,9 @@ export function DialogueView({
                 className={`w-full text-left p-2 border-2 transition-all group ${
                   locked
                     ? 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-dark)] opacity-40 cursor-not-allowed'
-                    : 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-mid)] hover:border-[var(--pixel-gold-dark)] hover:bg-[var(--pixel-gold-dark)]/10'
+                    : isLowShrewdness && option.lowShrewdnessText
+                      ? 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-mid)] hover:border-yellow-600 hover:bg-yellow-900/20'
+                      : 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-mid)] hover:border-[var(--pixel-gold-dark)] hover:bg-[var(--pixel-gold-dark)]/10'
                 }`}
               >
                 <div className="flex items-start gap-2">
@@ -560,14 +572,19 @@ export function DialogueView({
                     {idx + 1}.
                   </span>
                   <div className="flex-1 min-w-0">
-                    {/* Option text */}
+                    {/* Option text — uses low-Shrewdness variant when applicable */}
                     <span className={`font-[var(--font-pixel)] text-[11px] ${
                       locked
                         ? 'text-[var(--pixel-ui-text)] opacity-60'
-                        : 'text-[var(--pixel-ui-text)] group-hover:text-[var(--pixel-gold-light)]'
+                        : isLowShrewdness && option.lowShrewdnessText
+                          ? 'text-yellow-300 group-hover:text-yellow-200'
+                          : 'text-[var(--pixel-ui-text)] group-hover:text-[var(--pixel-gold-light)]'
                     }`}>
-                      {locked && option.lockedText ? option.lockedText : option.text}
+                      {displayText}
                     </span>
+                    {isLowShrewdness && option.lowShrewdnessText && !locked && (
+                      <span className="font-[var(--font-pixel)] text-[7px] text-yellow-600 ml-1">[dim-witted]</span>
+                    )}
 
                     {/* Tags row */}
                     <div className="flex flex-wrap gap-1 mt-1">

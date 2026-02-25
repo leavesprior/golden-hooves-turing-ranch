@@ -1,6 +1,17 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect, useRef } from 'react'
+import {
+  getEscalationTier,
+  shouldNarratorLie,
+  shouldNarratorWithhold,
+  shouldNarratorDrink,
+  getEscalationComment,
+  getPatternReaction,
+  findTrustTrigger,
+  ESCALATION_COMMENTS,
+  type EscalationTier,
+} from './data/narratorEscalation'
 
 // The Unreliable Narrator - Douglas Adams Style
 // The game occasionally lies to you, withholds information, or comments sarcastically
@@ -46,6 +57,13 @@ export interface NarratorState {
   hiddenInformation: string[]        // Things narrator is hiding
   playerActions: string[]            // Actions narrator is tracking
   fourthWallBroken: boolean         // Has player cracked the fourth wall
+
+  // Escalation system (#7)
+  patternCounts: Record<string, number>  // How many times each pattern detected
+  escalationTier: string                  // Current tier name
+  consecutiveGruelingDays: number         // Track grueling pace streak
+  consecutiveBareBonesDays: number        // Track bare_bones ration streak
+  firedDesperationEvents: string[]        // One-time events already triggered
 }
 
 interface NarratorContextValue {
@@ -79,6 +97,13 @@ interface NarratorContextValue {
   // Track player behavior
   recordPlayerAction: (action: string) => void
   getPlayerPattern: () => string | null
+
+  // Escalation system (#7)
+  modifyTrust: (delta: number, reason?: string) => void
+  triggerTrustEvent: (eventName: string) => void
+  getEscalationInfo: () => { tier: EscalationTier; trustLevel: number }
+  getEscalatedComment: (situation: 'travel' | 'event' | 'town') => string | null
+  recordPaceAndRations: (pace: string, rations: string) => void
 }
 
 const NarratorContext = createContext<NarratorContextValue | undefined>(undefined)
@@ -338,6 +363,12 @@ const initialState: NarratorState = {
   hiddenInformation: [],
   playerActions: [],
   fourthWallBroken: false,
+  // Escalation system (#7)
+  patternCounts: {},
+  escalationTier: 'Trustworthy',
+  consecutiveGruelingDays: 0,
+  consecutiveBareBonesDays: 0,
+  firedDesperationEvents: [],
 }
 
 export function NarratorProvider({ children }: { children: ReactNode }) {
@@ -600,6 +631,146 @@ export function NarratorProvider({ children }: { children: ReactNode }) {
     }
   }, [state.intoxication, soberUp])
 
+  // === ESCALATION SYSTEM (#7) ===
+
+  // Modify narrator trust directly
+  const modifyTrust = useCallback((delta: number, reason?: string) => {
+    setState(prev => {
+      const newTrust = Math.max(0, Math.min(10, prev.trustLevel + delta))
+      const tier = getEscalationTier(newTrust)
+
+      // When trust drops, check if narrator should drink or switch mood
+      let newIntox = prev.intoxication
+      let newMood = prev.mood
+      if (delta < 0 && shouldNarratorDrink(newTrust)) {
+        newIntox = Math.min(10, prev.intoxication + 2)
+        if (newIntox >= 4) newMood = 'drinking'
+      }
+
+      // Mood bias from escalation tier
+      if (tier.moodBias.length > 0 && Math.random() < 0.3) {
+        newMood = tier.moodBias[Math.floor(Math.random() * tier.moodBias.length)] as NarratorMood
+      }
+
+      return {
+        ...prev,
+        trustLevel: newTrust,
+        intoxication: newIntox,
+        mood: newMood,
+        escalationTier: tier.name,
+      }
+    })
+  }, [])
+
+  // Trigger a named trust event (e.g. 'party_member_died', 'arrived_at_landmark')
+  const triggerTrustEvent = useCallback((eventName: string) => {
+    const trigger = findTrustTrigger(eventName)
+    if (!trigger) return
+
+    modifyTrust(trigger.trustDelta)
+
+    if (trigger.annoyanceDelta) {
+      setState(prev => ({
+        ...prev,
+        annoyanceLevel: Math.max(0, Math.min(10, prev.annoyanceLevel + trigger.annoyanceDelta!)),
+      }))
+    }
+
+    if (trigger.intoxicationDelta) {
+      setState(prev => ({
+        ...prev,
+        intoxication: Math.min(10, prev.intoxication + trigger.intoxicationDelta!),
+      }))
+    }
+
+    if (trigger.narratorReaction) {
+      comment(trigger.narratorReaction, trigger.category === 'pattern' ? 'complaint' : 'observation')
+    }
+  }, [modifyTrust, comment])
+
+  // Get escalation info for UI display
+  const getEscalationInfo = useCallback(() => {
+    const tier = getEscalationTier(state.trustLevel)
+    return { tier, trustLevel: state.trustLevel }
+  }, [state.trustLevel])
+
+  // Get an escalation-modified comment for a situation
+  const getEscalatedComment = useCallback((situation: 'travel' | 'event' | 'town'): string | null => {
+    // At high trust, no escalated comments
+    if (state.trustLevel >= 8) return null
+
+    // Chance-based: not every comment is escalated
+    if (Math.random() > 0.4) return null
+
+    // Check for fourth wall break at low trust
+    if (state.trustLevel <= 3 && Math.random() < 0.15) {
+      const lines = ESCALATION_COMMENTS.fourth_wall_low_trust
+      return lines[Math.floor(Math.random() * lines.length)]
+    }
+
+    return getEscalationComment(state.trustLevel, situation)
+  }, [state.trustLevel])
+
+  // Record pace/rations for streak tracking (triggers escalation)
+  const recordPaceAndRations = useCallback((pace: string, rations: string) => {
+    setState(prev => {
+      const newGrueling = pace === 'grueling' ? prev.consecutiveGruelingDays + 1 : 0
+      const newBareBones = rations === 'bare_bones' ? prev.consecutiveBareBonesDays + 1 : 0
+
+      const updates: Partial<NarratorState> = {
+        consecutiveGruelingDays: newGrueling,
+        consecutiveBareBonesDays: newBareBones,
+      }
+
+      return { ...prev, ...updates }
+    })
+  }, [])
+
+  // Pattern detection with escalation reactions
+  const patternCountsRef = useRef(state.patternCounts)
+  patternCountsRef.current = state.patternCounts
+
+  useEffect(() => {
+    const pattern = getPlayerPattern()
+    if (!pattern) return
+
+    const newCounts = { ...patternCountsRef.current }
+    newCounts[pattern] = (newCounts[pattern] || 0) + 1
+
+    const reaction = getPatternReaction(pattern, newCounts)
+    if (reaction) {
+      modifyTrust(reaction.trustDelta)
+      if (reaction.annoyanceDelta) {
+        setState(prev => ({
+          ...prev,
+          annoyanceLevel: Math.max(0, Math.min(10, prev.annoyanceLevel + reaction.annoyanceDelta)),
+        }))
+      }
+      if (reaction.narratorResponse) {
+        comment(reaction.narratorResponse, 'complaint')
+      }
+      if (reaction.specialAction === 'start_drinking') {
+        makeNarratorDrink()
+      }
+      if (reaction.specialAction === 'break_fourth_wall') {
+        breakFourthWall()
+      }
+    }
+
+    setState(prev => ({ ...prev, patternCounts: newCounts }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.playerActions.length])
+
+  // Auto-trigger escalation for pace/rations streaks
+  useEffect(() => {
+    if (state.consecutiveGruelingDays === 3) {
+      triggerTrustEvent('grueling_pace_3_days')
+    }
+    if (state.consecutiveBareBonesDays === 3) {
+      triggerTrustEvent('bare_bones_3_days')
+    }
+  }, [state.consecutiveGruelingDays, state.consecutiveBareBonesDays, triggerTrustEvent])
+
   // Check for lies to reveal
   useEffect(() => {
     const lies = state.liesInProgress.filter(lie => {
@@ -642,6 +813,12 @@ export function NarratorProvider({ children }: { children: ReactNode }) {
     getEventComment,
     recordPlayerAction,
     getPlayerPattern,
+    // Escalation system (#7)
+    modifyTrust,
+    triggerTrustEvent,
+    getEscalationInfo,
+    getEscalatedComment,
+    recordPaceAndRations,
   }
 
   return (

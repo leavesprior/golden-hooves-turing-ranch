@@ -22,6 +22,19 @@ import {
   getCurrentSeason,
   getDayOfYear,
 } from './data/ranchConfig'
+import {
+  SEASONAL_PRICES,
+  CROPS,
+  MARKET_EVENTS,
+  getEffectivePrice,
+  rollMarketEvent,
+  getSeasonalAdvice,
+  canPlantCrop,
+  isCropReady,
+  type MarketEvent,
+  type CropType,
+  type CropPlot,
+} from './data/seasonalMarket'
 import { useKarmaWallet } from './karmaWalletContext'
 
 // Storage key
@@ -61,6 +74,14 @@ export interface RanchState {
     type: 'birth' | 'death' | 'event' | 'production' | 'purchase' | 'sale'
   }>
 
+  // Seasonal Market (Lords II-inspired economy)
+  activeMarketEvent: MarketEvent | null
+  marketEventEndDay: number
+  lastSeasonChecked: Season | null  // Track season changes for market events
+
+  // Crops
+  cropPlots: CropPlot[]
+
   // Statistics
   totalLivestockRaised: number
   totalProductsSold: number
@@ -91,6 +112,10 @@ const defaultRanchState: RanchState = {
   lastProcessedDay: 0,
   products: {},
   eventLog: [],
+  activeMarketEvent: null,
+  marketEventEndDay: 0,
+  lastSeasonChecked: null,
+  cropPlots: [],
   totalLivestockRaised: 0,
   totalProductsSold: 0,
   totalKarmaEarned: 0,
@@ -130,6 +155,17 @@ interface RanchContextValue {
   advanceDay: (days?: number) => void
   getCurrentSeason: () => Season
   getSeasonProgress: () => { current: Season; daysRemaining: number }
+
+  // Seasonal Market
+  getMarketPrices: () => { livestock: number; products: number; feed: number }
+  getActiveMarketEvent: () => MarketEvent | null
+  getSeasonalAdvice: () => string
+
+  // Crops
+  plantCrop: (cropType: CropType) => Promise<boolean>
+  harvestCrops: () => { harvested: number; feedGained: number; karmaGained: number; medicineGained: number }
+  getCropPlots: () => CropPlot[]
+  getPlantableCrops: () => CropType[]
 
   // Information
   getRanchValue: () => number
@@ -271,12 +307,14 @@ export function RanchProvider({ children }: { children: ReactNode }) {
     return success
   }, [state.livestock, state.fenceTier, canAfford, spendNeutral])
 
-  // Sell livestock
+  // Sell livestock (price affected by seasonal market)
   const sellLivestock = useCallback(async (type: LivestockType, count: number): Promise<number> => {
     if (state.livestock[type] < count) return 0
 
     const config = LIVESTOCK_TYPES[type]
-    const earnings = Math.floor(config.neutralKarmaCost * 0.7 * count) // 70% of purchase price
+    const season = getCurrentSeason(getDayOfYear(state.gameDay))
+    const priceMod = getEffectivePrice('livestock', season, state.activeMarketEvent)
+    const earnings = Math.floor(config.neutralKarmaCost * 0.7 * count * priceMod) // 70% base * seasonal
 
     await earnNeutral(earnings, `Sold ${count} ${config.namePlural}`)
 
@@ -330,10 +368,12 @@ export function RanchProvider({ children }: { children: ReactNode }) {
   // Get max livestock
   const getMaxLivestock = useCallback(() => FENCE_TIERS[state.fenceTier].maxLivestock, [state.fenceTier])
 
-  // Buy feed
+  // Buy feed (price affected by seasonal market)
   const buyFeed = useCallback(async (type: FeedType, units: number): Promise<boolean> => {
     const config = FEED_TYPES[type]
-    const totalCost = config.neutralKarmaCost * Math.ceil(units / config.unitsProvided)
+    const season = getCurrentSeason(getDayOfYear(state.gameDay))
+    const priceMod = getEffectivePrice('feed', season, state.activeMarketEvent)
+    const totalCost = Math.ceil(config.neutralKarmaCost * Math.ceil(units / config.unitsProvided) * priceMod)
 
     if (!canAfford('neutral', totalCost)) return false
 
@@ -370,7 +410,7 @@ export function RanchProvider({ children }: { children: ReactNode }) {
     return calculateDailyProduction(state.livestock)
   }, [state.livestock])
 
-  // Sell products
+  // Sell products (price affected by seasonal market)
   const sellProducts = useCallback(async (productName: string, amount: number): Promise<number> => {
     const currentAmount = state.products[productName] || 0
     if (currentAmount < amount) return 0
@@ -385,7 +425,9 @@ export function RanchProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const earnings = Math.floor(valuePerUnit * amount)
+    const season = getCurrentSeason(getDayOfYear(state.gameDay))
+    const priceMod = getEffectivePrice('products', season, state.activeMarketEvent)
+    const earnings = Math.floor(valuePerUnit * amount * priceMod)
     await earnNeutral(earnings, `Sold ${amount} ${productName}`)
 
     setState(prev => ({
@@ -472,6 +514,51 @@ export function RanchProvider({ children }: { children: ReactNode }) {
         for (const [product, { amount }] of Object.entries(production)) {
           newState.products[product] = (newState.products[product] || 0) + amount
         }
+
+        // Check for market events at season change
+        if (dayOfYear % 90 === 1) {
+          const newSeason = getCurrentSeason(dayOfYear)
+          if (newState.lastSeasonChecked !== newSeason) {
+            newState.lastSeasonChecked = newSeason
+            // Clear expired market event
+            if (newState.activeMarketEvent && newState.gameDay >= newState.marketEventEndDay) {
+              newEvents.push({
+                day: newState.gameDay, season: newSeason,
+                event: `Market returns to normal: ${newState.activeMarketEvent.name} ends.`,
+                type: 'event' as const,
+              })
+              newState.activeMarketEvent = null
+              newState.marketEventEndDay = 0
+            }
+            // Roll for new market event
+            if (!newState.activeMarketEvent) {
+              const marketEvent = rollMarketEvent(newSeason)
+              if (marketEvent) {
+                newState.activeMarketEvent = marketEvent
+                newState.marketEventEndDay = newState.gameDay + marketEvent.duration
+                newEvents.push({
+                  day: newState.gameDay, season: newSeason,
+                  event: `Market news: ${marketEvent.name}! ${marketEvent.description}`,
+                  type: 'event' as const,
+                })
+              }
+            }
+          }
+        }
+
+        // Expire active market event if duration exceeded
+        if (newState.activeMarketEvent && newState.gameDay >= newState.marketEventEndDay) {
+          newEvents.push({
+            day: newState.gameDay, season,
+            event: `${newState.activeMarketEvent.name} has ended.`,
+            type: 'event' as const,
+          })
+          newState.activeMarketEvent = null
+          newState.marketEventEndDay = 0
+        }
+
+        // Process crop growth — check for harvestable crops
+        // (Auto-harvest not done here; player must manually harvest)
 
         // Check for breeding (once per season change)
         if (dayOfYear % 90 === 1) { // First day of new season
@@ -601,6 +688,122 @@ export function RanchProvider({ children }: { children: ReactNode }) {
     return limit ? state.eventLog.slice(-limit) : state.eventLog
   }, [state.eventLog])
 
+  // Get current market prices (seasonal + event)
+  const getMarketPrices = useCallback(() => {
+    const season = getCurrentSeason(getDayOfYear(state.gameDay))
+    return {
+      livestock: getEffectivePrice('livestock', season, state.activeMarketEvent),
+      products: getEffectivePrice('products', season, state.activeMarketEvent),
+      feed: getEffectivePrice('feed', season, state.activeMarketEvent),
+    }
+  }, [state.gameDay, state.activeMarketEvent])
+
+  // Get active market event
+  const getActiveMarketEvent = useCallback(() => state.activeMarketEvent, [state.activeMarketEvent])
+
+  // Get seasonal market advice
+  const getSeasonalAdviceValue = useCallback(() => {
+    const season = getCurrentSeason(getDayOfYear(state.gameDay))
+    return getSeasonalAdvice(season)
+  }, [state.gameDay])
+
+  // Plant a crop
+  const plantCrop = useCallback(async (cropType: CropType): Promise<boolean> => {
+    const season = getCurrentSeason(getDayOfYear(state.gameDay))
+    if (!canPlantCrop(cropType, season)) return false
+
+    const config = CROPS[cropType]
+    const currentPlots = state.cropPlots.filter(p => !p.harvested).length
+    if (currentPlots >= config.maxPlots) return false
+
+    if (!canAfford('neutral', config.plantCost)) return false
+    const success = await spendNeutral(config.plantCost, `Planted ${config.name}`)
+    if (!success) return false
+
+    setState(prev => ({
+      ...prev,
+      cropPlots: [
+        ...prev.cropPlots,
+        {
+          cropType,
+          plantedDay: prev.gameDay,
+          harvestDay: prev.gameDay + config.growthDays,
+          harvested: false,
+        },
+      ],
+      eventLog: [
+        ...prev.eventLog,
+        {
+          day: prev.gameDay,
+          season: getCurrentSeason(getDayOfYear(prev.gameDay)),
+          event: `Planted ${config.emoji} ${config.name}`,
+          type: 'purchase' as const,
+        },
+      ],
+    }))
+
+    return true
+  }, [state.gameDay, state.cropPlots, canAfford, spendNeutral])
+
+  // Harvest all ready crops
+  const harvestCrops = useCallback(() => {
+    let harvested = 0
+    let feedGained = 0
+    let karmaGained = 0
+    let medicineGained = 0
+
+    setState(prev => {
+      const newPlots = [...prev.cropPlots]
+      const newEvents: typeof prev.eventLog = []
+
+      for (let i = 0; i < newPlots.length; i++) {
+        if (!newPlots[i].harvested && prev.gameDay >= newPlots[i].harvestDay) {
+          newPlots[i] = { ...newPlots[i], harvested: true }
+          const config = CROPS[newPlots[i].cropType]
+          harvested++
+
+          if (config.type === 'herbs') {
+            medicineGained += 1
+          } else {
+            feedGained += config.feedConversion
+          }
+          karmaGained += config.harvestValue
+
+          newEvents.push({
+            day: prev.gameDay,
+            season: getCurrentSeason(getDayOfYear(prev.gameDay)),
+            event: `Harvested ${config.emoji} ${config.name}: +${config.feedConversion > 0 ? config.feedConversion + ' feed' : '1 medicine'}, +${config.harvestValue} karma`,
+            type: 'production' as const,
+          })
+        }
+      }
+
+      return {
+        ...prev,
+        cropPlots: newPlots.filter(p => !p.harvested), // Remove harvested plots
+        feedStock: prev.feedStock + feedGained,
+        medicine: (prev as unknown as { medicine?: number }).medicine ?? 0, // Ranch doesn't track medicine directly
+        eventLog: [...prev.eventLog, ...newEvents].slice(-50),
+      }
+    })
+
+    // Karma earning is done outside setState
+    if (karmaGained > 0) {
+      earnNeutral(karmaGained, `Crop harvest: ${harvested} plots`)
+    }
+
+    return { harvested, feedGained, karmaGained, medicineGained }
+  }, [earnNeutral])
+
+  // Get crop plots
+  const getCropPlots = useCallback(() => state.cropPlots, [state.cropPlots])
+
+  // Get plantable crop types for current season
+  const getPlantableCrops = useCallback((): CropType[] => {
+    const season = getCurrentSeason(getDayOfYear(state.gameDay))
+    return (Object.keys(CROPS) as CropType[]).filter(ct => canPlantCrop(ct, season))
+  }, [state.gameDay])
+
   // Reset ranch
   const resetRanch = useCallback(() => {
     setState(defaultRanchState)
@@ -631,6 +834,13 @@ export function RanchProvider({ children }: { children: ReactNode }) {
     advanceDay,
     getCurrentSeason: getCurrentSeasonValue,
     getSeasonProgress,
+    getMarketPrices,
+    getActiveMarketEvent,
+    getSeasonalAdvice: getSeasonalAdviceValue,
+    plantCrop,
+    harvestCrops,
+    getCropPlots,
+    getPlantableCrops,
     getRanchValue,
     getEventLog,
     saveRanch,

@@ -1,6 +1,12 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import {
+  type TownMystery,
+  TOWN_MYSTERIES,
+  isDeductionUnlocked,
+  attemptDeduction,
+} from './data/townMysteries'
 
 // ============================================
 // TYPES
@@ -66,6 +72,14 @@ export interface Challenge {
   completed: boolean
 }
 
+export interface MysteryProgressEntry {
+  mysteryId: string
+  cluesFound: string[]
+  solved: boolean
+  attempts: number
+  solvedAt?: number
+}
+
 export interface ExplorerProgress {
   totalXP: number
   level: number
@@ -78,6 +92,7 @@ export interface ExplorerProgress {
   lastVisitedTown?: string
   streakDays: number
   lastPlayDate?: string
+  mysteries: MysteryProgressEntry[]
 }
 
 export interface ExplorerContextValue {
@@ -110,6 +125,15 @@ export interface ExplorerContextValue {
   saveProgress: () => void
   loadProgress: () => boolean
   resetProgress: () => void
+
+  // Mystery Deduction (Carmen Sandiego style)
+  discoverClue: (mysteryId: string, clueId: string) => { xpGained: number; isNew: boolean }
+  attemptMysteryDeduction: (mysteryId: string, optionId: string) => { correct: boolean; response: string; xpReward: number }
+  getMysteryProgress: (mysteryId: string) => MysteryProgressEntry | null
+  getAllMysteryProgress: () => MysteryProgressEntry[]
+  isMysteryClueFound: (mysteryId: string, clueId: string) => boolean
+  isMysteryDeductionUnlocked: (mysteryId: string) => boolean
+  isMysterySolved: (mysteryId: string) => boolean
 
   // Gamification Helpers
   getRandomTobiasTip: () => string
@@ -233,6 +257,7 @@ const DEFAULT_PROGRESS: ExplorerProgress = {
   challenges: DEFAULT_CHALLENGES,
   favoriteAttractions: [],
   streakDays: 0,
+  mysteries: [],
 }
 
 // ============================================
@@ -566,6 +591,7 @@ export function ExplorerProvider({
           ...DEFAULT_PROGRESS,
           ...parsed,
           challenges: parsed.challenges || DEFAULT_CHALLENGES,
+          mysteries: parsed.mysteries || [],
         })
         return true
       }
@@ -621,6 +647,93 @@ export function ExplorerProvider({
     }
   }, [progress.lastPlayDate, progress.streakDays])
 
+  // === Mystery Deduction Methods (Carmen Sandiego style) ===
+
+  const discoverClue = useCallback((mysteryId: string, clueId: string) => {
+    let xpGained = 0
+    let isNew = false
+
+    setProgress(prev => {
+      const existing = prev.mysteries.find(m => m.mysteryId === mysteryId)
+
+      if (existing?.cluesFound.includes(clueId)) {
+        return prev // Already found
+      }
+
+      isNew = true
+      xpGained = 15 // Base clue discovery XP
+
+      if (existing) {
+        // Update existing mystery progress
+        const updated = prev.mysteries.map(m =>
+          m.mysteryId === mysteryId
+            ? { ...m, cluesFound: [...m.cluesFound, clueId] }
+            : m
+        )
+        return { ...prev, mysteries: updated, totalXP: prev.totalXP + xpGained }
+      } else {
+        // Start tracking this mystery
+        const newEntry: MysteryProgressEntry = {
+          mysteryId,
+          cluesFound: [clueId],
+          solved: false,
+          attempts: 0,
+        }
+        return { ...prev, mysteries: [...prev.mysteries, newEntry], totalXP: prev.totalXP + xpGained }
+      }
+    })
+
+    return { xpGained, isNew }
+  }, [])
+
+  const attemptMysteryDeduction = useCallback((mysteryId: string, optionId: string) => {
+    const result = attemptDeduction(mysteryId, optionId)
+
+    setProgress(prev => {
+      const updated = prev.mysteries.map(m => {
+        if (m.mysteryId !== mysteryId) return m
+        return {
+          ...m,
+          attempts: m.attempts + 1,
+          solved: result.correct ? true : m.solved,
+          solvedAt: result.correct ? Date.now() : m.solvedAt,
+        }
+      })
+
+      return {
+        ...prev,
+        mysteries: updated,
+        totalXP: prev.totalXP + result.xpReward,
+      }
+    })
+
+    return result
+  }, [])
+
+  const getMysteryProgress = useCallback((mysteryId: string): MysteryProgressEntry | null => {
+    return progress.mysteries.find(m => m.mysteryId === mysteryId) || null
+  }, [progress.mysteries])
+
+  const getAllMysteryProgress = useCallback((): MysteryProgressEntry[] => {
+    return progress.mysteries
+  }, [progress.mysteries])
+
+  const isMysteryClueFound = useCallback((mysteryId: string, clueId: string): boolean => {
+    const entry = progress.mysteries.find(m => m.mysteryId === mysteryId)
+    return entry?.cluesFound.includes(clueId) ?? false
+  }, [progress.mysteries])
+
+  const isMysteryDeductionUnlocked = useCallback((mysteryId: string): boolean => {
+    const entry = progress.mysteries.find(m => m.mysteryId === mysteryId)
+    if (!entry) return false
+    return isDeductionUnlocked(mysteryId, entry.cluesFound)
+  }, [progress.mysteries])
+
+  const isMysterySolved = useCallback((mysteryId: string): boolean => {
+    const entry = progress.mysteries.find(m => m.mysteryId === mysteryId)
+    return entry?.solved ?? false
+  }, [progress.mysteries])
+
   // Auto-save on progress changes
   useEffect(() => {
     const timeoutId = setTimeout(saveProgress, 1000)
@@ -648,6 +761,13 @@ export function ExplorerProvider({
     saveProgress,
     loadProgress,
     resetProgress,
+    discoverClue,
+    attemptMysteryDeduction,
+    getMysteryProgress,
+    getAllMysteryProgress,
+    isMysteryClueFound,
+    isMysteryDeductionUnlocked,
+    isMysterySolved,
     getRandomTobiasTip,
     checkStreak,
   }

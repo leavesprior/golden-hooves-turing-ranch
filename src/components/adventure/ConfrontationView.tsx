@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react'
 import type { StatName } from '@/app/oregon-trail/characterContext'
+import { canRecruitEnemy, attemptRecruitment, getRecruitmentData, type RecruitedAlly } from '@/app/adventure/data/enemyRecruitment'
 
 export interface Combatant {
   name: string
@@ -18,20 +19,25 @@ interface ConfrontationViewProps {
   playerHealth: number
   playerMaxHealth: number
   playerStats: Record<StatName, number>
+  playerGold: number
+  currentChapter: number
+  recruitedAllies: RecruitedAlly[]
   onEnd: (result: ConfrontationResult) => void
   onSkillCheck: (stat: StatName, dc: number) => { success: boolean; roll: number; modifier: number; total: number }
 }
 
 export interface ConfrontationResult {
-  outcome: 'victory' | 'defeat' | 'fled' | 'talked'
+  outcome: 'victory' | 'defeat' | 'fled' | 'talked' | 'recruited'
   playerHealthLost: number
   xpEarned: number
   goldEarned: number
+  goldSpent: number
   karmaEffect?: { lawful?: number; good?: number }
+  recruitedAlly?: RecruitedAlly
 }
 
 type Action = 'attack' | 'defend' | 'flee' | 'talk' | 'item'
-type Phase = 'player_turn' | 'enemy_turn' | 'resolving' | 'ended'
+type Phase = 'player_turn' | 'enemy_turn' | 'resolving' | 'ended' | 'recruit_offer'
 
 interface TurnLog {
   text: string
@@ -44,6 +50,9 @@ export function ConfrontationView({
   playerHealth: initialPlayerHealth,
   playerMaxHealth,
   playerStats,
+  playerGold,
+  currentChapter,
+  recruitedAllies,
   onEnd,
   onSkillCheck,
 }: ConfrontationViewProps) {
@@ -69,15 +78,21 @@ export function ConfrontationView({
     return Math.floor((val - 10) / 2)
   }
 
-  const endConfrontation = useCallback((outcome: ConfrontationResult['outcome']) => {
+  const [recruitResult, setRecruitResult] = useState<{
+    ally?: RecruitedAlly
+    goldCost: number
+    text: string
+  } | null>(null)
+
+  const endConfrontation = useCallback((outcome: ConfrontationResult['outcome'], ally?: RecruitedAlly, goldSpent?: number) => {
     setPhase('ended')
     const gold = outcome === 'victory' ? (enemy.loot?.gold ?? 0) : 0
     const xp = outcome === 'victory' ? (enemy.loot?.xp ?? 20) + xpEarned
       : outcome === 'fled' ? Math.floor(xpEarned / 2)
-      : outcome === 'talked' ? xpEarned + 15
+      : (outcome === 'talked' || outcome === 'recruited') ? xpEarned + 15
       : 5 // defeat still gives a little xp
 
-    const karma = outcome === 'talked'
+    const karma = (outcome === 'talked' || outcome === 'recruited')
       ? { lawful: 1, good: 1 }
       : outcome === 'victory'
       ? { lawful: 0, good: 0 }
@@ -86,11 +101,40 @@ export function ConfrontationView({
     onEnd({
       outcome,
       playerHealthLost: totalDamage,
-      xpEarned: xp,
+      xpEarned: outcome === 'recruited' ? xp + 20 : xp,
       goldEarned: gold,
-      karmaEffect: karma,
+      goldSpent: goldSpent ?? 0,
+      karmaEffect: outcome === 'recruited' ? { lawful: 2, good: 2 } : karma,
+      recruitedAlly: ally,
     })
   }, [enemy.loot, xpEarned, totalDamage, onEnd])
+
+  const handleRecruit = useCallback(() => {
+    const result = attemptRecruitment(
+      enemy.name,
+      enemy.icon,
+      playerStats.Diplomacy ?? 10,
+      playerGold,
+      currentChapter,
+      recruitedAllies,
+    )
+
+    if (result.success && result.ally) {
+      addLog({ text: result.text, type: 'success' })
+      addLog({ text: `${result.ally.enemyName} joins your party! (${result.ally.passiveEffect})`, type: 'success' })
+      setRecruitResult({ ally: result.ally, goldCost: result.goldCost, text: result.text })
+      setTimeout(() => endConfrontation('recruited', result.ally, result.goldCost), 1500)
+    } else {
+      addLog({ text: result.text, type: 'failure' })
+      setRecruitResult({ goldCost: 0, text: result.text })
+      setTimeout(() => endConfrontation('talked'), 1000)
+    }
+  }, [enemy, playerStats, playerGold, currentChapter, recruitedAllies, addLog, endConfrontation])
+
+  const handleDeclineRecruit = useCallback(() => {
+    addLog({ text: 'You part ways peacefully.', type: 'system' })
+    endConfrontation('talked')
+  }, [addLog, endConfrontation])
 
   const enemyTurn = useCallback(() => {
     setPhase('enemy_turn')
@@ -202,7 +246,19 @@ export function ConfrontationView({
         if (result.success) {
           addLog({ text: `Your words reach ${enemy.name}. They lower their weapon. [Diplomacy: ${result.total} vs DC ${dc}]`, type: 'success' })
           setXpEarned(prev => prev + 10)
-          setTimeout(() => endConfrontation('talked'), 800)
+
+          // Check if enemy can be recruited (HoMM II style)
+          if (canRecruitEnemy(enemy.name)) {
+            const recruitData = getRecruitmentData(enemy.name)
+            if (recruitData) {
+              addLog({ text: `${enemy.name} seems open to joining you... for a price.`, type: 'system' })
+              setTimeout(() => setPhase('recruit_offer'), 800)
+            } else {
+              setTimeout(() => endConfrontation('talked'), 800)
+            }
+          } else {
+            setTimeout(() => endConfrontation('talked'), 800)
+          }
         } else {
           addLog({ text: `${enemy.name} isn't interested in talking. [Diplomacy: ${result.total} vs DC ${dc}]`, type: 'failure' })
           setTimeout(() => enemyTurn(), 500)
@@ -334,6 +390,58 @@ export function ConfrontationView({
           </button>
         </div>
       )}
+
+      {/* Recruitment Offer (HoMM II style) */}
+      {phase === 'recruit_offer' && (() => {
+        const recruitData = getRecruitmentData(enemy.name)
+        if (!recruitData) return null
+        return (
+          <div className="p-3 space-y-2">
+            <div className="text-center mb-2">
+              <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
+                RECRUIT {enemy.name.toUpperCase()}?
+              </span>
+              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] mt-1">
+                {recruitData.passiveEffect}
+              </p>
+              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-mid)] mt-1">
+                Cost: {recruitData.goldCost} gold | Diplomacy DC {recruitData.recruitDC} | Stays {recruitData.duration} chapter{recruitData.duration !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleRecruit}
+                disabled={playerGold < recruitData.goldCost}
+                className={`p-2 border-2 transition-all text-left ${
+                  playerGold >= recruitData.goldCost
+                    ? 'bg-green-950/30 border-[var(--pixel-forest-light)] hover:bg-green-900/40'
+                    : 'bg-gray-950/30 border-gray-600 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-forest-light)]">
+                  {'\uD83E\uDD1D'} RECRUIT
+                </span>
+                <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
+                  {playerGold >= recruitData.goldCost
+                    ? `Pay ${recruitData.goldCost}g`
+                    : `Need ${recruitData.goldCost}g (have ${playerGold})`}
+                </p>
+              </button>
+              <button
+                onClick={handleDeclineRecruit}
+                className="p-2 bg-yellow-950/30 border-2 border-[var(--pixel-gold-mid)] hover:bg-yellow-900/40 transition-all text-left"
+              >
+                <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-mid)]">
+                  {'\uD83D\uDC4B'} PART WAYS
+                </span>
+                <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
+                  Peaceful farewell
+                </p>
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Waiting indicator */}
       {(phase === 'enemy_turn' || phase === 'resolving') && (
