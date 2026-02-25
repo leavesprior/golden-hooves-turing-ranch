@@ -347,7 +347,7 @@ function TravelScreen() {
         return current
       })
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [state.day, lastTickDay])
 
   const handleUseConsumable = useCallback((itemId: string) => {

@@ -941,7 +941,7 @@ export function generateMandelbrotSeed(): { seed: number; iterations: number; c:
     re: Math.random() * 3 - 1.5,  // Range -1.5 to 1.5
     im: Math.random() * 3 - 1.5
   }
-  let z = { re: 0, im: 0 }
+  const z = { re: 0, im: 0 }
   let iterations = 0
   const maxIterations = 100
 
@@ -988,7 +988,7 @@ export function distributeStatsMandelbrot(seed: number): CharacterAttributes {
   ]
 
   // Normalize to ensure total = 72 and all stats are between 8 and 16
-  let total = stats.reduce((a, b) => a + b, 0)
+  const total = stats.reduce((a, b) => a + b, 0)
   const diff = basePoints - total
 
   // Distribute difference across stats
@@ -1470,7 +1470,7 @@ export function RPGProvider({ children }: { children: ReactNode }) {
         const newValue = oldValue + change
 
         // Calculate D&D attribute changes
-        let attributeChanges: Partial<CharacterAttributes> = {}
+        const attributeChanges: Partial<CharacterAttributes> = {}
         if (stat === 'wisdom') {
           const wisBonus = Math.floor(newValue / 2) - Math.floor(oldValue / 2)
           if (wisBonus !== 0) {
@@ -1767,7 +1767,7 @@ export function RPGProvider({ children }: { children: ReactNode }) {
       // Calculate D&D attribute changes based on legacy stat changes
       // wisdom → WIS (+1 per 2 wisdom)
       // trust → CHA (+1 per 2 trust)
-      let attributeChanges: Partial<CharacterAttributes> = {}
+      const attributeChanges: Partial<CharacterAttributes> = {}
 
       if (stat === 'wisdom') {
         // Calculate WIS bonus: floor(newValue / 2) - floor(oldValue / 2)
@@ -2498,7 +2498,7 @@ export function RPGProvider({ children }: { children: ReactNode }) {
           newAttempt.success = true
 
           // Apply rewards
-          let newSession = {
+          const newSession = {
             ...prev,
             puzzleState: {
               ...prev.puzzleState,

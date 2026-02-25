@@ -2007,7 +2007,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
       let newMedicine = prev.medicine
       let newParts = prev.spareParts
       let newOxen = prev.oxen
-      let newMorale = Math.max(0, Math.min(100, prev.morale + choice.moraleDelta))
+      const newMorale = Math.max(0, Math.min(100, prev.morale + choice.moraleDelta))
       let newWagonCond = prev.wagonCondition
 
       for (const effect of choice.effects) {

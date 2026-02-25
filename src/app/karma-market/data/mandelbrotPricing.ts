@@ -164,7 +164,7 @@ export function advanceState(
   karmaType: 'good' | 'bad'
 ): MandelbrotPricingState {
   // Check epoch expiry first
-  let newState = isEpochExpired(state) ? resetEpoch(state) : { ...state }
+  const newState = isEpochExpired(state) ? resetEpoch(state) : { ...state }
 
   const step = 0.02 // Small step per purchase
 
