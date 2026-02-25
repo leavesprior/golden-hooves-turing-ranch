@@ -363,6 +363,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       minCluesRequired: 3,
     },
     xpReward: 150,
+    badgeId: 'mystery_jackson',
     solvedText: 'The truth behind Jackson\'s ashes is revealed. Where there\'s smoke, there\'s money.',
     historicalNote: 'Jackson suffered multiple devastating fires during the Gold Rush era, common in towns built of wood and canvas. While arson was suspected in some cases, the exact causes remain debated by historians. The town was always rebuilt, eventually with more fire-resistant materials.',
   },

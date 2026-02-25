@@ -173,6 +173,12 @@ export const COLLECTION_BADGES: Badge[] = [
   { id: 'secret_finder', name: 'Secret Seeker', icon: '🔮', description: 'Find your first secret attraction', rarity: 'uncommon' },
   { id: 'streak_7', name: 'Week Warrior', icon: '🔥', description: 'Maintain a 7-day exploration streak', rarity: 'rare' },
   { id: 'streak_30', name: 'Month Master', icon: '⚡', description: 'Maintain a 30-day exploration streak', rarity: 'legendary' },
+  // Mystery badges (awarded on solve)
+  { id: 'mystery_volcano', name: 'Cannon Detective', icon: '💣', description: 'Solved the mystery of Old Abe', rarity: 'uncommon' },
+  { id: 'mystery_angels', name: 'Frog Sleuth', icon: '🐸', description: 'Uncovered the truth behind the Jumping Frog', rarity: 'rare' },
+  { id: 'mystery_westpoint', name: 'Bart Tracker', icon: '🎭', description: 'Cracked Black Bart\'s last case', rarity: 'rare' },
+  { id: 'mystery_mokehill', name: 'Murder Historian', icon: '💀', description: 'Solved the Murder Capital mystery', rarity: 'legendary' },
+  { id: 'mystery_jackson', name: 'Arson Investigator', icon: '🔥', description: 'Exposed the Great Fire of Jackson', rarity: 'legendary' },
 ]
 
 const DEFAULT_CHALLENGES: Challenge[] = [
@@ -700,9 +706,22 @@ export function ExplorerProvider({
         }
       })
 
+      // Award mystery badge on correct deduction
+      let newBadges = prev.badges
+      if (result.correct) {
+        const mystery = TOWN_MYSTERIES.find(m => m.id === mysteryId)
+        if (mystery?.badgeId) {
+          const badge = COLLECTION_BADGES.find(b => b.id === mystery.badgeId)
+          if (badge && !prev.badges.some(b => b.id === badge.id)) {
+            newBadges = [...prev.badges, { ...badge, unlockedAt: Date.now() }]
+          }
+        }
+      }
+
       return {
         ...prev,
         mysteries: updated,
+        badges: newBadges,
         totalXP: prev.totalXP + result.xpReward,
       }
     })

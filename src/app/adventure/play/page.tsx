@@ -128,19 +128,60 @@ function TravelEncounterOverlay({
   onResolve,
   playerStats,
   onSkillCheck,
+  allies,
 }: {
   encounter: TravelEncounter
-  onResolve: (success: boolean) => void
+  onResolve: (success: boolean, allyBonus?: { xp: number; gold: number; description: string }) => void
   playerStats: Record<StatName, number>
   onSkillCheck: (stat: StatName, difficulty: number) => { success: boolean }
+  allies: RecruitedAlly[]
 }) {
   const [resolved, setResolved] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [allyTrigger, setAllyTrigger] = useState<{ triggered: boolean; effect?: string; magnitude?: number; description?: string } | null>(null)
 
   const handleResolve = () => {
+    // Check ally abilities before the skill check
+    let allyAutoResolved = false
+    let allyFleeGuaranteed = false
+    let bonusXp = 0
+    let bonusGold = 0
+    let allyDesc = ''
+
+    for (const ally of allies) {
+      const abilityResult = rollAllyAbility(ally)
+      if (abilityResult.triggered) {
+        setAllyTrigger(abilityResult)
+        allyDesc = abilityResult.description ?? ''
+
+        if (abilityResult.effect === 'auto_resolve') {
+          allyAutoResolved = true
+        } else if (abilityResult.effect === 'flee_guaranteed') {
+          allyFleeGuaranteed = true
+        } else if (abilityResult.effect === 'xp_bonus') {
+          bonusXp += abilityResult.magnitude ?? 0
+        } else if (abilityResult.effect === 'gold_bonus') {
+          bonusGold += abilityResult.magnitude ?? 0
+        }
+        break // Only one ability per encounter
+      }
+    }
+
+    if (allyAutoResolved || allyFleeGuaranteed) {
+      setSuccess(true)
+      setResolved(true)
+      return
+    }
+
     const result = onSkillCheck(encounter.stat, encounter.difficulty)
     setSuccess(result.success)
     setResolved(true)
+
+    // Pass bonus XP/gold to parent for ally effects that enhance rewards
+    if (bonusXp > 0 || bonusGold > 0) {
+      // Will be picked up by onResolve
+      setTimeout(() => onResolve(result.success, { xp: bonusXp, gold: bonusGold, description: allyDesc }), 0)
+    }
   }
 
   return (
@@ -171,6 +212,14 @@ function TravelEncounterOverlay({
           </div>
         ) : (
           <div className="text-center">
+            {/* Ally ability trigger notification */}
+            {allyTrigger?.triggered && (
+              <div className="mb-3 p-2 bg-purple-900/50 border border-purple-500 rounded">
+                <p className="font-[var(--font-pixel)] text-[9px] text-purple-300">
+                  {'\u2728'} {allyTrigger.description}
+                </p>
+              </div>
+            )}
             <p className={`font-[var(--font-pixel)] text-[10px] mb-2 ${
               success ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-orange)]'
             }`}>
@@ -673,7 +722,7 @@ function AdventureContent() {
   }, [adventureState, updateState, narratorComment])
 
   // Resolve travel encounter
-  const handleEncounterResolved = useCallback((success: boolean) => {
+  const handleEncounterResolved = useCallback((success: boolean, allyBonus?: { xp: number; gold: number; description: string }) => {
     if (!travelEncounter || !travelDestination) return
 
     addExperience(travelEncounter.xpReward)
@@ -681,12 +730,19 @@ function AdventureContent() {
       earnNeutral(travelEncounter.karmaReward, `Encounter: ${travelEncounter.name}`)
     }
 
+    // Apply ally ability bonuses
+    if (allyBonus) {
+      if (allyBonus.xp > 0) addExperience(allyBonus.xp)
+      if (allyBonus.gold > 0) earnNeutral(allyBonus.gold, 'Ally bonus')
+      if (allyBonus.description) narratorComment(allyBonus.description, 'observation')
+    }
+
     // Continue to destination
     setTravelEncounter(null)
     const destId = travelDestination
     setTravelDestination(null)
     handleTravelTo(destId)
-  }, [travelEncounter, travelDestination, addExperience, earnNeutral, handleTravelTo])
+  }, [travelEncounter, travelDestination, addExperience, earnNeutral, narratorComment, handleTravelTo])
 
   // Resolve confrontation encounter
   const handleConfrontationEnd = useCallback((result: ConfrontationResult) => {
@@ -841,6 +897,17 @@ function AdventureContent() {
     const milestoneId = milestoneMap[adventureState.chapter]
     if (milestoneId) {
       CrossGameStorage.recordMilestone(milestoneId as import('@/lib/crossGameProgression').MilestoneId, 'rpg_adventure')
+    }
+
+    // Check for ally departures at chapter end
+    const currentAllies = adventureState.recruitedAllies ?? []
+    if (currentAllies.length > 0) {
+      const { remaining, departed } = updateAllyDurations(currentAllies, adventureState.chapter)
+      if (departed.length > 0) {
+        const names = departed.map(a => a.enemyName).join(' and ')
+        narratorComment(`${names} ${departed.length > 1 ? 'have' : 'has'} moved on. Their time with you is over.`, 'observation')
+        updateState({ recruitedAllies: remaining })
+      }
     }
 
     if (adventureState.chapter >= 5) {
@@ -1154,6 +1221,7 @@ function AdventureContent() {
           onResolve={handleEncounterResolved}
           playerStats={playerStats}
           onSkillCheck={handleSkillCheck}
+          allies={adventureState?.recruitedAllies ?? []}
         />
       )}
 
