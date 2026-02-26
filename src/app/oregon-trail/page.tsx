@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import Link from 'next/link'
+import { trackPageView, trackGameStart } from '@/lib/eventTracker'
 import { OregonTrailProvider, useOregonTrail, type GamePhase } from './oregonTrailContext'
 import { KarmaToastContainer } from '@/components/karma'
 
@@ -67,6 +68,10 @@ const GoldCountryExplore = lazy(() => import('./components/GoldCountryExplore').
 const GoldCountryLocation = lazy(() => import('./components/GoldCountryLocation').then(m => ({ default: m.GoldCountryLocation })))
 const GoldCountryTravel = lazy(() => import('./components/GoldCountryTravel').then(m => ({ default: m.GoldCountryTravel })))
 const QuestLog = lazy(() => import('./components/QuestLog').then(m => ({ default: m.QuestLog })))
+// NPC Relationship Panel — lazy loaded (only shown when player opens it)
+const NPCRelationshipPanel = lazy(() =>
+  import('./components/NPCRelationshipPanel').then(m => ({ default: m.NPCRelationshipPanel }))
+)
 
 // Title Screen and Chapter System
 import { TitleScreen } from './components/TitleScreen'
@@ -119,6 +124,10 @@ import { SpecialtyShop } from './components/SpecialtyShop'
 import { GuideHire } from './components/GuideHire'
 import { getAvailableShops, getAvailableGuides, type SpecialtyShop as SpecialtyShopData, type HireableGuide } from './data/specialtyShops'
 
+// Posse Management System (#6)
+import { PossePanel } from './components/PossePanel'
+const PosseRecruitment = lazy(() => import('./components/PosseRecruitment').then(m => ({ default: m.PosseRecruitment })))
+
 // NEW: Character Sheet & Consumable Effects
 import { CharacterSheet } from './components/CharacterSheet'
 import { type ActiveEffect, applyConsumable, tickEffects, getConsumableItem, getInstantEffects } from './data/consumableEffects'
@@ -139,7 +148,7 @@ const LOCAL_AUTOSAVE_KEY = 'golden_frog_local_save'
 // NOTE: GameMenu, CharacterCreationScreen, InvestigationScreen, OutfittingScreen,
 // WorldMapScreen, and GoldCountryArrivalScreen have been extracted to ./phases/
 function TravelScreen() {
-  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, applyRiverCrossingEffects, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, buySupplies, buyFood } = useOregonTrail()
+  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, applyRiverCrossingEffects, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, buySupplies, buyFood, getAllNPCRelationships } = useOregonTrail()
   const { balance, canAfford, spendNeutral, earnNeutral, earnGood, addBadKarma } = useKarmaWallet()
   const { state: mysteryState } = useMystery()
   const { getStat } = useCharacter()
@@ -153,6 +162,12 @@ function TravelScreen() {
     total: number
     reward: number
     message: string
+  } | null>(null)
+
+  // Last stat-variant that fired — shown as a badge on the post-event outcome message
+  const [lastStatVariant, setLastStatVariant] = useState<{
+    stat: string
+    threshold: 'high' | 'low'
   } | null>(null)
 
   // Wrapper to handle event choice AND apply karma deltas from outcomes
@@ -223,6 +238,15 @@ function TravelScreen() {
     const outcomeOverride = variant?.outcomeOverrides?.[choiceId]
     handleEventChoice(choiceId, outcomeOverride)
 
+    // Record which stat variant fired so the outcome screen can badge it
+    if (variant) {
+      setLastStatVariant({ stat: variant.stat, threshold: variant.threshold })
+      // Auto-clear after 8 seconds so it doesn't linger forever
+      setTimeout(() => setLastStatVariant(null), 8000)
+    } else {
+      setLastStatVariant(null)
+    }
+
     // Apply karma wallet changes from the outcome
     const outcome = choice.outcome
     if (outcome.neutralKarmaDelta) {
@@ -245,6 +269,8 @@ function TravelScreen() {
   const [showInn, setShowInn] = useState(false)
   const [showResearch, setShowResearch] = useState(false)
   const [showDiscountReward, setShowDiscountReward] = useState(false)
+  // NPC Relationship Panel (#5)
+  const [showNPCPanel, setShowNPCPanel] = useState(false)
 
   // Town puzzles (Improvement #4: Hitchhiker's Guide-style multi-step puzzles)
   const [showPuzzle, setShowPuzzle] = useState<TownPuzzleData | null>(null)
@@ -255,6 +281,9 @@ function TravelScreen() {
   const [showGuideHire, setShowGuideHire] = useState(false)
   const [hiredGuide, setHiredGuide] = useState<HireableGuide | null>(null)
   const [guideRemainingLandmarks, setGuideRemainingLandmarks] = useState(0)
+
+  // Posse recruitment modal (#6)
+  const [showPosseRecruitment, setShowPosseRecruitment] = useState(false)
 
   // Get Gold Country mystery context
   const { getCluesForLocation, getCorrectClueCount, getActiveCase, autoStartFirstCase } = useMystery()
@@ -501,9 +530,20 @@ function TravelScreen() {
             {state.currentEvent.title}
           </h2>
           {eventVariant && (
-            <p className="text-center mb-1">
-              <span className="text-xs bg-yellow-800/60 text-yellow-400 px-2 py-0.5 rounded border border-yellow-700">
-                {eventVariant.stat} {eventVariant.threshold === 'high' ? 'insight' : 'perspective'}
+            <p className="text-center mb-2">
+              {eventVariant.threshold === 'high' ? (
+                <span className="inline-flex items-center gap-1 text-xs bg-green-900/70 text-green-300 px-2 py-0.5 rounded border border-green-600 font-bold tracking-wide">
+                  {'\u25b2'} HIGH {eventVariant.stat.toUpperCase()}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs bg-red-900/70 text-red-300 px-2 py-0.5 rounded border border-red-700 font-bold tracking-wide">
+                  {'\u25bc'} LOW {eventVariant.stat.toUpperCase()}
+                </span>
+              )}
+              <span className="text-amber-600 text-[10px] ml-2 italic">
+                {eventVariant.threshold === 'high'
+                  ? `Your ${eventVariant.stat} gives you an edge`
+                  : `Your low ${eventVariant.stat} changes how this plays out`}
               </span>
             </p>
           )}
@@ -656,7 +696,7 @@ function TravelScreen() {
           </div>
 
           {/* Quick Actions Bar */}
-          <div className="flex justify-center gap-2 mb-6">
+          <div className="flex justify-center gap-2 mb-6 flex-wrap">
             <button
               onClick={openJournal}
               className="px-3 py-1 bg-amber-800/60 text-amber-200 rounded text-xs hover:bg-amber-700/60"
@@ -669,6 +709,18 @@ function TravelScreen() {
             >
               📋 Dossiers
             </button>
+            {/* NPC Relationship Panel — show count badge when relationships exist */}
+            {(() => {
+              const rels = getAllNPCRelationships()
+              return (
+                <button
+                  onClick={() => setShowNPCPanel(true)}
+                  className="px-3 py-1 bg-amber-800/60 text-amber-200 rounded text-xs hover:bg-amber-700/60 relative"
+                >
+                  🤝 Relations{rels.length > 0 && ` (${rels.length})`}
+                </button>
+              )
+            })()}
             <ReputationBar compact />
           </div>
 
@@ -861,6 +913,19 @@ function TravelScreen() {
                 )}
               </button>
             )}
+            {/* Posse Recruitment (#6) - always available at settlements */}
+            <button
+              onClick={() => setShowPosseRecruitment(true)}
+              className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-600 rounded-lg text-center relative"
+            >
+              <span className="text-2xl">{'\ud83e\udd20'}</span>
+              <p className="text-amber-200 text-xs mt-1">Posse</p>
+              {state.party.filter(m => m.isHired).length > 0 && (
+                <span className="absolute top-1 right-1 w-4 h-4 bg-amber-500 rounded-full text-[9px] text-white flex items-center justify-center">
+                  {state.party.filter(m => m.isHired).length}
+                </span>
+              )}
+            </button>
             {/* Town Puzzles - Hitchhiker's Guide style */}
             {(() => {
               const puzzles = getPuzzlesForLandmark(state.currentLandmark, solvedPuzzles, state.day, state.inventory)
@@ -1093,6 +1158,28 @@ function TravelScreen() {
             caseId={activeCaseData?.id || 'default'}
           />
         )}
+
+        {/* NPC Relationship Panel Modal (#5) */}
+        {showNPCPanel && (
+          <Suspense fallback={
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+              <div className="text-amber-400 font-pixel text-sm animate-pulse">Loading relationships...</div>
+            </div>
+          }>
+            <NPCRelationshipPanel
+              relationships={getAllNPCRelationships()}
+              currentDay={state.day}
+              onClose={() => setShowNPCPanel(false)}
+            />
+          </Suspense>
+        )}
+
+        {/* Posse Recruitment Modal (#6) */}
+        {showPosseRecruitment && (
+          <Suspense fallback={<div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"><div className="text-amber-400 font-pixel text-sm animate-pulse">Loading posse...</div></div>}>
+            <PosseRecruitment onClose={() => setShowPosseRecruitment(false)} />
+          </Suspense>
+        )}
       </div>
     )
   }
@@ -1172,6 +1259,20 @@ function TravelScreen() {
         {/* Message */}
         {state.message && (
           <div className="bg-amber-800/60 border-2 border-amber-600 rounded-lg p-3 mb-6 text-center">
+            {/* Stat-variant outcome badge */}
+            {lastStatVariant && (
+              <p className="mb-1">
+                {lastStatVariant.threshold === 'high' ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-green-900/70 text-green-300 px-1.5 py-0.5 rounded border border-green-700 font-bold tracking-wide">
+                    {'\u25b2'} HIGH {lastStatVariant.stat.toUpperCase()} — outcome modified
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-red-900/70 text-red-300 px-1.5 py-0.5 rounded border border-red-700 font-bold tracking-wide">
+                    {'\u25bc'} LOW {lastStatVariant.stat.toUpperCase()} — outcome modified
+                  </span>
+                )}
+              </p>
+            )}
             <p className="text-amber-200 text-sm">{state.message}</p>
           </div>
         )}
@@ -1274,6 +1375,11 @@ function TravelScreen() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Posse Roster Panel (#6) */}
+        <div className="mb-6">
+          <PossePanel />
         </div>
 
         {/* Actions */}
@@ -1630,6 +1736,11 @@ function OregonTrailGame() {
   const [audioInitialized, setAudioInitialized] = useState(false)
   const { saves, loadGame } = useSaveLoad()
 
+  // Track page view on mount
+  useEffect(() => {
+    trackPageView('/oregon-trail')
+  }, [])
+
   // Check for local auto-save (works without authentication)
   const [hasLocalSave, setHasLocalSave] = useState(false)
   useEffect(() => {
@@ -1680,6 +1791,7 @@ function OregonTrailGame() {
     } else {
       AudioManager.playPlaylist()
     }
+    trackGameStart('oregon-trail')
     startFromTitle()
   }, [audioInitialized, startFromTitle])
 

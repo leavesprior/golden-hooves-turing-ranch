@@ -7,6 +7,7 @@ import { useReputation } from '../reputationContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { KarmaWallet } from './KarmaWallet'
 import { KarmaConvertModal } from './KarmaConvertModal'
+import { SeasonalMarketOverlay } from './SeasonalMarketOverlay'
 
 interface ShopItem {
   id: string
@@ -157,7 +158,7 @@ interface Transaction {
 }
 
 export function TownShop({ onClose }: TownShopProps) {
-  const { state, buySupplies, sellSupplies } = useOregonTrail()
+  const { state, buySupplies, sellSupplies, getShopDiscount, getTrailMarketEvent, getTrailMarketPrices } = useOregonTrail()
   const { comment, setMood } = useNarrator()
   const { getInteractionBonus, modifyReputation } = useReputation()
   const { balance, canAfford, spendNeutral, spendGood, earnNeutral, showConvertModal, setShowConvertModal, convertModalContext, setConvertModalContext } = useKarmaWallet()
@@ -171,14 +172,35 @@ export function TownShop({ onClose }: TownShopProps) {
     SPECIAL_ITEMS.filter(item => Math.random() < item.rarity)
   )
 
-  // Price modifier based on reputation
+  // Price modifier based on reputation + NPC relationship with the local shopkeeper
   const settlerBonus = getInteractionBonus('settlers')
-  const priceModifier = 1 - (settlerBonus * 0.02)  // Up to 20% discount at max rep
+  const reputationModifier = 1 - (settlerBonus * 0.02)  // Up to 20% discount at max rep
+
+  // NPC relationship discount with the shopkeeper at the current landmark
+  const shopkeeperNpcId = `merchant_${state.currentLandmark.toLowerCase().replace(/[^a-z]/g, '_')}`
+  const npcDispositionMultiplier = getShopDiscount(shopkeeperNpcId)
+
+  // Seasonal market multiplier for the products category (trail supplies = "products")
+  const marketPrices = getTrailMarketPrices()
+  // Map shop resources to the most relevant market category
+  const getMarketMultiplier = (resource: string): number => {
+    if (resource === 'food') return marketPrices.products
+    if (resource === 'medicine') return marketPrices.products
+    if (resource === 'spareParts') return marketPrices.livestock  // wagon parts track with livestock econ
+    if (resource === 'ammunition') return 1.0  // ammo prices not seasonally affected
+    if (resource === 'clothing') return 1.0
+    return 1.0
+  }
+
+  // Combined price modifier: reputation * NPC disposition * seasonal market
+  const priceModifier = reputationModifier * npcDispositionMultiplier
 
   const getPrice = useCallback((item: ShopItem, isSelling: boolean) => {
     const basePrice = isSelling ? item.sellPrice : item.basePrice
-    return isSelling ? basePrice : Math.max(0.01, basePrice * priceModifier)
-  }, [priceModifier])
+    if (isSelling) return basePrice
+    const seasonalMult = getMarketMultiplier(item.resource)
+    return Math.max(0.01, basePrice * priceModifier * seasonalMult)
+  }, [priceModifier, marketPrices])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const getCurrentStock = useCallback((resource: string) => {
     switch (resource) {
@@ -331,11 +353,23 @@ export function TownShop({ onClose }: TownShopProps) {
               {settlerBonus > 0 && (
                 <p className="text-green-400 text-xs">Settler Discount: {Math.round(settlerBonus * 2)}%</p>
               )}
+              {npcDispositionMultiplier !== 1.0 && (
+                <p className={`text-xs ${npcDispositionMultiplier < 1 ? 'text-green-400' : 'text-red-400'}`}>
+                  Shopkeeper: {npcDispositionMultiplier < 1
+                    ? `${Math.round((1 - npcDispositionMultiplier) * 100)}% relationship discount`
+                    : `${Math.round((npcDispositionMultiplier - 1) * 100)}% surcharge (unfriendly)`}
+                </p>
+              )}
             </div>
           </div>
           <div className="text-right">
             <KarmaWallet compact showBadKarma={false} />
           </div>
+        </div>
+
+        {/* Seasonal Market Strip */}
+        <div className="px-4 pt-2 pb-1">
+          <SeasonalMarketOverlay gameDay={state.day} compact />
         </div>
 
         {/* Mode Toggle */}

@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { KarmaStorage, getAlignmentPosition, getDiscountMultiplier, type AlignmentPosition } from '@/lib/karmaStorage'
+import { trackPageView, trackBookingClick } from '@/lib/eventTracker'
 
 const cabinPhotos = [
   '/cabin-photos/cabin-1.jpg',
@@ -22,7 +23,7 @@ const amenities = [
   { icon: '\ud83c\udfae', name: 'Game Room', desc: 'Pool table & arcade' },
   { icon: '\ud83d\udc34', name: 'Ranch Animals', desc: 'Horses, emus, sheep & more' },
   { icon: '\ud83c\udfd4\ufe0f', name: '10 Acres', desc: 'Private Gold Country retreat' },
-  { icon: '\ud83d\udecf\ufe0f', name: 'Sleeps 12', desc: '4 bedrooms, 3 baths' },
+  { icon: '\ud83d\udecf\ufe0f', name: 'Sleeps 12', desc: '6 bedrooms, 3 baths' },
   { icon: '\ud83d\udd25', name: 'Fire Pit', desc: 'Outdoor gathering spot' },
   { icon: '\ud83c\udf77', name: 'Wine Country', desc: 'Minutes from vineyards' },
   { icon: '\u26f7\ufe0f', name: 'Near Bear Valley', desc: 'Ski season access' },
@@ -100,6 +101,7 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true)
+    trackPageView('/')
     // Load karma alignment for badge display
     const karmaState = KarmaStorage.load()
     if (karmaState && (karmaState.alignment.lawfulChaotic !== 0 || karmaState.alignment.goodEvil !== 0)) {
@@ -648,9 +650,11 @@ export default function Home() {
           </div>
 
           <div className="mt-6 flex flex-col items-center gap-5" style={{ animation: 'fadeSlideIn 1s ease-out 0.8s both' }}>
-            <PixelButton href={AIRBNB_URL} variant="orange" size="lg">
-              🏨 Book Your Stay
-            </PixelButton>
+            <span onClick={() => trackBookingClick('hero')}>
+              <PixelButton href={AIRBNB_URL} variant="orange" size="lg">
+                🏨 Book Your Stay
+              </PixelButton>
+            </span>
             <div className="flex flex-col sm:flex-row gap-3">
               <PixelButton href="/oregon-trail" variant="gold" size="md">
                 ⚔️ Start Quest
@@ -929,9 +933,11 @@ export default function Home() {
                   <span className="adventure-tag bg-[var(--pixel-earth-dark)]/50">Hot Tub & Games</span>
                   <span className="adventure-tag bg-[var(--pixel-fire-orange)]/30">Book & Save</span>
                 </div>
-                <PixelButton href={AIRBNB_URL} variant="orange" size="sm">
-                  Book Stay
-                </PixelButton>
+                <span onClick={() => trackBookingClick('cabin-card')}>
+                  <PixelButton href={AIRBNB_URL} variant="orange" size="sm">
+                    Book Stay
+                  </PixelButton>
+                </span>
               </PixelCard>
             </div>
           </div>
@@ -1015,14 +1021,16 @@ export default function Home() {
             Ready for an Adventure?
           </h2>
           <p className="font-[var(--font-pixel)] text-[8px] sm:text-[9px] text-[var(--pixel-ui-text)] leading-relaxed mb-8 max-w-lg mx-auto">
-            Book Back of Beyond Ranch on Airbnb. 4 bedrooms, 3 baths,
+            Book Back of Beyond Ranch on Airbnb. 6 bedrooms, 3 baths,
             hot tub, game room, and 10 acres of Gold Country.
             Your quest begins at check-in.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <PixelButton href={AIRBNB_URL} variant="orange" size="lg">
-              🏨 Book on Airbnb
-            </PixelButton>
+            <span onClick={() => trackBookingClick('cta-section')}>
+              <PixelButton href={AIRBNB_URL} variant="orange" size="lg">
+                🏨 Book on Airbnb
+              </PixelButton>
+            </span>
             <PixelButton href="/hub" variant="gold" size="lg">
               🎮 Game Hub
             </PixelButton>
@@ -1042,7 +1050,7 @@ export default function Home() {
           <div>
             <h2 className="text-[var(--pixel-gold-light)] text-[10px] sm:text-xs mb-3">About Back of Beyond Ranch</h2>
             <p className="mb-2">
-              Back of Beyond Ranch is a 10-acre mountain vacation rental in West Point, Calaveras County, in the heart of California&apos;s Gold Country. The cabin sleeps up to 12 guests across 4 bedrooms and 3 bathrooms, making it ideal for family reunions, group getaways, and multi-family vacations.
+              Back of Beyond Ranch is a 10-acre mountain vacation rental in West Point, Calaveras County, in the heart of California&apos;s Gold Country. The cabin sleeps up to 12 guests across 6 bedrooms and 3 bathrooms, making it ideal for family reunions, group getaways, and multi-family vacations.
             </p>
             <p>
               The property features a solar-powered Level 2 EV charger (220V), one of the few vacation rentals in the Sierra foothills to offer dedicated electric vehicle charging powered by on-site solar panels. Guests can charge overnight and reach three ski resorts on a single charge.
@@ -1094,7 +1102,7 @@ export default function Home() {
               </div>
               <div>
                 <p className="text-[var(--pixel-gold-mid)]">How many guests can the ranch accommodate?</p>
-                <p>Up to 12 guests across 4 bedrooms and 3 bathrooms on 10 private acres.</p>
+                <p>Up to 12 guests across 6 bedrooms and 3 bathrooms on 10 private acres.</p>
               </div>
               <div>
                 <p className="text-[var(--pixel-gold-mid)]">Is the ranch pet friendly?</p>
@@ -1137,7 +1145,7 @@ export default function Home() {
             <div className="text-center sm:text-right">
               <h3 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-[9px] mb-2">Connect</h3>
               <div className="font-[var(--font-pixel)] text-[7px] space-y-1">
-                <Link href={AIRBNB_URL} target="_blank" className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Airbnb Listing</Link>
+                <Link href={AIRBNB_URL} target="_blank" onClick={() => trackBookingClick('footer')} className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Airbnb Listing</Link>
                 <Link href="https://x.com/BackBeyondRanch" target="_blank" className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Twitter / X</Link>
               </div>
             </div>

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+import { trackPageView, trackMysteryAttempt } from '@/lib/eventTracker'
 import {
   ExplorerProvider,
   useExplorer,
@@ -586,6 +587,7 @@ function TownDrawer({
     if (!mystery) return
     const result = attemptMysteryDeduction(mystery.id, optionId)
     setDeductionResult({ correct: result.correct, response: result.response })
+    trackMysteryAttempt(mystery.id, result.correct)
     if (result.correct) {
       setTimeout(() => setShowDeduction(false), 6000)
     }
@@ -1062,6 +1064,10 @@ function ExplorerMap() {
   const [selectedTown, setSelectedTown] = useState<Town | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const { progress, isTownVisited, getTownCompletionPercent, isMysterySolved, getMysteryProgress } = useExplorer()
+
+  useEffect(() => {
+    trackPageView('/explore')
+  }, [])
 
   const handleTownClick = (town: Town) => {
     setSelectedTown(town)

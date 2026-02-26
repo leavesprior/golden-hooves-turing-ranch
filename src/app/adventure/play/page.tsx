@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+import { trackPageView, trackGameStart } from '@/lib/eventTracker'
 
 // Oregon Trail Contexts — the deep systems
 import { CharacterProvider, useCharacter, type StatName, type SaddleStats } from '@/app/oregon-trail/characterContext'
@@ -605,6 +606,11 @@ function AdventureContent() {
   const [showCamp, setShowCamp] = useState(false)
   const [activeConfrontation, setActiveConfrontation] = useState<ConfrontationEnemy | null>(null)
 
+  // Track page view on mount
+  useEffect(() => {
+    trackPageView('/adventure/play')
+  }, [])
+
   // Initialize state
   useEffect(() => {
     const saved = loadAdventureState()
@@ -614,6 +620,7 @@ function AdventureContent() {
       const newState = createNewAdventureState()
       setAdventureState(newState)
       saveAdventureState(newState)
+      trackGameStart('adventure')
     }
   }, [])
 

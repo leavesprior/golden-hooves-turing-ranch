@@ -16,7 +16,7 @@ const pressStart2P = Press_Start_2P({
 
 export const metadata: Metadata = {
   title: "Back of Beyond Ranch | Gold Country Vacation Rental with EV Charging",
-  description: "10-acre mountain retreat in Gold Country, California. Solar-powered EV charging, hot tub, 4 bedrooms, sleeps 12. Near Kirkwood, Bear Valley & Sierra-at-Tahoe ski resorts. Play the Golden Frog Trail adventure game.",
+  description: "10-acre mountain retreat in Gold Country, California. Solar-powered EV charging, hot tub, 6 bedrooms, sleeps 12. Near Kirkwood, Bear Valley & Sierra-at-Tahoe ski resorts. Play the Golden Frog Trail adventure game.",
   keywords: [
     "vacation rental", "Gold Country", "Kirkwood", "cabin", "EV charging",
     "Airbnb", "Calaveras County", "Bear Valley", "Sierra-at-Tahoe",
@@ -89,8 +89,14 @@ const jsonLd = {
         { "@type": "LocationFeatureSpecification", name: "Hiking trails", value: true },
         { "@type": "LocationFeatureSpecification", name: "Ranch animals (horses, emus, sheep, chickens)", value: true },
       ],
-      numberOfBedrooms: 4,
+      numberOfBedrooms: 6,
       numberOfBathroomsTotal: 3,
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: 4.85,
+        reviewCount: 268,
+        bestRating: 5,
+      },
       occupancy: {
         "@type": "QuantitativeValue",
         value: 12,

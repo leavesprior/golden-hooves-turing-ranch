@@ -24,6 +24,19 @@ import {
   type PosseMember,
   type RoleBonus,
 } from './data/posseSystem'
+import {
+  createRelationship,
+  applyDispositionChange,
+  getDispositionLevel,
+  getShopPriceMultiplier,
+  type NPCRelationship,
+} from './data/npcRelationships'
+import {
+  getEffectivePrice,
+  rollMarketEvent,
+  type MarketEvent,
+} from './data/seasonalMarket'
+import { getCurrentSeason, getDayOfYear } from './data/ranchConfig'
 
 // Types
 export type Pace = 'steady' | 'strenuous' | 'grueling'
@@ -196,6 +209,13 @@ export interface OregonTrailState {
   // Posse system (#6)
   partyBonuses: Record<string, number>       // Aggregate bonuses from roles + composition
   compositionBonusNames: string[]            // Active composition bonus names
+
+  // NPC Relationship system (#5)
+  npcRelationships: Record<string, NPCRelationship>  // npcId -> relationship data
+
+  // Seasonal market (trail-side — ranch has its own; this tracks the active event for the trail shop)
+  trailMarketEvent: MarketEvent | null       // Active market event affecting trail shop prices
+  trailMarketEventEndDay: number             // Game day the event expires
 }
 
 // Landmarks along the trail (Missouri to California Gold Country)
@@ -781,6 +801,11 @@ const DEFAULT_STATE: OregonTrailState = {
   // Posse system (#6)
   partyBonuses: {},
   compositionBonusNames: [],
+  // NPC Relationship system (#5)
+  npcRelationships: {},
+  // Seasonal market (trail-side)
+  trailMarketEvent: null,
+  trailMarketEventEndDay: 0,
 }
 
 // Context
@@ -863,6 +888,16 @@ interface OregonTrailContextValue {
   getPartyBonuses: () => Record<string, number>
   getScarcityWarnings: () => { resource: ResourceType; level: 'low' | 'critical' | 'depleted'; description: string }[]
   handleDesperationChoice: (choiceId: string) => void
+
+  // NPC Relationship system (#5)
+  getNPCRelationship: (npcId: string) => NPCRelationship
+  updateNPCRelationship: (npcId: string, modifierId: string) => void
+  getAllNPCRelationships: () => NPCRelationship[]
+  getShopDiscount: (npcId: string) => number   // 0-1 price multiplier for the given shopkeeper NPC
+
+  // Seasonal market (trail-side)
+  getTrailMarketPrices: () => { livestock: number; products: number; feed: number }
+  getTrailMarketEvent: () => MarketEvent | null
 }
 
 const OregonTrailContext = createContext<OregonTrailContextValue | null>(null)
@@ -1447,7 +1482,23 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
 
   // Town interactions
   const visitTown = useCallback(() => {
-    setState(prev => ({ ...prev, phase: 'town' }))
+    setState(prev => {
+      // Roll for a new market event when arriving at a town (if none currently active)
+      const dayOfYear = getDayOfYear(prev.day)
+      const season = getCurrentSeason(dayOfYear)
+      const stillActive = prev.trailMarketEvent && prev.day <= prev.trailMarketEventEndDay
+      const newEvent = !stillActive ? rollMarketEvent(season) : prev.trailMarketEvent
+      const newEndDay = newEvent && !stillActive
+        ? prev.day + newEvent.duration
+        : prev.trailMarketEventEndDay
+
+      return {
+        ...prev,
+        phase: 'town',
+        trailMarketEvent: newEvent,
+        trailMarketEventEndDay: newEndDay,
+      }
+    })
   }, [])
 
   const leaveTown = useCallback(() => {
@@ -1994,6 +2045,73 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     return getScarcityWarnings(resources)
   }, [state.food, state.ammunition, state.medicine, state.spareParts, state.oxen, state.clothing, state.morale, state.wagonCondition])
 
+  // ============================================================================
+  // NPC RELATIONSHIP SYSTEM (#5)
+  // ============================================================================
+
+  /** Return an NPC's relationship record, creating a default one if missing. */
+  const getNPCRelationship = useCallback((npcId: string): NPCRelationship => {
+    return state.npcRelationships[npcId] ?? createRelationship(npcId)
+  }, [state.npcRelationships])
+
+  /** Apply a disposition modifier event to an NPC's relationship record. */
+  const updateNPCRelationship = useCallback((npcId: string, modifierId: string) => {
+    setState(prev => {
+      const existing = prev.npcRelationships[npcId] ?? createRelationship(npcId)
+      const updated = applyDispositionChange(existing, modifierId, prev.day)
+      return {
+        ...prev,
+        npcRelationships: {
+          ...prev.npcRelationships,
+          [npcId]: updated,
+        },
+      }
+    })
+  }, [])
+
+  /** Return all NPC relationships as a sorted array. */
+  const getAllNPCRelationships = useCallback((): NPCRelationship[] => {
+    return Object.values(state.npcRelationships)
+  }, [state.npcRelationships])
+
+  /**
+   * Return the shop price multiplier for a specific shopkeeper NPC.
+   * Falls back to 1.0 (neutral) if the NPC has never been interacted with.
+   */
+  const getShopDiscount = useCallback((npcId: string): number => {
+    const rel = state.npcRelationships[npcId]
+    if (!rel) return 1.0
+    return getShopPriceMultiplier(rel.disposition)
+  }, [state.npcRelationships])
+
+  // ============================================================================
+  // SEASONAL MARKET — TRAIL SIDE
+  // Rolls for a market event whenever the player arrives at a new town.
+  // ============================================================================
+
+  /** Get current effective price multipliers for the trail shop. */
+  const getTrailMarketPrices = useCallback(() => {
+    const dayOfYear = getDayOfYear(state.day)
+    const season = getCurrentSeason(dayOfYear)
+    // Check whether the stored event is still active
+    const event =
+      state.trailMarketEvent && state.day <= state.trailMarketEventEndDay
+        ? state.trailMarketEvent
+        : null
+    return {
+      livestock: getEffectivePrice('livestock', season, event),
+      products:  getEffectivePrice('products',  season, event),
+      feed:      getEffectivePrice('feed',      season, event),
+    }
+  }, [state.day, state.trailMarketEvent, state.trailMarketEventEndDay])
+
+  /** Return the currently active trail market event (or null). */
+  const getTrailMarketEvent = useCallback((): MarketEvent | null => {
+    if (!state.trailMarketEvent) return null
+    if (state.day > state.trailMarketEventEndDay) return null
+    return state.trailMarketEvent
+  }, [state.trailMarketEvent, state.trailMarketEventEndDay, state.day])
+
   const handleDesperationChoice = useCallback((choiceId: string) => {
     const despEvent = state.activeDesperationEvent
     if (!despEvent) return
@@ -2107,6 +2225,14 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     getPartyBonuses: getPartyBonusesFn,
     getScarcityWarnings: getScarcityWarningsFn,
     handleDesperationChoice,
+    // NPC Relationship system (#5)
+    getNPCRelationship,
+    updateNPCRelationship,
+    getAllNPCRelationships,
+    getShopDiscount,
+    // Seasonal market (trail-side)
+    getTrailMarketPrices,
+    getTrailMarketEvent,
   }
 
   return (

@@ -179,6 +179,12 @@ export const COLLECTION_BADGES: Badge[] = [
   { id: 'mystery_westpoint', name: 'Bart Tracker', icon: '🎭', description: 'Cracked Black Bart\'s last case', rarity: 'rare' },
   { id: 'mystery_mokehill', name: 'Murder Historian', icon: '💀', description: 'Solved the Murder Capital mystery', rarity: 'legendary' },
   { id: 'mystery_jackson', name: 'Arson Investigator', icon: '🔥', description: 'Exposed the Great Fire of Jackson', rarity: 'legendary' },
+  { id: 'mystery_san_andreas', name: 'Gentleman Bandit', icon: '🎩', description: 'Unmasked Black Bart\'s double life in San Andreas', rarity: 'rare' },
+  { id: 'mystery_bobr_ranch', name: 'Ranch Historian', icon: '🏠', description: 'Uncovered the secret of the ranch\'s first homesteader', rarity: 'uncommon' },
+  { id: 'mystery_murphys', name: 'Cavern Chronicler', icon: '🕳️', description: 'Exposed the truth behind Mercer Caverns\' discovery', rarity: 'rare' },
+  { id: 'mystery_moaning_cavern', name: 'Ancient Witness', icon: '🦴', description: 'Solved the 13,000-year-old mystery of Moaning Cavern', rarity: 'legendary' },
+  { id: 'mystery_kennedy_mine', name: 'Labor Advocate', icon: '⛏️', description: 'Uncovered the negligence behind the Kennedy Mine disaster', rarity: 'legendary' },
+  { id: 'mystery_ironstone_vineyards', name: 'Gold Sleuth', icon: '🍇', description: 'Revealed the hidden gold history of Ironstone Vineyards', rarity: 'rare' },
 ]
 
 const DEFAULT_CHALLENGES: Challenge[] = [
