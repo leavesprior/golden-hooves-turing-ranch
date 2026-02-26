@@ -9,6 +9,8 @@ import {
   type DiscoveryClue,
 } from '@/app/adventure/data/chapterLocations'
 import type { StatName, SkillCheckResult } from '@/app/oregon-trail/characterContext'
+import { playSFX } from '@/app/oregon-trail/lib/audioManager'
+import { DOSMessage } from '@/components/ui/DOSMessage'
 
 interface LocationViewProps {
   locationId: string
@@ -204,11 +206,9 @@ export function LocationView({
       <div className={`mt-3 p-2 border-2 ${
         svcSuccess ? 'border-green-700 bg-green-950/30' : svcSuccess === false ? 'border-red-700 bg-red-950/30' : 'border-[var(--pixel-ui-border)] bg-black/30'
       }`}>
-        <p className={`font-[var(--font-pixel)] text-[9px] whitespace-pre-line ${
+        <DOSMessage text={svcMessage} speed={20} sfxEvery={0} className={`font-[var(--font-pixel)] text-[9px] whitespace-pre-line ${
           svcSuccess ? 'text-green-400' : svcSuccess === false ? 'text-red-400' : 'text-[var(--pixel-ui-text)]'
-        }`}>
-          {svcMessage}
-        </p>
+        }`} />
       </div>
     )
   }
@@ -230,7 +230,7 @@ export function LocationView({
   }
 
   return (
-    <div className={`bg-gradient-to-b ${gradient} min-h-[500px]`}>
+    <div className={`bg-gradient-to-b ${gradient} min-h-[500px] animate-slide-in-up`}>
       {/* Location Header */}
       <div className="p-4 border-b-2 border-[var(--pixel-ui-border)]/30">
         <div className="flex justify-between items-start">
@@ -472,6 +472,7 @@ export function LocationView({
                     onClick={() => {
                       const spent = onSpendKarma?.(item.cost, `Bought ${item.name}`)
                       if (spent) {
+                        playSFX('coin')
                         setPurchasedItems(prev => new Set(prev).add(item.id))
                         onAddXP(3)
                         setSvcSuccess(true)
@@ -678,6 +679,7 @@ export function LocationView({
             </p>
             <button
               onClick={() => {
+                playSFX('success')
                 onAddXP(5)
                 onEarnKarma(1, 'Prayed at church')
                 setSvcSuccess(true)
@@ -713,9 +715,7 @@ export function LocationView({
               </div>
             ) : searchResult ? (
               <div>
-                <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">
-                  {searchResult}
-                </p>
+                <DOSMessage text={searchResult} speed={20} sfxEvery={0} className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]" />
                 <button
                   onClick={() => setSearchResult(null)}
                   className="mt-3 font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-2 py-1"

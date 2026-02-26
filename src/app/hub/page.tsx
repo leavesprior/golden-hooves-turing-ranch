@@ -27,7 +27,7 @@ function GameCard({ title, description, href, icon, available, comingSoon, isNew
       className={`
         relative p-6 border-4 rounded-lg transition-all duration-300 group
         ${isAccessible
-          ? 'bg-gradient-to-b from-amber-800/80 to-amber-900/80 border-amber-500 hover:border-amber-400 hover:scale-105 cursor-pointer'
+          ? 'bg-gradient-to-b from-amber-800/80 to-amber-900/80 border-amber-500 hover:border-amber-400 hover:scale-105 cursor-pointer shadow-lg shadow-amber-400/10'
           : locked
             ? 'bg-gradient-to-b from-purple-900/40 to-gray-900/60 border-purple-700/60 cursor-not-allowed opacity-75'
             : 'bg-gradient-to-b from-gray-800/60 to-gray-900/60 border-gray-600 cursor-not-allowed opacity-60'}
@@ -119,7 +119,7 @@ export default function HubPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-4 py-8 pb-16">
         {/* Ranch scenic view with hidden rope bridge */}
         <div className="mb-8 relative overflow-hidden rounded-lg border-4 border-amber-600">
           <div className="aspect-[21/9] relative" style={{
@@ -453,6 +453,13 @@ export default function HubPage() {
           </div>
         </div>
       </main>
+
+      {/* Book Your Stay CTA */}
+      <div className="fixed bottom-0 inset-x-0 bg-amber-950/90 border-t border-amber-700 p-3 text-center z-40 backdrop-blur-sm">
+        <a href="/rentals" className="text-amber-200 font-pixel text-sm hover:text-amber-100 transition-colors">
+          {'\uD83C\uDFE1'} Book Your Stay at Back of Beyond Ranch {'\u2192'}
+        </a>
+      </div>
 
       {/* Footer */}
       <footer className="border-t-2 border-amber-800 bg-amber-950/50 px-4 py-4 mt-8">

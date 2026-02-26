@@ -3,6 +3,8 @@
 import React, { useState, useCallback } from 'react'
 import type { StatName } from '@/app/oregon-trail/characterContext'
 import { canRecruitEnemy, attemptRecruitment, getRecruitmentData, type RecruitedAlly } from '@/app/adventure/data/enemyRecruitment'
+import { playSFX } from '@/app/oregon-trail/lib/audioManager'
+import { DOSMessage } from '@/components/ui/DOSMessage'
 
 export interface Combatant {
   name: string
@@ -66,6 +68,8 @@ export function ConfrontationView({
   const [totalDamage, setTotalDamage] = useState(0)
   const [xpEarned, setXpEarned] = useState(0)
   const [talkAttempts, setTalkAttempts] = useState(0)
+  const [playerShake, setPlayerShake] = useState(false)
+  const [enemyShake, setEnemyShake] = useState(false)
 
   const addLog = useCallback((entry: TurnLog) => {
     setLog(prev => [...prev, entry])
@@ -164,6 +168,8 @@ export function ConfrontationView({
           return newHP
         })
         setTotalDamage(prev => prev + actualDamage)
+        setPlayerShake(true)
+        setTimeout(() => setPlayerShake(false), 300)
       } else {
         addLog({
           text: `${enemy.name} swings and misses! [${roll}+${enemyMod} vs AC ${playerDefense}]`,
@@ -182,6 +188,7 @@ export function ConfrontationView({
 
     switch (action) {
       case 'attack': {
+        playSFX('shot')
         const roll = rollD20()
         const playerMod = getStatMod('Agility', playerStats)
         const enemyAC = 10 + getStatMod('Agility', enemy.stats)
@@ -208,6 +215,8 @@ export function ConfrontationView({
             return newHP
           })
           setXpEarned(prev => prev + 5)
+          setEnemyShake(true)
+          setTimeout(() => setEnemyShake(false), 300)
         } else {
           addLog({
             text: `You swing and miss! [${roll}+${playerMod} vs AC ${enemyAC}]`,
@@ -219,6 +228,7 @@ export function ConfrontationView({
       }
 
       case 'defend': {
+        playSFX('click')
         setIsDefending(true)
         addLog({ text: 'You raise your guard. (+4 AC this round)', type: 'player' })
         setXpEarned(prev => prev + 2)
@@ -229,6 +239,7 @@ export function ConfrontationView({
       case 'flee': {
         const result = onSkillCheck('Agility', 10 + Math.floor(enemy.health / 20))
         if (result.success) {
+          playSFX('success')
           addLog({ text: `You break away and flee! [Agility: ${result.total} vs DC ${10 + Math.floor(enemy.health / 20)}]`, type: 'success' })
           setTimeout(() => endConfrontation('fled'), 800)
         } else {
@@ -244,6 +255,7 @@ export function ConfrontationView({
         setTalkAttempts(prev => prev + 1)
 
         if (result.success) {
+          playSFX('success')
           addLog({ text: `Your words reach ${enemy.name}. They lower their weapon. [Diplomacy: ${result.total} vs DC ${dc}]`, type: 'success' })
           setXpEarned(prev => prev + 10)
 
@@ -293,7 +305,7 @@ export function ConfrontationView({
               {playerHP}/{playerMaxHealth}
             </span>
           </div>
-          <div className="h-3 bg-[var(--pixel-bg-mid)] border border-[var(--pixel-ui-border)]">
+          <div className={`h-3 bg-[var(--pixel-bg-mid)] border border-[var(--pixel-ui-border)] ${playerShake ? 'animate-shake' : ''}`}>
             <div
               className={`h-full ${hpColor(hpPercent(playerHP, playerMaxHealth))} transition-all duration-300`}
               style={{ width: `${hpPercent(playerHP, playerMaxHealth)}%` }}
@@ -311,7 +323,7 @@ export function ConfrontationView({
               {enemyHP}/{enemy.maxHealth}
             </span>
           </div>
-          <div className="h-3 bg-[var(--pixel-bg-mid)] border border-[var(--pixel-ui-border)]">
+          <div className={`h-3 bg-[var(--pixel-bg-mid)] border border-[var(--pixel-ui-border)] ${enemyShake ? 'animate-shake' : ''}`}>
             <div
               className={`h-full ${hpColor(hpPercent(enemyHP, enemy.maxHealth))} transition-all duration-300`}
               style={{ width: `${hpPercent(enemyHP, enemy.maxHealth)}%` }}

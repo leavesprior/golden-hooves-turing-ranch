@@ -26,6 +26,8 @@ import {
   type PosseMember,
   type PartyRole,
 } from '../data/posseSystem'
+import { playSFX } from '../lib/audioManager'
+import { DOSMessage } from '@/components/ui/DOSMessage'
 
 // ─── Role icon map ─────────────────────────────────────────────────────────────
 const ROLE_ICONS: Record<PartyRole, string> = {
@@ -108,10 +110,12 @@ export function PosseRecruitment({ onClose }: PosseRecruitmentProps) {
 
   const handleRecruit = useCallback(async (member: PosseMember) => {
     if (isAtCapacity) {
+      playSFX('fail')
       setMessage(`Posse is full (${MAX_POSSE_SIZE} max). Dismiss someone first.`)
       return
     }
     if (hiredIds.has(member.id)) {
+      playSFX('fail')
       setMessage(`${member.name} is already in your posse.`)
       return
     }
@@ -119,6 +123,7 @@ export function PosseRecruitment({ onClose }: PosseRecruitmentProps) {
     // Requirements check
     const { canHire, reasons } = meetsHiringRequirements(member, playerStats)
     if (!canHire) {
+      playSFX('fail')
       setMessage(`Can't recruit: ${reasons.join('. ')}`)
       return
     }
@@ -152,6 +157,7 @@ export function PosseRecruitment({ onClose }: PosseRecruitmentProps) {
     hirePosseMember(member)
 
     setJustHiredId(member.id)
+    playSFX('success')
     setMessage(`${member.name} has joined your posse!`)
     setMood('impressed')
     setTimeout(() => {
@@ -222,7 +228,7 @@ export function PosseRecruitment({ onClose }: PosseRecruitmentProps) {
               <div
                 key={member.id}
                 className={`border rounded-lg overflow-hidden transition-all ${borderClass}`}
-                onClick={() => !alreadyHired && setExpandedId(isExpanded ? null : member.id)}
+                onClick={() => { if (!alreadyHired) { playSFX('click'); setExpandedId(isExpanded ? null : member.id) } }}
               >
                 {/* Candidate summary row */}
                 <div
@@ -379,7 +385,7 @@ export function PosseRecruitment({ onClose }: PosseRecruitmentProps) {
         {/* ── Footer ── */}
         <div className="border-t border-amber-700 p-4 shrink-0 space-y-3">
           {message && (
-            <p className="text-amber-200 text-sm text-center">{message}</p>
+            <DOSMessage text={message} speed={25} sfxEvery={0} className="text-amber-200 text-sm text-center" />
           )}
           <button
             onClick={onClose}

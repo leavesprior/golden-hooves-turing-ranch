@@ -285,6 +285,14 @@ export const TIME_ECHO_DEFINITIONS: Omit<TimeEcho, 'discovered' | 'discoveredTim
 
 export type FactionId = 'pinkerton' | 'settlers' | 'natives' | 'outlaws'
 
+export interface MapDiscovery {
+  locationId: string
+  source: GameId
+  timestamp: string
+  icon?: string
+  label?: string
+}
+
 export interface ReputationSnapshot {
   reputations: Record<FactionId, number>
   lastUpdated: string
@@ -399,6 +407,7 @@ export interface CrossGameState {
   karmaPool: SharedKarmaPool
   karmaTransfers: KarmaTransferEvent[]
   spiritualAwareness: SpiritualAwareness
+  mapDiscoveries: MapDiscovery[]
   historicalDepth: number  // 0-100, tracks how much history player has discovered
   lastSyncTimestamp: string
 }
@@ -421,6 +430,7 @@ export const DEFAULT_CROSS_GAME_STATE: CrossGameState = {
   karmaPool: { ...DEFAULT_KARMA_POOL },
   karmaTransfers: [],
   spiritualAwareness: { ...DEFAULT_SPIRITUAL_AWARENESS },
+  mapDiscoveries: [],
   historicalDepth: 0,
   lastSyncTimestamp: new Date().toISOString(),
 }
@@ -775,6 +785,43 @@ export const CrossGameStorage = {
     return state?.historicalDepth || 0
   },
 
+  // ============================================
+  // MAP DISCOVERIES
+  // ============================================
+
+  /**
+   * Add a map discovery (deduplicated by locationId).
+   */
+  addMapDiscovery(locationId: string, source: GameId, icon?: string, label?: string): void {
+    const state = this.load() || { ...DEFAULT_CROSS_GAME_STATE }
+    if (!state.mapDiscoveries) state.mapDiscoveries = []
+    if (state.mapDiscoveries.some(d => d.locationId === locationId)) return
+    state.mapDiscoveries.push({
+      locationId,
+      source,
+      timestamp: new Date().toISOString(),
+      icon,
+      label,
+    })
+    this.save(state)
+  },
+
+  /**
+   * Get all discovered locations.
+   */
+  getDiscoveredLocations(): MapDiscovery[] {
+    const state = this.load()
+    return state?.mapDiscoveries || []
+  },
+
+  /**
+   * Get discoveries originating from a specific game.
+   */
+  getDiscoveriesForGame(gameId: GameId): MapDiscovery[] {
+    const state = this.load()
+    return (state?.mapDiscoveries || []).filter(d => d.source === gameId)
+  },
+
   /**
    * Migrate from older versions
    */
@@ -790,8 +837,10 @@ export const CrossGameStorage = {
       karmaPool: oldState.karmaPool || { ...DEFAULT_KARMA_POOL },
       karmaTransfers: oldState.karmaTransfers || [],
       spiritualAwareness: oldState.spiritualAwareness || { ...DEFAULT_SPIRITUAL_AWARENESS },
+      mapDiscoveries: oldState.mapDiscoveries || [],
       historicalDepth: oldState.historicalDepth || 0,
     }
+    if (!migrated.mapDiscoveries) migrated.mapDiscoveries = []
     this.save(migrated)
     return migrated
   },

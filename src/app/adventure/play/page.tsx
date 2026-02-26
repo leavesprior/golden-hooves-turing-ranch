@@ -38,6 +38,8 @@ import type { ActivityResult } from '@/app/adventure/data/campActivities'
 import { rollConfrontation, type ConfrontationEnemy } from '@/app/adventure/data/confrontationEnemies'
 import { ConfrontationView, type ConfrontationResult } from '@/components/adventure/ConfrontationView'
 import { type RecruitedAlly, updateAllyDurations, getAllyStatBonuses, rollAllyAbility } from '@/app/adventure/data/enemyRecruitment'
+import { CompanionBar } from '@/components/adventure/CompanionBar'
+import type { DialogueContext } from '@/app/adventure/data/companionDialogues'
 
 // ============================================
 // ADVENTURE STATE
@@ -710,6 +712,9 @@ function AdventureContent() {
     const loc = getChapterLocation(locationId)
     if (!loc) return
 
+    // Record map discovery for cross-game continuity
+    CrossGameStorage.addMapDiscovery(locationId, 'rpg_adventure', loc.icon, loc.name)
+
     const newDiscovered = adventureState.discoveredLocationIds.includes(locationId)
       ? adventureState.discoveredLocationIds
       : [...adventureState.discoveredLocationIds, locationId]
@@ -1110,7 +1115,7 @@ function AdventureContent() {
   const currentLoc = getChapterLocation(adventureState.currentLocationId)
 
   return (
-    <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
+    <div className="min-h-screen bg-[var(--pixel-bg-dark)] crt-scanlines">
       <PixelNavigation />
 
       {/* Chapter Header */}
@@ -1274,6 +1279,17 @@ function AdventureContent() {
           skillPoints={adventureState.skillPoints}
           onUnlockNode={handleUnlockNode}
           onClose={() => setShowSkillTree(false)}
+        />
+      )}
+
+      {/* Companion Bar (Fallout-style) */}
+      {adventureState.recruitedAllies.length > 0 &&
+        (adventureState.phase === 'exploring' || adventureState.phase === 'at_location') && (
+        <CompanionBar
+          allies={adventureState.recruitedAllies}
+          context={
+            (adventureState.phase === 'at_location' ? 'discovery' : 'idle') as DialogueContext
+          }
         />
       )}
     </div>

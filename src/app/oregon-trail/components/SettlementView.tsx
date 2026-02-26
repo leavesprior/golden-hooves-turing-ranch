@@ -11,6 +11,7 @@ import {
   SADDLES,
   BuildingType,
 } from '../data/settlementConfig'
+import { SETTLEMENT_BUILDINGS, getSettlementArt } from '../data/asciiArt'
 
 interface SettlementViewProps {
   compact?: boolean
@@ -119,7 +120,7 @@ export function SettlementView({ compact = false }: SettlementViewProps) {
           return (
             <div
               key={`${building}-${idx}`}
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 text-4xl hover:scale-110 transition-transform cursor-pointer"
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 text-4xl hover:scale-110 transition-transform cursor-pointer animate-slide-in-up"
               style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               title={config.name}
             >
@@ -208,6 +209,15 @@ export function SettlementView({ compact = false }: SettlementViewProps) {
               <p className="text-gray-400 text-sm">No property yet</p>
               <p className="text-gray-500 text-xs">Visit the Land Office to stake a claim</p>
             </div>
+          </div>
+        )}
+
+        {/* ASCII Art overlay for settlement tier */}
+        {state.propertyTier > 0 && (
+          <div className="absolute bottom-1 left-1 opacity-20 pointer-events-none">
+            <pre className="text-amber-400 text-[6px] leading-[7px] font-mono">
+              {getSettlementArt(state.propertyTier).art}
+            </pre>
           </div>
         )}
       </div>
