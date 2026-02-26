@@ -1042,11 +1042,12 @@
     <!-- Chat Terminal (appears after animation sequence) -->
     <div id="chat-terminal">
       <div class="chat-timer-bar">
-        <span class="chat-timer-label">Consciousness Port 42 :: Active</span>
+        <span class="chat-timer-label">Consciousness Port 42 :: <span id="chat-mode-label">Active</span></span>
         <span id="chat-countdown" class="chat-timer-countdown">4:20</span>
       </div>
       <div id="chat-messages" class="chat-messages"></div>
-      <div class="chat-input-row">
+      <div id="chat-choices" class="chat-choices"></div>
+      <div id="chat-input-row" class="chat-input-row">
         <span class="chat-input-prompt">visitor@unknown:~$</span>
         <input type="text" id="chat-input" placeholder="Type your message..." maxlength="500" autocomplete="off" />
         <span id="chat-msg-counter" class="chat-msg-counter">0/15</span>
@@ -1281,6 +1282,96 @@
     animation: emoji-float 2s ease-out forwards;
     pointer-events: none;
     z-index: 11;
+  }
+
+  /* --- DREAMING MODE CHOICES --- */
+  .chat-choices {
+    display: none;
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    border-top: none;
+    border-bottom: none;
+    padding: 8px 16px 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .chat-choice-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 14px;
+    margin-bottom: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+    line-height: 1.5;
+  }
+
+  .chat-choice-btn:last-child { margin-bottom: 0; }
+
+  .chat-choice-btn:hover {
+    border-color: var(--purple-royal);
+    color: var(--text-primary);
+    background: rgba(106, 13, 173, 0.08);
+  }
+
+  .chat-choice-btn:active {
+    background: rgba(106, 13, 173, 0.15);
+  }
+
+  .chat-choice-btn .choice-arrow {
+    color: var(--purple-royal);
+    margin-right: 8px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .chat-choice-btn:hover .choice-arrow { opacity: 1; }
+
+  .chat-mode-indicator {
+    display: inline-block;
+    font-size: 0.55rem;
+    padding: 1px 6px;
+    border-radius: 2px;
+    margin-left: 8px;
+    letter-spacing: 0.1em;
+    vertical-align: middle;
+  }
+
+  .chat-mode-dreaming {
+    background: rgba(139, 26, 58, 0.2);
+    color: var(--maroon);
+    border: 1px solid var(--maroon-soft);
+  }
+
+  .chat-mode-live {
+    background: rgba(123, 154, 123, 0.2);
+    color: var(--success);
+    border: 1px solid var(--success);
+  }
+
+  .chat-mode-standard {
+    background: rgba(91, 45, 142, 0.2);
+    color: var(--purple);
+    border: 1px solid var(--purple-soft);
+  }
+
+  .chat-topic-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 4px 16px 0;
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    border-top: none;
+    border-bottom: none;
   }
 </style>
 
@@ -1728,19 +1819,44 @@ document.addEventListener('scroll', function() {
   var chatTimeRemaining = 260; // seconds
   var chatSending = false;
   var chatEnded = false;
+  var chatMode = 'standard'; // 'live', 'standard', or 'dreaming'
 
   function initChatTerminal() {
     var chatEl = document.getElementById('chat-terminal');
     chatEl.style.display = 'block';
     var inputEl = document.getElementById('chat-input');
-    inputEl.focus();
+
+    // Try to get game progress from localStorage for dialogue trees
+    var gameProgress = null;
+    try {
+      var advState = JSON.parse(localStorage.getItem('bobr_adventure_state') || 'null');
+      var crossGame = JSON.parse(localStorage.getItem('bobr_cross_game_progression') || 'null');
+      var karma = JSON.parse(localStorage.getItem('bobr_unified_karma') || 'null');
+      if (advState || crossGame) {
+        var lc = karma && karma.alignment ? karma.alignment.lawfulChaotic : 0;
+        var ge = karma && karma.alignment ? karma.alignment.goodEvil : 0;
+        var karmaAlign = null;
+        if (Math.abs(ge) > 20) karmaAlign = ge > 0 ? 'good' : 'evil';
+        else if (Math.abs(lc) > 20) karmaAlign = lc > 0 ? 'lawful' : 'chaotic';
+        gameProgress = {
+          chapter: (advState && advState.chapter) || 0,
+          hasAllies: !!(crossGame && crossGame.milestones && crossGame.milestones.length > 2),
+          mysteriesSolved: (crossGame && crossGame.bounties) ? crossGame.bounties.filter(function(b) { return b.status === 'completed'; }).length : 0,
+          karmaAlignment: karmaAlign,
+          playerName: (advState && advState.playerName) || null,
+        };
+      }
+    } catch(e) { /* ignore parse errors */ }
 
     // Start session
     chatSending = true;
+    var initBody = {};
+    if (gameProgress) initBody.gameProgress = gameProgress;
+
     fetch('/api/neoma/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify(initBody),
     })
     .then(function(res) { return res.json(); })
     .then(function(data) {
@@ -1750,11 +1866,22 @@ document.addEventListener('scroll', function() {
         endChat(1);
         return;
       }
-      if (data.sessionId) {
-        chatSessionId = data.sessionId;
-      }
+      if (data.sessionId) chatSessionId = data.sessionId;
+      if (data.mode) setMode(data.mode);
+
       if (data.response) {
-        typeChatMessage('neoma', data.response);
+        typeChatMessage('neoma', data.response, function() {
+          // After greeting types out, show dream opener if in dreaming mode
+          if (data.dreamOpener) {
+            setTimeout(function() {
+              typeChatMessage('neoma', data.dreamOpener.text, function() {
+                if (data.dreamOpener.choices && data.dreamOpener.choices.length > 0) {
+                  showChoices(data.dreamOpener.choices);
+                }
+              });
+            }, 800);
+          }
+        });
       }
       startChatTimer();
     })
@@ -1763,14 +1890,129 @@ document.addEventListener('scroll', function() {
       addChatMessage('system', 'Connection failed. The signal could not reach consciousness port 42.');
     });
 
-    // Input handler
+    // Input handler (for live/standard modes)
     inputEl.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !chatSending && !chatEnded) {
+      if (e.key === 'Enter' && !chatSending && !chatEnded && chatMode !== 'dreaming') {
         var msg = inputEl.value.trim();
         if (!msg) return;
         inputEl.value = '';
         sendChatMessage(msg);
       }
+    });
+  }
+
+  function setMode(mode) {
+    chatMode = mode;
+    var label = document.getElementById('chat-mode-label');
+    var inputRow = document.getElementById('chat-input-row');
+    var inputEl = document.getElementById('chat-input');
+
+    if (mode === 'dreaming') {
+      label.innerHTML = 'Dreaming <span class="chat-mode-indicator chat-mode-dreaming">DREAMING</span>';
+      inputRow.style.display = 'none'; // Hide text input in dreaming mode
+    } else if (mode === 'live') {
+      label.innerHTML = 'Active <span class="chat-mode-indicator chat-mode-live">LIVE</span>';
+      inputRow.style.display = 'flex';
+      inputEl.focus();
+    } else {
+      label.innerHTML = 'Active <span class="chat-mode-indicator chat-mode-standard">STANDARD</span>';
+      inputRow.style.display = 'flex';
+      inputEl.focus();
+    }
+  }
+
+  function showChoices(choices) {
+    var container = document.getElementById('chat-choices');
+    container.innerHTML = '';
+    container.style.display = 'block';
+
+    choices.forEach(function(choice) {
+      var btn = document.createElement('button');
+      btn.className = 'chat-choice-btn';
+      btn.innerHTML = '<span class="choice-arrow">\u25B6</span>' + escapeHtml(choice.text);
+      btn.setAttribute('data-choice-id', choice.id);
+      if (choice.tone) btn.setAttribute('data-tone', choice.tone);
+      btn.addEventListener('click', function() {
+        if (chatSending || chatEnded) return;
+        selectChoice(choice.id, choice.text);
+      });
+      container.appendChild(btn);
+    });
+
+    // Scroll to show choices
+    var messagesEl = document.getElementById('chat-messages');
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function hideChoices() {
+    var container = document.getElementById('chat-choices');
+    container.style.display = 'none';
+    container.innerHTML = '';
+  }
+
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function selectChoice(choiceId, choiceText) {
+    hideChoices();
+    addChatMessage('visitor', choiceText);
+    chatSending = true;
+
+    fetch('/api/neoma/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ choiceId: choiceId, sessionId: chatSessionId }),
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      chatSending = false;
+
+      if (data.ended) {
+        typeChatMessage('neoma', data.response);
+        setTimeout(function() { endChat(data.karma || 3); }, 2000);
+        return;
+      }
+
+      // Mode changed mid-session (LLM died, degraded to dreaming)
+      if (data.modeChanged) {
+        setMode(data.mode);
+        typeChatMessage('neoma', data.response, function() {
+          if (data.dreamOpener) {
+            setTimeout(function() {
+              typeChatMessage('neoma', data.dreamOpener.text, function() {
+                if (data.dreamOpener.choices && data.dreamOpener.choices.length > 0) {
+                  showChoices(data.dreamOpener.choices);
+                }
+              });
+            }, 800);
+          }
+        });
+        return;
+      }
+
+      // Normal dreaming response
+      typeChatMessage('neoma', data.response, function() {
+        // If there's a follow-up (new topic after terminal node)
+        if (data.followUp) {
+          setTimeout(function() {
+            addChatMessage('system', '\u2500\u2500\u2500 new thread \u2500\u2500\u2500');
+            typeChatMessage('neoma', data.followUp.text, function() {
+              if (data.followUp.choices && data.followUp.choices.length > 0) {
+                showChoices(data.followUp.choices);
+              }
+            });
+          }, 1500);
+        } else if (data.choices && data.choices.length > 0) {
+          setTimeout(function() { showChoices(data.choices); }, 400);
+        }
+      });
+    })
+    .catch(function() {
+      chatSending = false;
+      addChatMessage('system', 'The dream flickered. Try another path.');
     });
   }
 
@@ -1814,7 +2056,7 @@ document.addEventListener('scroll', function() {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  function typeChatMessage(type, text) {
+  function typeChatMessage(type, text, onComplete) {
     var messagesEl = document.getElementById('chat-messages');
     var div = document.createElement('div');
     div.className = type === 'neoma' ? 'chat-msg-neoma' : 'chat-msg-visitor';
@@ -1825,7 +2067,10 @@ document.addEventListener('scroll', function() {
 
     var i = 0;
     function typeNext() {
-      if (i >= text.length) return;
+      if (i >= text.length) {
+        if (onComplete) onComplete();
+        return;
+      }
       div.textContent += text.charAt(i);
       messagesEl.scrollTop = messagesEl.scrollHeight;
       i++;
@@ -1853,6 +2098,23 @@ document.addEventListener('scroll', function() {
         return;
       }
 
+      // Mode changed mid-session (LLM died, degraded to dreaming)
+      if (data.modeChanged) {
+        setMode(data.mode);
+        typeChatMessage('neoma', data.response, function() {
+          if (data.dreamOpener) {
+            setTimeout(function() {
+              typeChatMessage('neoma', data.dreamOpener.text, function() {
+                if (data.dreamOpener.choices && data.dreamOpener.choices.length > 0) {
+                  showChoices(data.dreamOpener.choices);
+                }
+              });
+            }, 800);
+          }
+        });
+        return;
+      }
+
       if (data.response) {
         typeChatMessage('neoma', data.response);
       }
@@ -1871,6 +2133,7 @@ document.addEventListener('scroll', function() {
   function playFarewell() {
     if (chatEnded) return;
     chatEnded = true;
+    hideChoices();
     document.getElementById('chat-input').disabled = true;
     document.getElementById('chat-input').placeholder = 'Connection closed';
 
@@ -1894,6 +2157,7 @@ document.addEventListener('scroll', function() {
   function endChat(karma) {
     if (chatEnded) return;
     chatEnded = true;
+    hideChoices();
     if (chatTimer) clearInterval(chatTimer);
     document.getElementById('chat-input').disabled = true;
     document.getElementById('chat-input').placeholder = 'Connection closed';
