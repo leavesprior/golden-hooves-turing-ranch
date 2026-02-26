@@ -59,6 +59,19 @@ export type MilestoneId =
   | 'treat_all_animals'
   | 'momento_collector'
   | 'complete_momentos'
+  // Explorer milestones
+  | 'explorer_first_mystery_solved'
+  | 'explorer_all_mysteries_solved'
+  | 'explorer_legendary_level'
+  | 'explorer_spiritual_awareness'
+  | 'explorer_twain_scholar'
+  | 'explorer_califia_seeker'
+  | 'explorer_miwok_historian'
+  | 'explorer_ranch_pioneer'
+  // Cross-game karma milestones
+  | 'karma_good_alignment'
+  | 'karma_lawful_good'
+  | 'karma_total_1000'
 
 export interface Milestone {
   id: MilestoneId
@@ -296,6 +309,83 @@ export interface SharedBounty {
 }
 
 // ============================================
+// SHARED KARMA POOL
+// ============================================
+
+export interface SharedKarmaPool {
+  good: number
+  neutral: number
+  bad: number
+  totalEarned: number  // lifetime total across all games
+  lastSource: GameId | null
+  lastSyncTimestamp: string
+}
+
+export interface KarmaTransferEvent {
+  fromGame: GameId
+  karmaType: 'good' | 'neutral' | 'bad'
+  amount: number
+  reason: string
+  timestamp: string
+}
+
+const DEFAULT_KARMA_POOL: SharedKarmaPool = {
+  good: 0,
+  neutral: 0,
+  bad: 0,
+  totalEarned: 0,
+  lastSource: null,
+  lastSyncTimestamp: new Date().toISOString(),
+}
+
+// ============================================
+// SPIRITUAL AWARENESS (cross-game buff)
+// ============================================
+
+export interface SpiritualAwareness {
+  sitesVisited: string[]
+  level: 0 | 1 | 2 | 3  // 0=none, 1=touched(1-2 sites), 2=aware(3-4), 3=enlightened(5+)
+  buffs: SpiritualBuff[]
+}
+
+export interface SpiritualBuff {
+  game: GameId
+  description: string
+  magnitude: number
+}
+
+const DEFAULT_SPIRITUAL_AWARENESS: SpiritualAwareness = {
+  sitesVisited: [],
+  level: 0,
+  buffs: [],
+}
+
+function computeSpiritualLevel(sitesVisited: number): 0 | 1 | 2 | 3 {
+  if (sitesVisited >= 5) return 3
+  if (sitesVisited >= 3) return 2
+  if (sitesVisited >= 1) return 1
+  return 0
+}
+
+function computeSpiritualBuffs(level: 0 | 1 | 2 | 3): SpiritualBuff[] {
+  if (level === 0) return []
+  const buffs: SpiritualBuff[] = []
+  if (level >= 1) {
+    buffs.push({ game: 'prospectors_tale', description: '+1 to Diplomacy checks with Native faction', magnitude: 1 })
+  }
+  if (level >= 2) {
+    buffs.push({ game: 'rpg_adventure', description: 'Unlock shaman NPC quest line', magnitude: 1 })
+    buffs.push({ game: 'gold_country_explorer', description: 'Reveal hidden details at historical sites', magnitude: 1 })
+  }
+  if (level >= 3) {
+    buffs.push({ game: 'prospectors_tale', description: '+2 to Diplomacy checks with Native faction', magnitude: 2 })
+    buffs.push({ game: 'rpg_adventure', description: 'Shaman grants ancient wisdom (stat bonus)', magnitude: 2 })
+    buffs.push({ game: 'gold_country_explorer', description: 'All sacred sites reveal full history', magnitude: 2 })
+  }
+  return buffs
+}
+
+// ============================================
 // CROSS-GAME STATE
 // ============================================
 
@@ -306,6 +396,10 @@ export interface CrossGameState {
   timeEchoes: Record<TimeEchoId, boolean>  // which echoes have been discovered
   reputation: ReputationSnapshot | null
   bounties: SharedBounty[]
+  karmaPool: SharedKarmaPool
+  karmaTransfers: KarmaTransferEvent[]
+  spiritualAwareness: SpiritualAwareness
+  historicalDepth: number  // 0-100, tracks how much history player has discovered
   lastSyncTimestamp: string
 }
 
@@ -324,6 +418,10 @@ export const DEFAULT_CROSS_GAME_STATE: CrossGameState = {
   },
   reputation: null,
   bounties: [],
+  karmaPool: { ...DEFAULT_KARMA_POOL },
+  karmaTransfers: [],
+  spiritualAwareness: { ...DEFAULT_SPIRITUAL_AWARENESS },
+  historicalDepth: 0,
   lastSyncTimestamp: new Date().toISOString(),
 }
 
@@ -552,6 +650,131 @@ export const CrossGameStorage = {
     return state.bounties.filter(b => b.status === 'active')
   },
 
+  // ============================================
+  // SHARED KARMA POOL
+  // ============================================
+
+  /**
+   * Sync karma from a game to the shared pool.
+   * Called on every earn/spend in any game.
+   */
+  syncKarmaToPool(
+    source: GameId,
+    karmaType: 'good' | 'neutral' | 'bad',
+    amount: number,
+    reason: string
+  ): CrossGameState {
+    const state = this.load() || { ...DEFAULT_CROSS_GAME_STATE }
+    if (!state.karmaPool) state.karmaPool = { ...DEFAULT_KARMA_POOL }
+    if (!state.karmaTransfers) state.karmaTransfers = []
+
+    state.karmaPool[karmaType] += amount
+    if (amount > 0) state.karmaPool.totalEarned += amount
+    state.karmaPool.lastSource = source
+    state.karmaPool.lastSyncTimestamp = new Date().toISOString()
+
+    // Keep last 50 transfers
+    state.karmaTransfers = [
+      {
+        fromGame: source,
+        karmaType,
+        amount,
+        reason,
+        timestamp: new Date().toISOString(),
+      },
+      ...state.karmaTransfers.slice(0, 49),
+    ]
+
+    this.save(state)
+    return state
+  },
+
+  /**
+   * Load the shared karma pool balance.
+   */
+  loadSharedKarma(): SharedKarmaPool {
+    const state = this.load()
+    return state?.karmaPool || { ...DEFAULT_KARMA_POOL }
+  },
+
+  /**
+   * Get recent karma transfers for display ("Karma from [Game]: +X").
+   */
+  getRecentTransfers(limit = 10): KarmaTransferEvent[] {
+    const state = this.load()
+    return (state?.karmaTransfers || []).slice(0, limit)
+  },
+
+  /**
+   * Get karma transfers from a specific game.
+   */
+  getTransfersFromGame(gameId: GameId): KarmaTransferEvent[] {
+    const state = this.load()
+    return (state?.karmaTransfers || []).filter(t => t.fromGame === gameId)
+  },
+
+  // ============================================
+  // SPIRITUAL AWARENESS
+  // ============================================
+
+  /**
+   * Record a sacred/spiritual site visit.
+   * Recalculates level and buffs.
+   */
+  visitSpiritualSite(siteId: string): SpiritualAwareness {
+    const state = this.load() || { ...DEFAULT_CROSS_GAME_STATE }
+    if (!state.spiritualAwareness) state.spiritualAwareness = { ...DEFAULT_SPIRITUAL_AWARENESS }
+
+    if (state.spiritualAwareness.sitesVisited.includes(siteId)) {
+      return state.spiritualAwareness
+    }
+
+    state.spiritualAwareness.sitesVisited.push(siteId)
+    state.spiritualAwareness.level = computeSpiritualLevel(state.spiritualAwareness.sitesVisited.length)
+    state.spiritualAwareness.buffs = computeSpiritualBuffs(state.spiritualAwareness.level)
+
+    this.save(state)
+    return state.spiritualAwareness
+  },
+
+  /**
+   * Get current spiritual awareness state.
+   */
+  getSpiritualAwareness(): SpiritualAwareness {
+    const state = this.load()
+    return state?.spiritualAwareness || { ...DEFAULT_SPIRITUAL_AWARENESS }
+  },
+
+  /**
+   * Get spiritual buffs applicable to a specific game.
+   */
+  getSpiritualBuffsForGame(gameId: GameId): SpiritualBuff[] {
+    const awareness = this.getSpiritualAwareness()
+    return awareness.buffs.filter(b => b.game === gameId)
+  },
+
+  // ============================================
+  // HISTORICAL DEPTH
+  // ============================================
+
+  /**
+   * Increment historical depth score (0-100).
+   */
+  addHistoricalDepth(amount: number): number {
+    const state = this.load() || { ...DEFAULT_CROSS_GAME_STATE }
+    state.historicalDepth = Math.min(100, (state.historicalDepth || 0) + amount)
+    this.save(state)
+    return state.historicalDepth
+  },
+
+  /**
+   * Get current historical depth score.
+   */
+  getHistoricalDepth(): number {
+    const state = this.load()
+    return state?.historicalDepth || 0
+  },
+
   /**
    * Migrate from older versions
    */
@@ -564,6 +787,10 @@ export const CrossGameStorage = {
       characterQualities: oldState.characterQualities || { ...DEFAULT_QUALITIES },
       timeEchoes: oldState.timeEchoes || { ...DEFAULT_CROSS_GAME_STATE.timeEchoes },
       bounties: oldState.bounties || [],
+      karmaPool: oldState.karmaPool || { ...DEFAULT_KARMA_POOL },
+      karmaTransfers: oldState.karmaTransfers || [],
+      spiritualAwareness: oldState.spiritualAwareness || { ...DEFAULT_SPIRITUAL_AWARENESS },
+      historicalDepth: oldState.historicalDepth || 0,
     }
     this.save(migrated)
     return migrated

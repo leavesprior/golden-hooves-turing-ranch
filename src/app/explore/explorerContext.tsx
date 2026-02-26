@@ -7,6 +7,8 @@ import {
   isDeductionUnlocked,
   attemptDeduction,
 } from './data/townMysteries'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
+import { getSiteForTown, type SpiritualSite } from './data/spiritualSites'
 
 // ============================================
 // TYPES
@@ -185,6 +187,16 @@ export const COLLECTION_BADGES: Badge[] = [
   { id: 'mystery_moaning_cavern', name: 'Ancient Witness', icon: '🦴', description: 'Solved the 13,000-year-old mystery of Moaning Cavern', rarity: 'legendary' },
   { id: 'mystery_kennedy_mine', name: 'Labor Advocate', icon: '⛏️', description: 'Uncovered the negligence behind the Kennedy Mine disaster', rarity: 'legendary' },
   { id: 'mystery_ironstone_vineyards', name: 'Gold Sleuth', icon: '🍇', description: 'Revealed the hidden gold history of Ironstone Vineyards', rarity: 'rare' },
+  { id: 'mystery_nevada_city', name: 'Theater Detective', icon: '🎭', description: 'Solved the mystery of Lotta Crabtree\'s lost locket', rarity: 'rare' },
+  { id: 'mystery_grass_valley', name: 'Deep Earth Detective', icon: '⛏️', description: 'Uncovered the secret of Empire Mine\'s sealed shaft', rarity: 'legendary' },
+  { id: 'mystery_angels_twain', name: 'Literary Sleuth', icon: '📝', description: 'Traced the real source of Twain\'s jumping frog story', rarity: 'rare' },
+  { id: 'mystery_mariposa', name: 'Land Grant Detective', icon: '📜', description: 'Exposed Fremont\'s floating grant maneuver', rarity: 'legendary' },
+  // Collection badges
+  { id: 'twain_scholar', name: 'Twain Scholar', icon: '📚', description: 'Follow Mark Twain\'s California footsteps', rarity: 'rare' },
+  { id: 'califia_seeker', name: 'Califia Seeker', icon: '👑', description: 'Discover the myth behind California\'s name', rarity: 'legendary' },
+  { id: 'miwok_historian', name: 'Miwok Historian', icon: '🏛️', description: 'Respectfully learn about Miwok culture', rarity: 'rare' },
+  { id: 'ranch_pioneer', name: 'Ranch Pioneer', icon: '🤠', description: 'Discover ranching history of El Dorado County', rarity: 'uncommon' },
+  { id: 'gold_economist', name: 'Gold Rush Economist', icon: '💰', description: 'Understand the real economics of the Gold Rush', rarity: 'rare' },
 ]
 
 const DEFAULT_CHALLENGES: Challenge[] = [
@@ -378,11 +390,30 @@ export function ExplorerProvider({
 
     if (levelUp && onLevelUp) {
       const newLevelData = EXPLORER_LEVELS.find(l => l.level === progress.level + 1)
-      if (newLevelData) onLevelUp(newLevelData)
+      if (newLevelData) {
+        onLevelUp(newLevelData)
+        // Cross-game milestone for reaching legendary
+        if (newLevelData.level === 6) {
+          CrossGameStorage.recordMilestone('explorer_legendary_level', 'gold_country_explorer')
+        }
+      }
     }
 
     if (badgeEarned && onBadgeEarned) {
       onBadgeEarned(badgeEarned)
+      // Cross-game: badge earns good karma
+      CrossGameStorage.syncKarmaToPool('gold_country_explorer', 'good', 5, `Badge: ${badgeEarned.name}`)
+    }
+
+    // Cross-game: attraction visits add historical depth
+    if (xpGained > 0) {
+      CrossGameStorage.addHistoricalDepth(1)
+    }
+
+    // Cross-game: check if this town has a spiritual site and register visit
+    const spiritualSite: SpiritualSite | undefined = getSiteForTown(townId)
+    if (spiritualSite) {
+      CrossGameStorage.visitSpiritualSite(spiritualSite.id)
     }
 
     return { xpGained, levelUp, badgeEarned }
@@ -721,6 +752,25 @@ export function ExplorerProvider({
           if (badge && !prev.badges.some(b => b.id === badge.id)) {
             newBadges = [...prev.badges, { ...badge, unlockedAt: Date.now() }]
           }
+        }
+
+        // Cross-game: sync good karma for historical discovery
+        CrossGameStorage.syncKarmaToPool(
+          'gold_country_explorer', 'good',
+          Math.floor(result.xpReward / 10),
+          `Mystery solved: ${mysteryId}`
+        )
+        // Track historical depth
+        CrossGameStorage.addHistoricalDepth(2)
+
+        // Check for explorer milestones
+        const solvedCount = updated.filter(m => m.solved).length
+        if (solvedCount === 1) {
+          CrossGameStorage.recordMilestone('explorer_first_mystery_solved', 'gold_country_explorer')
+        }
+        const totalMysteries = TOWN_MYSTERIES.length
+        if (solvedCount >= totalMysteries) {
+          CrossGameStorage.recordMilestone('explorer_all_mysteries_solved', 'gold_country_explorer')
         }
       }
 

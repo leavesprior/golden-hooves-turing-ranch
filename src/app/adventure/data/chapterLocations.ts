@@ -689,7 +689,31 @@ export const CHAPTER_3_LOCATIONS: ChapterLocation[] = [
       { id: 'ch3_twain', name: 'Sam Clemens', role: 'Reporter', witnessType: 'settler', dialogueHint: 'A young journalist collecting stories. Sharp wit, sharper pen.', skillCheckStat: 'Shrewdness', skillCheckDC: 12 },
       { id: 'ch3_sheriff', name: 'Sheriff Thorn', role: 'County Sheriff', witnessType: 'sheriff', faction: 'pinkerton', dialogueHint: 'Overworked. Grateful for competent help.' },
     ],
-    historicalFact: 'Mark Twain wrote "The Celebrated Jumping Frog of Calaveras County" based on a story heard at Angels Hotel in 1865.',
+    historicalFact: 'Mark Twain wrote "The Celebrated Jumping Frog of Calaveras County" based on a story heard at Angels Hotel in 1865. He almost didn\'t publish it, calling it a "villainous backwoods sketch." It launched his career.',
+    discoveryClues: [
+      {
+        id: 'ch3_twain_source',
+        question: 'Who told Mark Twain the jumping frog story?',
+        answer: 'Ben Coon',
+        acceptableAnswers: ['ben coon', 'bartender', 'the bartender', 'coon'],
+        hintText: 'A bartender at the Angels Hotel was the source of the tale.',
+        isListingClue: false,
+        xpReward: 25,
+        karmaReward: { lawful: 3, good: 5 },
+        difficulty: 'medium',
+      },
+      {
+        id: 'ch3_frog_county',
+        question: 'What county hosts the annual Jumping Frog Jubilee to this day?',
+        answer: 'Calaveras',
+        acceptableAnswers: ['calaveras', 'calaveras county'],
+        hintText: 'The county name comes from the Spanish word for "skulls."',
+        isListingClue: false,
+        xpReward: 15,
+        karmaReward: { lawful: 2, good: 2 },
+        difficulty: 'easy',
+      },
+    ],
   },
   {
     id: 'ch3_murphys',
@@ -708,7 +732,7 @@ export const CHAPTER_3_LOCATIONS: ChapterLocation[] = [
     npcs: [
       { id: 'ch3_hotel_owner', name: 'James Sperry', role: 'Hotel Owner', witnessType: 'merchant', faction: 'settlers', dialogueHint: 'Knows everyone who matters. Social climber.' },
     ],
-    historicalFact: 'Murphys Hotel guest register includes Ulysses S. Grant, Mark Twain, and Black Bart.',
+    historicalFact: 'Murphys Hotel guest register includes Ulysses S. Grant, Mark Twain, and Black Bart. The town was founded by brothers Daniel and John Murphy in 1848. At its peak, it had 20,000 residents and was one of the wealthiest towns in the Southern Mines.',
   },
   {
     id: 'ch3_moaning_cavern',
@@ -725,6 +749,7 @@ export const CHAPTER_3_LOCATIONS: ChapterLocation[] = [
       { id: 'ch3_cave_guide', name: 'Blind Jake', role: 'Cave Guide', witnessType: 'miner', dialogueHint: 'Lost his sight underground. Gained something else.', skillCheckStat: 'Expertise', skillCheckDC: 12 },
     ],
     clueIds: ['ch3_case_gold_theft'],
+    historicalFact: 'Moaning Cavern contains human bones estimated at 13,000 years old — the oldest human remains found in the Americas at time of discovery. The cave\'s moan comes from air flowing through a natural chimney. The main chamber is 165 feet deep, large enough to hold the Statue of Liberty.',
   },
   {
     id: 'ch3_big_trees',

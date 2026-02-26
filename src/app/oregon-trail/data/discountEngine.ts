@@ -539,3 +539,143 @@ export function getTierInfo(tier: DiscountTier): TierInfo {
 export function getOccupationDiscountInfo(occupation: OccupationType): OccupationDiscountInfo {
   return OCCUPATION_DISCOUNT_MULTIPLIERS[occupation]
 }
+
+// ============================================================================
+// EASTER EGG DISCOUNT CODES
+// ============================================================================
+
+export interface EasterEggCode {
+  code: string
+  discount: number
+  description: string
+  validDays: number
+  oneTimeUse: boolean
+  requiresGameProgress?: {
+    minClues?: number
+    minBadges?: number
+    specificBadge?: string
+    minKarmaGood?: number
+  }
+}
+
+export const EASTER_EGG_CODES: EasterEggCode[] = [
+  {
+    code: 'GENUINEMEXICANPLUG',
+    discount: 50,
+    description: 'Twain\'s worst horse deal — 50% off (for the worst item in the shop only)',
+    validDays: 7,
+    oneTimeUse: true,
+  },
+  {
+    code: 'DANL-WEBSTER',
+    discount: 15,
+    description: 'Named after the celebrated jumping frog — 15% off',
+    validDays: 30,
+    oneTimeUse: true,
+    requiresGameProgress: { specificBadge: 'mystery_angels' },
+  },
+  {
+    code: 'BLACKBART-FXO7',
+    discount: 20,
+    description: 'The laundry mark that caught the gentleman bandit — 20% off',
+    validDays: 30,
+    oneTimeUse: true,
+    requiresGameProgress: { specificBadge: 'black_bart' },
+  },
+  {
+    code: 'CALIFIA-GOLD',
+    discount: 25,
+    description: 'Queen Califia\'s blessing — 25% off',
+    validDays: 14,
+    oneTimeUse: true,
+    requiresGameProgress: { specificBadge: 'califia_legacy' },
+  },
+  {
+    code: 'CHAWSE-1185',
+    discount: 10,
+    description: 'The 1,185 mortar cups of Indian Grinding Rock — 10% off',
+    validDays: 30,
+    oneTimeUse: false,
+    requiresGameProgress: { specificBadge: 'miwok_historian' },
+  },
+  {
+    code: 'ROUGHINGIT',
+    discount: 12,
+    description: 'Mark Twain\'s account of Western life — 12% off',
+    validDays: 30,
+    oneTimeUse: false,
+    requiresGameProgress: { specificBadge: 'twain_scholar' },
+  },
+]
+
+/**
+ * Validate an Easter egg code.
+ * Returns the discount if valid, null if not.
+ */
+export function validateEasterEggCode(
+  code: string,
+  playerProgress?: { badges?: string[]; clues?: number; goodKarma?: number }
+): EasterEggCode | null {
+  const upperCode = code.toUpperCase().trim()
+  const found = EASTER_EGG_CODES.find(c => c.code === upperCode)
+  if (!found) return null
+
+  // Check game progress requirements
+  if (found.requiresGameProgress && playerProgress) {
+    const req = found.requiresGameProgress
+    if (req.specificBadge && !playerProgress.badges?.includes(req.specificBadge)) {
+      return null
+    }
+    if (req.minClues && (playerProgress.clues || 0) < req.minClues) {
+      return null
+    }
+    if (req.minKarmaGood && (playerProgress.goodKarma || 0) < req.minKarmaGood) {
+      return null
+    }
+  }
+
+  return found
+}
+
+// ============================================================================
+// CROSS-GAME DISCOUNT BONUS
+// ============================================================================
+
+/**
+ * Calculate cross-game discount bonus.
+ * Explorer badges and adventure progress earn additional discount on BOBR shop.
+ */
+export function calculateCrossGameBonus(
+  explorerBadgeCount: number,
+  adventureChaptersComplete: number,
+  spiritualAwarenessLevel: number
+): { bonus: number; reason: string } {
+  let bonus = 0
+  const reasons: string[] = []
+
+  // Explorer badges: +1% per 5 badges, max 5%
+  const badgeBonus = Math.min(5, Math.floor(explorerBadgeCount / 5))
+  if (badgeBonus > 0) {
+    bonus += badgeBonus
+    reasons.push(`${badgeBonus}% Explorer badges`)
+  }
+
+  // Adventure completion: +1% per chapter, max 5%
+  const chapterBonus = Math.min(5, adventureChaptersComplete)
+  if (chapterBonus > 0) {
+    bonus += chapterBonus
+    reasons.push(`${chapterBonus}% Adventure progress`)
+  }
+
+  // Spiritual awareness: +2% per level, max 6%
+  const spiritBonus = Math.min(6, spiritualAwarenessLevel * 2)
+  if (spiritBonus > 0) {
+    bonus += spiritBonus
+    reasons.push(`${spiritBonus}% Spiritual awareness`)
+  }
+
+  return {
+    bonus: Math.min(15, bonus),  // Cap at 15% cross-game bonus
+    reason: reasons.join(' + ') || 'No cross-game bonus',
+  }
+}

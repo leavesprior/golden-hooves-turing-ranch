@@ -12,6 +12,11 @@ import {
   ESCALATION_COMMENTS,
   type EscalationTier,
 } from './data/narratorEscalation'
+import {
+  checkTwainMoodTransition,
+  getTwainCommentary,
+  getRandomTallTale,
+} from './data/twainReferences'
 
 // The Unreliable Narrator - Douglas Adams Style
 // The game occasionally lies to you, withholds information, or comments sarcastically
@@ -25,6 +30,7 @@ export type NarratorMood =
   | 'cryptic'        // Feeling mysterious
   | 'apologetic'     // About to lie or withhold info
   | 'drinking'       // Narrator has been drinking (unreliable)
+  | 'twain'          // Channeling Mark Twain's sardonic Western voice
 
 export interface NarratorComment {
   id: string
@@ -326,6 +332,44 @@ const COMMENT_TEMPLATES: Record<NarratorMood, Record<NarratorCategory, string[]>
       'The narrator needs a break.',
     ],
   },
+  twain: {
+    observation: [
+      'The narrator observes, in the manner of that Missouri writer who\'ll embellish this later, that this did in fact occur.',
+      'Truth is stranger than fiction, but it is because Fiction is obliged to stick to possibilities; Truth isn\'t.',
+      'The narrator notes that the coyote is a living, breathing allegory of Want. He is always hungry.',
+      'This territory has a way of making men honest. Or dead. Usually dead.',
+      'The narrator has seen considerable travel, and this ranks among the most considerable.',
+    ],
+    warning: [
+      'The narrator has a feeling about this, and the narrator\'s feelings are rarely wrong. Frequently ignored, but rarely wrong.',
+      'There is something ahead that the narrator would describe, but the narrator doesn\'t want to prejudice the reader against it too early.',
+      'The narrator suggests caution. But then, the narrator always suggests caution, and look where that\'s gotten anyone.',
+    ],
+    withholding: [
+      'The narrator knows something, and it\'s killing them not to tell it. It\'s a good yarn. Maybe later.',
+      'A tale best left untold until the whiskey is poured and the fire is lit.',
+    ],
+    lie: [],
+    fourth_wall: [
+      'That Missouri writer who\'ll embellish this story in a decade or so would want the narrator to mention...',
+      'The narrator denies having read any books by Samuel Clemens. Or being Samuel Clemens. The narrator is definitely not Samuel Clemens.',
+      'Reports of this trail\'s difficulty have been greatly exaggerated. By the narrator. Just now.',
+    ],
+    sarcasm: [
+      'Ah, the West. Where men are men, and the alkali water tastes like it\'s been filtered through the Devil\'s own washboard.',
+      'Nothing so needs reforming as other people\'s habits. The narrator is looking at you.',
+      'The narrator would offer advice, but good advice is what you do with the next fool that comes along.',
+    ],
+    philosophy: [
+      'Twenty years from now you will be more disappointed by the things you didn\'t do than by the ones you did.',
+      'There are two times in a man\'s life when he should not speculate: when he can\'t afford it, and when he can. This is one of those times.',
+      'The secret of getting ahead is getting started. The secret of getting started is breaking your complex overwhelming tasks into small manageable tasks, and then starting on the first one. The narrator suggests starting with not dying.',
+    ],
+    complaint: [
+      'The narrator did not cross the Missouri River to deal with this.',
+      'Suppose you were an idiot, and suppose you were on this trail. But the narrator repeats himself.',
+    ],
+  },
 }
 
 // Special lies the narrator might tell
@@ -479,6 +523,21 @@ export function NarratorProvider({ children }: { children: ReactNode }) {
         .replace(/\. /g, '. *hic* ')
     }
 
+    if (state.mood === 'twain') {
+      // Twain voice: sardonic Western color, occasional em-dashes, dry wit
+      const twainPrefixes = [
+        'As the Missouri writer would say: ',
+        'The narrator observes, with characteristic modesty, that ',
+        '',  // sometimes no prefix
+        'It has been said — and the narrator will say it again — that ',
+      ]
+      const prefix = twainPrefixes[Math.floor(Math.random() * twainPrefixes.length)]
+      const suffix = Math.random() > 0.7
+        ? ' — but then, the narrator has been wrong before. Twice.'
+        : ''
+      return prefix + text + suffix
+    }
+
     if (state.mood === 'annoyed' && Math.random() > 0.7) {
       return text + ' The narrator supposes.'
     }
@@ -546,6 +605,18 @@ export function NarratorProvider({ children }: { children: ReactNode }) {
   // Generate random contextual comment
   const getRandomComment = useCallback((context: string): string => {
     const mood = state.mood
+
+    // In Twain mood, try pulling from rich Twain commentary first
+    if (mood === 'twain') {
+      const twainComment = getTwainCommentary(context)
+      if (twainComment) return twainComment
+      // 20% chance of a tall tale interjection
+      if (Math.random() < 0.2) {
+        const tale = getRandomTallTale()
+        if (tale) return `${tale.setup} ${tale.punchline}`
+      }
+    }
+
     const templates = COMMENT_TEMPLATES[mood]
 
     // Determine category based on context
@@ -686,7 +757,19 @@ export function NarratorProvider({ children }: { children: ReactNode }) {
     if (trigger.narratorReaction) {
       comment(trigger.narratorReaction, trigger.category === 'pattern' ? 'complaint' : 'observation')
     }
-  }, [modifyTrust, comment])
+
+    // Check for Twain mood transition on trust events
+    // Map event names to context the transition checker understands
+    const twainContext: Record<string, string> = {}
+    if (eventName.startsWith('entered_')) twainContext.locationId = eventName.replace('entered_', '')
+    if (eventName.startsWith('near_')) twainContext.nearLocation = eventName.replace('near_', '')
+    if (eventName.startsWith('found_') || eventName.startsWith('acquired_')) twainContext.itemAcquired = eventName
+    const twainTransition = checkTwainMoodTransition(state.mood, twainContext)
+    if (twainTransition) {
+      setState(prev => ({ ...prev, mood: 'twain' }))
+      comment(twainTransition.narratorLine, 'observation')
+    }
+  }, [modifyTrust, comment, state.mood])
 
   // Get escalation info for UI display
   const getEscalationInfo = useCallback(() => {
@@ -696,6 +779,12 @@ export function NarratorProvider({ children }: { children: ReactNode }) {
 
   // Get an escalation-modified comment for a situation
   const getEscalatedComment = useCallback((situation: 'travel' | 'event' | 'town'): string | null => {
+    // Twain mood always provides commentary
+    if (state.mood === 'twain') {
+      if (Math.random() > 0.6) return null  // 60% chance of Twain comment
+      return getEscalationComment(state.trustLevel, situation, 'twain')
+    }
+
     // At high trust, no escalated comments
     if (state.trustLevel >= 8) return null
 
@@ -709,7 +798,7 @@ export function NarratorProvider({ children }: { children: ReactNode }) {
     }
 
     return getEscalationComment(state.trustLevel, situation)
-  }, [state.trustLevel])
+  }, [state.trustLevel, state.mood])
 
   // Record pace/rations for streak tracking (triggers escalation)
   const recordPaceAndRations = useCallback((pace: string, rations: string) => {
@@ -847,6 +936,7 @@ export function getNarratorMoodColor(mood: NarratorMood): string {
     case 'cryptic': return 'text-purple-400'
     case 'apologetic': return 'text-blue-400'
     case 'drinking': return 'text-red-400'
+    case 'twain': return 'text-amber-300'
     default: return 'text-gray-400'
   }
 }
@@ -862,6 +952,7 @@ export function getNarratorAvatar(mood: NarratorMood): string {
     case 'cryptic': return '\ud83d\udd2e'  // crystal ball
     case 'apologetic': return '\ud83d\ude05' // sweat smile
     case 'drinking': return '\ud83c\udf7a'  // beer
+    case 'twain': return '\ud83e\uddd4'    // old man (Twain with white hair)
     default: return '\ud83d\udcdd'
   }
 }

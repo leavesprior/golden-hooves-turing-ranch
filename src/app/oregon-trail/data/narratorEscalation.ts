@@ -146,6 +146,35 @@ export const TRUST_GAIN_TRIGGERS: TrustTrigger[] = [
     narratorReaction: 'A clue! The narrator\'s faith in your detective abilities grows slightly.',
     category: 'discovery',
   },
+  // Twain mood triggers
+  {
+    id: 'entered_angels_camp',
+    event: 'entered_angels_camp',
+    trustDelta: 1,
+    narratorReaction: 'Angels Camp! The narrator feels a strange literary compulsion coming on...',
+    category: 'milestone',
+  },
+  {
+    id: 'found_frog',
+    event: 'found_frog',
+    trustDelta: 0,
+    narratorReaction: 'The narrator eyes the frog with great narrative interest. A tale is forming.',
+    category: 'discovery',
+  },
+  {
+    id: 'spiritual_site_visited',
+    event: 'spiritual_site_visited',
+    trustDelta: 1,
+    narratorReaction: 'The narrator falls silent. Some places demand reverence, even from unreliable narrators.',
+    category: 'discovery',
+  },
+  {
+    id: 'native_knowledge_gained',
+    event: 'native_knowledge_gained',
+    trustDelta: 1,
+    narratorReaction: 'Knowledge older than the narrator itself. The narrator is genuinely humbled.',
+    category: 'discovery',
+  },
 ]
 
 // ============================================================================
@@ -347,6 +376,24 @@ export const ESCALATION_COMMENTS: Record<string, string[]> = {
     'No. Figure it out yourself.',
     '[This narration has been withheld due to industrial action.]',
   ],
+
+  // Twain mood: narrator channels Mark Twain's voice
+  twain_travel: [
+    'The narrator, channeling a writer who won\'t be born for another decade, observes that this country would make a fine setting for a yarn about roughing it.',
+    'Travel in the West is like being told you\'ll enjoy the view — by someone who has never seen it and never will.',
+    'The coyote, that slim, sick, sorry-looking skeleton, watches you pass. He has been living on such lean food so long that he could subsist on a flag-pole.',
+    'The alkali dust rises in clouds that could discourage a saint, and the narrator is no saint.',
+  ],
+  twain_event: [
+    'Now here is an event the narrator can sink their teeth into. It has drama, consequences, and the distinct possibility of humiliation.',
+    'The narrator would describe this event with Twain\'s economy of words, but frankly, this situation defies economy.',
+    'Something has happened that the narrator suspects will make an excellent anecdote. Assuming you survive to tell it.',
+  ],
+  twain_town: [
+    'A mining town! The narrator has visited many such establishments and found them all to be alike in their magnificent ambition and squalid reality.',
+    'Welcome to civilization, such as it is. The saloon serves whiskey that could dissolve a horseshoe, and the hotel has fewer bedbugs than advertised.',
+    'The narrator notes that every mining town believes itself to be the next San Francisco. The narrator has seen San Francisco. It is not impressed.',
+  ],
 }
 
 // ============================================================================
@@ -390,8 +437,14 @@ export function shouldNarratorDrink(trustLevel: number): boolean {
 /**
  * Get a tier-appropriate comment for a situation
  */
-export function getEscalationComment(trustLevel: number, situation: 'travel' | 'event' | 'town'): string | null {
+export function getEscalationComment(trustLevel: number, situation: 'travel' | 'event' | 'town', mood?: string): string | null {
   const tier = getEscalationTier(trustLevel)
+
+  // Twain mood overrides tier-based comments
+  if (mood === 'twain') {
+    const comments = ESCALATION_COMMENTS[`twain_${situation}`]
+    return comments?.[Math.floor(Math.random() * comments.length)] || null
+  }
 
   if (tier.name === 'Hostile') {
     const comments = ESCALATION_COMMENTS[`hostile_${situation}`]

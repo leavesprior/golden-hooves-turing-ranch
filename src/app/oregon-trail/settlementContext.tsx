@@ -33,6 +33,18 @@ import {
 import { useKarmaWallet } from './karmaWalletContext'
 import { useRanch } from './ranchContext'
 import { useMystery } from './mysteryContext'
+import {
+  LAND_CLEARING_STAGES,
+  WATER_SYSTEMS,
+  LA_SIERRA_MASTERY_TIERS,
+  HISTORICAL_RANCH_FACTS,
+  getMasteryTierForDays,
+  getRandomFact,
+} from './data/ranchHistory'
+import {
+  getAvailableHistoricalBusinesses,
+  type HistoricalBusiness,
+} from './data/businessConfig'
 
 // ============================================================
 // TYPES
@@ -116,6 +128,11 @@ interface SettlementContextValue {
 
   // Reputation
   modifyReputation: (delta: number, reason: string) => void
+
+  // Ranch history helpers
+  getRanchMasteryTier: () => { name: string; emoji: string; description: string }
+  getRandomRanchFact: () => string
+  getAvailableHistoricalBusinesses: () => HistoricalBusiness[]
 }
 
 // ============================================================
@@ -708,6 +725,24 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
   }, [])
 
   // ============================================================
+  // RANCH HISTORY HELPERS
+  // ============================================================
+
+  const getRanchMasteryTier = useCallback(() => {
+    const tier = getMasteryTierForDays(state.daysInSettlement)
+    return { name: tier.name, emoji: tier.color, description: tier.description }
+  }, [state.daysInSettlement])
+
+  const getRandomRanchFact = useCallback(() => {
+    const fact = getRandomFact()
+    return `${fact.fact} (${fact.source}, ${fact.era})`
+  }, [])
+
+  const getAvailableHistoricalBusinessesFn = useCallback(() => {
+    return getAvailableHistoricalBusinesses(state.businessTier)
+  }, [state.businessTier])
+
+  // ============================================================
   // CONTEXT VALUE
   // ============================================================
 
@@ -748,6 +783,10 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
     completeSettlement,
 
     modifyReputation,
+
+    getRanchMasteryTier,
+    getRandomRanchFact,
+    getAvailableHistoricalBusinesses: getAvailableHistoricalBusinessesFn,
   }
 
   return (
