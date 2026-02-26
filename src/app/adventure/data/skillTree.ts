@@ -8,7 +8,7 @@ export interface SkillNode {
   id: string
   name: string
   description: string
-  tier: 1 | 2 | 3
+  tier: 1 | 2 | 3 | 4
   stat: StatName
   statBonus: number
   specialEffect?: string
@@ -143,6 +143,17 @@ export const SKILL_BRANCHES: SkillBranch[] = [
         prerequisiteId: 'durability_2',
         levelRequired: 7,
       },
+      {
+        id: 'durability_4',
+        name: 'Ranch Compound',
+        description: 'You\'ve built what the old Gold Country ranchers built — a full compound with bunkhouse, cookhouse, corral, and defensible walls. Adobe and timber construction that mirrors the real ranchos of the 1850s Sacramento Valley. +4 Durability.',
+        tier: 4,
+        stat: 'Durability',
+        statBonus: 4,
+        specialEffect: 'Camp rest heals double; party immune to night raids; recruited allies stay 2 extra chapters; camp activities cost 1 fewer day (minimum 1)',
+        prerequisiteId: 'durability_3',
+        levelRequired: 10,
+      },
     ],
   },
   {
@@ -182,6 +193,17 @@ export const SKILL_BRANCHES: SkillBranch[] = [
         specialEffect: 'Can attempt persuasion in place of any other check',
         prerequisiteId: 'diplomacy_2',
         levelRequired: 7,
+      },
+      {
+        id: 'diplomacy_4',
+        name: 'Multilingual Trader',
+        description: 'You speak enough Spanish to deal with Californios, enough Miwok to earn native trust, and enough pidgin to trade with anyone between Sacramento and Sonora. Language is the ultimate currency. +4 Diplomacy.',
+        tier: 4,
+        stat: 'Diplomacy',
+        statBonus: 4,
+        specialEffect: 'Trade prices improved by 40%; recruitment gold costs halved; unlock exclusive dialogue options with every faction; reputation losses reduced by half',
+        prerequisiteId: 'diplomacy_3',
+        levelRequired: 10,
       },
     ],
   },
@@ -223,6 +245,17 @@ export const SKILL_BRANCHES: SkillBranch[] = [
         prerequisiteId: 'luck_2',
         levelRequired: 7,
       },
+      {
+        id: 'luck_4',
+        name: 'Hydraulic Mining',
+        description: 'You\'ve mastered Edward Matteson\'s 1853 hydraulic technique — blasting hillsides with pressurized water to expose gold-bearing gravel. Devastating to the landscape, but enormously profitable. +4 Luck.',
+        tier: 4,
+        stat: 'Luck',
+        statBonus: 4,
+        specialEffect: 'Gold yields tripled at mining locations; reputation with natives decreases by 5 per use (environmental destruction)',
+        prerequisiteId: 'luck_3',
+        levelRequired: 10,
+      },
     ],
   },
   {
@@ -262,6 +295,17 @@ export const SKILL_BRANCHES: SkillBranch[] = [
         specialEffect: 'Forage action always finds rare items',
         prerequisiteId: 'expertise_2',
         levelRequired: 7,
+      },
+      {
+        id: 'expertise_4',
+        name: 'Wilderness Mastery',
+        description: 'Miwok trail-runners taught you paths no white man has walked. Combined with years of frontier experience, you read the Sierra Nevada like an open book. +4 Expertise.',
+        tier: 4,
+        stat: 'Expertise',
+        statBonus: 4,
+        specialEffect: 'Unlock hidden shortcut routes between locations; weather and terrain penalties reduced by half; native allies gain +1 to all stats',
+        prerequisiteId: 'expertise_3',
+        levelRequired: 10,
       },
     ],
   },

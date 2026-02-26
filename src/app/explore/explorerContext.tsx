@@ -7,6 +7,8 @@ import {
   isDeductionUnlocked,
   attemptDeduction,
 } from './data/townMysteries'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
+import { getSiteForTown, type SpiritualSite } from './data/spiritualSites'
 
 // ============================================
 // TYPES
@@ -80,6 +82,15 @@ export interface MysteryProgressEntry {
   solvedAt?: number
 }
 
+export interface JournalEntry {
+  id: string
+  timestamp: number
+  type: 'attraction' | 'mystery' | 'discovery' | 'note'
+  townId: string
+  title: string
+  content: string  // auto-generated from the attraction/mystery description
+}
+
 export interface ExplorerProgress {
   totalXP: number
   level: number
@@ -93,6 +104,9 @@ export interface ExplorerProgress {
   streakDays: number
   lastPlayDate?: string
   mysteries: MysteryProgressEntry[]
+  historicalDepthScore: number
+  historicalDepthLevel: string
+  journalEntries: JournalEntry[]
 }
 
 export interface ExplorerContextValue {
@@ -138,6 +152,14 @@ export interface ExplorerContextValue {
   // Gamification Helpers
   getRandomTobiasTip: () => string
   checkStreak: () => { maintained: boolean; newStreak: number }
+
+  // Historical Depth
+  historicalDepthScore: number
+  historicalDepthLevel: string
+
+  // Field Journal
+  getJournal: () => JournalEntry[]
+  getJournalForTown: (townId: string) => JournalEntry[]
 }
 
 // ============================================
@@ -185,6 +207,16 @@ export const COLLECTION_BADGES: Badge[] = [
   { id: 'mystery_moaning_cavern', name: 'Ancient Witness', icon: '🦴', description: 'Solved the 13,000-year-old mystery of Moaning Cavern', rarity: 'legendary' },
   { id: 'mystery_kennedy_mine', name: 'Labor Advocate', icon: '⛏️', description: 'Uncovered the negligence behind the Kennedy Mine disaster', rarity: 'legendary' },
   { id: 'mystery_ironstone_vineyards', name: 'Gold Sleuth', icon: '🍇', description: 'Revealed the hidden gold history of Ironstone Vineyards', rarity: 'rare' },
+  { id: 'mystery_nevada_city', name: 'Theater Detective', icon: '🎭', description: 'Solved the mystery of Lotta Crabtree\'s lost locket', rarity: 'rare' },
+  { id: 'mystery_grass_valley', name: 'Deep Earth Detective', icon: '⛏️', description: 'Uncovered the secret of Empire Mine\'s sealed shaft', rarity: 'legendary' },
+  { id: 'mystery_angels_twain', name: 'Literary Sleuth', icon: '📝', description: 'Traced the real source of Twain\'s jumping frog story', rarity: 'rare' },
+  { id: 'mystery_mariposa', name: 'Land Grant Detective', icon: '📜', description: 'Exposed Fremont\'s floating grant maneuver', rarity: 'legendary' },
+  // Collection badges
+  { id: 'twain_scholar', name: 'Twain Scholar', icon: '📚', description: 'Follow Mark Twain\'s California footsteps', rarity: 'rare' },
+  { id: 'califia_seeker', name: 'Califia Seeker', icon: '👑', description: 'Discover the myth behind California\'s name', rarity: 'legendary' },
+  { id: 'miwok_historian', name: 'Miwok Historian', icon: '🏛️', description: 'Respectfully learn about Miwok culture', rarity: 'rare' },
+  { id: 'ranch_pioneer', name: 'Ranch Pioneer', icon: '🤠', description: 'Discover ranching history of El Dorado County', rarity: 'uncommon' },
+  { id: 'gold_economist', name: 'Gold Rush Economist', icon: '💰', description: 'Understand the real economics of the Gold Rush', rarity: 'rare' },
 ]
 
 const DEFAULT_CHALLENGES: Challenge[] = [
@@ -256,6 +288,18 @@ const TOBIAS_TIPS = [
 const STORAGE_KEY = 'gold_country_explorer_progress'
 
 // ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+export function getHistoricalDepthLevel(score: number): string {
+  if (score >= 100) return 'Living Archive'
+  if (score >= 50) return 'Historian'
+  if (score >= 25) return 'Scholar'
+  if (score >= 10) return 'Student'
+  return 'Newcomer'
+}
+
+// ============================================
 // DEFAULT STATE
 // ============================================
 
@@ -270,6 +314,9 @@ const DEFAULT_PROGRESS: ExplorerProgress = {
   favoriteAttractions: [],
   streakDays: 0,
   mysteries: [],
+  historicalDepthScore: 0,
+  historicalDepthLevel: 'Newcomer',
+  journalEntries: [],
 }
 
 // ============================================
@@ -366,6 +413,19 @@ export function ExplorerProvider({
         ? [...prev.badges, { ...badgeEarned, unlockedAt: Date.now() }]
         : prev.badges
 
+      // Historical depth: +1 for attraction visit
+      const newDepthScore = prev.historicalDepthScore + 1
+
+      // Auto-generate journal entry for attraction visit
+      const journalEntry: JournalEntry = {
+        id: `attraction_${attractionId}_${Date.now()}`,
+        timestamp: Date.now(),
+        type: 'attraction',
+        townId,
+        title: attraction.name,
+        content: attraction.funFact,
+      }
+
       return {
         ...prev,
         totalXP: newXP,
@@ -373,16 +433,38 @@ export function ExplorerProvider({
         visitedAttractions: [...prev.visitedAttractions, attractionId],
         badges: newBadges,
         lastVisitedTown: townId,
+        historicalDepthScore: newDepthScore,
+        historicalDepthLevel: getHistoricalDepthLevel(newDepthScore),
+        journalEntries: [...prev.journalEntries, journalEntry],
       }
     })
 
     if (levelUp && onLevelUp) {
       const newLevelData = EXPLORER_LEVELS.find(l => l.level === progress.level + 1)
-      if (newLevelData) onLevelUp(newLevelData)
+      if (newLevelData) {
+        onLevelUp(newLevelData)
+        // Cross-game milestone for reaching legendary
+        if (newLevelData.level === 6) {
+          CrossGameStorage.recordMilestone('explorer_legendary_level', 'gold_country_explorer')
+        }
+      }
     }
 
     if (badgeEarned && onBadgeEarned) {
       onBadgeEarned(badgeEarned)
+      // Cross-game: badge earns good karma
+      CrossGameStorage.syncKarmaToPool('gold_country_explorer', 'good', 5, `Badge: ${badgeEarned.name}`)
+    }
+
+    // Cross-game: attraction visits add historical depth
+    if (xpGained > 0) {
+      CrossGameStorage.addHistoricalDepth(1)
+    }
+
+    // Cross-game: check if this town has a spiritual site and register visit
+    const spiritualSite: SpiritualSite | undefined = getSiteForTown(townId)
+    if (spiritualSite) {
+      CrossGameStorage.visitSpiritualSite(spiritualSite.id)
     }
 
     return { xpGained, levelUp, badgeEarned }
@@ -431,11 +513,32 @@ export function ExplorerProvider({
         }
       }
 
+      // Historical depth: +5 for secret unlock
+      const newDepthScore = prev.historicalDepthScore + 5
+
+      // Find which town this secret belongs to for journal entry
+      const secretTownId = towns.find(t =>
+        t.secretAttractions.some(a => a.id === secretId)
+      )?.id || ''
+
+      // Auto-generate journal entry for secret discovery
+      const journalEntry: JournalEntry = {
+        id: `discovery_${secretId}_${Date.now()}`,
+        timestamp: Date.now(),
+        type: 'discovery',
+        townId: secretTownId,
+        title: (attraction as Attraction).name,
+        content: (attraction as Attraction).secretUnlock || (attraction as Attraction).description,
+      }
+
       return {
         ...prev,
         totalXP: prev.totalXP + xpGained,
         unlockedSecrets: [...prev.unlockedSecrets, secretId],
         badges: newBadges,
+        historicalDepthScore: newDepthScore,
+        historicalDepthLevel: getHistoricalDepthLevel(newDepthScore),
+        journalEntries: [...prev.journalEntries, journalEntry],
       }
     })
 
@@ -599,11 +702,15 @@ export function ExplorerProvider({
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved)
+        const historicalDepthScore = parsed.historicalDepthScore ?? 0
         setProgress({
           ...DEFAULT_PROGRESS,
           ...parsed,
           challenges: parsed.challenges || DEFAULT_CHALLENGES,
           mysteries: parsed.mysteries || [],
+          historicalDepthScore,
+          historicalDepthLevel: getHistoricalDepthLevel(historicalDepthScore),
+          journalEntries: parsed.journalEntries || [],
         })
         return true
       }
@@ -722,6 +829,42 @@ export function ExplorerProvider({
             newBadges = [...prev.badges, { ...badge, unlockedAt: Date.now() }]
           }
         }
+
+        // Cross-game: sync good karma for historical discovery
+        CrossGameStorage.syncKarmaToPool(
+          'gold_country_explorer', 'good',
+          Math.floor(result.xpReward / 10),
+          `Mystery solved: ${mysteryId}`
+        )
+        // Track historical depth
+        CrossGameStorage.addHistoricalDepth(2)
+
+        // Check for explorer milestones
+        const solvedCount = updated.filter(m => m.solved).length
+        if (solvedCount === 1) {
+          CrossGameStorage.recordMilestone('explorer_first_mystery_solved', 'gold_country_explorer')
+        }
+        const totalMysteries = TOWN_MYSTERIES.length
+        if (solvedCount >= totalMysteries) {
+          CrossGameStorage.recordMilestone('explorer_all_mysteries_solved', 'gold_country_explorer')
+        }
+      }
+
+      // Historical depth: +3 for mystery solve, journal entry
+      let newDepthScore = prev.historicalDepthScore
+      let newJournalEntries = prev.journalEntries
+      if (result.correct) {
+        newDepthScore = prev.historicalDepthScore + 3
+        const mystery = TOWN_MYSTERIES.find(m => m.id === mysteryId)
+        const journalEntry: JournalEntry = {
+          id: `mystery_${mysteryId}_${Date.now()}`,
+          timestamp: Date.now(),
+          type: 'mystery',
+          townId: mystery?.townId || '',
+          title: mystery?.title || mysteryId,
+          content: result.response,
+        }
+        newJournalEntries = [...prev.journalEntries, journalEntry]
       }
 
       return {
@@ -729,6 +872,9 @@ export function ExplorerProvider({
         mysteries: updated,
         badges: newBadges,
         totalXP: prev.totalXP + result.xpReward,
+        historicalDepthScore: newDepthScore,
+        historicalDepthLevel: getHistoricalDepthLevel(newDepthScore),
+        journalEntries: newJournalEntries,
       }
     })
 
@@ -758,6 +904,18 @@ export function ExplorerProvider({
     const entry = progress.mysteries.find(m => m.mysteryId === mysteryId)
     return entry?.solved ?? false
   }, [progress.mysteries])
+
+  // === Field Journal Methods ===
+
+  const getJournal = useCallback((): JournalEntry[] => {
+    return [...progress.journalEntries].sort((a, b) => b.timestamp - a.timestamp)
+  }, [progress.journalEntries])
+
+  const getJournalForTown = useCallback((townId: string): JournalEntry[] => {
+    return progress.journalEntries
+      .filter(e => e.townId === townId)
+      .sort((a, b) => b.timestamp - a.timestamp)
+  }, [progress.journalEntries])
 
   // Auto-save on progress changes
   useEffect(() => {
@@ -795,6 +953,10 @@ export function ExplorerProvider({
     isMysterySolved,
     getRandomTobiasTip,
     checkStreak,
+    historicalDepthScore: progress.historicalDepthScore,
+    historicalDepthLevel: progress.historicalDepthLevel,
+    getJournal,
+    getJournalForTown,
   }
 
   return (

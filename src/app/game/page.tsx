@@ -21,6 +21,9 @@ export default function GamePage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (currentView !== 'main') return
+      // Don't capture keys when user is in an input or modal
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return
 
       const menuItems = 4
       if (e.key === 'ArrowUp' || e.key === 'w') {

@@ -13,6 +13,7 @@ import {
   ALIGNMENT_DISPLAY_NAMES,
 } from './data/discountEngine'
 import { KarmaStorage } from '@/lib/karmaStorage'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
 
 export type WalletMode = 'new' | 'continue'
 
@@ -234,8 +235,13 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
   // Initialize wallet with mode
   const initializeWallet = useCallback(async (mode: WalletMode) => {
     if (mode === 'new') {
-      // Reset to starting balance
-      const balance = { good: 0, neutral: STARTING_NEUTRAL_KARMA, bad: 0 }
+      // Check for shared karma pool to carry forward
+      const sharedKarma = CrossGameStorage.loadSharedKarma()
+      const carryForward = sharedKarma.totalEarned > 0
+        ? Math.min(50, Math.floor(sharedKarma.good / 5))  // Up to 50 good karma bonus from shared pool
+        : 0
+
+      const balance = { good: carryForward, neutral: STARTING_NEUTRAL_KARMA, bad: 0 }
 
       // Try to initialize on blockchain
       await oregonTrailKarma.initializeWallet(STARTING_NEUTRAL_KARMA)
@@ -245,7 +251,16 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
         balance,
         walletMode: mode,
         isInitialized: true,
-        recentTransactions: [],
+        recentTransactions: carryForward > 0
+          ? [{
+            id: `tx_${Date.now()}_crossgame`,
+            timestamp: Date.now(),
+            type: 'earn' as const,
+            karmaType: 'good' as KarmaType,
+            amount: carryForward,
+            memo: 'Cross-game karma bonus from other adventures',
+          }]
+          : [],
       }))
     } else {
       // Continue - fetch existing balance
@@ -360,6 +375,9 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       memo,
     })
 
+    // Sync to shared karma pool
+    CrossGameStorage.syncKarmaToPool('prospectors_tale', 'neutral', amount, memo || 'Trail earn')
+
     oregonTrailKarma.earnNeutral(amount, memo).catch(() => {})
   }, [addTransaction])
 
@@ -377,6 +395,9 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       memo,
     })
 
+    // Sync to shared karma pool
+    CrossGameStorage.syncKarmaToPool('prospectors_tale', 'good', amount, memo || 'Trail good deed')
+
     oregonTrailKarma.earnGood(amount, memo).catch(() => {})
   }, [addTransaction])
 
@@ -393,6 +414,9 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       amount: amount,
       memo: reason,
     })
+
+    // Sync to shared karma pool
+    CrossGameStorage.syncKarmaToPool('prospectors_tale', 'bad', amount, reason)
 
     oregonTrailKarma.addBadKarma(amount, reason).catch(() => {})
   }, [addTransaction])

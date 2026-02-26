@@ -502,6 +502,93 @@ export const EASTER_EGGS: EasterEgg[] = [
       description: 'Increased luck for 7 days',
     },
   },
+  // Twain-themed Easter eggs
+  {
+    id: 'twains_pocket_watch',
+    title: "Twain's Pocket Watch",
+    description: 'A battered pocket watch with "S.L.C." scratched on the back. It runs backwards, gains 15 minutes a day, and the narrator insists it\'s priceless.',
+    trigger: [{ type: 'location', locationId: 'angels_camp' }, { type: 'stat_threshold', stat: 'investigation', value: 3, comparison: 'gte' }],
+    hint: 'Check the lost-and-found box at Ross\'s Saloon. It\'s been there since \'65.',
+    rarity: 'rare',
+    reward: {
+      type: 'item',
+      value: 'twains_pocket_watch',
+      description: 'A worthless (priceless?) timepiece. The narrator will not shut up about it.',
+    },
+  },
+  {
+    id: 'genuine_mexican_plug',
+    title: 'Genuine Mexican Plug',
+    description: 'A horse dealer swears this is the finest steed in California. It bucks like a hurricane, runs sideways, and has a personality disorder.',
+    trigger: [{ type: 'location', locationId: 'sacramento_valley' }, { type: 'random', chance: 0.25 }],
+    hint: 'There\'s a persuasive horse trader near the stockyards. Don\'t listen to him.',
+    rarity: 'uncommon',
+    reward: {
+      type: 'item',
+      value: 'genuine_mexican_plug',
+      description: 'The worst horse in the territory. -2 travel speed, +5 comedy.',
+    },
+  },
+  {
+    id: 'calaveras_frog_contest',
+    title: 'The Calaveras County Frog Jump',
+    description: 'You entered the annual frog jumping contest at Angels Camp. Your frog jumped 39 feet and 3 inches before a suspicious stranger filled the competition\'s frog with quail shot.',
+    trigger: [{ type: 'location', locationId: 'angels_camp' }, { type: 'karma_alignment', alignment: 'lawful' }, { type: 'random', chance: 0.15 }],
+    hint: 'The annual contest is held behind the old hotel. Bring your own frog.',
+    rarity: 'legendary',
+    reward: {
+      type: 'karma',
+      value: 25,
+      description: 'The crowd loves you (even if the stranger cheated)',
+    },
+  },
+  {
+    id: 'twain_cabin_jackass_hill',
+    title: 'The Cabin on Jackass Hill',
+    description: 'You found the cabin where Mark Twain spent the winter of 1864-65, listening to the stories that became "The Celebrated Jumping Frog." His initials are carved in the door frame.',
+    trigger: [{ type: 'location', locationId: 'jackass_hill' }],
+    hint: 'Follow the old trail up Jackass Hill. There\'s a cabin that smells of pipe tobacco.',
+    rarity: 'uncommon',
+    reward: {
+      type: 'lore',
+      value: 'twain_cabin',
+      description: 'Discovered where Twain transformed from journalist to literary legend',
+    },
+  },
+  {
+    id: 'califia_golden_armor',
+    title: 'Califia\'s Golden Fragment',
+    description: 'Half-buried in creek gravel, you found a piece of golden armor etched with symbols no European could have made. The Miwok elder says it\'s from "before the naming."',
+    trigger: [
+      { type: 'location', locationId: 'indian_grinding_rock' },
+      { type: 'karma_alignment', alignment: 'good' },
+      { type: 'stat_threshold', stat: 'investigation', value: 7, comparison: 'gte' },
+    ],
+    hint: 'The creek near Chaw\'se yields more than gold to those who look with respect.',
+    rarity: 'legendary',
+    reward: {
+      type: 'achievement',
+      value: 'califia_touched',
+      description: 'Found a trace of the Amazon queen California was named for',
+    },
+  },
+  {
+    id: 'roughing_it_manuscript',
+    title: 'The Lost Chapter',
+    description: 'Tucked inside a saloon wall, you found three handwritten pages of "Roughing It" that Twain apparently discarded — a scathing account of a local judge that was too honest to print.',
+    trigger: [
+      { type: 'location', locationId: 'mokelumne_hill' },
+      { type: 'stat_threshold', stat: 'investigation', value: 6, comparison: 'gte' },
+      { type: 'random', chance: 0.1 },
+    ],
+    hint: 'The old saloon has been renovated many times. Not every wall was built straight.',
+    rarity: 'legendary',
+    reward: {
+      type: 'unlock',
+      value: 'roughing_it_lost_chapter',
+      description: 'Unlocked a "lost" Twain manuscript (the narrator wrote it)',
+    },
+  },
   // Legendary secrets
   {
     id: 'lost_dutchman',

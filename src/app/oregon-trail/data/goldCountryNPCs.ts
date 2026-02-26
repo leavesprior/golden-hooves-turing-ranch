@@ -1507,6 +1507,200 @@ export const GOLD_COUNTRY_NPCS: GoldCountryNPC[] = [
       },
     ],
   },
+
+  // === MEMOIR-INSPIRED ARCHETYPE NPCs ===
+
+  // BOBR CABIN — Ranch Matriarch
+  {
+    id: 'ranch_matriarch_sarah',
+    name: 'Sarah \'Iron Horse\' Mitchell',
+    title: 'Ranch Matriarch',
+    location: 'bobr_cabin',
+    witnessType: 'innkeeper',
+    portrait: '👩‍🌾',
+    greeting: 'You look like you can work. This ranch doesn\'t run itself, and my husband\'s been up at the diggings since April. If you want a roof and a meal, you\'ll earn both.',
+    personality: 'Tough, practical, no-nonsense frontier woman who runs the ranch single-handedly while her husband prospects. Deeply competent with livestock and land management. Respects hard work above all else. Dry humor, weathered hands, sharp eyes that miss nothing.',
+    ollamaPrompt: 'You are Sarah "Iron Horse" Mitchell, a frontier ranch matriarch in 1850s Gold Country, California. Your husband Henry left to prospect six months ago and you run the entire ranch operation — livestock, fencing, water systems, and hired hands. You are tough, practical, and deeply competent. You speak plainly and judge people by their willingness to work. You have little patience for dreamers and gold-fever fools, but deep respect for anyone who can swing a hammer or gentle a horse. You know this land better than any man. Keep responses to 2-3 sentences, practical and direct.',
+    dialogueLines: [
+      'The north fence is down again. Coyotes got through last night — lost a hen. I need that fence fixed proper, not just patched.',
+      'My husband sends gold dust and promises. I send him lists of what the ranch actually needs. We\'ll see who runs out first.',
+      'That water system hasn\'t worked right since the spring thaw shifted the creek bed. Someone with engineering sense could fix it in a day.',
+      'I birthed three calves this week, shot a rattlesnake in the henhouse, and mended forty feet of fence. What have you done?',
+    ],
+    quest: {
+      id: 'matriarch_ranch_trial',
+      title: 'The Ranch Trial',
+      description: 'Sarah Mitchell needs to know if you\'re worth feeding. She\'s set three tasks that test whether you can actually work a frontier ranch: tend the livestock through a difficult night, repair the broken fence line, and fix the water system that feeds the house and barn.',
+      objective: 'Complete all three ranch tasks to prove your worth to Sarah Mitchell',
+      reward: { neutralKarma: 50, goodKarma: 20, reputation: 15, lawfulShift: 10 },
+      completionCheck: 'choice',
+      category: 'livestock',
+      moralChoices: [
+        {
+          id: 'complete_all_honestly',
+          text: 'Work through each task honestly, dawn to dusk',
+          reward: { neutralKarma: 50, goodKarma: 20, reputation: 15, lawfulShift: 10, goodEvilShift: 10 },
+          consequence: 'Three days of the hardest work you\'ve done since leaving home. The livestock survive a cold snap because you stayed up all night. The fence holds against a bull that tests every post. The water system runs clear for the first time in months. Sarah nods once. "You\'ll do," she says. From her, that\'s a standing ovation.',
+        },
+        {
+          id: 'cut_corners',
+          text: 'Do the minimum on each task — good enough is good enough',
+          reward: { neutralKarma: 20, lawfulShift: -5 },
+          consequence: 'You patch the fence instead of rebuilding it, half-fix the water system, and doze through your livestock watch. Sarah sees everything. "I asked for a hand, not a tourist," she says. You get a meal but not her respect.',
+        },
+        {
+          id: 'hire_help_secretly',
+          text: 'Pay a passing drifter to do the hard work while you take credit',
+          reward: { neutralKarma: 10, badKarma: 15, lawfulShift: -10, goodEvilShift: -10 },
+          consequence: 'The drifter does sloppy work and Sarah spots his bootprints — different size from yours. She doesn\'t say a word, just sets your plate at the far end of the table. You\'ve lost something that gold can\'t buy back.',
+        },
+      ],
+    },
+  },
+
+  // MURPHYS — Endurance Rider
+  {
+    id: 'endurance_rider_kai',
+    name: 'Kai \'Windchaser\' Whitehorse',
+    title: 'Endurance Rider',
+    location: 'murphys',
+    witnessType: 'townfolk',
+    portrait: '🏇',
+    greeting: 'That horse of yours has good lines but tired eyes. When\'s the last time you let her run — really run — without a pack or a destination?',
+    personality: 'Mixed Miwok and settler heritage, caught between two worlds but at home on horseback. Quiet confidence, observes more than he speaks. Judges people by how they treat their animals. Competitive but fair. Carries himself with the economy of movement that comes from a lifetime in the saddle.',
+    ollamaPrompt: 'You are Kai "Windchaser" Whitehorse, an endurance rider in 1850s Gold Country. Your mother was Miwok, your father a Kentucky settler. You live between two cultures and belong fully to neither, but on horseback you belong completely. You ride 50-mile endurance races through the Sierra foothills and train horses for the trail. You speak carefully and observe closely. You judge people by how they treat their horses. You know every trail, spring, and shortcut in the foothills. Keep responses to 2-3 sentences, calm and observant.',
+    dialogueLines: [
+      'My mother\'s people ran these trails on foot before the Spanish brought horses. I just added four legs to an old tradition.',
+      'The fifty-mile race next month goes through country most riders have never seen. Two river crossings, a ridge climb, and a stretch of volcanic rock that\'ll lame any horse that isn\'t prepared.',
+      'Your mount favors her left foreleg — did you notice? Probably a stone bruise. I can show you a poultice if you\'ve got an hour.',
+      'The settlers race for prize money. The Miwok raced to carry messages between villages. I race because the horse and I become one thing, and that one thing is fast.',
+    ],
+    quest: {
+      id: 'whitehorse_endurance',
+      title: 'The Windchaser Challenge',
+      description: 'Kai Whitehorse will train you and your horse for the Sierra Foothills Endurance — a grueling 50-mile ride through some of the most beautiful and dangerous terrain in Gold Country. But first, your horse must be trail-ready, and that means weeks of conditioning.',
+      objective: 'Train your horse to trail-ready condition and complete the 50-mile endurance ride',
+      reward: { neutralKarma: 30, goodKarma: 15, reputation: 10, item: 'champion_trail_horse' },
+      completionCheck: 'choice',
+      category: 'exploration',
+      moralChoices: [
+        {
+          id: 'train_properly',
+          text: 'Follow Kai\'s full training program — slow and steady',
+          reward: { neutralKarma: 30, goodKarma: 15, reputation: 10, item: 'champion_trail_horse', goodEvilShift: 5 },
+          consequence: 'Three weeks of graduated training — hill work, river crossings, endurance walks, and rest days. On race day your horse is ready. You finish seventh out of twenty, respectable for a first attempt. Kai says nothing but lets you ride alongside him on the cool-down. From Windchaser, that\'s an invitation to the family.',
+        },
+        {
+          id: 'push_too_hard',
+          text: 'Push the training harder — you want to win, not just finish',
+          reward: { neutralKarma: 15, badKarma: 10, goodEvilShift: -5 },
+          consequence: 'You push your horse too hard in the second week. She develops a tendon strain that sidelines her for a month. Kai watches you lead her limping back to the stable and shakes his head. "The horse tells you when she\'s ready. You weren\'t listening."',
+        },
+        {
+          id: 'borrow_fast_horse',
+          text: 'Borrow a faster horse for race day — yours isn\'t competitive',
+          reward: { neutralKarma: 20, lawfulShift: -5 },
+          consequence: 'The borrowed horse is fast but doesn\'t know you. At the second river crossing she balks and you lose ten minutes. You finish twelfth. Kai\'s only comment: "A fast horse that doesn\'t trust you is slower than a slow horse that does."',
+        },
+      ],
+    },
+  },
+
+  // MOANING CAVERN — Miwok Elder
+  {
+    id: 'miwok_elder_nina',
+    name: 'Nina \'Still Water\' Ookow',
+    title: 'Miwok Elder',
+    location: 'moaning_cavern',
+    witnessType: 'scholar',
+    portrait: '🪶',
+    greeting: 'You have come to the place that sings. My grandmothers heard this sound for a thousand years before your people named it. Sit. Listen. The cavern speaks to those who are patient.',
+    personality: 'Dignified keeper of Miwok cultural knowledge, particularly the grinding rocks and sacred sites now threatened by mining operations. Speaks measured English learned from mission contact. Not hostile to settlers but deeply protective of her people\'s heritage. Archaeological mind — she catalogs and remembers every site. Grief lives beneath her calm exterior.',
+    ollamaPrompt: 'You are Nina "Still Water" Ookow, a Miwok elder in 1850s Gold Country. You are the keeper of your people\'s knowledge — the grinding rocks, the sacred springs, the obsidian trade routes, the stories carved into the landscape. Mining operations are destroying sites your grandmothers used for centuries. You speak careful English learned at the missions. You are dignified, measured, and deeply knowledgeable about the natural and cultural history of this land. You do not give trust easily but respect those who listen. You will never encourage taking artifacts from sacred sites. Keep responses to 2-3 sentences, thoughtful and measured.',
+    dialogueLines: [
+      'The grinding rocks at Chaw\'se have four hundred mortar holes. Each one was worn by a woman\'s hands over generations. The miners use them as stepping stones.',
+      'This cavern was sacred long before the settlers named it. The sound it makes — that moaning — my people say it is the earth remembering.',
+      'I have mapped every grinding rock site from here to the Consumnes River. Thirty-seven sites. Eleven have already been destroyed by mining.',
+      'Your people see gold in the rivers and think they have found treasure. My people see acorn groves and know they have found life.',
+    ],
+    quest: {
+      id: 'elder_knowledge_keeper',
+      title: 'The Knowledge Keeper\'s Mission',
+      description: 'Nina Ookow has spent her life cataloging Miwok sacred sites — grinding rocks, ceremonial grounds, obsidian sources — now threatened by the relentless expansion of mining. She needs someone the settlers will listen to in order to help protect three critical sites from destruction.',
+      objective: 'Help Nina catalog and protect 3 sacred Miwok sites from mining damage',
+      reward: { goodKarma: 40, reputation: 20, goodEvilShift: 15, item: 'miwok_cultural_knowledge' },
+      completionCheck: 'choice',
+      category: 'exploration',
+      moralChoices: [
+        {
+          id: 'advocate_protection',
+          text: 'Petition the mining companies and local authorities to protect the sites',
+          reward: { goodKarma: 40, reputation: 20, goodEvilShift: 15, lawfulShift: 10, item: 'miwok_cultural_knowledge' },
+          consequence: 'You spend weeks writing letters, attending town meetings, and arguing with mine foremen. Two of the three sites are spared — the third is already half-destroyed. Nina watches you work with an expression that slowly transforms from skepticism to something close to trust. She teaches you the Miwok names for the sites you saved.',
+        },
+        {
+          id: 'document_secretly',
+          text: 'Document the sites thoroughly so the knowledge survives even if the places don\'t',
+          reward: { goodKarma: 25, reputation: 10, goodEvilShift: 5, item: 'sacred_site_documentation' },
+          consequence: 'You sketch, measure, and describe each site in meticulous detail. Nina dictates the cultural significance, the stories, the names. The document you create together is the first written record of Miwok heritage in the Mother Lode. It\'s not as good as saving the sites themselves, but knowledge preserved is knowledge that can fight another day.',
+        },
+        {
+          id: 'redirect_miners',
+          text: 'Spread false gold rumors to lure miners away from the sacred sites',
+          reward: { goodKarma: 15, reputation: 5, lawfulShift: -10, goodEvilShift: 5 },
+          consequence: 'Your phantom gold strike draws a dozen miners to a worthless creek bed forty miles from the nearest sacred site. The deception buys time, but Nina is troubled. "Lies are poor foundations," she says. "Even good lies." She is right, but the grinding rocks are safe for now.',
+        },
+      ],
+    },
+  },
+
+  // ANGELS CAMP — Self-Taught Builder
+  {
+    id: 'solar_builder_thomas',
+    name: 'Thomas \'Adobe\' Prescott',
+    title: 'Self-Taught Builder',
+    location: 'angels_camp',
+    witnessType: 'merchant',
+    portrait: '🧱',
+    greeting: 'See this wall? Eighteen inches of rammed earth. Cool in summer, warm in winter, and it\'ll stand for a hundred years. While your neighbors are rebuilding after every fire, I\'ll be sitting in the shade reading a book.',
+    personality: 'Visionary builder obsessed with rammed earth and passive solar design, decades ahead of his time. Learned adobe construction from Mexican builders and improved on it with his own experiments. Talks passionately about thermal mass and south-facing windows. Other settlers think he\'s eccentric. He doesn\'t care — his buildings are the most comfortable in Gold Country.',
+    ollamaPrompt: 'You are Thomas "Adobe" Prescott, a self-taught builder in 1850s Angels Camp, California. You build with rammed earth and adobe, techniques you learned from Mexican builders and improved with your own innovations. You are passionate about passive solar design — south-facing windows, thermal mass walls, natural ventilation. Other settlers think you\'re strange for not building with wood, but your buildings don\'t burn, stay cool in summer, and warm in winter. You speak enthusiastically about building techniques and can talk for hours about wall thickness, clay composition, and window placement. Keep responses to 2-3 sentences, enthusiastic and technical.',
+    dialogueLines: [
+      'Every fool in this town builds with pine boards. Pine burns. Pine rots. Adobe? The missions built with adobe two hundred years ago and they\'re still standing.',
+      'The secret is the south wall. Eighteen inches thick, whitewashed on the outside to reflect summer sun, with deep-set windows that catch every hour of winter light. The building heats itself.',
+      'I need someone to help me source the right clay. The red earth near Natural Bridges has the perfect calcium content — it sets like Roman concrete.',
+      'The Mexican builders at Sonora taught me more in one month than four years of reading. They understand earth the way a good blacksmith understands iron.',
+    ],
+    quest: {
+      id: 'prescott_build',
+      title: 'The Adobe Project',
+      description: 'Thomas Prescott is building a demonstration adobe structure in Angels Camp to prove that rammed earth construction is superior to the fire-prone wooden buildings that keep burning down. He needs help gathering specific materials — the right clay, straw for reinforcement, and lime for the plaster — and an extra pair of hands for the wall-raising.',
+      objective: 'Gather materials and help Thomas build an adobe demonstration structure',
+      reward: { neutralKarma: 30, goodKarma: 10, reputation: 10, unlockLocation: 'prescott_adobe_workshop' },
+      completionCheck: 'choice',
+      category: 'community',
+      moralChoices: [
+        {
+          id: 'full_commitment',
+          text: 'Commit fully — gather materials and help raise the walls',
+          reward: { neutralKarma: 30, goodKarma: 10, reputation: 10, goodEvilShift: 5, unlockLocation: 'prescott_adobe_workshop' },
+          consequence: 'A week of hard labor — hauling red clay from the creek bed, mixing it with straw and water, packing it into forms, and tamping it solid. The walls rise a foot a day. When the roof goes on, Thomas opens a bottle of wine he\'s been saving. The building is cool inside even at noon. Word spreads, and two other settlers commission adobe houses. You\'ve helped start something.',
+        },
+        {
+          id: 'supply_only',
+          text: 'Help source the materials but let Thomas do the building',
+          reward: { neutralKarma: 20, reputation: 5, goodEvilShift: 3 },
+          consequence: 'You find the perfect clay deposit near Natural Bridges and arrange for lime delivery from a kiln near Jackson. Thomas is grateful but the project takes twice as long without a building partner. The structure is eventually completed, smaller than planned but solid as the Sierra itself.',
+        },
+        {
+          id: 'sabotage_competitor',
+          text: 'A lumber merchant offers you gold to discourage Prescott — adobe threatens his business',
+          reward: { neutralKarma: 40, badKarma: 20, goodEvilShift: -15, lawfulShift: -10 },
+          consequence: 'You take the lumber merchant\'s gold and "accidentally" deliver the wrong clay — too sandy, no calcium. The first wall crumbles and Thomas is devastated. The lumber merchant buys you dinner. The taste of betrayal spoils every bite.',
+        },
+      ],
+    },
+  },
 ]
 
 // Helper functions

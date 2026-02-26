@@ -197,3 +197,109 @@ export function getBusinessValue(businessTier: BusinessTier): number {
   }
   return Math.floor(totalValue)
 }
+
+// ============================================================================
+// HISTORICALLY ACCURATE 1850s BUSINESSES (additional enterprises)
+// ============================================================================
+
+export interface HistoricalBusiness {
+  id: string
+  name: string
+  description: string
+  historicalNote: string
+  era: string
+  minBusinessTier: BusinessTier
+  additionalIncome: [number, number]
+  operatingCost: number
+  reputationBonus: number
+  specialEffect?: string
+}
+
+export const HISTORICAL_BUSINESSES: HistoricalBusiness[] = [
+  {
+    id: 'assay_office',
+    name: 'Assay Office',
+    description: 'Test and certify the purity of gold dust and nuggets. Miners pay for honest assays.',
+    historicalNote: 'Assay offices were essential — without them, miners couldn\'t know what their gold was worth. Unscrupulous assayers cheated miners regularly.',
+    era: '1849-1870s',
+    minBusinessTier: 2,
+    additionalIncome: [10, 30],
+    operatingCost: 5,
+    reputationBonus: 5,
+    specialEffect: 'Gold discoveries in settlement are worth 10% more',
+  },
+  {
+    id: 'express_mail',
+    name: 'Express Mail Service',
+    description: 'Deliver letters and packages between Gold Country settlements. Miners will pay dearly for news from home.',
+    historicalNote: 'Adams Express and later Wells Fargo charged $1 per letter (about $35 today). Alexander Todd became rich charging $2.50 per letter in the early days.',
+    era: '1849-1860s',
+    minBusinessTier: 1,
+    additionalIncome: [8, 25],
+    operatingCost: 3,
+    reputationBonus: 3,
+    specialEffect: 'Unlock NPC letters that contain clues and story content',
+  },
+  {
+    id: 'daguerreotype_studio',
+    name: 'Daguerreotype Studio',
+    description: 'Photographic portraits for miners wanting to send images home. A luxury service in frontier towns.',
+    historicalNote: 'Isaac Wallace Baker opened one of the first daguerreotype studios in Sacramento in 1850. Miners paid $5-16 for portraits — a day\'s wages.',
+    era: '1850-1865',
+    minBusinessTier: 3,
+    additionalIncome: [15, 45],
+    operatingCost: 10,
+    reputationBonus: 8,
+    specialEffect: 'Generate portrait mementos that boost settler reputation',
+  },
+  {
+    id: 'laundry',
+    name: 'Laundry Service',
+    description: 'Wash clothes for miners. Some men sent laundry to Hawaii rather than wash it themselves.',
+    historicalNote: 'During the early Gold Rush, laundry was so expensive that miners literally shipped dirty clothes to Hawaii and China. The stereotype of Chinese laundries began here — it was one of the few businesses open to Chinese immigrants after the Foreign Miners\' Tax.',
+    era: '1849-1900s',
+    minBusinessTier: 1,
+    additionalIncome: [5, 15],
+    operatingCost: 2,
+    reputationBonus: 2,
+    specialEffect: 'Black Bart\'s F.X.O.7 laundry mark Easter egg can trigger here',
+  },
+  {
+    id: 'blacksmith',
+    name: 'Blacksmith & Farrier',
+    description: 'Shoe horses, repair tools, and forge equipment. The backbone of any frontier settlement.',
+    historicalNote: 'Blacksmiths were among the highest-paid tradespeople in Gold Country. A good farrier could earn more than most miners. James Marshall, who discovered gold at Sutter\'s Mill, had been building a sawmill, not prospecting.',
+    era: '1849-1900s',
+    minBusinessTier: 2,
+    additionalIncome: [12, 35],
+    operatingCost: 8,
+    reputationBonus: 5,
+    specialEffect: 'Unlock horse equipment upgrades and tool repairs',
+  },
+  {
+    id: 'boarding_house',
+    name: 'Boarding House',
+    description: 'Simple lodging and meals for working miners. Cheaper than hotels, more reliable than tents.',
+    historicalNote: 'Many boarding houses were run by women, who were among the most successful entrepreneurs of the Gold Rush. A widow named Mary Jane Megquier wrote home: "I have made about $18,000 worth of pies."',
+    era: '1849-1880s',
+    minBusinessTier: 2,
+    additionalIncome: [10, 25],
+    operatingCost: 5,
+    reputationBonus: 4,
+  },
+]
+
+/**
+ * Get historical businesses available at the current tier.
+ */
+export function getAvailableHistoricalBusinesses(currentTier: BusinessTier): HistoricalBusiness[] {
+  return HISTORICAL_BUSINESSES.filter(b => currentTier >= b.minBusinessTier)
+}
+
+/**
+ * Calculate additional income from historical businesses.
+ */
+export function rollHistoricalBusinessIncome(business: HistoricalBusiness): number {
+  const [min, max] = business.additionalIncome
+  return Math.floor(Math.random() * (max - min + 1)) + min - business.operatingCost
+}

@@ -194,6 +194,93 @@ export const MILESTONE_OBSERVATIONS: TravelObservation[] = [
   { text: "Halfway there! Or so you hope. Maps are more art than science out here.", mood: 'witty', rarity: 'uncommon' },
 ]
 
+// Twain-flavored terrain observations (selected when narrator is in 'twain' mood)
+export const TWAIN_TERRAIN_OBSERVATIONS: Record<TerrainType, TravelObservation[]> = {
+  plains: [
+    { text: "The prairie is the floor of the world laid bare, and the sky is the ceiling painted by a madman with too much blue paint.", mood: 'philosophical', rarity: 'common' },
+    { text: "I have seen prairies that would make a man weep with their monotony. This one would make him weep faster.", mood: 'witty', rarity: 'common' },
+    { text: "Out here a man can see tomorrow coming. The problem is, tomorrow looks exactly like today.", mood: 'philosophical', rarity: 'uncommon' },
+    { text: "The grass extends to infinity in every direction. The narrator supposes this is freedom. It looks a lot like boredom.", mood: 'witty', rarity: 'common' },
+    { text: "The prairie wolf — that poor, mangy, starving scarecrow — watches from a distance. He is the most forlorn creature in all creation, and he knows it.", mood: 'observant', rarity: 'rare' },
+  ],
+  forest: [
+    { text: "These trees have been here since before America was a notion. They've outlasted every empire and will outlast yours too.", mood: 'philosophical', rarity: 'uncommon' },
+    { text: "In the forest, every shadow could be a bear or merely the shape of your own anxiety. Both are equally dangerous.", mood: 'ominous', rarity: 'common' },
+    { text: "The sugar pines of the Sierra are God's own cathedral, and the admission is free. So naturally, men are cutting them down.", mood: 'philosophical', rarity: 'rare' },
+    { text: "The forest is so thick that daylight is a rumor, confirmed only by occasional shafts that illuminate the dust of your passage.", mood: 'observant', rarity: 'uncommon' },
+    { text: "A sensible man stays out of forests he doesn't know. The narrator notes you are in an unknown forest.", mood: 'witty', rarity: 'common' },
+  ],
+  mountains: [
+    { text: "Lake Tahoe, seen from the mountains, is so clear and pure that a man who looks into it sees all the way to the bottom and also his own mortality.", mood: 'philosophical', rarity: 'rare' },
+    { text: "The Sierra Nevada. Named by Spaniards who saw snow on peaks and stated the obvious. The narrator approves of this approach to naming things.", mood: 'witty', rarity: 'common' },
+    { text: "Mountains exist to remind men that they are small. The narrator finds this comforting.", mood: 'philosophical', rarity: 'uncommon' },
+    { text: "The air up here is so pure it's almost offensive. Lungs accustomed to valley dust protest the upgrade.", mood: 'witty', rarity: 'common' },
+    { text: "The Donner Party came through these mountains. The narrator will not elaborate further. You're welcome.", mood: 'ominous', rarity: 'uncommon' },
+  ],
+  desert: [
+    { text: "The alkali desert gives one the feeling of being shipwrecked on dry land. The water is worse than the lack of it.", mood: 'weary', rarity: 'common' },
+    { text: "This desert taught the narrator what true thirst means. It means the water in your canteen tastes like salvation regardless of what's floating in it.", mood: 'philosophical', rarity: 'uncommon' },
+    { text: "The desert is honest. It tells you plainly that it wants to kill you. The narrator respects this directness.", mood: 'witty', rarity: 'common' },
+    { text: "Alkali water — guaranteed to turn a strong stomach into a weak one and a weak one into a memory.", mood: 'witty', rarity: 'uncommon' },
+    { text: "The narrator once described a similar desert and was called a liar. The desert doesn't care about literary criticism.", mood: 'witty', rarity: 'rare' },
+  ],
+  river: [
+    { text: "The narrator has spent considerable time on rivers. This one is not the Mississippi, but it is trying its best.", mood: 'witty', rarity: 'common' },
+    { text: "A Western river is an unreliable narrator of its own depth. The narrator feels a kinship.", mood: 'philosophical', rarity: 'uncommon' },
+    { text: "The river roars past with the confidence of something that knows exactly where it's going. The narrator envies this clarity of purpose.", mood: 'philosophical', rarity: 'uncommon' },
+    { text: "Fording a river is an act of optimism. Drowning in one is an act of realism. The narrator suggests a ferry.", mood: 'witty', rarity: 'common' },
+    { text: "Western rivers run fast and cold and carry gold dust in their bellies. Men die trying to empty them. The rivers don't notice.", mood: 'ominous', rarity: 'rare' },
+  ],
+}
+
+// Additional Gold Country landmark approaches
+export const GOLD_COUNTRY_LANDMARKS: Record<string, TravelObservation[]> = {
+  'Angels Camp': [
+    { text: "Angels Camp, where a jumped frog launched a literary career. The frogs remain unimpressed.", mood: 'witty', rarity: 'common' },
+    { text: "The narrator feels a strange compulsion to tell you about a celebrated jumping frog...", mood: 'witty', rarity: 'uncommon' },
+  ],
+  'Murphys': [
+    { text: "Murphys Hotel has hosted presidents, bandits, and tourists. Sometimes all three at once.", mood: 'witty', rarity: 'common' },
+    { text: "Murphys: where the wine is good, the history is rich, and the ghosts have excellent taste.", mood: 'hopeful', rarity: 'uncommon' },
+  ],
+  'Volcano': [
+    { text: "Volcano — once 17,000 souls. Now about 85, and a cannon that never fired. Dreams shrink with time.", mood: 'philosophical', rarity: 'common' },
+    { text: "Old Abe the cannon sits in Volcano, a Civil War weapon that never saw war. The narrator identifies.", mood: 'witty', rarity: 'uncommon' },
+  ],
+  'Mokelumne Hill': [
+    { text: "Mokelumne Hill, where more men died by violence than disease. An unusual distinction for the Gold Rush.", mood: 'ominous', rarity: 'common' },
+    { text: "The Hotel Leger stands here still, haunted by George Leger himself. He tips well, for a ghost.", mood: 'witty', rarity: 'uncommon' },
+  ],
+  'Jackson': [
+    { text: "Jackson, rebuilt after the great fire. Nothing teaches a town resilience like burning down.", mood: 'philosophical', rarity: 'common' },
+    { text: "The Kennedy Mine goes down over a mile. Men descend into darkness for gold. The narrator stays topside.", mood: 'ominous', rarity: 'uncommon' },
+  ],
+  'San Andreas': [
+    { text: "San Andreas, where Black Bart was finally unmasked. A gentleman bandit undone by a handkerchief.", mood: 'witty', rarity: 'common' },
+    { text: "The courthouse here has seen more drama than a San Francisco theater. And better acting.", mood: 'witty', rarity: 'uncommon' },
+  ],
+  'West Point': [
+    { text: "West Point, named by Kit Carson. He named it and kept walking. Smart man.", mood: 'witty', rarity: 'common' },
+    { text: "Black Bart robbed his last stage near here. His poetry was better than his escape plan.", mood: 'witty', rarity: 'uncommon' },
+  ],
+  'Nevada City': [
+    { text: "Nevada City, the Queen of the Northern Mines. She wears her crown with dusty dignity.", mood: 'philosophical', rarity: 'common' },
+    { text: "Lotta Crabtree danced here as a child and grew up to be one of the richest women in America. The stage pays.", mood: 'observant', rarity: 'uncommon' },
+  ],
+  'Grass Valley': [
+    { text: "Grass Valley and the Empire Mine — 5.8 million ounces of gold pulled from the earth. The earth has opinions about this.", mood: 'philosophical', rarity: 'common' },
+    { text: "Lola Montez lived here. She danced for kings and retired to Gold Country. Good taste.", mood: 'witty', rarity: 'uncommon' },
+  ],
+  'Mariposa': [
+    { text: "Mariposa, where Fremont's land grant grew legs and walked to where the gold was. Convenient, that.", mood: 'witty', rarity: 'common' },
+    { text: "The Mariposa Grove holds trees older than civilization. They do not care about your gold claims.", mood: 'philosophical', rarity: 'uncommon' },
+  ],
+  'BOBR Ranch': [
+    { text: "Back of Beyond Ranch. The narrator has traveled far and found few places more aptly named.", mood: 'hopeful', rarity: 'common' },
+    { text: "The ranch sits on sixty acres of Gold Country, and the narrator suspects every acre has a story.", mood: 'observant', rarity: 'uncommon' },
+  ],
+}
+
 // Random travel thoughts (appear when nothing else is happening)
 export const IDLE_THOUGHTS: TravelObservation[] = [
   { text: "You ponder the meaning of the journey. The trail offers no answers, only more trail.", mood: 'philosophical', rarity: 'common' },
@@ -212,13 +299,26 @@ export function getRandomObservation(
   timePhase: TimePhase,
   weather: WeatherMood,
   nearLandmark?: string,
-  daysTraveled?: number
+  daysTraveled?: number,
+  narratorMood?: string
 ): TravelObservation {
   const candidates: TravelObservation[] = []
 
   // Add landmark-specific observations if near a landmark
   if (nearLandmark && LANDMARK_APPROACH[nearLandmark]) {
     candidates.push(...LANDMARK_APPROACH[nearLandmark])
+  }
+
+  // Add Gold Country landmark observations
+  if (nearLandmark && GOLD_COUNTRY_LANDMARKS[nearLandmark]) {
+    candidates.push(...GOLD_COUNTRY_LANDMARKS[nearLandmark])
+  }
+
+  // If narrator is in Twain mood, use Twain observations
+  if (narratorMood === 'twain' && TWAIN_TERRAIN_OBSERVATIONS[terrain]) {
+    candidates.push(...TWAIN_TERRAIN_OBSERVATIONS[terrain])
+    // Boost Twain observations weight by adding them again
+    candidates.push(...TWAIN_TERRAIN_OBSERVATIONS[terrain])
   }
 
   // Add terrain observations
