@@ -33,7 +33,9 @@ export function collectTrophyState(): TrophyCheckState | null {
     chapter?: number
     level?: number
     xp?: number
+    totalXP?: number
     discoveredLocations?: string[]
+    discoveredLocationIds?: string[]
     confrontationsWon?: number
     playerName?: string
     gameFlags?: Record<string, boolean>
@@ -69,7 +71,7 @@ export function collectTrophyState(): TrophyCheckState | null {
 
   const chapter = adventure?.chapter ?? 0
   const level = adventure?.level ?? 1
-  const xp = adventure?.xp ?? 0
+  const xp = adventure?.totalXP ?? adventure?.xp ?? 0
 
   // Determine RPG ending from game flags or cross-game milestones
   let rpgEnding: string | null = null
@@ -122,7 +124,7 @@ export function collectTrophyState(): TrophyCheckState | null {
     chapter,
     level,
     xp,
-    locationsDiscovered: adventure?.discoveredLocations?.length ?? 0,
+    locationsDiscovered: adventure?.discoveredLocationIds?.length ?? adventure?.discoveredLocations?.length ?? 0,
     confrontationsWon: adventure?.confrontationsWon ?? 0,
     rpgEnding,
     lawfulChaotic,

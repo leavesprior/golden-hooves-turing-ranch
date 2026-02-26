@@ -164,6 +164,11 @@ export function useMapInteraction({
     if (!tierEnabled) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't capture keys when user is in an input, button, or modal overlay
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return
+      if (document.querySelector('.fixed.inset-0')) return
+
       const panAmount = 10
       switch (e.key) {
         case 'ArrowUp':

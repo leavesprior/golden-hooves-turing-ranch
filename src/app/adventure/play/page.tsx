@@ -624,12 +624,19 @@ function AdventureContent() {
     }
   }, [])
 
-  // Auto-save periodically
+  // Auto-save periodically (enriched with character info for leaderboard/trophy)
   useEffect(() => {
     if (!adventureState) return
-    const interval = setInterval(() => saveAdventureState(adventureState), 30000)
+    const interval = setInterval(() => {
+      const enriched = { ...adventureState } as AdventureState & { level?: number; playerName?: string }
+      if (charState.character) {
+        enriched.level = charState.character.level ?? 1
+        enriched.playerName = charState.character.name ?? 'Unknown'
+      }
+      saveAdventureState(enriched as AdventureState)
+    }, 30000)
     return () => clearInterval(interval)
-  }, [adventureState])
+  }, [adventureState, charState.character])
 
   // Redirect if no character (delay to let CharacterProvider hydrate from localStorage)
   useEffect(() => {
