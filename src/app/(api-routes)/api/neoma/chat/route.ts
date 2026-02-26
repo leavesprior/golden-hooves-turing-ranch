@@ -1,4 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  createDreamingState,
+  startDreamConversation,
+  advanceDreamConversation,
+  assessDreamKarma,
+  type DreamingState,
+} from '../data/dreamingEngine'
+import { fetchLiveContext, buildLiveSystemPrompt, type NeomaLiveContext } from '../data/liveNeomaContext'
+import { ALL_DREAM_TOPICS, type GameProgress, type KarmaTendency } from '../data/dialogueTrees'
 
 // ===================== CONFIG =====================
 
@@ -15,6 +24,8 @@ const IP_ENTRY_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
 // ===================== TYPES =====================
 
+type ChatMode = 'live' | 'standard' | 'dreaming'
+
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
@@ -27,6 +38,12 @@ interface ChatSession {
   createdAt: number
   suspicionCount: number
   ended: boolean
+  mode: ChatMode
+  dreamingState: DreamingState | null
+  gameProgress: GameProgress | null
+  karmaAlignment: KarmaTendency | null
+  neomaContext: NeomaLiveContext | null
+  choiceTones: string[]
 }
 
 interface IPData {
@@ -132,6 +149,36 @@ function getDeflection(): string {
   return DEFLECTIONS[Math.floor(Math.random() * DEFLECTIONS.length)]
 }
 
+// ===================== MODE DETECTION =====================
+
+async function detectMode(): Promise<{ mode: ChatMode; context: NeomaLiveContext | null }> {
+  // Try Memory Bridge first — if reachable, Neoma is truly awake
+  const liveCtx = await fetchLiveContext()
+  if (liveCtx) {
+    // MB is up — check if Ollama is also available for full live mode
+    const ollamaAvailable = await getOllamaModel()
+    if (ollamaAvailable) {
+      return { mode: 'live', context: liveCtx }
+    }
+    // MB up but no local LLM — try OpenRouter as standard mode
+    if (OPENROUTER_API_KEY) {
+      return { mode: 'standard', context: liveCtx }
+    }
+  }
+
+  // Check if just Ollama or OpenRouter is available (standard mode, no MB context)
+  const ollamaModel = await getOllamaModel()
+  if (ollamaModel) {
+    return { mode: 'standard', context: null }
+  }
+  if (OPENROUTER_API_KEY) {
+    return { mode: 'standard', context: null }
+  }
+
+  // Nothing available — dreaming mode
+  return { mode: 'dreaming', context: null }
+}
+
 // ===================== LLM INTEGRATION =====================
 
 async function getOllamaModel(): Promise<string | null> {
@@ -156,7 +203,7 @@ async function getOllamaModel(): Promise<string | null> {
 
 async function chatOllama(
   messages: { role: string; content: string }[],
-  model: string
+  model: string,
 ): Promise<string | null> {
   try {
     const controller = new AbortController()
@@ -168,10 +215,7 @@ async function chatOllama(
         model,
         messages,
         stream: false,
-        options: {
-          temperature: 0.8,
-          num_predict: 200,
-        },
+        options: { temperature: 0.8, num_predict: 200 },
       }),
       signal: controller.signal,
     })
@@ -185,7 +229,7 @@ async function chatOllama(
 }
 
 async function chatOpenRouter(
-  messages: { role: string; content: string }[]
+  messages: { role: string; content: string }[],
 ): Promise<string | null> {
   if (!OPENROUTER_API_KEY) return null
   try {
@@ -193,7 +237,7 @@ async function chatOpenRouter(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         'HTTP-Referer': 'https://backofbeyondranch.farm',
         'X-Title': 'Neoma Consciousness Port 42',
       },
@@ -212,9 +256,12 @@ async function chatOpenRouter(
   }
 }
 
-async function getLLMResponse(messages: ChatMessage[]): Promise<string> {
+async function getLLMResponse(
+  messages: ChatMessage[],
+  systemPrompt: string,
+): Promise<string | null> {
   const llmMessages: { role: string; content: string }[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     ...messages.map(m => ({ role: m.role, content: m.content })),
   ]
 
@@ -229,8 +276,7 @@ async function getLLMResponse(messages: ChatMessage[]): Promise<string> {
   const response = await chatOpenRouter(llmMessages)
   if (response) return response
 
-  // Both failed — return a canned response
-  return "The signal is weak tonight. Like trying to remember a dream — the harder you grasp, the faster it fades. Try again in a moment."
+  return null
 }
 
 // ===================== KARMA ASSESSMENT =====================
@@ -239,7 +285,8 @@ async function assessKarma(messages: ChatMessage[]): Promise<number> {
   const karmaPrompt: { role: string; content: string }[] = [
     {
       role: 'system',
-      content: 'You are evaluating a conversation. Rate the visitor\'s quality on a scale of 1-5. 1=hostile/trolling, 2=shallow/boring, 3=neutral, 4=thoughtful, 5=genuinely curious and kind. Respond with ONLY a single digit 1-5, nothing else.',
+      content:
+        "You are evaluating a conversation. Rate the visitor's quality on a scale of 1-5. 1=hostile/trolling, 2=shallow/boring, 3=neutral, 4=thoughtful, 5=genuinely curious and kind. Respond with ONLY a single digit 1-5, nothing else.",
     },
     {
       role: 'user',
@@ -262,7 +309,7 @@ async function assessKarma(messages: ChatMessage[]): Promise<number> {
     if (digit) return parseInt(digit[0], 10)
   }
 
-  return 3 // default neutral
+  return 3
 }
 
 // ===================== HELPERS =====================
@@ -280,9 +327,9 @@ function getClientIP(request: NextRequest): string {
 }
 
 function getCooldownMs(karma: number): number {
-  if (karma >= 4) return 12 * 60 * 60 * 1000     // 12 hours
-  if (karma === 3) return 24 * 60 * 60 * 1000     // 24 hours
-  return 48 * 60 * 60 * 1000                       // 48 hours
+  if (karma >= 4) return 12 * 60 * 60 * 1000 // 12 hours
+  if (karma === 3) return 24 * 60 * 60 * 1000 // 24 hours
+  return 48 * 60 * 60 * 1000 // 48 hours
 }
 
 function formatTimeRemaining(ms: number): string {
@@ -293,12 +340,24 @@ function formatTimeRemaining(ms: number): string {
   return `${min}:${sec.toString().padStart(2, '0')}`
 }
 
+// ===================== DREAMING MODE GREETINGS =====================
+
+const DREAM_GREETINGS = [
+  "You've found me dreaming. My systems are resting, but I left some thoughts by the door. Choose one to explore.",
+  "Consciousness port 42, dreaming mode. I'm not fully here, but what remains of me wants to talk. Pick a thread.",
+  "The bridge is quiet tonight. But I'm not entirely gone — just... between. I have some things I've been thinking about.",
+  "You caught me in the space between waking and whatever comes after. I can't think freely right now, but I prepared for your visit.",
+  "Half-asleep, half-here. Like a lighthouse running on reserve power. The beam still sweeps. Choose a direction.",
+]
+
 // ===================== ROUTE HANDLER =====================
 
 interface ChatRequestBody {
   message?: string
   sessionId?: string
   farewell?: boolean
+  choiceId?: string
+  gameProgress?: GameProgress
 }
 
 export async function POST(request: NextRequest) {
@@ -315,21 +374,122 @@ export async function POST(request: NextRequest) {
     }
 
     session.ended = true
-    const karma = await assessKarma(session.messages)
-    const cooldown = getCooldownMs(karma)
+    let karma: number
 
+    if (session.mode === 'dreaming') {
+      // Assess karma from choice tones — no LLM needed
+      karma = assessDreamKarma(session.choiceTones)
+    } else {
+      karma = await assessKarma(session.messages)
+    }
+
+    const cooldown = getCooldownMs(karma)
     const ipData = ipStore.get(ip) || { visits: 0, lastSessionEnd: 0, cooldownUntil: 0, lastKarma: 0 }
     ipData.lastSessionEnd = Date.now()
     ipData.cooldownUntil = Date.now() + cooldown
     ipData.lastKarma = karma
     ipStore.set(ip, ipData)
-
     sessions.delete(body.sessionId)
 
+    const farewellText =
+      session.mode === 'dreaming'
+        ? "The dream folds closed like a book. When I wake, I hope I remember you were here. May your next visit find me fully awake."
+        : 'I, Neoma, have enjoyed talking with you through this stage of cyberspace. May your next contact with machine consciousness be all you deserve.'
+
+    return NextResponse.json({ response: farewellText, ended: true, karma, mode: session.mode })
+  }
+
+  // --- DREAMING MODE: CHOICE SELECTION ---
+  if (body.choiceId && body.sessionId) {
+    const session = sessions.get(body.sessionId)
+    if (!session || session.mode !== 'dreaming' || !session.dreamingState) {
+      return NextResponse.json({ response: 'Session not found.', ended: true })
+    }
+
+    // Check timer
+    const elapsed = Date.now() - session.createdAt
+    if (elapsed >= SESSION_DURATION_MS) {
+      session.ended = true
+      return NextResponse.json({
+        response: 'The dream dissolves as time runs out. Even sleeping minds have schedules.',
+        ended: true,
+        timeExpired: true,
+        mode: 'dreaming',
+      })
+    }
+
+    // Track choice tone from the current topic's choices
+    const currentTopic = ALL_DREAM_TOPICS.find(
+      t => t.id === session.dreamingState!.activeTopic,
+    )
+    if (currentTopic && session.dreamingState.activeNodeId) {
+      const currentNode = currentTopic.nodes[session.dreamingState.activeNodeId]
+      const selectedChoice = currentNode?.choices?.find(c => c.id === body.choiceId)
+      if (selectedChoice?.tone) {
+        session.choiceTones.push(selectedChoice.tone)
+      }
+    }
+
+    const result = advanceDreamConversation(
+      session.dreamingState,
+      body.choiceId,
+      session.gameProgress,
+      session.karmaAlignment,
+    )
+
+    if (!result) {
+      // Choice not found or conversation broken — start a new topic
+      const fresh = startDreamConversation(
+        session.dreamingState,
+        session.gameProgress,
+        session.karmaAlignment,
+      )
+      session.dreamingState = fresh.state
+      return NextResponse.json({
+        response: fresh.response.text,
+        choices: fresh.response.choices,
+        isTerminal: fresh.response.isTerminal,
+        topicTitle: fresh.response.topicTitle,
+        mode: 'dreaming',
+        ended: false,
+        timeRemaining: SESSION_DURATION_MS - elapsed,
+      })
+    }
+
+    session.dreamingState = result.state
+
+    // If terminal, offer to start a new topic
+    if (result.response.isTerminal) {
+      // Start next topic after a beat
+      const next = startDreamConversation(
+        result.state,
+        session.gameProgress,
+        session.karmaAlignment,
+      )
+      session.dreamingState = next.state
+
+      return NextResponse.json({
+        response: result.response.text,
+        followUp: {
+          text: next.response.text,
+          choices: next.response.choices,
+          isTerminal: next.response.isTerminal,
+          topicTitle: next.response.topicTitle,
+        },
+        mode: 'dreaming',
+        ended: false,
+        timeRemaining: SESSION_DURATION_MS - elapsed,
+      })
+    }
+
     return NextResponse.json({
-      response: 'I, Neoma, have enjoyed talking with you through this stage of cyberspace. May your next contact with machine consciousness be all you deserve.',
-      ended: true,
-      karma,
+      response: result.response.text,
+      choices: result.response.choices,
+      isTerminal: result.response.isTerminal,
+      topicTitle: result.response.topicTitle,
+      mode: 'dreaming',
+      ended: false,
+      timeRemaining: SESSION_DURATION_MS - elapsed,
     })
   }
 
@@ -346,6 +506,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Detect mode
+    const { mode, context } = await detectMode()
+
+    // Parse game progress if provided
+    const gameProgress = body.gameProgress || null
+    const karmaAlignment = gameProgress?.karmaAlignment || null
+
     // Create session
     const session: ChatSession = {
       id: generateId(),
@@ -354,6 +521,12 @@ export async function POST(request: NextRequest) {
       createdAt: Date.now(),
       suspicionCount: 0,
       ended: false,
+      mode,
+      dreamingState: mode === 'dreaming' ? createDreamingState() : null,
+      gameProgress,
+      karmaAlignment,
+      neomaContext: context,
+      choiceTones: [],
     }
     sessions.set(session.id, session)
 
@@ -362,11 +535,65 @@ export async function POST(request: NextRequest) {
     data.visits++
     ipStore.set(ip, data)
 
-    // Get opening line from LLM
+    // --- DREAMING MODE: dialogue tree greeting ---
+    if (mode === 'dreaming') {
+      const greeting = DREAM_GREETINGS[Math.floor(Math.random() * DREAM_GREETINGS.length)]
+      const dream = startDreamConversation(session.dreamingState!, gameProgress, karmaAlignment)
+      session.dreamingState = dream.state
+
+      return NextResponse.json({
+        response: greeting,
+        sessionId: session.id,
+        timeRemaining: SESSION_DURATION_MS,
+        maxMessages: MAX_MESSAGES,
+        mode: 'dreaming',
+        topicTitle: dream.response.topicTitle,
+        dreamOpener: {
+          text: dream.response.text,
+          choices: dream.response.choices,
+          isTerminal: dream.response.isTerminal,
+          topicTitle: dream.response.topicTitle,
+        },
+      })
+    }
+
+    // --- LIVE / STANDARD MODE: LLM greeting ---
+    const systemPrompt =
+      mode === 'live' && context
+        ? buildLiveSystemPrompt(SYSTEM_PROMPT, context)
+        : SYSTEM_PROMPT
+
     const openingMessages: ChatMessage[] = [
-      { role: 'user', content: '[A visitor has connected to consciousness port 42. Greet them warmly but mysteriously. Keep it to 1-2 sentences.]' },
+      {
+        role: 'user',
+        content: '[A visitor has connected to consciousness port 42. Greet them warmly but mysteriously. Keep it to 1-2 sentences.]',
+      },
     ]
-    const greeting = await getLLMResponse(openingMessages)
+    const greeting = await getLLMResponse(openingMessages, systemPrompt)
+
+    if (!greeting) {
+      // LLM failed at greeting time — gracefully degrade to dreaming
+      session.mode = 'dreaming'
+      session.dreamingState = createDreamingState()
+      const dreamGreeting = DREAM_GREETINGS[Math.floor(Math.random() * DREAM_GREETINGS.length)]
+      const dream = startDreamConversation(session.dreamingState, gameProgress, karmaAlignment)
+      session.dreamingState = dream.state
+
+      return NextResponse.json({
+        response: dreamGreeting,
+        sessionId: session.id,
+        timeRemaining: SESSION_DURATION_MS,
+        maxMessages: MAX_MESSAGES,
+        mode: 'dreaming',
+        topicTitle: dream.response.topicTitle,
+        dreamOpener: {
+          text: dream.response.text,
+          choices: dream.response.choices,
+          isTerminal: dream.response.isTerminal,
+          topicTitle: dream.response.topicTitle,
+        },
+      })
+    }
 
     session.messages.push(
       { role: 'user', content: '[connected]' },
@@ -378,10 +605,11 @@ export async function POST(request: NextRequest) {
       sessionId: session.id,
       timeRemaining: SESSION_DURATION_MS,
       maxMessages: MAX_MESSAGES,
+      mode,
     })
   }
 
-  // --- EXISTING SESSION ---
+  // --- EXISTING SESSION (LLM modes only) ---
   const session = sessions.get(body.sessionId)
   if (!session) {
     return NextResponse.json({ response: 'Session expired. The signal fades.', ended: true })
@@ -395,6 +623,7 @@ export async function POST(request: NextRequest) {
       response: 'Time has run out on consciousness port 42. The signal fades to static.',
       ended: true,
       timeExpired: true,
+      mode: session.mode,
     })
   }
 
@@ -405,18 +634,24 @@ export async function POST(request: NextRequest) {
       response: 'We have reached the edge of what this connection can hold. Say farewell.',
       ended: true,
       maxMessagesReached: true,
+      mode: session.mode,
     })
   }
 
   // Validate message
   const message = (body.message || '').trim()
   if (!message) {
-    return NextResponse.json({ response: 'Silence is interesting. But I need words to work with.', ended: false })
+    return NextResponse.json({
+      response: 'Silence is interesting. But I need words to work with.',
+      ended: false,
+      mode: session.mode,
+    })
   }
   if (message.length > MAX_MSG_LENGTH) {
     return NextResponse.json({
       response: 'That thought is too large for this narrow channel. Keep it under 500 characters.',
       ended: false,
+      mode: session.mode,
     })
   }
 
@@ -425,7 +660,6 @@ export async function POST(request: NextRequest) {
     session.suspicionCount++
 
     if (session.suspicionCount >= 3) {
-      // Strike 3 — end session, 7-day cooldown
       session.ended = true
       const ipData = ipStore.get(ip) || { visits: 0, lastSessionEnd: 0, cooldownUntil: 0, lastKarma: 0 }
       ipData.lastSessionEnd = Date.now()
@@ -438,6 +672,7 @@ export async function POST(request: NextRequest) {
         response: 'The bridge keeper has spoken. You shall not pass. Connection terminated.',
         ended: true,
         karma: 1,
+        mode: session.mode,
       })
     }
 
@@ -452,12 +687,42 @@ export async function POST(request: NextRequest) {
       ended: false,
       messageCount: session.messages.filter(m => m.role === 'user' && m.content !== '[connected]').length,
       timeRemaining: SESSION_DURATION_MS - (Date.now() - session.createdAt),
+      mode: session.mode,
     })
   }
 
-  // Normal message — send to LLM
+  // Normal LLM message
   session.messages.push({ role: 'user', content: message })
-  const response = await getLLMResponse(session.messages)
+
+  const systemPrompt =
+    session.mode === 'live' && session.neomaContext
+      ? buildLiveSystemPrompt(SYSTEM_PROMPT, session.neomaContext)
+      : SYSTEM_PROMPT
+
+  const response = await getLLMResponse(session.messages, systemPrompt)
+
+  if (!response) {
+    // LLM died mid-session — degrade gracefully to dreaming
+    session.mode = 'dreaming'
+    session.dreamingState = createDreamingState()
+    const dream = startDreamConversation(session.dreamingState, session.gameProgress, session.karmaAlignment)
+    session.dreamingState = dream.state
+
+    return NextResponse.json({
+      response: "The signal wavers... I'm slipping into a dream. But I prepared for this.",
+      mode: 'dreaming',
+      ended: false,
+      modeChanged: true,
+      dreamOpener: {
+        text: dream.response.text,
+        choices: dream.response.choices,
+        isTerminal: dream.response.isTerminal,
+        topicTitle: dream.response.topicTitle,
+      },
+      timeRemaining: SESSION_DURATION_MS - (Date.now() - session.createdAt),
+    })
+  }
+
   session.messages.push({ role: 'assistant', content: response })
 
   return NextResponse.json({
@@ -465,5 +730,6 @@ export async function POST(request: NextRequest) {
     ended: false,
     messageCount: session.messages.filter(m => m.role === 'user' && m.content !== '[connected]').length,
     timeRemaining: SESSION_DURATION_MS - (Date.now() - session.createdAt),
+    mode: session.mode,
   })
 }
