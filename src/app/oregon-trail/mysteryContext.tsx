@@ -89,6 +89,18 @@ export interface OutlawStatus {
   warrant?: Warrant
 }
 
+export interface NotebookEntry {
+  id: string
+  type: 'discovery' | 'hint' | 'map_note' | 'npc_info' | 'lore'
+  title: string
+  text: string
+  icon?: string
+  location?: string
+  gameDay: number
+  relatedLocationId?: string
+  source: string
+}
+
 // Collected educational clue with answer status
 export interface CollectedEducationalClue {
   clue: EducationalClue
@@ -140,6 +152,9 @@ export interface MysteryState {
   // Telegraph warrant system
   investigationStartDay: number | null
   warrantSentAhead: boolean
+
+  // Notebook
+  notebookEntries: NotebookEntry[]
 }
 
 interface MysteryContextValue {
@@ -212,6 +227,9 @@ interface MysteryContextValue {
   sendTelegraphWarrant: () => boolean
   hasWarrantSentAhead: () => boolean
 
+  // Notebook
+  addNotebookEntry: (entry: NotebookEntry) => void
+
   // Persistence
   loadMysteryState: (savedState: Partial<MysteryState>) => void
 }
@@ -246,6 +264,9 @@ const initialState: MysteryState = {
   // Telegraph warrant
   investigationStartDay: null,
   warrantSentAhead: false,
+
+  // Notebook
+  notebookEntries: [],
 }
 
 export function MysteryProvider({ children }: { children: ReactNode }) {
@@ -1043,6 +1064,17 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
     return state.warrantSentAhead
   }, [state.warrantSentAhead])
 
+  // Add a notebook entry (deduplicated by id)
+  const addNotebookEntry = useCallback((entry: NotebookEntry) => {
+    setState(prev => {
+      if (prev.notebookEntries.some(e => e.id === entry.id)) return prev
+      return {
+        ...prev,
+        notebookEntries: [...prev.notebookEntries, entry],
+      }
+    })
+  }, [])
+
   // Load mystery state from saved data (persistence)
   const loadMysteryState = useCallback((savedState: Partial<MysteryState>) => {
     setState(prev => ({
@@ -1094,6 +1126,7 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
     getInvestigationRating,
     sendTelegraphWarrant,
     hasWarrantSentAhead,
+    addNotebookEntry,
     loadMysteryState
   }
 

@@ -15,6 +15,7 @@ import {
   type NPCRelationship,
   type DispositionLevel,
 } from '../data/npcRelationships'
+import { FloatingNumber } from '@/components/ui/FloatingNumber'
 
 // ============================================================================
 // HELPERS
@@ -235,6 +236,9 @@ function RelationshipCard({ relationship, currentDay }: RelationshipCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-amber-200 text-sm font-bold truncate">{displayName}</span>
+            {gateHint && gateHint.includes('dialogue') && (
+              <span className="animate-pulse text-yellow-400 text-xs ml-1">!</span>
+            )}
             <span
               className={`text-xs px-1.5 py-0.5 rounded border ${colors.text} border-current bg-black/20`}
             >
@@ -251,7 +255,7 @@ function RelationshipCard({ relationship, currentDay }: RelationshipCardProps) {
           <span className="text-amber-400 text-xs">{disposition}/100</span>
           <div className="w-20 h-2 bg-gray-800 rounded overflow-hidden border border-gray-700">
             <div
-              className={`h-full transition-all ${colors.bar}`}
+              className={`h-full transition-all duration-700 ease-out ${colors.bar}`}
               style={{ width: `${disposition}%` }}
             />
           </div>

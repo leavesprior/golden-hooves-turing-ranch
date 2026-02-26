@@ -128,6 +128,10 @@ import { getAvailableShops, getAvailableGuides, type SpecialtyShop as SpecialtyS
 import { PossePanel } from './components/PossePanel'
 const PosseRecruitment = lazy(() => import('./components/PosseRecruitment').then(m => ({ default: m.PosseRecruitment })))
 
+// Camp Menu & Pip-Boy Game Menu
+import { CampMenu } from './components/CampMenu'
+import { PipBoyMenu } from './components/GameMenu'
+
 // NEW: Character Sheet & Consumable Effects
 import { CharacterSheet } from './components/CharacterSheet'
 import { type ActiveEffect, applyConsumable, tickEffects, getConsumableItem, getInstantEffects } from './data/consumableEffects'
@@ -284,6 +288,10 @@ function TravelScreen() {
 
   // Posse recruitment modal (#6)
   const [showPosseRecruitment, setShowPosseRecruitment] = useState(false)
+
+  // Camp Menu & Pip-Boy Game Menu
+  const [showCampMenu, setShowCampMenu] = useState(false)
+  const [showPipBoy, setShowPipBoy] = useState(false)
 
   // Get Gold Country mystery context
   const { getCluesForLocation, getCorrectClueCount, getActiveCase, autoStartFirstCase } = useMystery()
@@ -867,6 +875,14 @@ function TravelScreen() {
               <span className="text-2xl">🦌</span>
               <p className="text-green-200 text-xs mt-1">Hunt</p>
             </button>
+            {/* Make Camp button */}
+            <button
+              onClick={() => setShowCampMenu(true)}
+              className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-600 rounded-lg text-center"
+            >
+              <span className="text-2xl">{'\u26FA'}</span>
+              <p className="text-amber-200 text-xs mt-1">Camp</p>
+            </button>
             {/* Ranch button - only at West Point */}
             {isWestPoint && (
               <button
@@ -1180,6 +1196,20 @@ function TravelScreen() {
             <PosseRecruitment onClose={() => setShowPosseRecruitment(false)} />
           </Suspense>
         )}
+
+        {/* Camp Menu */}
+        <CampMenu isOpen={showCampMenu} onClose={() => setShowCampMenu(false)} />
+
+        {/* Pip-Boy Game Menu */}
+        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} />
+
+        {/* FAB: Game Menu button */}
+        <button
+          onClick={() => setShowPipBoy(true)}
+          className="fixed bottom-4 right-4 z-40 bg-amber-900/90 border-2 border-amber-600 text-amber-200 font-pixel text-xs px-3 py-2 rounded hover:bg-amber-800/90 transition-colors shadow-lg"
+        >
+          [ESC] MENU
+        </button>
       </div>
     )
   }
@@ -1193,7 +1223,7 @@ function TravelScreen() {
       showLandmarks
       currentLandmark={state.currentLandmark}
     >
-      <div className="min-h-screen p-4" style={{ filter: tierFilter }}>
+      <div className="min-h-screen p-4 crt-scanlines" style={{ filter: tierFilter }}>
         <KarmaToastContainer />
 
         <div className="max-w-3xl mx-auto">
@@ -1416,6 +1446,13 @@ function TravelScreen() {
             onHunkerDown={() => {}}
             graphicsTier={state.graphicsTier}
           />
+          {/* Make Camp button */}
+          <button
+            onClick={() => setShowCampMenu(true)}
+            className="px-4 py-3 bg-amber-800 hover:bg-amber-700 text-amber-100 font-pixel text-sm rounded border-4 border-amber-600 transition-colors"
+          >
+            {'\u26FA'} Camp
+          </button>
         </div>
 
         {/* Character Sheet Modal (available during travel) */}
@@ -1437,6 +1474,20 @@ function TravelScreen() {
             }))}
           />
         )}
+
+        {/* Camp Menu (available during travel) */}
+        <CampMenu isOpen={showCampMenu} onClose={() => setShowCampMenu(false)} />
+
+        {/* Pip-Boy Game Menu (available during travel) */}
+        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} />
+
+        {/* FAB: Game Menu button */}
+        <button
+          onClick={() => setShowPipBoy(true)}
+          className="fixed bottom-4 right-4 z-40 bg-amber-900/90 border-2 border-amber-600 text-amber-200 font-pixel text-xs px-3 py-2 rounded hover:bg-amber-800/90 transition-colors shadow-lg"
+        >
+          [ESC] MENU
+        </button>
       </div>
     </div>
     </Graphics64bitWrapper>
@@ -1696,6 +1747,7 @@ function SaveLoadIntegration() {
           outlawsCaught: mysteryState.outlawsCaught,
           outlawsEscaped: mysteryState.outlawsEscaped,
           totalBountyEarned: mysteryState.totalBountyEarned,
+          notebookEntries: mysteryState.notebookEntries,
         },
       }
     })

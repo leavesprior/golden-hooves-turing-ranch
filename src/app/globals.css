@@ -530,3 +530,41 @@ select:focus-visible,
 .map-tier-ultra_64bit {
   filter: saturate(1.3) contrast(1.05) brightness(1.05);
 }
+
+/* ===== Game Interaction Feedback Animations ===== */
+
+@keyframes float-up {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-40px); }
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-3px); }
+  40%, 60% { transform: translateX(3px); }
+}
+
+@keyframes slide-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dice-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.animate-float-up { animation: float-up 0.8s ease-out forwards; }
+.animate-shake { animation: shake 0.3s ease-in-out; }
+.animate-slide-in-up { animation: slide-in-up 0.3s ease-out; }
+.animate-dice-flash { animation: dice-flash 0.15s ease-in-out infinite; }
+
+.crt-scanlines::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent 0px, rgba(0,0,0,0.03) 1px, transparent 2px);
+  pointer-events: none;
+  z-index: 9999;
+}

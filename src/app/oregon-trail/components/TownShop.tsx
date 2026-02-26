@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useNarrator } from '../narratorContext'
 import { useReputation } from '../reputationContext'
@@ -8,6 +8,10 @@ import { useKarmaWallet } from '../karmaWalletContext'
 import { KarmaWallet } from './KarmaWallet'
 import { KarmaConvertModal } from './KarmaConvertModal'
 import { SeasonalMarketOverlay } from './SeasonalMarketOverlay'
+import { playSFX } from '../lib/audioManager'
+import { DOSMessage } from '@/components/ui/DOSMessage'
+import { FloatingNumber } from '@/components/ui/FloatingNumber'
+import { useVisualEffect } from '../hooks/useVisualEffect'
 
 interface ShopItem {
   id: string
@@ -171,6 +175,9 @@ export function TownShop({ onClose }: TownShopProps) {
   const [availableSpecials] = useState(() =>
     SPECIAL_ITEMS.filter(item => Math.random() < item.rarity)
   )
+  const [floatingNum, setFloatingNum] = useState<{ value: number; key: number } | null>(null)
+  const shopRef = useRef<HTMLDivElement>(null)
+  const { trigger } = useVisualEffect()
 
   // Price modifier based on reputation + NPC relationship with the local shopkeeper
   const settlerBonus = getInteractionBonus('settlers')
@@ -218,7 +225,7 @@ export function TownShop({ onClose }: TownShopProps) {
     const totalAmount = item.quantity * qty
 
     if (!canAfford('neutral', totalCost)) {
-      // Show conversion modal
+      playSFX('fail')
       setConvertModalContext({ needed: totalCost, karmaType: 'neutral' })
       setShowConvertModal(true)
       return
@@ -226,6 +233,9 @@ export function TownShop({ onClose }: TownShopProps) {
 
     const success = await spendNeutral(totalCost, `${item.name} x${qty}`)
     if (success) {
+      playSFX('coin')
+      trigger(shopRef, 'flash-taco')
+      setFloatingNum({ value: -totalCost, key: Date.now() })
       buySupplies(item.resource, totalAmount, 0) // Don't deduct gold (already done via karma)
 
       // Record transaction for undo
@@ -266,6 +276,8 @@ export function TownShop({ onClose }: TownShopProps) {
 
     sellSupplies(item.resource, totalAmount, 0) // Don't add gold (use karma instead)
     await earnNeutral(totalKarma, `Sold ${item.name} x${qty}`)
+    playSFX('success')
+    setFloatingNum({ value: totalKarma, key: Date.now() })
 
     // Record transaction for undo
     const tx: Transaction = {
@@ -283,6 +295,7 @@ export function TownShop({ onClose }: TownShopProps) {
   const handleBuySpecial = useCallback(async (item: typeof SPECIAL_ITEMS[0]) => {
     // Special items cost Good Karma 🍪
     if (!canAfford('good', item.price)) {
+      playSFX('fail')
       setMessage(`You need ${item.price}🍪 Good Karma for this item!`)
       setMood('amused')
       comment("Good karma is earned through virtuous deeds, not purchased. The irony is not lost on the narrator.", 'observation')
@@ -291,6 +304,8 @@ export function TownShop({ onClose }: TownShopProps) {
 
     const success = await spendGood(item.price, `Special: ${item.name}`)
     if (success) {
+      playSFX('coin')
+      trigger(shopRef, 'flash-golden')
       setMessage(`You acquired: ${item.name}! (-${item.price}🍪)`)
 
       if (item.narratorComment) {
@@ -342,7 +357,7 @@ export function TownShop({ onClose }: TownShopProps) {
 
   return (
     <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
-      <div className="bg-amber-950 border-2 border-amber-600 rounded-lg w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <div ref={shopRef} className="bg-amber-950 border-2 border-amber-600 rounded-lg w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col relative">
         {/* Header */}
         <div className="bg-amber-900 p-4 border-b border-amber-600 flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -619,7 +634,12 @@ export function TownShop({ onClose }: TownShopProps) {
         {/* Message & Close */}
         <div className="border-t border-amber-700 p-4">
           {message && (
-            <p className="text-amber-200 text-sm mb-3 text-center">{message}</p>
+            <DOSMessage text={message} className="text-center mb-3" speed={25} sfxEvery={0} />
+          )}
+          {floatingNum && (
+            <div className="relative flex justify-center">
+              <FloatingNumber key={floatingNum.key} value={floatingNum.value} emoji="🌮" />
+            </div>
           )}
           <button
             onClick={onClose}

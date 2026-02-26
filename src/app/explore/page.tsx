@@ -1208,7 +1208,7 @@ function TownDrawer({
 
         {/* Attractions List */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-          {allAttractions.map(attraction => {
+          {allAttractions.map((attraction, i) => {
             const visited = isAttractionVisited(attraction.id)
             const expanded = expandedAttraction === attraction.id
             const favorite = isFavorite(attraction.id)
@@ -1216,9 +1216,10 @@ function TownDrawer({
             return (
               <div
                 key={attraction.id}
-                className={`border-2 rounded-lg overflow-hidden transition-all ${
+                className={`border-2 rounded-lg overflow-hidden transition-all animate-slide-in-up ${
                   visited ? 'border-green-600 bg-green-900/20' : 'border-slate-600 bg-slate-800/50'
                 }`}
+                style={{ animationDelay: `${i * 0.08}s`, animationFillMode: 'backwards' }}
               >
                 <button
                   onClick={() => handleVisitAttraction(attraction)}

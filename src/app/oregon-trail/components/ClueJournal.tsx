@@ -24,7 +24,7 @@ function groupCluesByOutlaw(clues: CollectedClue[]): Record<string, CollectedClu
 export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJournalProps) {
   useEscapeKey(onClose)
   const { state: mysteryState, getNarrowedDown } = useMystery()
-  const [activeTab, setActiveTab] = useState<'bounties' | 'clues' | 'evidence' | 'suspects'>('bounties')
+  const [activeTab, setActiveTab] = useState<'bounties' | 'clues' | 'evidence' | 'suspects' | 'notes'>('bounties')
 
   // Group clues by outlaw for bounty hunter mode
   const cluesByOutlaw = useMemo(() => groupCluesByOutlaw(mysteryState.collectedClues), [mysteryState.collectedClues])
@@ -96,6 +96,16 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
               }`}
             >
               Suspects ({possible.length}/{OUTLAWS.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('notes')}
+              className={`px-4 py-2.5 md:px-3 md:py-1 rounded-t text-base md:text-sm active:scale-[0.98] ${
+                activeTab === 'notes'
+                  ? 'bg-amber-200/20 text-amber-200 border-b-2 border-amber-400'
+                  : 'text-amber-400/60 hover:text-amber-300'
+              }`}
+            >
+              {'\uD83D\uDCD3'} Notes ({mysteryState.notebookEntries?.length ?? 0})
             </button>
           </div>
         </div>
@@ -359,6 +369,57 @@ export function ClueJournal({ onClose, onOpenDossier, onOpenTelegraph }: ClueJou
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'notes' && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {(!mysteryState.notebookEntries || mysteryState.notebookEntries.length === 0) ? (
+                <div className="text-center py-8">
+                  <p className="text-amber-500 text-sm">No notes yet.</p>
+                  <p className="text-amber-600 text-xs mt-1">
+                    Discover people, places, and secrets to fill your notebook.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {(['discovery', 'hint', 'map_note', 'npc_info', 'lore'] as const).map(noteType => {
+                    const entries = mysteryState.notebookEntries.filter((e: any) => e.type === noteType)
+                    if (entries.length === 0) return null
+                    const typeLabels: Record<string, string> = {
+                      discovery: '\uD83D\uDD0D Discoveries',
+                      hint: '\uD83D\uDCA1 Hints',
+                      map_note: '\uD83D\uDCCD Map Notes',
+                      npc_info: '\uD83D\uDC64 People',
+                      lore: '\uD83D\uDCDC Lore',
+                    }
+                    return (
+                      <div key={noteType}>
+                        <h4 className="text-amber-400 text-xs font-bold mb-2 uppercase tracking-wider">
+                          {typeLabels[noteType]}
+                        </h4>
+                        <div className="space-y-2">
+                          {entries.map((entry: any) => (
+                            <div key={entry.id} className="bg-black/30 border border-amber-800/50 rounded p-2">
+                              <div className="flex items-start gap-2">
+                                {entry.icon && <span className="text-lg">{entry.icon}</span>}
+                                <div className="flex-1">
+                                  <span className="text-amber-200 text-xs font-bold">{entry.title}</span>
+                                  {entry.location && (
+                                    <span className="text-amber-600 text-[10px] ml-2">@ {entry.location}</span>
+                                  )}
+                                  <p className="text-amber-300 text-[10px] mt-1">{entry.text}</p>
+                                  <span className="text-amber-700 text-[9px]">Day {entry.gameDay}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </>
               )}
             </div>
           )}

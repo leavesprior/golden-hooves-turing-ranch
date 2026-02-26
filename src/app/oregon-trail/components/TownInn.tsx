@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useNarrator } from '../narratorContext'
 import { useReputation } from '../reputationContext'
@@ -9,6 +9,9 @@ import { useKarmaWallet } from '../karmaWalletContext'
 import { KarmaWallet } from './KarmaWallet'
 import { KarmaConvertModal } from './KarmaConvertModal'
 import { rollGhostEncounter, type GhostEncounter, type GhostChoice } from '../data/hauntedInns'
+import { playSFX } from '../lib/audioManager'
+import { DOSMessage } from '@/components/ui/DOSMessage'
+import { useVisualEffect } from '../hooks/useVisualEffect'
 
 interface RoomOption {
   id: string
@@ -208,6 +211,9 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     isWestPoint ? "Welcome to the Back of Beyond Inn! I'm Cynthia. You look like you've been on the trail a while. Sit down, rest your bones." : null
   )
 
+  const innRef = useRef<HTMLDivElement>(null)
+  const { trigger } = useVisualEffect()
+
   // Combine standard items with special items for West Point
   const rooms = isWestPoint
     ? [...STANDARD_ROOMS, ...CYNTHIAS_SPECIAL_ROOMS]
@@ -234,6 +240,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     const karmaEmoji = usesGoodKarma ? '🍪' : '🌮'
 
     if (!canAfford(karmaType, price)) {
+      playSFX('fail')
       if (usesGoodKarma) {
         setMessage(`You need ${price}🍪 Good Karma for ${room.name}!`)
       } else {
@@ -253,6 +260,8 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     }
 
     restAtInn(room.healthBonus, room.moraleBonus, 0) // Pass 0 since karma already spent
+    playSFX('coin')
+    trigger(innRef, 'flash-taco')
     setMessage(`Your party rests in the ${room.name}. Everyone feels refreshed! (-${price}${karmaEmoji})`)
     setPartyMorale(m => Math.min(100, m + room.moraleBonus))
 
@@ -305,6 +314,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     }
 
     buyFood(foodItem.healthBonus, foodItem.moraleBonus, 0, foodItem.partyWide) // Pass 0 since karma already spent
+    playSFX('coin')
     setMessage(`The party enjoys ${foodItem.name}. ${foodItem.partyWide ? 'Everyone feels better!' : 'Delicious!'} (-${price}${karmaEmoji})`)
     setPartyMorale(m => Math.min(100, m + foodItem.moraleBonus))
 
@@ -340,6 +350,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     }
 
     buyDrink(drink.moraleBonus, 0) // Pass 0 since karma already spent
+    playSFX('coin')
     setMessage(`You enjoy a ${drink.name}. ${drink.effect} (-${price}🌮)`)
     setPartyMorale(m => Math.min(100, m + drink.moraleBonus))
 
@@ -416,7 +427,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
 
   return (
     <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
-      <div className="bg-amber-950 border-2 border-amber-600 rounded-lg w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <div ref={innRef} className="bg-amber-950 border-2 border-amber-600 rounded-lg w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className={`p-4 border-b border-amber-600 flex justify-between items-center ${
           isWestPoint ? 'bg-gradient-to-r from-amber-900 to-emerald-900' : 'bg-amber-900'
@@ -623,7 +634,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
                   <span className="text-amber-200 text-xs flex-1">{member.name}</span>
                   <div className="w-24 h-2 bg-gray-700 rounded overflow-hidden">
                     <div
-                      className={`h-full ${
+                      className={`h-full transition-all duration-700 ease-out ${
                         member.health > 70 ? 'bg-green-500' :
                         member.health > 40 ? 'bg-yellow-500' :
                         member.health > 20 ? 'bg-orange-500' : 'bg-red-500'
@@ -641,7 +652,7 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
         {/* Message & Close */}
         <div className="border-t border-amber-700 p-4">
           {message && (
-            <p className="text-amber-200 text-sm mb-3 text-center">{message}</p>
+            <DOSMessage text={message} className="text-center mb-3" speed={25} sfxEvery={0} />
           )}
           <button
             onClick={onClose}

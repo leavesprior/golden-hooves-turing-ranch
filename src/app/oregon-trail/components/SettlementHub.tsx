@@ -12,6 +12,9 @@ import { RanchManagement } from './RanchManagement'
 import { KarmaWallet } from './KarmaWallet'
 import { BusinessHub } from './BusinessHub'
 import { ENDINGS } from '../data/settlementConfig'
+import { playSFX } from '../lib/audioManager'
+import { DOSMessage } from '@/components/ui/DOSMessage'
+import { FloatingNumber } from '@/components/ui/FloatingNumber'
 
 interface SettlementHubProps {
   onLeave: () => void
@@ -41,25 +44,48 @@ export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
   const endingConfig = ENDINGS[currentEnding]
 
   const [miningResult, setMiningResult] = useState<number | null>(null)
+  const [showDayPassage, setShowDayPassage] = useState(false)
+  const [dayPassageText, setDayPassageText] = useState('')
+
+  const dayPhase = state.daysInSettlement % 4
+  const DAY_GRADIENTS = [
+    'from-blue-900/20 via-amber-900/10 to-yellow-900/10',   // morning
+    'from-yellow-900/10 via-amber-900/10 to-orange-900/10', // afternoon
+    'from-orange-900/20 via-red-900/15 to-purple-900/15',   // evening
+    'from-indigo-900/30 via-blue-900/20 to-gray-900/20',    // night
+  ]
+  const dayGradient = DAY_GRADIENTS[dayPhase]
 
   const handleAdvanceDay = () => {
-    advanceDay(1)
-    if (ranch?.advanceDay) {
-      ranch.advanceDay(1)
-    }
+    playSFX('click')
+    const nextDay = state.daysInSettlement + 1
+    setDayPassageText(`Day ${nextDay}...`)
+    setShowDayPassage(true)
+    setTimeout(() => {
+      advanceDay(1)
+      if (ranch?.advanceDay) ranch.advanceDay(1)
+      setShowDayPassage(false)
+    }, 600)
   }
 
   const handleAdvanceWeek = () => {
-    advanceDay(7)
-    if (ranch?.advanceDay) {
-      ranch.advanceDay(7)
-    }
+    playSFX('click')
+    const startDay = state.daysInSettlement + 1
+    setDayPassageText(`Day ${startDay}... ${startDay + 1}... ${startDay + 2}... ${startDay + 3}... ${startDay + 4}... ${startDay + 5}... ${startDay + 6}...`)
+    setShowDayPassage(true)
+    setTimeout(() => {
+      advanceDay(7)
+      if (ranch?.advanceDay) ranch.advanceDay(7)
+      setShowDayPassage(false)
+    }, 1200)
   }
 
   const handleWorkMines = async () => {
+    playSFX('shot')  // pickaxe sound
     const gold = await workMiningClaims()
     setMiningResult(gold)
-    handleAdvanceDay() // Mining takes a day
+    handleAdvanceDay()
+    if (gold > 0) playSFX('coin')
     setTimeout(() => setMiningResult(null), 3000)
   }
 
@@ -83,7 +109,12 @@ export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-yellow-950 via-amber-900 to-amber-950 p-4">
+    <div className={`min-h-screen bg-gradient-to-br ${dayGradient} transition-all duration-1000 p-4`}>
+      {showDayPassage && (
+        <div className="absolute inset-0 bg-black/80 z-50 flex items-center justify-center">
+          <DOSMessage text={dayPassageText} speed={60} className="text-amber-400 text-lg font-mono" sfxEvery={0} />
+        </div>
+      )}
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <header className="bg-gray-900/80 border-2 border-amber-600 rounded-lg p-4 mb-4">
@@ -156,10 +187,11 @@ export function SettlementHub({ onLeave, onComplete }: SettlementHubProps) {
 
               {/* Mining Result */}
               {miningResult !== null && (
-                <div className="p-4 bg-yellow-900/60 border border-yellow-500 rounded-lg text-center animate-pulse">
+                <div className="p-4 bg-yellow-900/60 border border-yellow-500 rounded-lg text-center relative">
                   <span className="text-yellow-300 font-pixel text-lg">
                     Mining yield: +{miningResult}🌮
                   </span>
+                  <FloatingNumber value={miningResult} emoji="🌮" type="karma" />
                 </div>
               )}
 
