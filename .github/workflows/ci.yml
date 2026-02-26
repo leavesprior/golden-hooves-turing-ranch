@@ -7,8 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  quality-gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
@@ -24,8 +25,28 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Lint
+      - name: Lint (zero errors policy)
         run: npm run lint
 
       - name: Build
         run: npm run build
+
+      - name: Smoke test — verify key routes compiled
+        run: |
+          echo "Checking build output for critical routes..."
+          for route in oregon-trail adventure explore neoma; do
+            if ls .next/server/app/$route 2>/dev/null; then
+              echo "  ✓ /$route route compiled"
+            else
+              echo "  ✗ /$route route MISSING from build" && exit 1
+            fi
+          done
+          echo "All critical routes present."
+
+      - name: Build size check
+        run: |
+          SIZE=$(du -sm .next | cut -f1)
+          echo "Build size: ${SIZE}MB"
+          if [ "$SIZE" -gt 500 ]; then
+            echo "::warning::Build size exceeds 500MB ($SIZE MB) — investigate bundle size"
+          fi

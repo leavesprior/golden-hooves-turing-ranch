@@ -565,7 +565,7 @@ export function applyConsumable(
   const item = getConsumableItem(itemId)
   if (!item) return activeEffects
 
-  let result = [...activeEffects]
+  const result = [...activeEffects]
 
   // Combine primary effects and side effects into one pass
   const allEffects: Array<{ effect: ConsumableEffect; isSideEffect: boolean }> = [

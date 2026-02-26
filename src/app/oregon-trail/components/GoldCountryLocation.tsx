@@ -50,6 +50,29 @@ export function GoldCountryLocation({
   const npcs = getNPCsAtLocation(locationId)
   const searchAreas = getSearchAreasForLocation(locationId)
 
+  // Hook must be called before any early return (React rules-of-hooks)
+  const handleSearch = useCallback((area: SearchArea) => {
+    setSelectedSearchArea(area)
+    setIsSearching(true)
+    setView('search')
+
+    // Simulate search with delay
+    setTimeout(() => {
+      const finding = resolveSearch(area)
+      setSearchResult(finding)
+      setIsSearching(false)
+      setView('search_result')
+
+      if (finding) {
+        markAreaSearched(area.id)
+        if (finding.itemGained) addInventoryItem(finding.itemGained)
+        if (finding.karmaGained) earnGood(finding.karmaGained)
+      }
+
+      advanceGoldCountryDay(1)
+    }, 1500)
+  }, [markAreaSearched, addInventoryItem, earnGood, advanceGoldCountryDay])
+
   if (!location) {
     return (
       <div className="min-h-screen bg-black text-green-400 flex items-center justify-center">
@@ -122,28 +145,6 @@ export function GoldCountryLocation({
     setView('quest_outcome')
     advanceGoldCountryDay(1)
   }
-
-  const handleSearch = useCallback((area: SearchArea) => {
-    setSelectedSearchArea(area)
-    setIsSearching(true)
-    setView('search')
-
-    // Simulate search with delay
-    setTimeout(() => {
-      const finding = resolveSearch(area)
-      setSearchResult(finding)
-      setIsSearching(false)
-      setView('search_result')
-
-      if (finding) {
-        markAreaSearched(area.id)
-        if (finding.itemGained) addInventoryItem(finding.itemGained)
-        if (finding.karmaGained) earnGood(finding.karmaGained)
-      }
-
-      advanceGoldCountryDay(1)
-    }, 1500)
-  }, [markAreaSearched, addInventoryItem, earnGood, advanceGoldCountryDay])
 
   /** Render reward summary as inline text */
   const renderRewardSummary = (reward: QuestReward) => {

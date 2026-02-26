@@ -112,23 +112,7 @@ export function LocationView({
   const [svcSuccess, setSvcSuccess] = useState<boolean | null>(null)
   const [purchasedItems, setPurchasedItems] = useState<Set<string>>(new Set())
 
-  const location = getChapterLocation(locationId)
-  if (!location) {
-    return (
-      <div className="p-4 text-center">
-        <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-fire-orange)]">
-          Location not found: {locationId}
-        </p>
-        <button onClick={onReturnToMap} className="mt-2 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] underline">
-          Return to Map
-        </button>
-      </div>
-    )
-  }
-
-  const gradient = ATMOSPHERE_GRADIENTS[location.atmosphere] ?? 'from-stone-950 to-black'
-  const unansweredClues = (location.discoveryClues ?? []).filter(c => !answeredClueIds.has(c.id))
-
+  // All hooks must be called before any early returns (React rules-of-hooks)
   const handleSubmitClueAnswer = useCallback((clue: DiscoveryClue) => {
     const trimmed = clueAnswer.trim().toLowerCase()
     const isCorrect = clue.acceptableAnswers.some(a => a.toLowerCase() === trimmed)
@@ -148,7 +132,7 @@ export function LocationView({
       onClueAnswered?.(clue, false)
     }
     setClueAnswer('')
-  }, [clueAnswer, answeredClueIds, onAddXP, onEarnKarma, onClueAnswered])
+  }, [clueAnswer, answeredClueIds, onAddXP, onEarnKarma, onClueAnswered, onGameStateChanged])
 
   const handleSearch = useCallback(() => {
     setIsSearching(true)
@@ -165,6 +149,23 @@ export function LocationView({
       onGameStateChanged?.()
     }, 1500)
   }, [onSkillCheck, onAddXP, onGameStateChanged])
+
+  const location = getChapterLocation(locationId)
+  if (!location) {
+    return (
+      <div className="p-4 text-center">
+        <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-fire-orange)]">
+          Location not found: {locationId}
+        </p>
+        <button onClick={onReturnToMap} className="mt-2 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] underline">
+          Return to Map
+        </button>
+      </div>
+    )
+  }
+
+  const gradient = ATMOSPHERE_GRADIENTS[location.atmosphere] ?? 'from-stone-950 to-black'
+  const unansweredClues = (location.discoveryClues ?? []).filter(c => !answeredClueIds.has(c.id))
 
   // Open a service sub-view, resetting messages
   const openService = (svcType: string) => {

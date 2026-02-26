@@ -61,7 +61,7 @@ export function ResearchStation({
   const displayLink = location?.externalLink || clue.hintLink
   const displayLinkPrompt = location?.linkPrompt || 'Research this location'
   const displayLinkHint = location?.linkHint || ''
-  const { attemptEducationalClue, useHint, getEducationalProgress, getCorrectClueCount, state: mysteryState } = useMystery()
+  const { attemptEducationalClue, useHint: applyHint, getEducationalProgress, getCorrectClueCount, state: mysteryState } = useMystery()
   const { earnGood, earnNeutral, recordGoodAction, spendNeutral, canAfford } = useKarmaWallet()
 
   // Check if this clue was already answered correctly
@@ -147,11 +147,11 @@ export function ResearchStation({
 
     const success = await spendNeutral(hintCost, `Hint for ${displayName}`)
     if (success) {
-      useHint(clue.id)
+      applyHint(clue.id)
       setShowHint(true)
       setHintsUsed(prev => prev + 1)
     }
-  }, [canAfford, spendNeutral, useHint, clue.id, displayName])
+  }, [canAfford, spendNeutral, applyHint, clue.id, displayName])
 
   // Handle closing and reset
   const handleClose = useCallback(() => {
