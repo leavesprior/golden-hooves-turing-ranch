@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
+import { useCharacter } from '../characterContext'
 import { useNarrator } from '../narratorContext'
 import { useReputation } from '../reputationContext'
 import { useKarmaWallet } from '../karmaWalletContext'
@@ -173,7 +174,8 @@ interface Transaction {
 }
 
 export function TownShop({ onClose }: TownShopProps) {
-  const { state, buySupplies, sellSupplies, getShopDiscount, getTrailMarketEvent, getTrailMarketPrices } = useOregonTrail()
+  const { state, buySupplies, sellSupplies, getShopDiscount, getTrailMarketEvent, getTrailMarketPrices, addInventoryItem, restAtInn } = useOregonTrail()
+  const { modifyStat, addTrait, addExperience } = useCharacter()
   const { comment, setMood } = useNarrator()
   const { getInteractionBonus, modifyReputation } = useReputation()
   const { balance, canAfford, spendNeutral, spendGood, earnNeutral, showConvertModal, setShowConvertModal, convertModalContext, setConvertModalContext } = useKarmaWallet()
@@ -327,6 +329,39 @@ export function TownShop({ onClose }: TownShopProps) {
         }, 500)
       }
 
+      // Add to inventory
+      addInventoryItem(item.id)
+
+      // Apply item-specific effects
+      switch (item.id) {
+        case 'towel':
+          // Towel: +42% panic resistance via hoopy_frood trait + Luck/Durability boost
+          addTrait('hoopy_frood')
+          playSFX('success')
+          break
+        case 'lucky_horseshoe':
+          // +1 Luck permanently
+          modifyStat('Luck', 1)
+          break
+        case 'snake_oil':
+          // 50/50 heal or harm — Luck decides
+          if (Math.random() > 0.5) {
+            restAtInn(20, 5, 0)
+            setMessage(`You acquired: ${item.name}! The elixir works! Party feels rejuvenated. (-${item.price}🍪)`)
+          } else {
+            modifyStat('Durability', -1)
+            setMessage(`You acquired: ${item.name}! Ugh... that tasted terrible. Durability reduced. (-${item.price}🍪)`)
+          }
+          break
+        case 'mysterious_map':
+          // Reveals a shortcut — effect handled by travel system via inventory check
+          break
+        case 'dime_novel':
+          // Reading grants insight into outlaw behavior (+1 clue hint via XP)
+          addExperience(10)
+          break
+      }
+
       // Easter egg: buying at exactly 42 Good Karma
       if (item.price === 42) {
         setMood('impressed')
@@ -335,7 +370,7 @@ export function TownShop({ onClose }: TownShopProps) {
         }, 1500)
       }
     }
-  }, [canAfford, spendGood, comment, setMood])
+  }, [canAfford, spendGood, comment, setMood, addInventoryItem, addTrait, modifyStat, addExperience, restAtInn])
 
   // Undo a transaction - reverse the supply and karma changes
   const undoTransaction = useCallback(async (txId: string) => {

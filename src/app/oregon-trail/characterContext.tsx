@@ -255,7 +255,14 @@ export const CHARACTER_TRAITS: Record<string, CharacterTrait> = {
     description: 'People open up to you.',
     statModifiers: { Diplomacy: 2 },
     specialAbility: 'Witnesses provide more detailed clues'
-  }
+  },
+  hoopy_frood: {
+    id: 'hoopy_frood',
+    name: 'Hoopy Frood',
+    description: 'You really know where your towel is. +42% resistance to panic.',
+    statModifiers: { Luck: 2, Durability: 1 },
+    specialAbility: '+5% to all skill checks, 10% discount at Cynthia\'s Inn'
+  },
 }
 
 // Base stats for new characters
