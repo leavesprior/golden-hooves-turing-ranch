@@ -97,22 +97,30 @@ Providers wrap in specific order — changing order breaks state:
 
 ## Current State (2026-02-27)
 
-### Deployed (origin/main @ 6eb6f93)
-Everything through deep enrichment + interaction stickiness:
+### Deployed (origin/main @ 8409df4, 2026-02-27)
+Full feature set live on Railway:
 - 10 DOS improvements, cross-game karma, Twain narrator, historical content
-- Chapters, towns, journal, visual enhancements
-- Interaction depth (DOSMessage typewriter, floating numbers, visual effects)
-- 4 new explore towns with map positions
-
-### Pending Deploy (PR #2: deploy/feb27-consolidated-polish)
-11 commits, +3200 lines, all gates passing:
+- Chapters, towns, journal, visual enhancements, interaction depth
 - Stackable timed buffs + active effects strip
-- Personality-based NPC loyalty system
-- Wagon repair, special item effects, oxen in shop
-- PipBoy menu wiring, context-aware hints
-- Critical audit fixes (shop persistence, camp effects, audio, DiscoveryCard)
+- Personality-based NPC loyalty, wagon repair, special item effects
 - Unified game layer (cross-mode narrator, ShareLegacy, ExplorationMap)
-- Bedroom 4->6 fix, DOSMessage lint fix
+- Gameplay polish (talk bubble reset, save fallback, 30% event rate)
+
+### Unmerged Branch
+- `feat/neoma-dual-mode-chat` — has dialogueTrees, dreamingEngine, expanded liveNeomaContext
+- **Do NOT merge directly** — it's behind main and would delete newer work. Cherry-pick only.
+
+### Standing Goal: DECOMPOSE BEFORE NEXT FEATURES
+The codebase has drifted from Turing's small machine principle. Before adding new features, decompose:
+
+| File | Lines | Problem | Target |
+|------|-------|---------|--------|
+| `oregonTrailContext.tsx` | 2336 | 10+ concerns in one context | TravelMachine, ShopMachine, BuffMachine, LoyaltyMachine, WagonMachine, MarketMachine |
+| `page.tsx` (oregon-trail) | 2143 | One `TravelScreen` function does everything | TravelView, TownView, CampView, GameOverView, VictoryView (each <300 lines) |
+| `crossGameProgression.ts` | 1026 | Event storage + dashboard + tracking in one file | CrossGameEventLog (fire-and-forget) + separate readers |
+| Context providers | 9 nested | Fragile ordering, tight coupling | Evaluate which truly need nesting vs independent state |
+
+**Principle**: Each component does one thing, communicates through simple interfaces. Emergence from composition, not monoliths. See MB: `bobr_adventure_overhaul/standing_goal_decomposition`
 
 ### Wheelwright Tests
 10 BOBR tests in `~/.config/neoma/wheel/tests/bobr.*`:
