@@ -805,6 +805,40 @@ function TravelScreen() {
             )}
           </div>
 
+          {/* Active Buffs Strip — visible countdown for timed effects */}
+          {activeEffects.length > 0 && (
+            <div className="mb-3 p-2 bg-stone-900/80 border border-purple-700/50 rounded-lg">
+              <div className="text-[10px] text-purple-400 font-pixel mb-1 uppercase tracking-wider">Active Effects</div>
+              <div className="flex flex-wrap gap-1.5">
+                {activeEffects.map((effect) => {
+                  const isBuff = effect.type === 'stat_buff' || effect.type === 'heal_over_time' || effect.type === 'resistance'
+                  return (
+                    <div
+                      key={effect.id}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border ${
+                        isBuff
+                          ? 'bg-green-900/50 border-green-700/60 text-green-300'
+                          : 'bg-red-900/50 border-red-700/60 text-red-300'
+                      }`}
+                      title={`${effect.sourceName}: ${effect.value > 0 ? '+' : ''}${effect.value}${effect.stat ? ` ${effect.stat}` : ''}`}
+                    >
+                      <span className="font-bold">{effect.sourceName.split(' ')[0]}</span>
+                      <span className="opacity-80">{effect.value > 0 ? '+' : ''}{effect.value}{effect.stat ? ` ${effect.stat.slice(0, 3)}` : ''}</span>
+                      {effect.stackCount > 1 && (
+                        <span className="bg-amber-700 text-amber-200 rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px]">
+                          x{effect.stackCount}
+                        </span>
+                      )}
+                      <span className={`font-mono ${effect.remainingTurns <= 1 ? 'text-red-400 animate-pulse' : 'opacity-60'}`}>
+                        {effect.remainingTurns}d
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Town Actions */}
           <div className="grid gap-2 mb-6 grid-cols-4 md:grid-cols-5 lg:grid-cols-8">
             <button
@@ -1006,7 +1040,7 @@ function TravelScreen() {
         {showShop && <TownShop onClose={() => setShowShop(false)} />}
 
         {/* Inn Modal */}
-        {showInn && <TownInn onClose={() => setShowInn(false)} isWestPoint={isWestPoint} />}
+        {showInn && <TownInn onClose={() => setShowInn(false)} isWestPoint={isWestPoint} onApplyBuff={handleUseConsumable} />}
 
         {/* Town Puzzle Modal */}
         {showPuzzle && (
@@ -1414,6 +1448,40 @@ function TravelScreen() {
         <div className="mb-6">
           <PossePanel />
         </div>
+
+        {/* Active Buffs Strip — visible countdown for timed effects */}
+        {activeEffects.length > 0 && (
+          <div className="mb-4 p-2 bg-stone-900/80 border border-purple-700/50 rounded-lg">
+            <div className="text-[10px] text-purple-400 font-pixel mb-1 uppercase tracking-wider">Active Effects</div>
+            <div className="flex flex-wrap gap-1.5">
+              {activeEffects.map((effect) => {
+                const isBuff = effect.type === 'stat_buff' || effect.type === 'heal_over_time' || effect.type === 'resistance'
+                return (
+                  <div
+                    key={effect.id}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border ${
+                      isBuff
+                        ? 'bg-green-900/50 border-green-700/60 text-green-300'
+                        : 'bg-red-900/50 border-red-700/60 text-red-300'
+                    }`}
+                    title={`${effect.sourceName}: ${effect.value > 0 ? '+' : ''}${effect.value}${effect.stat ? ` ${effect.stat}` : ''}`}
+                  >
+                    <span className="font-bold">{effect.sourceName.split(' ')[0]}</span>
+                    <span className="opacity-80">{effect.value > 0 ? '+' : ''}{effect.value}{effect.stat ? ` ${effect.stat.slice(0, 3)}` : ''}</span>
+                    {effect.stackCount > 1 && (
+                      <span className="bg-amber-700 text-amber-200 rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px]">
+                        x{effect.stackCount}
+                      </span>
+                    )}
+                    <span className={`font-mono ${effect.remainingTurns <= 1 ? 'text-red-400 animate-pulse' : 'opacity-60'}`}>
+                      {effect.remainingTurns}d
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-4 justify-center flex-wrap">

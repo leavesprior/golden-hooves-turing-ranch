@@ -463,6 +463,137 @@ export const CONSUMABLE_ITEMS: ConsumableItem[] = [
     maxStacks: 2,
     duration: 2,
   },
+
+  // =========================================================================
+  // INN FOOD (timed buffs from purchased meals)
+  // =========================================================================
+  {
+    id: 'inn_stew',
+    name: 'Trail Stew',
+    emoji: '\uD83C\uDF72',
+    category: 'food',
+    description: "Don't ask what's in it. Keeps you warm on the trail.",
+    effects: [
+      { type: 'heal', value: 5 },
+      { type: 'stat_buff', stat: DURABILITY, value: 1, duration: 2 },
+    ],
+    stackable: true,
+    maxStacks: 2,
+    duration: 2,
+    partyWide: true,
+  },
+  {
+    id: 'inn_roast',
+    name: 'Roast Dinner',
+    emoji: '\uD83C\uDF56',
+    category: 'food',
+    description: 'Venison with potatoes and gravy. Puts fire in your belly.',
+    effects: [
+      { type: 'heal', value: 10 },
+      { type: 'stat_buff', stat: DURABILITY, value: 1, duration: 3 },
+      { type: 'stat_buff', stat: AGILITY, value: 1, duration: 2 },
+    ],
+    stackable: true,
+    maxStacks: 2,
+    duration: 3,
+    partyWide: true,
+  },
+  {
+    id: 'inn_feast',
+    name: 'Family Feast',
+    emoji: '\uD83E\uDD83',
+    category: 'food',
+    description: 'A proper meal to remember. The whole party is revitalized.',
+    effects: [
+      { type: 'heal', value: 20 },
+      { type: 'stat_buff', stat: DURABILITY, value: 2, duration: 3 },
+      { type: 'stat_buff', stat: DIPLOMACY, value: 1, duration: 3 },
+    ],
+    stackable: true,
+    maxStacks: 2,
+    duration: 3,
+    partyWide: true,
+  },
+  {
+    id: 'inn_cynthias_pie',
+    name: "Cynthia's Famous Apple Pie",
+    emoji: '\uD83E\uDD67',
+    category: 'food',
+    description: "Secret recipe passed down through generations. Worth the trip.",
+    effects: [
+      { type: 'heal', value: 25 },
+      { type: 'stat_buff', stat: LUCK, value: 2, duration: 5 },
+      { type: 'stat_buff', stat: DIPLOMACY, value: 1, duration: 3 },
+    ],
+    stackable: false,
+    maxStacks: 1,
+    duration: 5,
+    partyWide: true,
+  },
+  {
+    id: 'inn_mountain_breakfast',
+    name: 'Mountain Breakfast',
+    emoji: '\uD83C\uDF73',
+    category: 'food',
+    description: 'Eggs, bacon, flapjacks, and hashbrowns. Fuel for the final push.',
+    effects: [
+      { type: 'heal', value: 30 },
+      { type: 'stat_buff', stat: DURABILITY, value: 2, duration: 4 },
+      { type: 'stat_buff', stat: EXPERTISE, value: 1, duration: 3 },
+    ],
+    stackable: false,
+    maxStacks: 1,
+    duration: 4,
+    partyWide: true,
+  },
+
+  // =========================================================================
+  // INN DRINKS (timed buffs from purchased beverages)
+  // =========================================================================
+  {
+    id: 'inn_coffee',
+    name: 'Hot Coffee',
+    emoji: '\u2615',
+    category: 'drink',
+    description: 'Strong enough to wake the dead. Sharpens the senses.',
+    effects: [
+      { type: 'stat_buff', stat: AGILITY, value: 1, duration: 2 },
+      { type: 'stat_buff', stat: SHREWDNESS, value: 1, duration: 2 },
+    ],
+    stackable: true,
+    maxStacks: 3,
+    duration: 2,
+  },
+  {
+    id: 'inn_whiskey',
+    name: 'Frontier Whiskey',
+    emoji: '\uD83E\uDD43',
+    category: 'drink',
+    description: 'Liquid courage in a glass.',
+    effects: [
+      { type: 'stat_buff', stat: DIPLOMACY, value: 2, duration: 2 },
+    ],
+    stackable: true,
+    maxStacks: 2,
+    duration: 2,
+    sideEffects: [
+      { type: 'stat_debuff', stat: SHREWDNESS, value: 1, duration: 2 },
+      { type: 'stat_debuff', stat: AGILITY, value: 1, duration: 1 },
+    ],
+  },
+  {
+    id: 'inn_beer',
+    name: 'Local Brew',
+    emoji: '\uD83C\uDF7A',
+    category: 'drink',
+    description: 'Warm and questionable, but satisfying.',
+    effects: [
+      { type: 'stat_buff', stat: DIPLOMACY, value: 1, duration: 2 },
+    ],
+    stackable: true,
+    maxStacks: 3,
+    duration: 2,
+  },
 ]
 
 // ---------------------------------------------------------------------------

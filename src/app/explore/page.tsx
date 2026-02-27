@@ -1728,23 +1728,43 @@ function ExplorerMap() {
 // ============================================
 
 export default function ExplorePage() {
+  const [toast, setToast] = useState<{ message: string; type: 'level' | 'badge' | 'secret' } | null>(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = setTimeout(() => setToast(null), 4000)
+    return () => clearTimeout(timer)
+  }, [toast])
+
   return (
     <ExplorerProvider
       towns={TOWNS}
       onLevelUp={(level) => {
-        console.log(`Level up! Now ${level.title}`)
-        // Could show a toast notification here
+        setToast({ message: `Level Up! You are now: ${level.title}`, type: 'level' })
       }}
       onBadgeEarned={(badge) => {
-        console.log(`Badge earned: ${badge.name}`)
-        // Could show a celebration animation here
+        setToast({ message: `Badge Earned: ${badge.name}`, type: 'badge' })
       }}
       onSecretUnlocked={(attraction) => {
-        console.log(`Secret unlocked: ${attraction.name}`)
-        // Could show a special reveal animation here
+        setToast({ message: `Secret Unlocked: ${attraction.name}`, type: 'secret' })
       }}
     >
       <ExplorerMap />
+      {/* Toast notification overlay */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-slide-in-up">
+          <div className={`px-6 py-3 rounded-lg border-2 font-pixel text-sm shadow-lg ${
+            toast.type === 'level'  ? 'bg-amber-900 border-amber-500 text-amber-200' :
+            toast.type === 'badge'  ? 'bg-purple-900 border-purple-500 text-purple-200' :
+                                      'bg-emerald-900 border-emerald-500 text-emerald-200'
+          }`}>
+            <span className="mr-2">
+              {toast.type === 'level' ? '\u2B50' : toast.type === 'badge' ? '\uD83C\uDFC5' : '\uD83D\uDD13'}
+            </span>
+            {toast.message}
+          </div>
+        </div>
+      )}
     </ExplorerProvider>
   )
 }
