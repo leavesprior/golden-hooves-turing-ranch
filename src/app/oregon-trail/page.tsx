@@ -152,7 +152,7 @@ const LOCAL_AUTOSAVE_KEY = 'golden_frog_local_save'
 // NOTE: GameMenu, CharacterCreationScreen, InvestigationScreen, OutfittingScreen,
 // WorldMapScreen, and GoldCountryArrivalScreen have been extracted to ./phases/
 function TravelScreen() {
-  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, applyRiverCrossingEffects, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, buySupplies, buyFood, getAllNPCRelationships } = useOregonTrail()
+  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, applyRiverCrossingEffects, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, buySupplies, buyFood, getAllNPCRelationships, repairWagon } = useOregonTrail()
   const { balance, canAfford, spendNeutral, earnNeutral, earnGood, addBadKarma } = useKarmaWallet()
   const { state: mysteryState } = useMystery()
   const { getStat } = useCharacter()
@@ -414,12 +414,10 @@ function TravelScreen() {
 
   const handleRepairWagon = useCallback(() => {
     if (state.spareParts > 0 && state.wagonCondition < 100) {
-      buySupplies('spareParts', -1, 0) // Consume one spare part
-      // Wagon condition boost is handled via spare parts addition trick
-      buySupplies('spareParts', 0, 0) // Trigger state update for wagon display
+      repairWagon() // -1 spare part, +25 wagon condition
       comment('Wagon repaired with a spare part. She rides smoother now.', 'observation')
     }
-  }, [state.spareParts, state.wagonCondition, buySupplies, comment])
+  }, [state.spareParts, state.wagonCondition, repairWagon, comment])
 
   // Weather emoji
   const weatherEmoji = {

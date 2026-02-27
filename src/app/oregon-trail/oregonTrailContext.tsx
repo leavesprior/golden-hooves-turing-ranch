@@ -895,6 +895,9 @@ interface OregonTrailContextValue {
   getAllNPCRelationships: () => NPCRelationship[]
   getShopDiscount: (npcId: string) => number   // 0-1 price multiplier for the given shopkeeper NPC
 
+  // Wagon repair
+  repairWagon: () => void
+
   // Seasonal market (trail-side)
   getTrailMarketPrices: () => { livestock: number; products: number; feed: number }
   getTrailMarketEvent: () => MarketEvent | null
@@ -1080,12 +1083,56 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
           updated.specialAbilityCooldown = updated.specialAbilityCooldown - 1
         }
 
-        // Loyalty decay for hired members when things are bad
+        // Loyalty for hired members — base conditions + personality-specific modifiers
         if (updated.isHired && updated.loyalty !== undefined) {
           let loyaltyDelta = 0
-          if (newFood <= 0) loyaltyDelta -= 3
-          if (newMorale <= 20) loyaltyDelta -= 2
-          if (newMorale >= 60) loyaltyDelta += 1
+          // Base conditions: food & morale (affects everyone)
+          if (newFood <= 0) loyaltyDelta -= 3          // Starving: sharp drop
+          else if (prev.rations === 'filling') loyaltyDelta += 2  // Well-fed: party appreciates it
+          else if (prev.rations === 'meager') loyaltyDelta -= 1   // Short rations: mild grumbling
+          if (newMorale <= 20) loyaltyDelta -= 2       // Low morale: doubt creeps in
+          else if (newMorale >= 60) loyaltyDelta += 1  // Good spirits: trust grows
+
+          // Personality-based modifiers by role — each character values different things
+          switch (updated.role) {
+            case 'cook':
+              // Cookie takes pride in well-fed parties
+              if (prev.rations === 'filling' && newFood > 20) loyaltyDelta += 1
+              if (prev.rations === 'bare_bones') loyaltyDelta -= 1 // Insulted
+              break
+            case 'mechanic':
+              // Patches happy when wagon is maintained
+              if (newWagonCond >= 70) loyaltyDelta += 1
+              if (newWagonCond < 30) loyaltyDelta -= 1
+              break
+            case 'medic':
+              // Sister Grace: values compassion, healing, party wellbeing
+              if (healthChange >= 0) loyaltyDelta += 1  // Party not suffering
+              if (newMorale >= 50) loyaltyDelta += 1     // People's spirits are up
+              if (prev.party.some(m => m.health < 30)) loyaltyDelta -= 1 // Someone suffering
+              break
+            case 'scout':
+              // Hawkeye respects steady progress
+              if (prev.pace === 'strenuous' || prev.pace === 'grueling') loyaltyDelta += 1
+              break
+            case 'guard':
+              // Iron Bear values strength and safety
+              if (newMorale >= 70) loyaltyDelta += 1  // Party feels safe
+              break
+            case 'diplomat':
+              // Beau loves prosperity and comfort
+              if (newMorale >= 70 && newFood > 30) loyaltyDelta += 1
+              if (newMorale < 40) loyaltyDelta -= 1  // Bad vibes
+              break
+            case 'hunter':
+              // Billy Buck happy when food is plentiful
+              if (newFood > 40) loyaltyDelta += 1
+              break
+            case 'navigator':
+              // Professor appreciates steady progress and discovery
+              if (prev.pace !== 'steady') loyaltyDelta += 1
+              break
+          }
           updated.loyalty = Math.max(0, Math.min(100, updated.loyalty + loyaltyDelta))
         }
 
@@ -1543,7 +1590,19 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     })
   }, [])
 
-  // Rest at inn - heals party and boosts morale
+  // Repair wagon - consume 1 spare part, restore 25 wagon condition
+  const repairWagon = useCallback(() => {
+    setState(prev => {
+      if (prev.spareParts <= 0 || prev.wagonCondition >= 100) return prev
+      return {
+        ...prev,
+        spareParts: prev.spareParts - 1,
+        wagonCondition: Math.min(100, prev.wagonCondition + 25),
+      }
+    })
+  }, [])
+
+  // Rest at inn - heals party, boosts morale, and improves loyalty
   const restAtInn = useCallback((healthBonus: number, moraleBonus: number, _cost: number) => {
     setState(prev => ({
       ...prev,
@@ -1551,6 +1610,10 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
       party: prev.party.map(member => ({
         ...member,
         health: Math.min(100, member.health + healthBonus),
+        // Inn rest gives loyalty boost to hired members (they appreciate comfort)
+        loyalty: member.isHired && member.loyalty !== undefined
+          ? Math.min(100, member.loyalty + 3)
+          : member.loyalty,
       })),
       day: prev.day + 1,  // Resting takes a day
       message: 'Your party rests and recovers.',
@@ -2230,6 +2293,8 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     updateNPCRelationship,
     getAllNPCRelationships,
     getShopDiscount,
+    // Wagon repair
+    repairWagon,
     // Seasonal market (trail-side)
     getTrailMarketPrices,
     getTrailMarketEvent,
