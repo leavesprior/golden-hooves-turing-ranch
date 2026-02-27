@@ -651,6 +651,58 @@ export function generateMultipleChoice(clueId: string): string[] {
   return options
 }
 
+/**
+ * Generate contextual multiple choice based on whether the player was close.
+ *
+ * wasClose=true  -> "easy" mode: distractors from DIFFERENT cases/eras (obviously wrong)
+ * wasClose=false -> "hard" mode: distractors from the SAME case (plausible, same topic)
+ */
+export function generateContextualMultipleChoice(
+  clueId: string,
+  wasClose: boolean
+): { options: string[]; difficulty: 'easy' | 'hard' } {
+  const clue = getClueById(clueId)
+  if (!clue) return { options: [], difficulty: wasClose ? 'easy' : 'hard' }
+
+  const correctAnswer = clue.answer
+  const difficulty: 'easy' | 'hard' = wasClose ? 'easy' : 'hard'
+
+  let distractorPool: string[]
+
+  if (wasClose) {
+    // EASY: pick distractors from DIFFERENT cases (obviously wrong)
+    distractorPool = ALL_CLUES
+      .filter(c => c.id !== clueId && c.caseId !== clue.caseId)
+      .map(c => c.answer)
+      .filter((v, i, arr) => arr.indexOf(v) === i && v !== correctAnswer)
+  } else {
+    // HARD: pick distractors from the SAME case (plausible, same topic area)
+    const sameCaseClues = ALL_CLUES.filter(
+      c => c.id !== clueId && c.caseId === clue.caseId
+    )
+    distractorPool = sameCaseClues
+      .map(c => c.answer)
+      .filter((v, i, arr) => arr.indexOf(v) === i && v !== correctAnswer)
+
+    // If not enough same-case distractors, backfill from all clues
+    if (distractorPool.length < 3) {
+      const backfill = ALL_CLUES
+        .filter(c => c.id !== clueId && c.caseId !== clue.caseId)
+        .map(c => c.answer)
+        .filter((v, i, arr) => arr.indexOf(v) === i && v !== correctAnswer && !distractorPool.includes(v))
+      distractorPool = [...distractorPool, ...backfill]
+    }
+  }
+
+  // Shuffle and pick 3 distractors
+  const shuffled = distractorPool.sort(() => Math.random() - 0.5)
+  const distractors = shuffled.slice(0, 3)
+
+  // Combine and shuffle all 4 options
+  const options = [correctAnswer, ...distractors].sort(() => Math.random() - 0.5)
+  return { options, difficulty }
+}
+
 // Get clue count per case (excludes trail clues which have null caseId)
 export const CASE_CLUE_COUNTS: Record<CaseId, number> = {
   jumping_frog: 6,

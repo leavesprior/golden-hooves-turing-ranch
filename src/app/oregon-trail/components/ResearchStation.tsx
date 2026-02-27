@@ -4,7 +4,8 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { useMystery } from '../mysteryContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import type { EducationalClue } from '../data/educationalClues'
-import { isCloseAnswer, generateMultipleChoice } from '../data/educationalClues'
+import { isCloseAnswer, generateContextualMultipleChoice } from '../data/educationalClues'
+import { useCharacter } from '../characterContext'
 import type { GoldCountryLocation } from '../data/goldCountryLocations'
 import { getNextTierProgress, getQualifyingTier, DISCOUNT_TIERS } from '../data/discountEngine'
 
@@ -63,6 +64,7 @@ export function ResearchStation({
   const displayLinkHint = location?.linkHint || ''
   const { attemptEducationalClue, useHint: applyHint, getEducationalProgress, getCorrectClueCount, state: mysteryState } = useMystery()
   const { earnGood, earnNeutral, recordGoodAction, spendNeutral, canAfford } = useKarmaWallet()
+  const { addExperience } = useCharacter()
 
   // Check if this clue was already answered correctly
   const alreadyCompleted = useMemo(() => {
@@ -78,7 +80,9 @@ export function ResearchStation({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [failedAttempts, setFailedAttempts] = useState(0)
   const [multipleChoiceOptions, setMultipleChoiceOptions] = useState<string[] | null>(null)
+  const [multipleChoiceDifficulty, setMultipleChoiceDifficulty] = useState<'easy' | 'hard'>('hard')
   const [reducedKarma, setReducedKarma] = useState(false)
+  const [wasEverClose, setWasEverClose] = useState(false)
 
   // Calculate progress info
   const correctCount = getCorrectClueCount()
@@ -102,17 +106,21 @@ export function ResearchStation({
       const newFailedAttempts = failedAttempts + 1
       setFailedAttempts(newFailedAttempts)
 
-      // Check if answer is close
-      if (isCloseAnswer(clue.id, answer.trim())) {
+      // Check if answer is close and track it
+      const closeThisTime = isCloseAnswer(clue.id, answer.trim())
+      if (closeThisTime) {
         setShowResult('close')
+        setWasEverClose(true)
       } else {
         setShowResult('incorrect')
       }
 
-      // After 2 failed attempts, switch to multiple choice
+      // After 2 failed attempts, switch to contextual multiple choice
       if (newFailedAttempts >= 2 && !multipleChoiceOptions) {
-        const options = generateMultipleChoice(clue.id)
+        const isClose = wasEverClose || closeThisTime
+        const { options, difficulty } = generateContextualMultipleChoice(clue.id, isClose)
         setMultipleChoiceOptions(options)
+        setMultipleChoiceDifficulty(difficulty)
         setReducedKarma(true)
       }
 
@@ -120,7 +128,7 @@ export function ResearchStation({
     }
 
     setIsSubmitting(false)
-  }, [answer, clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered, isSubmitting, failedAttempts, multipleChoiceOptions, reducedKarma])
+  }, [answer, clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered, isSubmitting, failedAttempts, multipleChoiceOptions, reducedKarma, wasEverClose])
 
   // Handle multiple choice selection
   const handleMultipleChoiceSelect = useCallback((option: string) => {
@@ -130,15 +138,20 @@ export function ResearchStation({
       const result = attemptEducationalClue(clue.id, option)
       if (result.correct) {
         setShowResult('correct')
-        await earnGood(3, `Learned about ${displayName}`)
-        recordGoodAction(3)
+        // Differentiated rewards: close players get 4 karma + 5 XP, way-off players get 2 karma
+        const karmaAmount = wasEverClose ? 4 : 2
+        await earnGood(karmaAmount, `Learned about ${displayName}`)
+        recordGoodAction(karmaAmount)
+        if (wasEverClose) {
+          addExperience(5)
+        }
         onClueAnswered?.(true)
       } else {
         setShowResult('incorrect')
         onClueAnswered?.(false)
       }
     }, 200)
-  }, [clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered])
+  }, [clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered, wasEverClose, addExperience])
 
   // Handle hint request
   const handleUseHint = useCallback(async () => {
@@ -161,7 +174,9 @@ export function ResearchStation({
     setHintsUsed(0)
     setFailedAttempts(0)
     setMultipleChoiceOptions(null)
+    setMultipleChoiceDifficulty('hard')
     setReducedKarma(false)
+    setWasEverClose(false)
     onClose()
   }, [onClose, alreadyCompleted])
 
@@ -235,8 +250,16 @@ export function ResearchStation({
               {/* Multiple choice mode (after 2 failed attempts) */}
               {multipleChoiceOptions ? (
                 <div className="space-y-2">
-                  <p className="text-amber-300 text-sm font-bold">Choose the correct answer:</p>
-                  <p className="text-gray-500 text-xs">(Reduced karma reward: +3🍪 instead of +5🍪)</p>
+                  <p className="text-amber-300 text-sm font-bold">
+                    {wasEverClose
+                      ? 'You were on the right track! Pick the answer:'
+                      : 'Choose the correct answer:'}
+                  </p>
+                  <p className="text-gray-500 text-xs">
+                    {wasEverClose
+                      ? '(Partial reward: +4🍪 Good Karma + 5 XP Knowledge Boost)'
+                      : '(Reduced reward: +2🍪 Good Karma)'}
+                  </p>
                   <div className="grid grid-cols-1 gap-2">
                     {multipleChoiceOptions.map((option, idx) => (
                       <button
@@ -292,6 +315,16 @@ export function ResearchStation({
                   <span className="text-2xl">✅</span>
                   {alreadyCompleted ? (
                     <span className="text-green-300 font-bold">Already Completed</span>
+                  ) : reducedKarma ? (
+                    <>
+                      <span className="text-green-300 font-bold">Correct!</span>
+                      <span className="text-green-400 text-sm">
+                        {wasEverClose ? '+4🍪 Good Karma +5 XP' : '+2🍪 Good Karma'}
+                      </span>
+                      {!wasEverClose && (
+                        <span className="text-amber-400 text-xs block mt-1">Next time, check the research page first!</span>
+                      )}
+                    </>
                   ) : (
                     <>
                       <span className="text-green-300 font-bold">Correct!</span>

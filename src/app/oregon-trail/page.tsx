@@ -1201,7 +1201,7 @@ function TravelScreen() {
         <CampMenu isOpen={showCampMenu} onClose={() => setShowCampMenu(false)} />
 
         {/* Pip-Boy Game Menu */}
-        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} />
+        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} onOpenCamp={() => setShowCampMenu(true)} />
 
         {/* FAB: Game Menu button */}
         <button
@@ -1479,7 +1479,7 @@ function TravelScreen() {
         <CampMenu isOpen={showCampMenu} onClose={() => setShowCampMenu(false)} />
 
         {/* Pip-Boy Game Menu (available during travel) */}
-        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} />
+        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} onOpenCamp={() => setShowCampMenu(true)} />
 
         {/* FAB: Game Menu button */}
         <button
