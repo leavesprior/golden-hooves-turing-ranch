@@ -710,3 +710,45 @@ export const CASE_CLUE_COUNTS: Record<CaseId, number> = {
   cave_secrets: 10,
   wine_whodunit: 3
 }
+
+/** NPC follow-up lines triggered after correct research answers */
+export interface ResearchFollowUp {
+  clueId: string
+  npcName: string
+  npcEmoji: string
+  dialogue: string
+  bonusReward?: { type: 'karma' | 'xp' | 'reputation'; amount: number }
+}
+
+export const RESEARCH_FOLLOW_UPS: Record<string, ResearchFollowUp> = {
+  // Jumping Frog case clues
+  jf_clue_01: { clueId: 'jf_clue_01', npcName: 'Old Pete', npcEmoji: '\u26CF\uFE0F', dialogue: "So you learned about the famous frog, eh? Let me tell you \u2014 I was there in '65 when they tried to revive the contest. The frogs weren't half as ornery as the crowd.", bonusReward: { type: 'xp', amount: 3 } },
+  jf_clue_02: { clueId: 'jf_clue_02', npcName: 'The Barkeep', npcEmoji: '\uD83C\uDF7A', dialogue: "Ah, you've been reading up! Twain sat right at that corner table. I keep it roped off now \u2014 tourists, you know.", bonusReward: { type: 'reputation', amount: 1 } },
+  jf_clue_03: { clueId: 'jf_clue_03', npcName: 'Miss Chen', npcEmoji: '\uD83D\uDCDA', dialogue: "The historical society appreciates your curiosity. There's more to discover if you keep looking.", bonusReward: { type: 'karma', amount: 2 } },
+  jf_clue_04: { clueId: 'jf_clue_04', npcName: 'Old Miner Tom', npcEmoji: '\uD83E\uDDD4', dialogue: "My pa used to lower himself down that cavern with nothing but a rope and a candle. You're braver than most for learning about it.", bonusReward: { type: 'xp', amount: 3 } },
+  jf_clue_05: { clueId: 'jf_clue_05', npcName: 'Ranger Davis', npcEmoji: '\uD83C\uDF32', dialogue: "Most folks just stare at the big trees. You actually took the time to understand their history. The forest remembers that.", bonusReward: { type: 'karma', amount: 2 } },
+  jf_clue_06: { clueId: 'jf_clue_06', npcName: 'Cynthia the Innkeeper', npcEmoji: '\uD83C\uDFE1', dialogue: "A guest who does their homework! Mark Twain would've approved. Help yourself to an extra biscuit at breakfast.", bonusReward: { type: 'reputation', amount: 1 } },
+  // Gold Rush Heist clues
+  gr_clue_01: { clueId: 'gr_clue_01', npcName: 'Deputy Hayes', npcEmoji: '\u2B50', dialogue: "Good research work, agent. The more you understand the history, the closer you get to catching our outlaw.", bonusReward: { type: 'xp', amount: 3 } },
+  gr_clue_02: { clueId: 'gr_clue_02', npcName: 'Miner Jenkins', npcEmoji: '\u26CF\uFE0F', dialogue: "My grandfather worked that very claim. Knowing the history helps \u2014 these mines have stories to tell.", bonusReward: { type: 'reputation', amount: 1 } },
+  gr_clue_03: { clueId: 'gr_clue_03', npcName: 'Hotel Leger Ghost', npcEmoji: '\uD83D\uDC7B', dialogue: "You felt that cold draft just now? The old-timers say the spirits here respect those who remember the dead. Keep digging.", bonusReward: { type: 'xp', amount: 4 } },
+  gr_clue_04: { clueId: 'gr_clue_04', npcName: 'Museum Curator Wells', npcEmoji: '\uD83C\uDFDB\uFE0F', dialogue: "Copper, yes! Most visitors only think of gold. You've got a historian's eye.", bonusReward: { type: 'karma', amount: 2 } },
+  gr_clue_05: { clueId: 'gr_clue_05', npcName: 'Vintner Rosa', npcEmoji: '\uD83C\uDF77', dialogue: "A connoisseur of knowledge as well as wine! The valley remembers those who take the time to learn its story.", bonusReward: { type: 'reputation', amount: 2 } },
+  gr_clue_06: { clueId: 'gr_clue_06', npcName: 'Cynthia the Innkeeper', npcEmoji: '\uD83C\uDFE1', dialogue: "The game room's been popular since we opened. Gold Rush miners knew how to have fun after a hard day. So should you!", bonusReward: { type: 'karma', amount: 2 } },
+  gr_clue_07: { clueId: 'gr_clue_07', npcName: 'Mr. Wong', npcEmoji: '\uD83C\uDFEE', dialogue: "My family helped build those tunnels. Thank you for remembering our contribution to this town's history.", bonusReward: { type: 'reputation', amount: 2 } },
+  // Cave Secrets clues
+  cs_clue_01: { clueId: 'cs_clue_01', npcName: 'Professor Stone', npcEmoji: '\uD83D\uDD2C', dialogue: "Excellent! Your understanding of the geology will be invaluable. The caves are connected in ways most people don't realize.", bonusReward: { type: 'xp', amount: 5 } },
+  cs_clue_02: { clueId: 'cs_clue_02', npcName: 'Chief Guide Reyes', npcEmoji: '\uD83C\uDFD4\uFE0F', dialogue: "You've done your homework. Most visitors just gawk \u2014 you actually understand what you're looking at.", bonusReward: { type: 'karma', amount: 2 } },
+  cs_clue_03: { clueId: 'cs_clue_03', npcName: 'Docent Margaret', npcEmoji: '\uD83D\uDC69\u200D\uD83C\uDFEB', dialogue: "John Muir would be proud. He always said the caves deserved more attention than the gold.", bonusReward: { type: 'xp', amount: 3 } },
+  cs_clue_04: { clueId: 'cs_clue_04', npcName: 'Geologist Park', npcEmoji: '\uD83E\uDEA8', dialogue: "Aragonite! You know your minerals. Those formations took millions of years. Handle all caves with care.", bonusReward: { type: 'reputation', amount: 1 } },
+  cs_clue_05: { clueId: 'cs_clue_05', npcName: 'Elder Grace', npcEmoji: '\uD83C\uDF3F', dialogue: "The Miwok have cared for these lands since time beyond memory. Your respect for our history means a great deal.", bonusReward: { type: 'reputation', amount: 2 } },
+  cs_clue_09: { clueId: 'cs_clue_09', npcName: 'Swimmer Jake', npcEmoji: '\uD83C\uDFCA', dialogue: "Coyote Creek carved all this! I swim here every summer. Knowing the geology makes the swimming holes even cooler.", bonusReward: { type: 'xp', amount: 3 } },
+  // Wine Whodunit clues
+  ww_clue_01: { clueId: 'ww_clue_01', npcName: 'Vintner Rosa', npcEmoji: '\uD83C\uDF77', dialogue: "Italian and French, yes! My great-grandmother brought cuttings from Tuscany in her skirt pocket. The vines remember their roots.", bonusReward: { type: 'reputation', amount: 2 } },
+  ww_clue_02: { clueId: 'ww_clue_02', npcName: 'Security Guard Dale', npcEmoji: '\uD83D\uDC6E', dialogue: "Forty-four pounds of gold, sitting right there in the case. I've been guarding it for twelve years and it still takes my breath away.", bonusReward: { type: 'xp', amount: 4 } },
+  ww_clue_03: { clueId: 'ww_clue_03', npcName: 'Cynthia the Innkeeper', npcEmoji: '\uD83C\uDFE1', dialogue: "Six bedrooms and a full wine rack \u2014 we've hosted some legendary wine weekends up here. Knowledge and wine both improve with age!", bonusReward: { type: 'karma', amount: 2 } },
+}
+
+export function getFollowUpForClue(clueId: string): ResearchFollowUp | null {
+  return RESEARCH_FOLLOW_UPS[clueId] || null
+}

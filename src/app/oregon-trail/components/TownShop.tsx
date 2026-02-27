@@ -21,7 +21,7 @@ interface ShopItem {
   sellPrice: number
   unit: string
   description: string
-  resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing'
+  resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing' | 'oxen'
   quantity: number  // How much you get per purchase
 }
 
@@ -79,6 +79,17 @@ const SHOP_INVENTORY: ShopItem[] = [
     unit: 'set',
     description: 'Wool coats and blankets',
     resource: 'clothing',
+    quantity: 1,
+  },
+  {
+    id: 'oxen',
+    name: 'Draft Oxen',
+    emoji: '🐂',
+    basePrice: 40,
+    sellPrice: 20,
+    unit: 'head',
+    description: 'Sturdy draft oxen for pulling your wagon',
+    resource: 'oxen',
     quantity: 1,
   },
 ]
@@ -196,6 +207,7 @@ export function TownShop({ onClose }: TownShopProps) {
     if (resource === 'spareParts') return marketPrices.livestock  // wagon parts track with livestock econ
     if (resource === 'ammunition') return 1.0  // ammo prices not seasonally affected
     if (resource === 'clothing') return 1.0
+    if (resource === 'oxen') return marketPrices.livestock
     return 1.0
   }
 
@@ -216,6 +228,7 @@ export function TownShop({ onClose }: TownShopProps) {
       case 'medicine': return state.medicine
       case 'spareParts': return state.spareParts
       case 'clothing': return state.clothing || 0
+      case 'oxen': return state.oxen
       default: return 0
     }
   }, [state])

@@ -4,10 +4,13 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { useMystery } from '../mysteryContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import type { EducationalClue } from '../data/educationalClues'
-import { isCloseAnswer, generateContextualMultipleChoice } from '../data/educationalClues'
+import { isCloseAnswer, generateContextualMultipleChoice, getFollowUpForClue, type ResearchFollowUp } from '../data/educationalClues'
 import { useCharacter } from '../characterContext'
+import { useReputation } from '../reputationContext'
+import { useOregonTrail } from '../oregonTrailContext'
 import type { GoldCountryLocation } from '../data/goldCountryLocations'
 import { getNextTierProgress, getQualifyingTier, DISCOUNT_TIERS } from '../data/discountEngine'
+import { DOSMessage } from '@/components/ui/DOSMessage'
 
 /** Minimal location info for trail landmarks (not Gold Country locations) */
 export interface TrailLandmarkInfo {
@@ -65,6 +68,8 @@ export function ResearchStation({
   const { attemptEducationalClue, useHint: applyHint, getEducationalProgress, getCorrectClueCount, state: mysteryState } = useMystery()
   const { earnGood, earnNeutral, recordGoodAction, spendNeutral, canAfford } = useKarmaWallet()
   const { addExperience } = useCharacter()
+  const { modifyReputation } = useReputation()
+  const { state: trailState } = useOregonTrail()
 
   // Check if this clue was already answered correctly
   const alreadyCompleted = useMemo(() => {
@@ -83,6 +88,7 @@ export function ResearchStation({
   const [multipleChoiceDifficulty, setMultipleChoiceDifficulty] = useState<'easy' | 'hard'>('hard')
   const [reducedKarma, setReducedKarma] = useState(false)
   const [wasEverClose, setWasEverClose] = useState(false)
+  const [followUp, setFollowUp] = useState<ResearchFollowUp | null>(null)
 
   // Calculate progress info
   const correctCount = getCorrectClueCount()
@@ -101,6 +107,20 @@ export function ResearchStation({
       const karmaAmount = reducedKarma ? 3 : 5
       await earnGood(karmaAmount, `Learned about ${displayName}`)
       recordGoodAction(karmaAmount)
+      // Trigger NPC follow-up after a short delay
+      const fu = getFollowUpForClue(clue.id)
+      if (fu) {
+        setTimeout(() => setFollowUp(fu), 1500)
+        if (fu.bonusReward) {
+          setTimeout(() => {
+            switch (fu.bonusReward!.type) {
+              case 'karma': earnGood(fu.bonusReward!.amount, `${fu.npcName}'s appreciation`); break
+              case 'xp': addExperience(fu.bonusReward!.amount); break
+              case 'reputation': modifyReputation('settlers', fu.bonusReward!.amount, `${fu.npcName} impressed`, trailState.currentLandmark); break
+            }
+          }, 1600)
+        }
+      }
       onClueAnswered?.(true)
     } else {
       const newFailedAttempts = failedAttempts + 1
@@ -128,7 +148,7 @@ export function ResearchStation({
     }
 
     setIsSubmitting(false)
-  }, [answer, clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered, isSubmitting, failedAttempts, multipleChoiceOptions, reducedKarma, wasEverClose])
+  }, [answer, clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered, isSubmitting, failedAttempts, multipleChoiceOptions, reducedKarma, wasEverClose, addExperience, modifyReputation, trailState.currentLandmark])
 
   // Handle multiple choice selection
   const handleMultipleChoiceSelect = useCallback((option: string) => {
@@ -145,13 +165,27 @@ export function ResearchStation({
         if (wasEverClose) {
           addExperience(5)
         }
+        // Trigger NPC follow-up after a short delay
+        const fu = getFollowUpForClue(clue.id)
+        if (fu) {
+          setTimeout(() => setFollowUp(fu), 1500)
+          if (fu.bonusReward) {
+            setTimeout(() => {
+              switch (fu.bonusReward!.type) {
+                case 'karma': earnGood(fu.bonusReward!.amount, `${fu.npcName}'s appreciation`); break
+                case 'xp': addExperience(fu.bonusReward!.amount); break
+                case 'reputation': modifyReputation('settlers', fu.bonusReward!.amount, `${fu.npcName} impressed`, trailState.currentLandmark); break
+              }
+            }, 1600)
+          }
+        }
         onClueAnswered?.(true)
       } else {
         setShowResult('incorrect')
         onClueAnswered?.(false)
       }
     }, 200)
-  }, [clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered, wasEverClose, addExperience])
+  }, [clue.id, attemptEducationalClue, earnGood, recordGoodAction, displayName, onClueAnswered, wasEverClose, addExperience, modifyReputation, trailState.currentLandmark])
 
   // Handle hint request
   const handleUseHint = useCallback(async () => {
@@ -177,6 +211,7 @@ export function ResearchStation({
     setMultipleChoiceDifficulty('hard')
     setReducedKarma(false)
     setWasEverClose(false)
+    setFollowUp(null)
     onClose()
   }, [onClose, alreadyCompleted])
 
@@ -366,6 +401,24 @@ export function ResearchStation({
                   <p className="text-amber-400 text-xs mt-1">🏆 Maximum tier reached!</p>
                 )}
               </div>
+
+              {/* NPC Follow-Up */}
+              {followUp && (
+                <div className="bg-amber-900/40 border border-amber-500 rounded-lg p-4 animate-slide-in-up">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{followUp.npcEmoji}</span>
+                    <div className="flex-1">
+                      <p className="text-amber-200 font-bold text-sm">{followUp.npcName} approaches...</p>
+                      <DOSMessage text={followUp.dialogue} speed={30} className="text-gray-300 text-sm mt-1" sfxEvery={0} />
+                      {followUp.bonusReward && (
+                        <p className="text-green-400 text-xs mt-2">
+                          +{followUp.bonusReward.amount} {followUp.bonusReward.type === 'karma' ? '\uD83C\uDF6A' : followUp.bonusReward.type === 'xp' ? 'XP' : '\u2B50 Rep'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -857,6 +857,11 @@ function TravelScreen() {
               <p className={`text-xs mt-1 ${hasResearchAvailable ? 'text-cyan-200' : 'text-gray-500'}`}>
                 Research
               </p>
+              {currentLocationClues.length > 0 && (
+                <p className="text-cyan-400 text-[10px] mt-0.5">
+                  {mysteryState.educationalCluesCollected.filter(c => c.answeredCorrectly && currentLocationClues.some(cl => cl.id === c.clue.id)).length}/{currentLocationClues.length} done
+                </p>
+              )}
             </button>
             {currentHistoricalChar && (
               <button

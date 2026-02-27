@@ -826,8 +826,8 @@ interface OregonTrailContextValue {
   resetGame: () => void
 
   // Shop & Inn Methods
-  buySupplies: (resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing', amount: number, cost: number) => void
-  sellSupplies: (resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing', amount: number, goldGained: number) => void
+  buySupplies: (resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing' | 'oxen', amount: number, cost: number) => void
+  sellSupplies: (resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing' | 'oxen', amount: number, goldGained: number) => void
   restAtInn: (healthBonus: number, moraleBonus: number, cost: number) => void
   buyFood: (healthBonus: number, moraleBonus: number, cost: number, partyWide: boolean) => void
   buyDrink: (moraleBonus: number, cost: number) => void
@@ -1518,7 +1518,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
 
   // Buy supplies from shop - updates resources only
   const buySupplies = useCallback((
-    resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing',
+    resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing' | 'oxen',
     amount: number,
     _cost: number  // Cost parameter kept for API compatibility, but handled by caller
   ) => {
@@ -1530,7 +1530,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
 
   // Sell supplies to shop - updates resources only
   const sellSupplies = useCallback((
-    resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing',
+    resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing' | 'oxen',
     amount: number,
     _karmaGained: number  // Karma earned, handled by caller
   ) => {
