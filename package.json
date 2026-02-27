@@ -12,7 +12,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "html2canvas": "^1.4.1",
     "next": "16.0.10",
+    "pixi.js": "^8.16.0",
     "puppeteer-core": "^24.36.1",
     "react": "19.2.0",
     "react-dom": "19.2.0"

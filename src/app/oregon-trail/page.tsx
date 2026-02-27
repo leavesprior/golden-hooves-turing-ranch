@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { trackPageView, trackGameStart } from '@/lib/eventTracker'
 import { OregonTrailProvider, useOregonTrail, type GamePhase } from './oregonTrailContext'
 import { KarmaToastContainer } from '@/components/karma'
+import { ShareLegacy } from '@/components/ui/ShareLegacy'
 
 // Karma Wallet (Neoma Blockchain Integration)
 import { KarmaWalletProvider, useKarmaWallet } from './karmaWalletContext'
@@ -266,6 +267,17 @@ function TravelScreen() {
     if (outcome.badKarmaDelta && outcome.badKarmaDelta > 0) {
       await addBadKarma(outcome.badKarmaDelta, `${state.currentEvent.title}: ${choice.text}`)
     }
+
+    // Log world event for cross-game narrator
+    const karmaDelta = (outcome.neutralKarmaDelta || 0) + (outcome.goodKarmaDelta || 0) - (outcome.badKarmaDelta || 0)
+    const isGreedy = karmaDelta < -10 || (outcome.badKarmaDelta && outcome.badKarmaDelta > 5)
+    const isGenerous = karmaDelta > 10 || (outcome.goodKarmaDelta && outcome.goodKarmaDelta > 5)
+    CrossGameStorage.logEvent(
+      'prospectors_tale',
+      isGreedy ? 'greedy_hoarding' : isGenerous ? 'generous_sharing' : 'custom',
+      `${state.currentEvent.title}: ${choice.text}`,
+      { karmaDelta, locationId: state.currentLandmark?.toLowerCase().replace(/[^a-z]/g, '_'), detail: outcome.message }
+    )
   }, [state.currentEvent, handleEventChoice, earnNeutral, spendNeutral, earnGood, addBadKarma, getStat, comment])
 
   // Shop and Inn modals
@@ -419,6 +431,19 @@ function TravelScreen() {
     }
   }, [state.spareParts, state.wagonCondition, repairWagon, comment])
 
+  // Log landmark arrival events for cross-game narrator
+  const lastLoggedLandmarkRef = useRef('')
+  useEffect(() => {
+    if (state.phase === 'town' && state.currentLandmark && state.currentLandmark !== lastLoggedLandmarkRef.current) {
+      lastLoggedLandmarkRef.current = state.currentLandmark
+      CrossGameStorage.logEvent(
+        'prospectors_tale', 'landmark_reached',
+        `Arrived at ${state.currentLandmark}`,
+        { locationId: state.currentLandmark.toLowerCase().replace(/[^a-z]/g, '_'), detail: `Day ${state.day}` }
+      )
+    }
+  }, [state.phase, state.currentLandmark, state.day])
+
   // Weather emoji
   const weatherEmoji = {
     fair: '\u2600\ufe0f',
@@ -454,6 +479,12 @@ function TravelScreen() {
 
   // Game over screen
   if (state.phase === 'game_over') {
+    // Log game over event once
+    CrossGameStorage.logEvent(
+      'prospectors_tale', 'party_member_died',
+      `Journey ended: ${state.message || 'The trail claimed another'}`,
+      { detail: `Day ${state.daysOnTrail}, ${state.totalMilesTraveled} miles` }
+    )
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center p-4">
         <div className="text-center">
@@ -476,6 +507,13 @@ function TravelScreen() {
 
   // Victory screen
   if (state.phase === 'complete') {
+    // Log journey complete event once
+    const survivors = state.party.filter(m => m.health > 0)
+    CrossGameStorage.logEvent(
+      'prospectors_tale', 'survived_trail',
+      `Survived the Trail with ${survivors.length} companion${survivors.length !== 1 ? 's' : ''}!`,
+      { detail: `Day ${state.daysOnTrail}, ${survivors.length} survivors`, survivorName: survivors[0]?.name }
+    )
     return (
       <div className="min-h-screen bg-gradient-to-b from-yellow-950 via-amber-900 to-amber-950 flex items-center justify-center p-4">
         <div className="text-center">
@@ -2065,6 +2103,7 @@ function OregonTrailGame() {
       {renderPhaseContent()}
       <SaveLoadIntegration />
       {showSavePanel && <AuthSavePanel />}
+      <ShareLegacy />
     </>
   )
 }

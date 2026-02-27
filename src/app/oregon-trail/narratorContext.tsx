@@ -17,6 +17,12 @@ import {
   getTwainCommentary,
   getRandomTallTale,
 } from './data/twainReferences'
+import {
+  getTwainCrossReference,
+  getTwainLegacyComment,
+  getTwainEscalationCrossRef,
+  type TwainCrossReference,
+} from '@/lib/twainCrossMode'
 
 // The Unreliable Narrator - Douglas Adams Style
 // The game occasionally lies to you, withholds information, or comments sarcastically
@@ -110,6 +116,9 @@ interface NarratorContextValue {
   getEscalationInfo: () => { tier: EscalationTier; trustLevel: number }
   getEscalatedComment: (situation: 'travel' | 'event' | 'town') => string | null
   recordPaceAndRations: (pace: string, rations: string) => void
+
+  // Cross-game Twain narrator (#cross-mode)
+  getCrossGameComment: (context?: string) => string | null
 }
 
 const NarratorContext = createContext<NarratorContextValue | undefined>(undefined)
@@ -702,6 +711,32 @@ export function NarratorProvider({ children }: { children: ReactNode }) {
     }
   }, [state.intoxication, soberUp])
 
+  // === CROSS-GAME TWAIN NARRATOR (#cross-mode) ===
+
+  // On mount, check for cross-game legacy and deliver a welcome-back Twain line
+  const crossModeInitRef = useRef(false)
+  useEffect(() => {
+    if (crossModeInitRef.current) return
+    crossModeInitRef.current = true
+
+    // Slight delay so the provider is fully mounted before commenting
+    const timer = setTimeout(() => {
+      const legacyLine = getTwainLegacyComment('prospectors_tale')
+      if (legacyLine) {
+        setState(prev => ({ ...prev, mood: 'twain' }))
+        comment(legacyLine, 'observation')
+      }
+    }, 1500)
+
+    return () => clearTimeout(timer)
+  }, [comment])
+
+  // Wrap getTwainCrossReference for external callers
+  const getCrossGameComment = useCallback((context?: string): string | null => {
+    const ref: TwainCrossReference | null = getTwainCrossReference('prospectors_tale', context)
+    return ref?.text ?? null
+  }, [])
+
   // === ESCALATION SYSTEM (#7) ===
 
   // Modify narrator trust directly
@@ -779,6 +814,10 @@ export function NarratorProvider({ children }: { children: ReactNode }) {
 
   // Get an escalation-modified comment for a situation
   const getEscalatedComment = useCallback((situation: 'travel' | 'event' | 'town'): string | null => {
+    // 15% chance: inject a cross-game Twain reference instead of normal escalation
+    const crossRef = getTwainEscalationCrossRef('prospectors_tale')
+    if (crossRef) return crossRef
+
     // Twain mood always provides commentary
     if (state.mood === 'twain') {
       if (Math.random() > 0.6) return null  // 60% chance of Twain comment
@@ -908,6 +947,8 @@ export function NarratorProvider({ children }: { children: ReactNode }) {
     getEscalationInfo,
     getEscalatedComment,
     recordPaceAndRations,
+    // Cross-game Twain narrator (#cross-mode)
+    getCrossGameComment,
   }
 
   return (
