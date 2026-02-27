@@ -190,12 +190,25 @@ const CYNTHIAS_SPECIAL_ROOMS: (RoomOption & { usesGoodKarma?: boolean })[] = [
   },
 ]
 
+// Map inn food/drink IDs to consumable effect IDs for timed buffs
+const INN_CONSUMABLE_MAP: Record<string, string> = {
+  stew: 'inn_stew',
+  roast: 'inn_roast',
+  feast: 'inn_feast',
+  cynthias_famous: 'inn_cynthias_pie',
+  mountain_breakfast: 'inn_mountain_breakfast',
+  coffee: 'inn_coffee',
+  whiskey: 'inn_whiskey',
+  beer: 'inn_beer',
+}
+
 interface TownInnProps {
   onClose: () => void
   isWestPoint?: boolean  // Special handling for Cynthia's Inn
+  onApplyBuff?: (consumableId: string) => void  // Wire to consumable effects system
 }
 
-export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
+export function TownInn({ onClose, isWestPoint = false, onApplyBuff }: TownInnProps) {
   const { state, restAtInn, buyFood, buyDrink } = useOregonTrail()
   const { comment, setMood } = useNarrator()
   const { getInteractionBonus, modifyReputation } = useReputation()
@@ -314,6 +327,9 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     }
 
     buyFood(foodItem.healthBonus, foodItem.moraleBonus, 0, foodItem.partyWide) // Pass 0 since karma already spent
+    // Apply timed buff from consumable effects system
+    const consumableId = INN_CONSUMABLE_MAP[foodItem.id]
+    if (consumableId && onApplyBuff) onApplyBuff(consumableId)
     playSFX('coin')
     setMessage(`The party enjoys ${foodItem.name}. ${foodItem.partyWide ? 'Everyone feels better!' : 'Delicious!'} (-${price}${karmaEmoji})`)
     setPartyMorale(m => Math.min(100, m + foodItem.moraleBonus))
@@ -350,15 +366,12 @@ export function TownInn({ onClose, isWestPoint = false }: TownInnProps) {
     }
 
     buyDrink(drink.moraleBonus, 0) // Pass 0 since karma already spent
+    // Apply timed buff instead of permanent stat change
+    const consumableId = INN_CONSUMABLE_MAP[drink.id]
+    if (consumableId && onApplyBuff) onApplyBuff(consumableId)
     playSFX('coin')
     setMessage(`You enjoy a ${drink.name}. ${drink.effect} (-${price}🌮)`)
     setPartyMorale(m => Math.min(100, m + drink.moraleBonus))
-
-    // Apply stat effect if any
-    if (drink.statEffect) {
-      modifyStat(drink.statEffect.stat as any, drink.statEffect.delta)
-      setMessage(prev => `${prev} (+${drink.statEffect!.delta} ${drink.statEffect!.stat})`)
-    }
 
     // Special narrator comments for whiskey
     if (drink.id === 'whiskey') {
