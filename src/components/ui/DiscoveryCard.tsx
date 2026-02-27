@@ -13,6 +13,7 @@ interface DiscoveryCardProps {
   historicalFact?: string
   mapLocationId?: string
   onDismiss: () => void
+  onViewMap?: (locationId: string) => void
   onViewInNotebook?: () => void
 }
 
@@ -39,6 +40,7 @@ export function DiscoveryCard({
   historicalFact,
   mapLocationId,
   onDismiss,
+  onViewMap,
   onViewInNotebook,
 }: DiscoveryCardProps) {
   useEffect(() => {
@@ -85,9 +87,9 @@ export function DiscoveryCard({
 
         {/* Footer buttons */}
         <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-amber-900/50">
-          {mapLocationId && (
+          {mapLocationId && onViewMap && (
             <button
-              onClick={() => { playSFX('click'); onDismiss() }}
+              onClick={() => { playSFX('click'); onViewMap(mapLocationId); onDismiss() }}
               className="font-pixel text-[10px] text-amber-400 border border-amber-600 px-3 py-1 rounded hover:bg-amber-900/30 transition-colors"
             >
               [MAP]

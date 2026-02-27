@@ -23,6 +23,17 @@ import { CampManagement } from '@/components/adventure/CampManagement'
 import { SkillTree } from '@/components/adventure/SkillTree'
 import AdventureRewardTracker from '@/components/adventure/AdventureRewardTracker'
 
+// Lazy-load PixiJS exploration map (SSR-safe)
+import dynamic from 'next/dynamic'
+const ExplorationMap = dynamic(
+  () => import('@/components/adventure/ExplorationMap').then(mod => mod.ExplorationMap),
+  { ssr: false, loading: () => <div className="h-[500px] bg-[#1a1a0e] border-2 border-amber-700 rounded flex items-center justify-center font-[var(--font-pixel)] text-amber-600 text-[10px]">Loading exploration map...</div> }
+)
+const ExplorationMapCanvas = dynamic(
+  () => import('@/components/adventure/ExplorationMapCanvas').then(mod => mod.ExplorationMapCanvas),
+  { ssr: false }
+)
+
 // Adventure Data
 import {
   getChapterLocations,
@@ -596,7 +607,7 @@ function ReputationDisplay() {
 
 function AdventureContent() {
   const router = useRouter()
-  const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter } = useCharacter()
+  const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter, modifyStat } = useCharacter()
   const { balance, earnNeutral, spendNeutral } = useKarmaWallet()
   const { state: repState, modifyReputation, getReputationLevel, getReputation } = useReputation()
   const { comment: narratorComment } = useNarrator()
@@ -607,6 +618,8 @@ function AdventureContent() {
   const [travelDestination, setTravelDestination] = useState<string | null>(null)
   const [showCamp, setShowCamp] = useState(false)
   const [activeConfrontation, setActiveConfrontation] = useState<ConfrontationEnemy | null>(null)
+  const [explorationMode, setExplorationMode] = useState(true)
+  const [pixiFailed, setPixiFailed] = useState(false)
 
   // Track page view on mount
   useEffect(() => {
@@ -732,6 +745,13 @@ function AdventureContent() {
       phase: 'exploring',
     })
 
+    // Log location discovery for cross-game narrator
+    const isFirstVisit = !adventureState.visitedLocationIds.includes(locationId)
+    if (isFirstVisit) {
+      CrossGameStorage.logEvent('rpg_adventure', 'discovery_made', `Discovered ${loc.name}`, { locationId, detail: loc.atmosphere })
+    }
+    CrossGameStorage.logEvent('rpg_adventure', 'landmark_reached', `Arrived at ${loc.name}`, { locationId })
+
     if (connectedDiscoveries.length > 0) {
       narratorComment(
         `New paths revealed. ${connectedDiscoveries.length} location${connectedDiscoveries.length > 1 ? 's' : ''} discovered.`,
@@ -778,21 +798,26 @@ function AdventureContent() {
       modifyReputation('pinkerton', result.karmaEffect.lawful, `Confrontation: ${activeConfrontation.name}`)
     }
 
-    // Update confrontation counters
+    // Update confrontation counters + log cross-game events
     if (result.outcome === 'victory') {
       updateState({ confrontationsWon: (adventureState?.confrontationsWon ?? 0) + 1 })
       narratorComment('The dust settles. You stand victorious.', 'observation')
+      CrossGameStorage.logEvent('rpg_adventure', 'confrontation_won', `Defeated ${activeConfrontation.name}`, { detail: activeConfrontation.description })
     } else if (result.outcome === 'defeat') {
       updateState({ confrontationsLost: (adventureState?.confrontationsLost ?? 0) + 1 })
       narratorComment(activeConfrontation.defeatText, 'observation')
+      CrossGameStorage.logEvent('rpg_adventure', 'confrontation_lost', `Defeated by ${activeConfrontation.name}`)
     } else if (result.outcome === 'fled') {
       narratorComment(activeConfrontation.fleeText, 'observation')
+      CrossGameStorage.logEvent('rpg_adventure', 'confrontation_fled', `Fled from ${activeConfrontation.name}`)
     } else if (result.outcome === 'recruited' && result.recruitedAlly) {
       const currentAllies = adventureState?.recruitedAllies ?? []
       updateState({ recruitedAllies: [...currentAllies, result.recruitedAlly] })
       narratorComment(`${result.recruitedAlly.enemyName} has joined your party! ${result.recruitedAlly.passiveEffect}`, 'observation')
+      CrossGameStorage.logEvent('rpg_adventure', 'ally_recruited', `Recruited ${result.recruitedAlly.enemyName}`, { detail: result.recruitedAlly.passiveEffect })
     } else if (result.outcome === 'talked') {
       narratorComment('Words prove mightier than fists. A peaceful resolution.', 'observation')
+      CrossGameStorage.logEvent('rpg_adventure', 'npc_befriended', `Talked down ${activeConfrontation.name}`)
     }
 
     // Continue travel to destination
@@ -944,6 +969,13 @@ function AdventureContent() {
   const handleCampResult = useCallback((result: ActivityResult) => {
     if (result.xpGain) addExperience(result.xpGain)
     if (result.karmaGain) earnNeutral(result.karmaGain, 'Camp activity')
+    if (result.healthChange) {
+      // Apply health change via Durability stat modification (positive = heal, negative = damage)
+      modifyStat('Durability', result.healthChange > 0 ? 1 : -1)
+    }
+    if (result.statChange) {
+      modifyStat(result.statChange.stat, result.statChange.amount)
+    }
     if (result.reputationChange) {
       modifyReputation(result.reputationChange.faction, result.reputationChange.amount, 'Camp activity')
     }
@@ -959,7 +991,7 @@ function AdventureContent() {
         })
       }
     }
-  }, [addExperience, earnNeutral, modifyReputation, adventureState, updateState])
+  }, [addExperience, earnNeutral, modifyStat, modifyReputation, adventureState, updateState])
 
   // === CAMP COMPLETE ===
   const handleCampComplete = useCallback(() => {
@@ -1159,15 +1191,98 @@ function AdventureContent() {
           {/* Map/Location Area (3 cols) */}
           <div className="lg:col-span-3">
             {adventureState.phase === 'exploring' && (
-              <ChapterMap
-                chapter={adventureState.chapter}
-                currentLocationId={adventureState.currentLocationId}
-                discoveredLocationIds={adventureState.discoveredLocationIds}
-                visitedLocationIds={adventureState.visitedLocationIds}
-                factionReps={factionReps}
-                onTravelTo={handleTravelTo}
-                onVisitLocation={handleVisitLocation}
-              />
+              <div>
+                {/* Map/Explore toggle */}
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    onClick={() => setExplorationMode(false)}
+                    className={`font-[var(--font-pixel)] text-[9px] px-3 py-1 border transition-all ${
+                      !explorationMode
+                        ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
+                        : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]'
+                    }`}
+                  >
+                    MAP
+                  </button>
+                  <button
+                    onClick={() => setExplorationMode(true)}
+                    className={`font-[var(--font-pixel)] text-[9px] px-3 py-1 border transition-all ${
+                      explorationMode
+                        ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
+                        : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]'
+                    }`}
+                  >
+                    EXPLORE
+                  </button>
+                </div>
+
+                {explorationMode && !pixiFailed ? (
+                  <ExplorationMap
+                    chapter={adventureState.chapter}
+                    locations={getChapterLocations(adventureState.chapter).map(loc => ({
+                      id: loc.id,
+                      name: loc.name,
+                      icon: loc.icon,
+                      x: loc.x,
+                      y: loc.y,
+                      discovered: adventureState.discoveredLocationIds.includes(loc.id),
+                      visited: adventureState.visitedLocationIds.includes(loc.id),
+                      connectedTo: loc.connectedTo,
+                      type: loc.atmosphere,
+                    }))}
+                    currentLocationId={adventureState.currentLocationId}
+                    onArrive={handleTravelTo}
+                    onEncounter={() => {
+                      const encounter = rollTravelEncounter()
+                      if (encounter) {
+                        setTravelEncounter(encounter)
+                        narratorComment('Hmm, the road between here and there is never as simple as a map suggests.', 'observation')
+                      } else {
+                        const enemy = rollConfrontation(adventureState.chapter, adventureState.unlockedSkillNodes)
+                        if (enemy) {
+                          setActiveConfrontation(enemy)
+                          narratorComment(enemy.description, 'observation')
+                        }
+                      }
+                    }}
+                    height={500}
+                  />
+                ) : explorationMode && pixiFailed ? (
+                  <ExplorationMapCanvas
+                    chapter={adventureState.chapter}
+                    locations={getChapterLocations(adventureState.chapter).map(loc => ({
+                      id: loc.id,
+                      name: loc.name,
+                      icon: loc.icon,
+                      x: loc.x,
+                      y: loc.y,
+                      discovered: adventureState.discoveredLocationIds.includes(loc.id),
+                      visited: adventureState.visitedLocationIds.includes(loc.id),
+                      connectedTo: loc.connectedTo,
+                      type: loc.atmosphere,
+                    }))}
+                    currentLocationId={adventureState.currentLocationId}
+                    onArrive={handleTravelTo}
+                    onEncounter={() => {
+                      const encounter = rollTravelEncounter()
+                      if (encounter) {
+                        setTravelEncounter(encounter)
+                      }
+                    }}
+                    height={500}
+                  />
+                ) : (
+                  <ChapterMap
+                    chapter={adventureState.chapter}
+                    currentLocationId={adventureState.currentLocationId}
+                    discoveredLocationIds={adventureState.discoveredLocationIds}
+                    visitedLocationIds={adventureState.visitedLocationIds}
+                    factionReps={factionReps}
+                    onTravelTo={handleTravelTo}
+                    onVisitLocation={handleVisitLocation}
+                  />
+                )}
+              </div>
             )}
 
             {adventureState.phase === 'at_location' && (

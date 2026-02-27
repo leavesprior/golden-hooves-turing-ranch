@@ -13,6 +13,7 @@ import {
   type MenuSection,
 } from '../data/gameMenuSections'
 import { KarmaWallet } from './KarmaWallet'
+import { NPCRelationshipPanel } from './NPCRelationshipPanel'
 import { playSFX } from '../lib/audioManager'
 import { useEscapeKey } from '../lib/useEscapeKey'
 import type { StatName, SaddleStats } from '../characterContext'
@@ -20,6 +21,7 @@ import type { StatName, SaddleStats } from '../characterContext'
 interface GameMenuProps {
   isOpen: boolean
   onClose: () => void
+  onOpenCamp?: () => void
 }
 
 // ============================================================================
@@ -53,10 +55,10 @@ const SUPPLY_ITEMS: {
 // COMPONENT
 // ============================================================================
 
-export function PipBoyMenu({ isOpen, onClose }: GameMenuProps) {
+export function PipBoyMenu({ isOpen, onClose, onOpenCamp }: GameMenuProps) {
   useEscapeKey(onClose)
 
-  const { state, setPace, setRations } = useOregonTrail()
+  const { state, setPace, setRations, getAllNPCRelationships } = useOregonTrail()
   const { balance } = useKarmaWallet()
   const { state: charState, getStat } = useCharacter()
   const { state: repState, getReputation, getReputationLevel, getAllFactions } = useReputation()
@@ -398,17 +400,11 @@ export function PipBoyMenu({ isOpen, onClose }: GameMenuProps) {
       // ── NPC Relations ─────────────────────────────────────────────
       case 'npc_relations':
         return (
-          <div className="space-y-3">
-            <h3 className="font-pixel text-amber-200 text-sm mb-3">
-              {'\ud83e\udd1d'} NPC Relations
-            </h3>
-            <button
-              onClick={() => playSFX('click')}
-              className="font-pixel text-[10px] text-amber-400 border border-amber-600 px-3 py-1.5 rounded hover:bg-amber-900/30 transition-colors w-full"
-            >
-              [OPEN NPC PANEL]
-            </button>
-          </div>
+          <NPCRelationshipPanel
+            relationships={getAllNPCRelationships()}
+            currentDay={state.day}
+            inline
+          />
         )
 
       // ── Camp Services ─────────────────────────────────────────────
@@ -422,7 +418,11 @@ export function PipBoyMenu({ isOpen, onClose }: GameMenuProps) {
               Set up camp to access party services, rest, and resupply.
             </p>
             <button
-              onClick={() => playSFX('click')}
+              onClick={() => {
+                playSFX('click')
+                onClose()
+                onOpenCamp?.()
+              }}
               className="font-pixel text-[10px] text-amber-400 border border-amber-600 px-3 py-1.5 rounded hover:bg-amber-900/30 transition-colors w-full"
             >
               [OPEN CAMP MENU]

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { trackPageView, trackGameStart } from '@/lib/eventTracker'
 import { OregonTrailProvider, useOregonTrail, type GamePhase } from './oregonTrailContext'
 import { KarmaToastContainer } from '@/components/karma'
+import { ShareLegacy } from '@/components/ui/ShareLegacy'
 
 // Karma Wallet (Neoma Blockchain Integration)
 import { KarmaWalletProvider, useKarmaWallet } from './karmaWalletContext'
@@ -152,7 +153,7 @@ const LOCAL_AUTOSAVE_KEY = 'golden_frog_local_save'
 // NOTE: GameMenu, CharacterCreationScreen, InvestigationScreen, OutfittingScreen,
 // WorldMapScreen, and GoldCountryArrivalScreen have been extracted to ./phases/
 function TravelScreen() {
-  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, applyRiverCrossingEffects, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, buySupplies, buyFood, getAllNPCRelationships } = useOregonTrail()
+  const { state, travel, setPace, setRations, hunt, handleEventChoice, crossRiver, applyRiverCrossingEffects, leaveTown, resetGame, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, buySupplies, buyFood, getAllNPCRelationships, repairWagon } = useOregonTrail()
   const { balance, canAfford, spendNeutral, earnNeutral, earnGood, addBadKarma } = useKarmaWallet()
   const { state: mysteryState } = useMystery()
   const { getStat } = useCharacter()
@@ -266,6 +267,17 @@ function TravelScreen() {
     if (outcome.badKarmaDelta && outcome.badKarmaDelta > 0) {
       await addBadKarma(outcome.badKarmaDelta, `${state.currentEvent.title}: ${choice.text}`)
     }
+
+    // Log world event for cross-game narrator
+    const karmaDelta = (outcome.neutralKarmaDelta || 0) + (outcome.goodKarmaDelta || 0) - (outcome.badKarmaDelta || 0)
+    const isGreedy = karmaDelta < -10 || (outcome.badKarmaDelta && outcome.badKarmaDelta > 5)
+    const isGenerous = karmaDelta > 10 || (outcome.goodKarmaDelta && outcome.goodKarmaDelta > 5)
+    CrossGameStorage.logEvent(
+      'prospectors_tale',
+      isGreedy ? 'greedy_hoarding' : isGenerous ? 'generous_sharing' : 'custom',
+      `${state.currentEvent.title}: ${choice.text}`,
+      { karmaDelta, locationId: state.currentLandmark?.toLowerCase().replace(/[^a-z]/g, '_'), detail: outcome.message }
+    )
   }, [state.currentEvent, handleEventChoice, earnNeutral, spendNeutral, earnGood, addBadKarma, getStat, comment])
 
   // Shop and Inn modals
@@ -414,12 +426,23 @@ function TravelScreen() {
 
   const handleRepairWagon = useCallback(() => {
     if (state.spareParts > 0 && state.wagonCondition < 100) {
-      buySupplies('spareParts', -1, 0) // Consume one spare part
-      // Wagon condition boost is handled via spare parts addition trick
-      buySupplies('spareParts', 0, 0) // Trigger state update for wagon display
+      repairWagon() // -1 spare part, +25 wagon condition
       comment('Wagon repaired with a spare part. She rides smoother now.', 'observation')
     }
-  }, [state.spareParts, state.wagonCondition, buySupplies, comment])
+  }, [state.spareParts, state.wagonCondition, repairWagon, comment])
+
+  // Log landmark arrival events for cross-game narrator
+  const lastLoggedLandmarkRef = useRef('')
+  useEffect(() => {
+    if (state.phase === 'town' && state.currentLandmark && state.currentLandmark !== lastLoggedLandmarkRef.current) {
+      lastLoggedLandmarkRef.current = state.currentLandmark
+      CrossGameStorage.logEvent(
+        'prospectors_tale', 'landmark_reached',
+        `Arrived at ${state.currentLandmark}`,
+        { locationId: state.currentLandmark.toLowerCase().replace(/[^a-z]/g, '_'), detail: `Day ${state.day}` }
+      )
+    }
+  }, [state.phase, state.currentLandmark, state.day])
 
   // Weather emoji
   const weatherEmoji = {
@@ -456,6 +479,12 @@ function TravelScreen() {
 
   // Game over screen
   if (state.phase === 'game_over') {
+    // Log game over event once
+    CrossGameStorage.logEvent(
+      'prospectors_tale', 'party_member_died',
+      `Journey ended: ${state.message || 'The trail claimed another'}`,
+      { detail: `Day ${state.daysOnTrail}, ${state.totalMilesTraveled} miles` }
+    )
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center p-4">
         <div className="text-center">
@@ -478,6 +507,13 @@ function TravelScreen() {
 
   // Victory screen
   if (state.phase === 'complete') {
+    // Log journey complete event once
+    const survivors = state.party.filter(m => m.health > 0)
+    CrossGameStorage.logEvent(
+      'prospectors_tale', 'survived_trail',
+      `Survived the Trail with ${survivors.length} companion${survivors.length !== 1 ? 's' : ''}!`,
+      { detail: `Day ${state.daysOnTrail}, ${survivors.length} survivors`, survivorName: survivors[0]?.name }
+    )
     return (
       <div className="min-h-screen bg-gradient-to-b from-yellow-950 via-amber-900 to-amber-950 flex items-center justify-center p-4">
         <div className="text-center">
@@ -807,6 +843,40 @@ function TravelScreen() {
             )}
           </div>
 
+          {/* Active Buffs Strip — visible countdown for timed effects */}
+          {activeEffects.length > 0 && (
+            <div className="mb-3 p-2 bg-stone-900/80 border border-purple-700/50 rounded-lg">
+              <div className="text-[10px] text-purple-400 font-pixel mb-1 uppercase tracking-wider">Active Effects</div>
+              <div className="flex flex-wrap gap-1.5">
+                {activeEffects.map((effect) => {
+                  const isBuff = effect.type === 'stat_buff' || effect.type === 'heal_over_time' || effect.type === 'resistance'
+                  return (
+                    <div
+                      key={effect.id}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border ${
+                        isBuff
+                          ? 'bg-green-900/50 border-green-700/60 text-green-300'
+                          : 'bg-red-900/50 border-red-700/60 text-red-300'
+                      }`}
+                      title={`${effect.sourceName}: ${effect.value > 0 ? '+' : ''}${effect.value}${effect.stat ? ` ${effect.stat}` : ''}`}
+                    >
+                      <span className="font-bold">{effect.sourceName.split(' ')[0]}</span>
+                      <span className="opacity-80">{effect.value > 0 ? '+' : ''}{effect.value}{effect.stat ? ` ${effect.stat.slice(0, 3)}` : ''}</span>
+                      {effect.stackCount > 1 && (
+                        <span className="bg-amber-700 text-amber-200 rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px]">
+                          x{effect.stackCount}
+                        </span>
+                      )}
+                      <span className={`font-mono ${effect.remainingTurns <= 1 ? 'text-red-400 animate-pulse' : 'opacity-60'}`}>
+                        {effect.remainingTurns}d
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Town Actions */}
           <div className="grid gap-2 mb-6 grid-cols-4 md:grid-cols-5 lg:grid-cols-8">
             <button
@@ -857,6 +927,11 @@ function TravelScreen() {
               <p className={`text-xs mt-1 ${hasResearchAvailable ? 'text-cyan-200' : 'text-gray-500'}`}>
                 Research
               </p>
+              {currentLocationClues.length > 0 && (
+                <p className="text-cyan-400 text-[10px] mt-0.5">
+                  {mysteryState.educationalCluesCollected.filter(c => c.answeredCorrectly && currentLocationClues.some(cl => cl.id === c.clue.id)).length}/{currentLocationClues.length} done
+                </p>
+              )}
             </button>
             {currentHistoricalChar && (
               <button
@@ -1003,7 +1078,7 @@ function TravelScreen() {
         {showShop && <TownShop onClose={() => setShowShop(false)} />}
 
         {/* Inn Modal */}
-        {showInn && <TownInn onClose={() => setShowInn(false)} isWestPoint={isWestPoint} />}
+        {showInn && <TownInn onClose={() => setShowInn(false)} isWestPoint={isWestPoint} onApplyBuff={handleUseConsumable} />}
 
         {/* Town Puzzle Modal */}
         {showPuzzle && (
@@ -1201,7 +1276,7 @@ function TravelScreen() {
         <CampMenu isOpen={showCampMenu} onClose={() => setShowCampMenu(false)} />
 
         {/* Pip-Boy Game Menu */}
-        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} />
+        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} onOpenCamp={() => setShowCampMenu(true)} />
 
         {/* FAB: Game Menu button */}
         <button
@@ -1412,6 +1487,40 @@ function TravelScreen() {
           <PossePanel />
         </div>
 
+        {/* Active Buffs Strip — visible countdown for timed effects */}
+        {activeEffects.length > 0 && (
+          <div className="mb-4 p-2 bg-stone-900/80 border border-purple-700/50 rounded-lg">
+            <div className="text-[10px] text-purple-400 font-pixel mb-1 uppercase tracking-wider">Active Effects</div>
+            <div className="flex flex-wrap gap-1.5">
+              {activeEffects.map((effect) => {
+                const isBuff = effect.type === 'stat_buff' || effect.type === 'heal_over_time' || effect.type === 'resistance'
+                return (
+                  <div
+                    key={effect.id}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border ${
+                      isBuff
+                        ? 'bg-green-900/50 border-green-700/60 text-green-300'
+                        : 'bg-red-900/50 border-red-700/60 text-red-300'
+                    }`}
+                    title={`${effect.sourceName}: ${effect.value > 0 ? '+' : ''}${effect.value}${effect.stat ? ` ${effect.stat}` : ''}`}
+                  >
+                    <span className="font-bold">{effect.sourceName.split(' ')[0]}</span>
+                    <span className="opacity-80">{effect.value > 0 ? '+' : ''}{effect.value}{effect.stat ? ` ${effect.stat.slice(0, 3)}` : ''}</span>
+                    {effect.stackCount > 1 && (
+                      <span className="bg-amber-700 text-amber-200 rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px]">
+                        x{effect.stackCount}
+                      </span>
+                    )}
+                    <span className={`font-mono ${effect.remainingTurns <= 1 ? 'text-red-400 animate-pulse' : 'opacity-60'}`}>
+                      {effect.remainingTurns}d
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex gap-4 justify-center flex-wrap">
           <button
@@ -1479,7 +1588,7 @@ function TravelScreen() {
         <CampMenu isOpen={showCampMenu} onClose={() => setShowCampMenu(false)} />
 
         {/* Pip-Boy Game Menu (available during travel) */}
-        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} />
+        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} onOpenCamp={() => setShowCampMenu(true)} />
 
         {/* FAB: Game Menu button */}
         <button
@@ -1862,8 +1971,9 @@ function OregonTrailGame() {
     // Try slot-based saves first (authenticated users)
     const sorted = [...saves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     if (sorted.length > 0) {
-      await loadGame(sorted[0].id)
-      return
+      const result = await loadGame(sorted[0].id)
+      if (result.success) return
+      // Slot load failed — fall through to local autosave
     }
     // Fall back to local auto-save (all users)
     try {
@@ -1994,6 +2104,7 @@ function OregonTrailGame() {
       {renderPhaseContent()}
       <SaveLoadIntegration />
       {showSavePanel && <AuthSavePanel />}
+      <ShareLegacy />
     </>
   )
 }

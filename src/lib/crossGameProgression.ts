@@ -394,6 +394,56 @@ function computeSpiritualBuffs(level: 0 | 1 | 2 | 3): SpiritualBuff[] {
 }
 
 // ============================================
+// WORLD EVENT LOG — immutable cross-game history
+// ============================================
+
+export type WorldEventAction =
+  | 'greedy_hoarding'
+  | 'generous_sharing'
+  | 'party_member_died'
+  | 'party_member_saved'
+  | 'survived_trail'
+  | 'completed_chapter'
+  | 'discovery_made'
+  | 'confrontation_won'
+  | 'confrontation_fled'
+  | 'confrontation_lost'
+  | 'npc_befriended'
+  | 'npc_angered'
+  | 'mystery_solved'
+  | 'landmark_reached'
+  | 'item_acquired'
+  | 'shop_purchase'
+  | 'camp_rested'
+  | 'skill_unlocked'
+  | 'karma_milestone'
+  | 'bounty_completed'
+  | 'time_echo_found'
+  | 'spiritual_site_visited'
+  | 'prologue_act_completed'
+  | 'treasure_found'
+  | 'ally_recruited'
+  | 'ranch_visited'
+  | 'custom'
+
+export interface WorldEvent {
+  id: string
+  timestamp: number
+  mode: GameId
+  action: WorldEventAction
+  label: string              // Human-readable: "Hoarded supplies at Fort Laramie"
+  impact?: {
+    karmaDelta?: number
+    survivorName?: string
+    locationId?: string
+    flagSet?: string
+    reputationDelta?: Partial<Record<FactionId, number>>
+    statAffected?: string
+    detail?: string          // Extra context for narrator
+  }
+}
+
+// ============================================
 // CROSS-GAME STATE
 // ============================================
 
@@ -409,6 +459,7 @@ export interface CrossGameState {
   spiritualAwareness: SpiritualAwareness
   mapDiscoveries: MapDiscovery[]
   historicalDepth: number  // 0-100, tracks how much history player has discovered
+  eventLog: WorldEvent[]   // Immutable cross-game event history
   lastSyncTimestamp: string
 }
 
@@ -432,6 +483,7 @@ export const DEFAULT_CROSS_GAME_STATE: CrossGameState = {
   spiritualAwareness: { ...DEFAULT_SPIRITUAL_AWARENESS },
   mapDiscoveries: [],
   historicalDepth: 0,
+  eventLog: [],
   lastSyncTimestamp: new Date().toISOString(),
 }
 
@@ -822,6 +874,101 @@ export const CrossGameStorage = {
     return (state?.mapDiscoveries || []).filter(d => d.source === gameId)
   },
 
+  // ============================================
+  // WORLD EVENT LOG
+  // ============================================
+
+  /**
+   * Log a world event. Immutable append-only log (keeps last 200).
+   * All games write here; narrator and share card read from here.
+   */
+  logEvent(
+    mode: GameId,
+    action: WorldEventAction,
+    label: string,
+    impact?: WorldEvent['impact']
+  ): WorldEvent {
+    const state = this.load() || { ...DEFAULT_CROSS_GAME_STATE }
+    if (!state.eventLog) state.eventLog = []
+
+    const event: WorldEvent = {
+      id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: Date.now(),
+      mode,
+      action,
+      label,
+      impact,
+    }
+
+    // Append and cap at 200 events
+    state.eventLog = [...state.eventLog.slice(-199), event]
+    this.save(state)
+    return event
+  },
+
+  /**
+   * Get the full event log.
+   */
+  getEventLog(): WorldEvent[] {
+    const state = this.load()
+    return state?.eventLog || []
+  },
+
+  /**
+   * Get events from a specific game mode.
+   */
+  getEventsForGame(gameId: GameId): WorldEvent[] {
+    return this.getEventLog().filter(e => e.mode === gameId)
+  },
+
+  /**
+   * Get the N most recent events.
+   */
+  getRecentEvents(count: number = 10): WorldEvent[] {
+    return this.getEventLog().slice(-count)
+  },
+
+  /**
+   * Count how many events match a given action across all games.
+   */
+  countEventsByAction(action: WorldEventAction): number {
+    return this.getEventLog().filter(e => e.action === action).length
+  },
+
+  /**
+   * Get unique game modes the player has engaged with.
+   */
+  getPlayedModes(): GameId[] {
+    const log = this.getEventLog()
+    return [...new Set(log.map(e => e.mode))]
+  },
+
+  /**
+   * Get a player "legacy" summary for sharing.
+   */
+  getLegacySummary(): {
+    totalEvents: number
+    modesPlayed: GameId[]
+    karmaBalance: SharedKarmaPool
+    discoveries: number
+    confrontationsWon: number
+    mysteriesSolved: number
+    alliesRecruited: number
+    mostRecentEvent: WorldEvent | null
+  } {
+    const log = this.getEventLog()
+    return {
+      totalEvents: log.length,
+      modesPlayed: this.getPlayedModes(),
+      karmaBalance: this.loadSharedKarma(),
+      discoveries: log.filter(e => e.action === 'discovery_made').length,
+      confrontationsWon: log.filter(e => e.action === 'confrontation_won').length,
+      mysteriesSolved: log.filter(e => e.action === 'mystery_solved').length,
+      alliesRecruited: log.filter(e => e.action === 'ally_recruited').length,
+      mostRecentEvent: log.length > 0 ? log[log.length - 1] : null,
+    }
+  },
+
   /**
    * Migrate from older versions
    */
@@ -839,6 +986,7 @@ export const CrossGameStorage = {
       spiritualAwareness: oldState.spiritualAwareness || { ...DEFAULT_SPIRITUAL_AWARENESS },
       mapDiscoveries: oldState.mapDiscoveries || [],
       historicalDepth: oldState.historicalDepth || 0,
+      eventLog: oldState.eventLog || [],
     }
     if (!migrated.mapDiscoveries) migrated.mapDiscoveries = []
     this.save(migrated)

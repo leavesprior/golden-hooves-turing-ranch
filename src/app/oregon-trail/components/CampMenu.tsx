@@ -122,7 +122,7 @@ function getContextualLine(
 // ============================================================================
 
 export function CampMenu({ isOpen, onClose }: CampMenuProps) {
-  const { state } = useOregonTrail()
+  const { state, buyFood, restAtInn, repairWagon, buySupplies } = useOregonTrail()
   const { balance, canAfford, spendNeutral } = useKarmaWallet()
   const narrator = useNarrator()
 
@@ -135,6 +135,7 @@ export function CampMenu({ isOpen, onClose }: CampMenuProps) {
   } | null>(null)
   const [talkTarget, setTalkTarget] = useState<string | null>(null)
   const [talkLine, setTalkLine] = useState<string | null>(null)
+  const [talkKey, setTalkKey] = useState(0)
 
   // Auto-dismiss talk bubble
   useEffect(() => {
@@ -187,8 +188,28 @@ export function CampMenu({ isOpen, onClose }: CampMenuProps) {
         setCooldowns((prev) => ({ ...prev, [service.id]: service.cooldownDays }))
       }
 
-      // Show effects
+      // Actually apply effects to game state
       const effects = service.effects
+      if (effects.healthDelta && effects.healthTarget === 'party') {
+        restAtInn(effects.healthDelta, 0, 0)  // Heal whole party
+      } else if (effects.healthDelta) {
+        buyFood(effects.healthDelta, 0, 0, false)  // Heal leader
+      }
+      if (effects.moraleDelta) {
+        buyFood(0, effects.moraleDelta, 0, false)  // Boost morale
+      }
+      if (effects.wagonRepair) {
+        // Apply wagon repair (multiple times for larger values)
+        const repairs = Math.ceil(effects.wagonRepair / 25)
+        for (let i = 0; i < repairs; i++) repairWagon()
+        // Re-add the spare parts consumed by repairWagon (service handles its own cost)
+        if (repairs > 0) buySupplies('spareParts', repairs, 0)
+      }
+      if (effects.foodGain) {
+        buySupplies('food', effects.foodGain, 0)
+      }
+
+      // Show floating effect for UI feedback
       if (effects.healthDelta) {
         setFloatingEffect({ value: effects.healthDelta, type: 'gain' })
       } else if (effects.moraleDelta) {
@@ -221,6 +242,7 @@ export function CampMenu({ isOpen, onClose }: CampMenuProps) {
       )
       setTalkTarget(member.id)
       setTalkLine(line)
+      setTalkKey(k => k + 1)
       playSFX('click')
     },
     [state.food, state.morale, state.party],
@@ -559,7 +581,7 @@ export function CampMenu({ isOpen, onClose }: CampMenuProps) {
                     setTalkTarget(null)
                   }}
                 >
-                  <DOSMessage text={talkLine} speed={25} sfxEvery={0} />
+                  <DOSMessage key={talkKey} text={talkLine} speed={25} sfxEvery={0} />
                 </div>
               )}
             </div>

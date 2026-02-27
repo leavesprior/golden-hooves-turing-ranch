@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useKarma, ALIGNMENT_DISPLAY_NAMES } from '@/lib/karmaContext'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import { AlignmentCompass, KarmaToastContainer, HouseRulesQuiz } from '@/components/karma'
+import { ShareLegacy } from '@/components/ui/ShareLegacy'
 
 // Game card component
 interface GameCardProps {
@@ -467,6 +468,8 @@ export default function HubPage() {
           &copy; 2026 Back of Beyond Ranch | Gold Country, California
         </div>
       </footer>
+
+      <ShareLegacy />
     </div>
   )
 }

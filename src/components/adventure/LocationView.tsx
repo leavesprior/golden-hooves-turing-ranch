@@ -112,7 +112,13 @@ export function LocationView({
   // Service interaction state
   const [svcMessage, setSvcMessage] = useState<string | null>(null)
   const [svcSuccess, setSvcSuccess] = useState<boolean | null>(null)
-  const [purchasedItems, setPurchasedItems] = useState<Set<string>>(new Set())
+  const [purchasedItems, setPurchasedItems] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
+    try {
+      const stored = localStorage.getItem('bobr_adventure_purchased_items')
+      return stored ? new Set(JSON.parse(stored)) : new Set()
+    } catch { return new Set() }
+  })
 
   // All hooks must be called before any early returns (React rules-of-hooks)
   const handleSubmitClueAnswer = useCallback((clue: DiscoveryClue) => {
@@ -473,7 +479,11 @@ export function LocationView({
                       const spent = onSpendKarma?.(item.cost, `Bought ${item.name}`)
                       if (spent) {
                         playSFX('coin')
-                        setPurchasedItems(prev => new Set(prev).add(item.id))
+                        setPurchasedItems(prev => {
+                          const next = new Set(prev).add(item.id)
+                          try { localStorage.setItem('bobr_adventure_purchased_items', JSON.stringify([...next])) } catch {}
+                          return next
+                        })
                         onAddXP(3)
                         setSvcSuccess(true)
                         setSvcMessage(`Purchased ${item.name}! The shopkeeper nods approvingly.`)
