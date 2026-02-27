@@ -1531,6 +1531,18 @@ function ExplorerMap() {
             {/* West Point (55,40) -> BOBR Ranch (50,50) */}
             <path d="M 55,30 Q 54,35 52,38 Q 51,42 50,38"
               fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
+            {/* Nevada City (72,18) -> Grass Valley (82,28) */}
+            <path d="M 72,14 Q 76,18 79,22 Q 81,25 82,20"
+              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
+            {/* Volcano (35,35) -> Nevada City (72,18) — long northern trail */}
+            <path d="M 35,26 Q 45,20 55,17 Q 63,15 72,14"
+              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.3" opacity="0.3" strokeDasharray="2,2" />
+            {/* Angels Camp (25,65) -> Angels Camp Expanded (15,72) */}
+            <path d="M 25,49 Q 20,55 17,60 Q 16,64 15,56"
+              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
+            {/* San Andreas (35,75) -> Mariposa (42,88) */}
+            <path d="M 35,56 Q 37,62 39,68 Q 40,74 42,66"
+              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
 
             {/* Forest patches — scattered pine treeline shapes */}
             <g opacity="0.12" fill="var(--pixel-forest-mid)">
@@ -1581,6 +1593,10 @@ function ExplorerMap() {
               mokelumne_hill: { x: 20, y: 50 },
               san_andreas: { x: 35, y: 75 },
               bobr_ranch: { x: 50, y: 50 },
+              nevada_city: { x: 72, y: 18 },
+              grass_valley: { x: 82, y: 28 },
+              angels_camp_expanded: { x: 15, y: 72 },
+              mariposa: { x: 42, y: 88 },
             }
             const pos = positions[town.id] || { x: 50, y: 50 }
 
