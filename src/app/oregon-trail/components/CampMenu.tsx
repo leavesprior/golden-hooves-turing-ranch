@@ -135,6 +135,7 @@ export function CampMenu({ isOpen, onClose }: CampMenuProps) {
   } | null>(null)
   const [talkTarget, setTalkTarget] = useState<string | null>(null)
   const [talkLine, setTalkLine] = useState<string | null>(null)
+  const [talkKey, setTalkKey] = useState(0)
 
   // Auto-dismiss talk bubble
   useEffect(() => {
@@ -241,6 +242,7 @@ export function CampMenu({ isOpen, onClose }: CampMenuProps) {
       )
       setTalkTarget(member.id)
       setTalkLine(line)
+      setTalkKey(k => k + 1)
       playSFX('click')
     },
     [state.food, state.morale, state.party],
@@ -579,7 +581,7 @@ export function CampMenu({ isOpen, onClose }: CampMenuProps) {
                     setTalkTarget(null)
                   }}
                 >
-                  <DOSMessage text={talkLine} speed={25} sfxEvery={0} />
+                  <DOSMessage key={talkKey} text={talkLine} speed={25} sfxEvery={0} />
                 </div>
               )}
             </div>

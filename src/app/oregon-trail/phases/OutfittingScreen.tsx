@@ -79,13 +79,13 @@ export function OutfittingScreen() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setSupplies(s => ({ ...s, food: Math.max(0, s.food - 50) }))}
-                    className="w-6 h-6 bg-amber-700 text-amber-200 rounded"
-                  >-</button>
+                    className="w-8 h-6 bg-amber-700 text-amber-200 rounded text-[10px] font-pixel"
+                  >-50</button>
                   <span className="text-amber-100 font-pixel text-sm w-12 text-center">{supplies.food}</span>
                   <button
                     onClick={() => setSupplies(s => ({ ...s, food: s.food + 50 }))}
-                    className="w-6 h-6 bg-amber-700 text-amber-200 rounded"
-                  >+</button>
+                    className="w-8 h-6 bg-amber-700 text-amber-200 rounded text-[10px] font-pixel"
+                  >+50</button>
                 </div>
               </div>
 

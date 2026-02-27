@@ -1252,8 +1252,8 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
         }
       }
 
-      // Random events (20% chance when traveling)
-      if (newPhase === 'traveling' && Math.random() < 0.2) {
+      // Random events (30% chance when traveling)
+      if (newPhase === 'traveling' && Math.random() < 0.3) {
         const event = RANDOM_EVENTS[Math.floor(Math.random() * RANDOM_EVENTS.length)]
         return {
           ...prev,

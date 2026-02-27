@@ -1971,8 +1971,9 @@ function OregonTrailGame() {
     // Try slot-based saves first (authenticated users)
     const sorted = [...saves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     if (sorted.length > 0) {
-      await loadGame(sorted[0].id)
-      return
+      const result = await loadGame(sorted[0].id)
+      if (result.success) return
+      // Slot load failed — fall through to local autosave
     }
     // Fall back to local auto-save (all users)
     try {
