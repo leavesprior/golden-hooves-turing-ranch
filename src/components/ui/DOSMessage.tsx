@@ -34,10 +34,9 @@ export function DOSMessage({ text, speed = 30, onComplete, className = '', sfxEv
       const next = text.slice(0, indexRef.current)
       setDisplayed(next)
       if (sfxEvery > 0 && indexRef.current % sfxEvery === 0) {
-        try {
-          const { playSFX } = require('@/app/oregon-trail/lib/audioManager')
-          playSFX('click')
-        } catch {}
+        import('@/app/oregon-trail/lib/audioManager')
+          .then(({ playSFX }) => playSFX('click'))
+          .catch(() => {})
       }
       if (indexRef.current >= text.length) {
         clearInterval(timerRef.current!)
