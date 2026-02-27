@@ -213,7 +213,7 @@ export function TownInn({ onClose, isWestPoint = false, onApplyBuff }: TownInnPr
   const { comment, setMood } = useNarrator()
   const { getInteractionBonus, modifyReputation } = useReputation()
   const { modifyStat } = useCharacter()
-  const { balance, canAfford, spendNeutral, spendGood, showConvertModal, setShowConvertModal, convertModalContext, setConvertModalContext } = useKarmaWallet()
+  const { balance, canAfford, spendNeutral, spendGood, earnGood, showConvertModal, setShowConvertModal, convertModalContext, setConvertModalContext } = useKarmaWallet()
 
   const [selectedTab, setSelectedTab] = useState<'rooms' | 'food' | 'drinks'>('rooms')
   const [message, setMessage] = useState<string | null>(null)
@@ -405,8 +405,7 @@ export function TownInn({ onClose, isWestPoint = false, onApplyBuff }: TownInnPr
     }
     // Apply karma effects
     if (outcome.goodKarmaDelta && outcome.goodKarmaDelta > 0) {
-      // We don't have earnGood here directly, so use spendGood negatively
-      // Actually just report the karma gain in the message
+      earnGood(outcome.goodKarmaDelta, `Ghost encounter: ${ghostEncounter?.ghostName || 'Spirit'}`)
     }
     if (outcome.neutralKarmaDelta && outcome.neutralKarmaDelta < 0) {
       const cost = Math.abs(outcome.neutralKarmaDelta)
@@ -425,7 +424,7 @@ export function TownInn({ onClose, isWestPoint = false, onApplyBuff }: TownInnPr
         setMessage(`${ghostEncounter.historicalFact}`)
       }
     }, 5000)
-  }, [ghostEncounter, canAfford, spendNeutral, restAtInn])
+  }, [ghostEncounter, canAfford, spendNeutral, earnGood, restAtInn])
 
   // Party dynamics display
   const getMoraleDescription = (morale: number) => {
