@@ -136,7 +136,7 @@ const jsonLd = {
           name: "How many guests can Back of Beyond Ranch accommodate?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "The ranch accommodates up to 12 guests across 4 bedrooms and 3 bathrooms. The property sits on 10 private acres in Gold Country, California.",
+            text: "The ranch accommodates up to 12 guests across 6 bedrooms and 3 bathrooms. The property sits on 10 private acres in Gold Country, California.",
           },
         },
         {

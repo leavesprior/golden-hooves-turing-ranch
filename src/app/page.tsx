@@ -1127,7 +1127,7 @@ export default function Home() {
             <div className="text-center sm:text-left">
               <h3 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-[9px] mb-2">The Ranch</h3>
               <div className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] space-y-1">
-                <p>4 Bedrooms, 3 Baths</p>
+                <p>6 Bedrooms, 3 Baths</p>
                 <p>Sleeps 12 Guests</p>
                 <p>10 Acres, Gold Country CA</p>
               </div>
