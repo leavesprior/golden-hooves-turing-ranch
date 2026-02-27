@@ -596,7 +596,7 @@ function ReputationDisplay() {
 
 function AdventureContent() {
   const router = useRouter()
-  const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter } = useCharacter()
+  const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter, modifyStat } = useCharacter()
   const { balance, earnNeutral, spendNeutral } = useKarmaWallet()
   const { state: repState, modifyReputation, getReputationLevel, getReputation } = useReputation()
   const { comment: narratorComment } = useNarrator()
@@ -944,6 +944,13 @@ function AdventureContent() {
   const handleCampResult = useCallback((result: ActivityResult) => {
     if (result.xpGain) addExperience(result.xpGain)
     if (result.karmaGain) earnNeutral(result.karmaGain, 'Camp activity')
+    if (result.healthChange) {
+      // Apply health change via Durability stat modification (positive = heal, negative = damage)
+      modifyStat('Durability', result.healthChange > 0 ? 1 : -1)
+    }
+    if (result.statChange) {
+      modifyStat(result.statChange.stat, result.statChange.amount)
+    }
     if (result.reputationChange) {
       modifyReputation(result.reputationChange.faction, result.reputationChange.amount, 'Camp activity')
     }
@@ -959,7 +966,7 @@ function AdventureContent() {
         })
       }
     }
-  }, [addExperience, earnNeutral, modifyReputation, adventureState, updateState])
+  }, [addExperience, earnNeutral, modifyStat, modifyReputation, adventureState, updateState])
 
   // === CAMP COMPLETE ===
   const handleCampComplete = useCallback(() => {

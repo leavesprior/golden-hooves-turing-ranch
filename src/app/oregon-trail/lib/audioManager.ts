@@ -67,7 +67,14 @@ const state: AudioState = {
 export function initAudio(): boolean {
   if (state.context) return true
   try {
-    state.context = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioCtx) {
+      console.warn('AudioManager: AudioContext not supported')
+      return false
+    }
+
+    state.context = new AudioCtx()
+
     state.masterGain = state.context.createGain()
     state.masterGain.gain.value = 1.0
     state.masterGain.connect(state.context.destination)
