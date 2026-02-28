@@ -1,155 +1,63 @@
 'use client'
 
-import React, { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
-import Link from 'next/link'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { trackPageView, trackGameStart } from '@/lib/eventTracker'
-import { OregonTrailProvider, useOregonTrail, type GamePhase } from './oregonTrailContext'
-import { KarmaToastContainer } from '@/components/karma'
+import { OregonTrailProvider, useOregonTrail } from './oregonTrailContext'
 import { ShareLegacy } from '@/components/ui/ShareLegacy'
 
-// Karma Wallet (Neoma Blockchain Integration)
-import { KarmaWalletProvider, useKarmaWallet } from './karmaWalletContext'
-import { KarmaWallet } from './components/KarmaWallet'
-
-// Mystery/RPG Context Providers
-import { CharacterProvider, useCharacter } from './characterContext'
-import { ReputationProvider, useReputation } from './reputationContext'
-import { NarratorProvider, useNarrator } from './narratorContext'
-import { MysteryProvider, useMystery } from './mysteryContext'
-
-// UI Components
-import { DossierView } from './components/DossierView'
-import { TelegraphOffice } from './components/TelegraphOffice'
-import { WitnessDialogue } from './components/WitnessDialogue'
-import { ClueJournal } from './components/ClueJournal'
-import { JournalSouvenir } from './components/JournalSouvenir'
-import { ReputationBar } from './components/ReputationBar'
-import { NarratorOverlay, ReliabilityIndicator } from './components/NarratorOverlay'
-import { TownShop } from './components/TownShop'
-import { TownInn } from './components/TownInn'
-import { ResearchStation, type TrailLandmarkInfo } from './components/ResearchStation'
-import { DiscountReward, DiscountProgressBar } from './components/DiscountReward'
-import { type WitnessType } from './data/clueTemplates'
-import { hasCynthiasInn } from './oregonTrailContext'
-import { getGoldCountryLocation } from './data/goldCountryLocations'
-import { rollHistoricalEncounter, type HistoricalCharacterEvent, type HistoricalCharacterChoice } from './data/historicalCharacters'
-
-// 64-bit Graphics System
-import {
-  Graphics64bitWrapper,
-  TravelingScene,
-  getTimeOfDay,
-  getTierFilter,
-  type TimeOfDay,
-  type WeatherType
-} from './components/Graphics64bit'
-
-// Landmark Scenes
-import { LandmarkScene, type LandmarkType } from './components/LandmarkScene'
-import { LANDMARKS } from './oregonTrailContext'
-
-// Chapter System & World Map (Fallout-style)
-import { ChapterProvider, useChapter, ChapterTransition } from './chapterContext'
-import { WorldMap, MiniMap } from './components/WorldMap'
-import { getAllLocations, getLocationById, type ChapterType } from './data/worldMaps'
-import { getRandomTwainQuote, getEasterEggsForLocation } from './data/easterEggs'
-
-// Ranch Management System (Lords II-style)
-import { RanchProvider, useRanch } from './ranchContext'
-
-// Settlement System (Gold Country Endgame)
-import { SettlementProvider, useSettlement } from './settlementContext'
-
-// Lazy-loaded modules (code-split for faster initial load)
-const RanchManagement = lazy(() => import('./components/RanchManagement').then(m => ({ default: m.RanchManagement })))
-const TownPuzzle = lazy(() => import('./components/TownPuzzle'))
-const SettlementHub = lazy(() => import('./components/SettlementHub').then(m => ({ default: m.SettlementHub })))
-const SettlementVictory = lazy(() => import('./components/SettlementVictory').then(m => ({ default: m.SettlementVictory })))
-const GoldCountryExplore = lazy(() => import('./components/GoldCountryExplore').then(m => ({ default: m.GoldCountryExplore })))
-const GoldCountryLocation = lazy(() => import('./components/GoldCountryLocation').then(m => ({ default: m.GoldCountryLocation })))
-const GoldCountryTravel = lazy(() => import('./components/GoldCountryTravel').then(m => ({ default: m.GoldCountryTravel })))
-const QuestLog = lazy(() => import('./components/QuestLog').then(m => ({ default: m.QuestLog })))
-// NPC Relationship Panel — lazy loaded (only shown when player opens it)
-const NPCRelationshipPanel = lazy(() =>
-  import('./components/NPCRelationshipPanel').then(m => ({ default: m.NPCRelationshipPanel }))
-)
+// Context Providers (used in provider tree)
+import { KarmaWalletProvider } from './karmaWalletContext'
+import { CharacterProvider } from './characterContext'
+import { ReputationProvider } from './reputationContext'
+import { NarratorProvider } from './narratorContext'
+import { MysteryProvider } from './mysteryContext'
+import { ChapterProvider } from './chapterContext'
+import { RanchProvider } from './ranchContext'
+import { SettlementProvider } from './settlementContext'
+import { NPCProvider } from './npcContext'
 
 // Title Screen and Chapter System
 import { TitleScreen } from './components/TitleScreen'
 import { ChapterIntro, CHAPTERS } from './components/ChapterIntro'
 
-// Travel Observations - Hitchhiker's Guide Style Commentary
-import { TravelObservations } from './components/TravelObservations'
-import { type WeatherMood } from './data/travelObservations'
-
-// NEW: Enhanced River Crossing System (Classic Oregon Trail 5-choice)
-import { RiverCrossing } from './components/RiverCrossing'
-import { type CrossingOutcome } from './data/riverCrossings'
-
-// NEW: Colorful Event Messages (Fallout-style)
-import { getHuntingMessage, getDramaticOutcome } from './data/eventMessages'
-
-// Critical Hit/Miss Descriptions (Fallout-style flavor text)
-import { getCriticalDescription } from './data/criticalDescriptions'
-import { getEventVariant } from './data/statEventVariants'
-import { getPuzzlesForLandmark, type TownPuzzle as TownPuzzleData } from './data/townPuzzles'
-
-// NEW: Occupation System (Oregon Trail-style scoring)
-import {
-  type Occupation,
-  getOccupationList,
-  getOccupation,
-  getOccupationDifficulty,
-  getOccupationFlavor,
-  getStartingSupplies
-} from './data/occupations'
-
-// NPC Context for Ollama-powered dialogue
-import { NPCProvider } from './npcContext'
-import { CrossGameStorage } from '@/lib/crossGameProgression'
-
 // Authentication & Save/Load System
 import { AuthSavePanel } from '@/components/game/AuthSavePanel'
 import { useSaveLoad } from '@/lib/saveLoadContext'
-import { useAuth } from '@/lib/authContext'
 
-// NEW: Golden Hooves Enhancements
+// Golden Hooves Enhancements
 import { GameErrorBoundary } from './components/GameErrorBoundary'
-import HunkerDown from './components/HunkerDown'
-import GoldCountryBooking from './components/GoldCountryBooking'
 import { VolumeControl } from './components/VolumeControl'
 import * as AudioManager from './lib/audioManager'
 
-// NEW: Specialty Shops & Hireable Guides
-import { SpecialtyShop } from './components/SpecialtyShop'
-import { GuideHire } from './components/GuideHire'
-import { getAvailableShops, getAvailableGuides, type SpecialtyShop as SpecialtyShopData, type HireableGuide } from './data/specialtyShops'
-
-// Posse Management System (#6)
-import { PossePanel } from './components/PossePanel'
-const PosseRecruitment = lazy(() => import('./components/PosseRecruitment').then(m => ({ default: m.PosseRecruitment })))
-
-// Camp Menu & Pip-Boy Game Menu
-import { CampMenu } from './components/CampMenu'
-import { PipBoyMenu } from './components/GameMenu'
-
-// NEW: Character Sheet & Consumable Effects
-import { CharacterSheet } from './components/CharacterSheet'
-import { type ActiveEffect, applyConsumable, tickEffects, getConsumableItem, getInstantEffects } from './data/consumableEffects'
+// Specialty Shops — HireableGuide type used by TravelScreen wrapper
+import { type HireableGuide } from './data/specialtyShops'
 
 // Extracted Phase Screens (formerly inline in this file)
-import { GameMenu } from './phases/GameMenu'
-import { CharacterCreationScreen } from './phases/CharacterCreationScreen'
-import { InvestigationScreen } from './phases/InvestigationScreen'
-import { OutfittingScreen } from './phases/OutfittingScreen'
-import { WorldMapScreen } from './phases/WorldMapScreen'
-import { GoldCountryArrivalScreen } from './phases/GoldCountryArrivalScreen'
-import { GameOverScreen } from './phases/GameOverScreen'
-import { VictoryScreen } from './phases/VictoryScreen'
-import { EventScreen } from './phases/EventScreen'
-import { RiverScreen } from './phases/RiverScreen'
-import { TownScreen } from './phases/TownScreen'
-import { TravelingScreen } from './phases/TravelingScreen'
+import {
+  GameMenu,
+  CharacterCreationScreen,
+  InvestigationScreen,
+  OutfittingScreen,
+  WorldMapScreen,
+  GoldCountryArrivalScreen,
+  GameOverScreen,
+  VictoryScreen,
+  EventScreen,
+  RiverScreen,
+  TownScreen,
+  TravelingScreen,
+  WitnessScreen,
+  DossierScreen,
+  TelegraphScreen,
+  JournalScreen,
+  RanchManagementScreen,
+  SettlementScreen,
+  SettlementVictoryScreen,
+  GoldCountryExploreScreen,
+  GoldCountryLocationScreen,
+  GoldCountryTravelScreen,
+  SaveLoadIntegration,
+} from './phases'
 import { useConsumableEffects } from './hooks/useConsumableEffects'
 
 // Local auto-save key for unauthenticated users (subsystem contexts persist
@@ -222,295 +130,6 @@ function TravelScreen() {
       lastStatVariant={lastStatVariant}
     />
   )
-}
-
-// Witness Dialogue Screen
-function WitnessScreen() {
-  const { state, closeWitnessDialogue } = useOregonTrail()
-  const { state: mysteryState, generateClueForWitness, addClue } = useMystery()
-  const { addExperience, addInvestigationXP } = useCharacter()
-
-  const witnessType = state.investigation.activeWitness as WitnessType | null
-
-  if (!witnessType) {
-    return null
-  }
-
-  // Generate a clue for this witness (Bounty Hunter mode - always available)
-  const witnessClue = generateClueForWitness(witnessType, state.currentLandmark)
-
-  return (
-    <WitnessDialogue
-      witnessType={witnessType}
-      location={state.currentLandmark}
-      clue={witnessClue}
-      onClose={closeWitnessDialogue}
-      onClueObtained={(clue) => {
-        addClue(clue)
-      }}
-    />
-  )
-}
-
-// Dossier Screen
-function DossierScreen() {
-  const { closeDossier } = useOregonTrail()
-
-  return (
-    <DossierView
-      onClose={closeDossier}
-    />
-  )
-}
-
-// Telegraph Screen
-function TelegraphScreen() {
-  const { closeTelegraph, state } = useOregonTrail()
-  const { comment, setMood } = useNarrator()
-  const { modifyReputation } = useReputation()
-  const { addExperience, addInvestigationXP } = useCharacter()
-
-  const handleWarrantIssued = (success: boolean, bounty: number, message: string) => {
-    if (success) {
-      setMood('impressed')
-      comment("Justice has been served! Though the narrator wonders if it was truly deserved...", 'observation')
-      modifyReputation('pinkerton', 15, 'Successful warrant execution', state.currentLandmark)
-      addExperience(100) // OUTLAW_CAPTURED
-      addInvestigationXP('suspectIdentification', 15)
-      // Create a cross-game bounty for Ranch Treasure Hunt
-      CrossGameStorage.addBounty({
-        id: `bounty_${Date.now()}`,
-        targetName: message || 'Outlaw',
-        description: `Warrant executed at ${state.currentLandmark || 'unknown location'}. Bounty: $${bounty}.`,
-        reward: bounty,
-        originGame: 'prospectors_tale',
-      })
-    } else {
-      setMood('amused')
-      comment("Wrong suspect! The real outlaw escapes while you arrest an innocent. How embarrassing.", 'observation')
-      modifyReputation('pinkerton', -20, 'Wrongful arrest', state.currentLandmark)
-      addExperience(-10) // WRONG_ACCUSATION penalty
-    }
-    closeTelegraph()
-  }
-
-  return (
-    <TelegraphOffice
-      onClose={closeTelegraph}
-      onWarrantIssued={handleWarrantIssued}
-    />
-  )
-}
-
-// Journal Screen
-function JournalScreen() {
-  const { closeJournal, openDossier, openTelegraph } = useOregonTrail()
-  const [showSouvenir, setShowSouvenir] = useState(false)
-
-  return (
-    <>
-      <ClueJournal
-        onClose={closeJournal}
-        onOpenDossier={openDossier}
-        onOpenTelegraph={openTelegraph}
-      />
-      {/* Export Journal / Souvenir button — fixed bottom-right */}
-      <button
-        onClick={() => setShowSouvenir(true)}
-        className="fixed bottom-4 right-4 z-50 px-4 py-2 bg-amber-900 text-amber-300 rounded-lg hover:bg-amber-800 active:bg-amber-700 text-sm font-bold shadow-lg border border-amber-700"
-      >
-        Export Journal
-      </button>
-      {showSouvenir && (
-        <JournalSouvenir onClose={() => setShowSouvenir(false)} />
-      )}
-    </>
-  )
-}
-
-// Ranch Management Screen (Lords II-style building)
-function LazyFallback() {
-  return (
-    <div className="min-h-screen bg-stone-950 flex items-center justify-center">
-      <div className="text-amber-400 font-pixel text-sm animate-pulse">Loading...</div>
-    </div>
-  )
-}
-
-function RanchManagementScreen() {
-  const { closeRanchManagement } = useOregonTrail()
-
-  return (
-    <Suspense fallback={<LazyFallback />}>
-      <RanchManagement onClose={closeRanchManagement} />
-    </Suspense>
-  )
-}
-
-// Settlement Hub Screen - Main settlement building interface
-function SettlementScreen() {
-  const { leaveSettlement, completeSettlement, returnToGoldCountryMap } = useOregonTrail()
-
-  return (
-    <Suspense fallback={<LazyFallback />}>
-      <SettlementHub
-        onLeave={returnToGoldCountryMap}
-        onComplete={completeSettlement}
-      />
-    </Suspense>
-  )
-}
-
-// Settlement Victory Screen - Final ending display
-function SettlementVictoryScreen() {
-  const { resetGame } = useOregonTrail()
-
-  return (
-    <Suspense fallback={<LazyFallback />}>
-      <SettlementVictory onPlayAgain={resetGame} />
-    </Suspense>
-  )
-}
-
-// Gold Country Explore Screen - Free-roam map hub
-function GoldCountryExploreScreen() {
-  const {
-    state,
-    visitGoldCountryLocation,
-    startGoldCountryTravel,
-    leaveSettlement,
-    setPhase,
-  } = useOregonTrail()
-  const [showQuestLog, setShowQuestLog] = useState(false)
-
-  return (
-    <Suspense fallback={<LazyFallback />}>
-      <GoldCountryExplore
-        onVisitLocation={(locationId) => {
-          visitGoldCountryLocation(locationId)
-        }}
-        onTravel={(toLocationId) => {
-          startGoldCountryTravel(toLocationId)
-        }}
-        onOpenSettlement={() => {
-          setPhase('settlement')
-        }}
-        onOpenQuestLog={() => setShowQuestLog(true)}
-        onLeave={leaveSettlement}
-      />
-      {showQuestLog && <QuestLog onClose={() => setShowQuestLog(false)} />}
-    </Suspense>
-  )
-}
-
-// Gold Country Location Screen - Per-location with NPCs/search
-function GoldCountryLocationScreen() {
-  const { state, returnToGoldCountryMap, setPhase } = useOregonTrail()
-
-  const locationId = state.currentGoldCountryLocation || 'bobr_cabin'
-
-  return (
-    <Suspense fallback={<LazyFallback />}>
-      <GoldCountryLocation
-        locationId={locationId}
-        onReturnToMap={returnToGoldCountryMap}
-        onOpenSettlement={() => {
-          setPhase('settlement')
-        }}
-      />
-    </Suspense>
-  )
-}
-
-// Gold Country Travel Screen - Travel with random encounters
-function GoldCountryTravelScreen() {
-  const { state, arriveAtGoldCountryLocation, returnToGoldCountryMap } = useOregonTrail()
-
-  const fromId = state.currentGoldCountryLocation || 'bobr_cabin'
-  const toId = state.travelingToLocation || 'bobr_cabin'
-
-  return (
-    <Suspense fallback={<LazyFallback />}>
-      <GoldCountryTravel
-        fromLocationId={fromId}
-        toLocationId={toId}
-        onArrive={(locationId) => {
-          arriveAtGoldCountryLocation(locationId)
-        }}
-        onReturnToMap={returnToGoldCountryMap}
-      />
-    </Suspense>
-  )
-}
-
-// Save/Load Integration Wrapper
-function SaveLoadIntegration() {
-  const { state, loadState } = useOregonTrail()
-  const { user } = useAuth()
-  const { setGameDataCollector, setGameDataLoader, setMetadataCollector, enableAutoSave } = useSaveLoad()
-  const { balance, alignment, getAlignmentDisplayName, loadKarmaState } = useKarmaWallet()
-  const { state: mysteryState, loadMysteryState } = useMystery()
-
-  // Set up save data collector — skip during title/chapter_intro phases
-  React.useEffect(() => {
-    if (!user) return
-
-    // Gate auto-save: don't collect data during invalid phases
-    const isValidPhase = state.phase !== 'title' && state.phase !== 'chapter_intro'
-
-    setGameDataCollector(() => {
-      if (!isValidPhase) return {} // Return empty — saveGame will still work but data is minimal
-      return {
-        oregonTrail: state,
-        karmaBalance: balance,
-        karmaAlignment: alignment,
-        mysteryState: {
-          educationalCluesCollected: mysteryState.educationalCluesCollected,
-          activeCase: mysteryState.activeCase,
-          activeCaseData: mysteryState.activeCaseData,
-          casesSolved: mysteryState.casesSolved,
-          hintsUsedTotal: mysteryState.hintsUsedTotal,
-          currentDiscountTier: mysteryState.currentDiscountTier,
-          collectedClues: mysteryState.collectedClues,
-          knownTraits: mysteryState.knownTraits,
-          currentOutlaw: mysteryState.currentOutlaw,
-          outlawsCaught: mysteryState.outlawsCaught,
-          outlawsEscaped: mysteryState.outlawsEscaped,
-          totalBountyEarned: mysteryState.totalBountyEarned,
-          notebookEntries: mysteryState.notebookEntries,
-        },
-      }
-    })
-
-    setMetadataCollector(() => ({
-      dayNumber: state.day,
-      distance: state.distance,
-      currentLocation: state.currentLandmark,
-      partySize: state.party.length,
-      karmaAlignment: getAlignmentDisplayName(),
-      playTime: state.daysOnTrail * 24, // Rough estimate
-    }))
-
-    // Set up game data loader for restoring saved games
-    setGameDataLoader((data) => {
-      if (data.oregonTrail) {
-        loadState(data.oregonTrail as typeof state)
-      }
-      // Restore karma balance and alignment
-      if (data.karmaBalance) {
-        loadKarmaState(
-          data.karmaBalance as import('@/lib/karmaBlockchain').KarmaBalance,
-          data.karmaAlignment as { lawfulChaotic: number; goodEvil: number } | undefined,
-        )
-      }
-      // Restore mystery/investigation state
-      if (data.mysteryState) {
-        loadMysteryState(data.mysteryState as Partial<import('./mysteryContext').MysteryState>)
-      }
-    })
-  }, [user, state, balance, alignment, mysteryState, setGameDataCollector, setGameDataLoader, setMetadataCollector, getAlignmentDisplayName, loadState, loadKarmaState, loadMysteryState, enableAutoSave])
-
-  return null
 }
 
 function OregonTrailGame() {
