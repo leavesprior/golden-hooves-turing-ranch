@@ -22,6 +22,25 @@ import {
   type ResourceType,
 } from '../data/scarcityCascades'
 
+/** Compute landmark state after traveling to newDistance */
+function computeLandmarkState(
+  newDistance: number,
+  newMilesUntil: number,
+  prevNextLandmark: string,
+): { currentLandmark: string; nextLandmark: string; milesUntilNextLandmark: number; landmarkPhase: GamePhase } {
+  if (newMilesUntil <= 0) {
+    const currentIndex = LANDMARKS.findIndex(l => l.name === prevNextLandmark)
+    const landmark = LANDMARKS[currentIndex]
+    const nextName = LANDMARKS[currentIndex + 1]?.name || 'Gold Country'
+    const nextMiles = (LANDMARKS[currentIndex + 1]?.distance || 2000) - newDistance
+    let phase: GamePhase = 'traveling'
+    if (landmark.type === 'river') phase = 'river'
+    else if (landmark.type === 'fort' || landmark.type === 'town') phase = 'town'
+    return { currentLandmark: landmark.name, nextLandmark: nextName, milesUntilNextLandmark: nextMiles, landmarkPhase: phase }
+  }
+  return { currentLandmark: '', nextLandmark: prevNextLandmark, milesUntilNextLandmark: newMilesUntil, landmarkPhase: 'traveling' }
+}
+
 export function computeTravel(prev: OregonTrailState): OregonTrailState {
   if (prev.phase !== 'traveling') return prev
 
@@ -104,11 +123,13 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   // Update scarcity day tracking
   const newScarcityDays = updateScarcityDays(resourceSnapshot, prev.scarcityDays)
 
-  // Check for desperation events
+  // Check for desperation events (3-day cooldown)
   const despEvent = checkDesperationEvent(
     resourceSnapshot,
     prev.firedDesperationEvents,
     newScarcityDays,
+    prev.day,
+    prev.lastDesperationEventDay,
   )
 
   // Calculate new resource values
@@ -213,11 +234,16 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
 
   // If a desperation event fired, show it instead of normal travel
   if (despEvent) {
+    const despDistance = prev.distance + dailyDistance
+    const despMilesUntil = prev.milesUntilNextLandmark - dailyDistance
+    const despLandmark = computeLandmarkState(despDistance, despMilesUntil, prev.nextLandmark)
     return {
       ...prev,
       day: prev.day + 1,
-      distance: prev.distance + dailyDistance,
-      milesUntilNextLandmark: prev.milesUntilNextLandmark - dailyDistance,
+      distance: despDistance,
+      currentLandmark: despLandmark.currentLandmark || prev.currentLandmark,
+      nextLandmark: despLandmark.nextLandmark,
+      milesUntilNextLandmark: Math.max(0, despLandmark.milesUntilNextLandmark),
       food: newFood,
       morale: newMorale,
       wagonCondition: newWagonCond,
@@ -228,6 +254,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
       daysOnTrail: prev.daysOnTrail + 1,
       scarcityDays: newScarcityDays,
       activeDesperationEvent: despEvent,
+      lastDesperationEventDay: prev.day + 1,
       firedDesperationEvents: despEvent.oneTimeOnly
         ? [...prev.firedDesperationEvents, despEvent.id]
         : prev.firedDesperationEvents,
@@ -283,25 +310,11 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   }
 
   // Check if reached next landmark
-  let newLandmark = prev.currentLandmark
-  let nextLandmarkName = prev.nextLandmark
-  let nextLandmarkMiles = newMilesUntil
-  let newPhase: GamePhase = 'traveling'
-
-  if (newMilesUntil <= 0) {
-    const currentIndex = LANDMARKS.findIndex(l => l.name === prev.nextLandmark)
-    const landmark = LANDMARKS[currentIndex]
-    newLandmark = landmark.name
-    nextLandmarkName = LANDMARKS[currentIndex + 1]?.name || 'Gold Country'
-    nextLandmarkMiles = (LANDMARKS[currentIndex + 1]?.distance || 2000) - newDistance
-
-    // Special locations trigger different phases
-    if (landmark.type === 'river') {
-      newPhase = 'river'
-    } else if (landmark.type === 'fort' || landmark.type === 'town') {
-      newPhase = 'town'
-    }
-  }
+  const landmarkState = computeLandmarkState(newDistance, newMilesUntil, prev.nextLandmark)
+  const newLandmark = landmarkState.currentLandmark || prev.currentLandmark
+  const nextLandmarkName = landmarkState.nextLandmark
+  const nextLandmarkMiles = landmarkState.milesUntilNextLandmark
+  const newPhase = landmarkState.landmarkPhase
 
   // Random events (30% chance when traveling)
   if (newPhase === 'traveling' && Math.random() < 0.3) {

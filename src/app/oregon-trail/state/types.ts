@@ -171,6 +171,7 @@ export interface OregonTrailState {
   scarcityDays: Record<string, number>       // Consecutive days per resource in each scarcity state
   firedDesperationEvents: string[]           // One-time desperation events already fired
   activeDesperationEvent: DesperationEvent | null  // Currently showing desperation event
+  lastDesperationEventDay: number            // Day the last desperation event fired (3-day cooldown)
 
   // Posse system (#6)
   partyBonuses: Record<string, number>       // Aggregate bonuses from roles + composition

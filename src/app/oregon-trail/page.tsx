@@ -135,6 +135,7 @@ function TravelScreen() {
 function OregonTrailGame() {
   const { state, startFromTitle, completeChapterIntro, loadState } = useOregonTrail()
   const [audioInitialized, setAudioInitialized] = useState(false)
+  const [continueError, setContinueError] = useState(false)
   const { saves, loadGame } = useSaveLoad()
 
   // Track page view on mount
@@ -219,9 +220,20 @@ function OregonTrailGame() {
     try {
       const saved = localStorage.getItem(LOCAL_AUTOSAVE_KEY)
       if (saved) {
-        loadState(JSON.parse(saved))
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object' && parsed.phase && parsed.phase !== 'title') {
+          loadState(parsed)
+          return
+        }
+        console.warn('[Continue] Local save has invalid or title-phase state, ignoring')
       }
-    } catch { /* corrupt save, ignore */ }
+    } catch (e) {
+      console.warn('[Continue] Failed to parse local save:', e)
+    }
+    // No valid save found from either source
+    console.warn('[Continue] No valid save found from auth slots or local storage')
+    setContinueError(true)
+    setTimeout(() => setContinueError(false), 3000)
   }, [audioInitialized, saves, loadGame, loadState])
 
   // Playlist auto-cycles tracks via AudioManager - no manual switching needed
@@ -236,6 +248,7 @@ function OregonTrailGame() {
           onStart={handleGameStart}
           hasSaves={saves.length > 0 || hasLocalSave}
           onContinue={handleContinue}
+          continueError={continueError}
         />
       )
     }

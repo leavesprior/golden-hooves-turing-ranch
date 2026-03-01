@@ -477,7 +477,12 @@ export function checkDesperationEvent(
   resources: Record<ResourceType, number>,
   firedEvents: string[],
   scarcityDays: Record<string, number>,
+  currentDay: number = 0,
+  lastDesperationEventDay: number = 0,
 ): DesperationEvent | null {
+  // 3-day cooldown between desperation events
+  if (lastDesperationEventDay > 0 && currentDay - lastDesperationEventDay < 3) return null
+
   for (const event of DESPERATION_EVENTS) {
     // Skip one-time events already fired
     if (event.oneTimeOnly && firedEvents.includes(event.id)) continue

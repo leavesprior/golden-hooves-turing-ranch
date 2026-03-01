@@ -580,6 +580,7 @@ export const DEFAULT_STATE: OregonTrailState = {
   scarcityDays: {},
   firedDesperationEvents: [],
   activeDesperationEvent: null,
+  lastDesperationEventDay: 0,
   // Posse system (#6)
   partyBonuses: {},
   compositionBonusNames: [],
