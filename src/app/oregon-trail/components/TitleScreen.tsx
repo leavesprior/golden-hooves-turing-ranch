@@ -6,9 +6,10 @@ interface TitleScreenProps {
   onStart: () => void
   hasSaves?: boolean
   onContinue?: () => void
+  continueError?: boolean
 }
 
-export function TitleScreen({ onStart, hasSaves, onContinue }: TitleScreenProps) {
+export function TitleScreen({ onStart, hasSaves, onContinue, continueError }: TitleScreenProps) {
   const [showPrompt, setShowPrompt] = useState(false)
   const [cloudOffset, setCloudOffset] = useState(0)
   const [horseFrame, setHorseFrame] = useState(0)
@@ -213,6 +214,11 @@ export function TitleScreen({ onStart, hasSaves, onContinue }: TitleScreenProps)
               >
                 Continue Game
               </button>
+            )}
+            {continueError && (
+              <p className="text-red-400 text-sm font-pixel animate-pulse">
+                No valid save found.
+              </p>
             )}
             <button
               onClick={(e) => { e.stopPropagation(); onStart(); }}
