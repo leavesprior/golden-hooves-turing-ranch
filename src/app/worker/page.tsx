@@ -84,7 +84,8 @@ function canLogCash(entries: Entry[]) {
 
 function isBonusEligible(entries: Entry[], applyTo: string, condition: string) {
   if (condition === 'regular') return false;
-  if (!caughtUp(entries)) return false;
+  // Bonus rate applies when work goes to the upcoming month (not catch-up).
+  // Being behind on past months doesn't block the bonus — only cash requires full caught-up status.
   const um = upcomingMonth(entries);
   return !!um && applyTo === um.key;
 }
