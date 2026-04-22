@@ -16,7 +16,7 @@ const pressStart2P = Press_Start_2P({
 
 export const metadata: Metadata = {
   title: "Back of Beyond Ranch | Gold Country Vacation Rental with EV Charging",
-  description: "10-acre mountain retreat in Gold Country, California. Solar-powered EV charging, hot tub, 6 bedrooms, sleeps 12. Near Kirkwood, Bear Valley & Sierra-at-Tahoe ski resorts. Play the Golden Frog Trail adventure game.",
+  description: "60-acre mountain retreat in Gold Country, California. Solar-powered EV charging, hot tub, 6 bedrooms, sleeps 12. Near Kirkwood, Bear Valley & Sierra-at-Tahoe ski resorts. Play the Golden Frog Trail adventure game.",
   keywords: [
     "vacation rental", "Gold Country", "Kirkwood", "cabin", "EV charging",
     "Airbnb", "Calaveras County", "Bear Valley", "Sierra-at-Tahoe",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Back of Beyond Ranch | Gold Country Vacation Rental with EV Charging",
-    description: "10-acre mountain retreat near 3 ski resorts. Solar-powered EV charger, hot tub, game room, ranch animals. Sleeps 12 in Gold Country, CA.",
+    description: "60-acre mountain retreat near 3 ski resorts. Solar-powered EV charger, hot tub, game room, ranch animals. Sleeps 12 in Gold Country, CA.",
     url: "https://backofbeyondranch.farm",
     siteName: "Back of Beyond Ranch",
     images: [
@@ -46,7 +46,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Back of Beyond Ranch | Gold Country Vacation Rental",
-    description: "10-acre mountain retreat near 3 ski resorts. Solar-powered EV charger, hot tub, sleeps 12.",
+    description: "60-acre mountain retreat near 3 ski resorts. Solar-powered EV charger, hot tub, sleeps 12.",
     images: ["/cabin-photos/cabin-1.jpg"],
     creator: "@BackBeyondRanch",
   },
@@ -63,7 +63,7 @@ const jsonLd = {
       "@type": "VacationRental",
       "@id": "https://backofbeyondranch.farm/#vacation-rental",
       name: "Back of Beyond Ranch",
-      description: "A 10-acre mountain retreat in the heart of California Gold Country. Features a solar-powered Level 2 EV charger, hot tub, game room with pool table, ranch animals (horses, emus, sheep, chickens), fishing lakes, mountain bikes, fire pit, BBQ, canoe, and hiking trails. Located near Kirkwood (48 mi), Bear Valley (57 mi), and Sierra-at-Tahoe (75 mi) ski resorts.",
+      description: "A 60-acre mountain retreat in the heart of California Gold Country. Features a solar-powered Level 2 EV charger, hot tub, game room with pool table, ranch animals (horses, emus, sheep, chickens), fishing lakes, mountain bikes, fire pit, BBQ, canoe, and hiking trails. Located near Kirkwood (48 mi), Bear Valley (57 mi), and Sierra-at-Tahoe (75 mi) ski resorts.",
       url: "https://backofbeyondranch.farm",
       image: "https://backofbeyondranch.farm/cabin-photos/cabin-1.jpg",
       address: {
@@ -144,7 +144,7 @@ const jsonLd = {
           name: "Is Back of Beyond Ranch pet friendly?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes, Back of Beyond Ranch is pet friendly. The 10-acre property gives dogs plenty of room to explore. The ranch also has its own animals including horses, emus, sheep, and chickens.",
+            text: "Yes, Back of Beyond Ranch is pet friendly. The 60-acre property gives dogs plenty of room to explore. The ranch also has its own animals including horses, emus, sheep, and chickens.",
           },
         },
         {
