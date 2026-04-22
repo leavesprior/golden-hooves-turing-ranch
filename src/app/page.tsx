@@ -644,7 +644,7 @@ export default function Home() {
               ═══════════════════════
             </div>
             <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-sky-light)] mt-2 max-w-md mx-auto leading-relaxed" style={{ animation: 'fadeSlideIn 1s ease-out 0.6s both' }}>
-              10-acre mountain retreat with hot tub, ranch animals,
+              60-acre mountain retreat with hot tub, ranch animals,
               game room & Gold Country adventures
             </p>
           </div>
@@ -794,14 +794,14 @@ export default function Home() {
             Explore 700 Deer Ln in 3D
           </h2>
           <p className="font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] text-center mb-8">
-            Full property walkthrough -- rooms, hot tub, game room & 10-acre grounds
+            Full property walkthrough -- rooms, hot tub, game room & 60-acre grounds
           </p>
           <div className="bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] rounded-lg overflow-hidden">
             <iframe
               src="https://my.matterport.com/show/?m=w4K3m2XemZG"
               frameBorder="0"
               allowFullScreen
-              sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
+              allow="xr-spatial-tracking; fullscreen"
               className="w-full aspect-video"
               title="BOBR Property 3D Walkaround"
             />
@@ -950,7 +950,7 @@ export default function Home() {
               </div>
               <PixelCard title="🏨 The Inn">
                 <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed mb-3">
-                  Your home base. Hot tub, game room, 10 acres of ranch land, and ranch animals.
+                  Your home base. Hot tub, game room, 60 acres of ranch land, and ranch animals.
                 </p>
                 <div className="flex flex-wrap gap-1 mb-3">
                   <span className="adventure-tag bg-[var(--pixel-earth-dark)]/50">Sleeps 12</span>
@@ -1046,7 +1046,7 @@ export default function Home() {
           </h2>
           <p className="font-[var(--font-pixel)] text-[8px] sm:text-[9px] text-[var(--pixel-ui-text)] leading-relaxed mb-8 max-w-lg mx-auto">
             Book Back of Beyond Ranch on Airbnb. 6 bedrooms, 3 baths,
-            hot tub, game room, and 10 acres of Gold Country.
+            hot tub, game room, and 60 acres of Gold Country.
             Your quest begins at check-in.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -1074,7 +1074,7 @@ export default function Home() {
           <div>
             <h2 className="text-[var(--pixel-gold-light)] text-[10px] sm:text-xs mb-3">About Back of Beyond Ranch</h2>
             <p className="mb-2">
-              Back of Beyond Ranch is a 10-acre mountain vacation rental in West Point, Calaveras County, in the heart of California&apos;s Gold Country. The cabin sleeps up to 12 guests across 6 bedrooms and 3 bathrooms, making it ideal for family reunions, group getaways, and multi-family vacations.
+              Back of Beyond Ranch is a 60-acre mountain vacation rental in West Point, Calaveras County, in the heart of California&apos;s Gold Country. The cabin sleeps up to 12 guests across 6 bedrooms and 3 bathrooms, making it ideal for family reunions, group getaways, and multi-family vacations.
             </p>
             <p>
               The property features a solar-powered Level 2 EV charger (220V), one of the few vacation rentals in the Sierra foothills to offer dedicated electric vehicle charging powered by on-site solar panels. Guests can charge overnight and reach three ski resorts on a single charge.
@@ -1130,7 +1130,7 @@ export default function Home() {
               </div>
               <div>
                 <p className="text-[var(--pixel-gold-mid)]">Is the ranch pet friendly?</p>
-                <p>Yes. The 10-acre property gives dogs plenty of room to explore. The ranch also has its own animals including horses, emus, sheep, and chickens.</p>
+                <p>Yes. The 60-acre property gives dogs plenty of room to explore. The ranch also has its own animals including horses, emus, sheep, and chickens.</p>
               </div>
               <div>
                 <p className="text-[var(--pixel-gold-mid)]">What is the Golden Frog Trail?</p>
