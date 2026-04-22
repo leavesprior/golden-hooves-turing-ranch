@@ -786,6 +786,30 @@ export default function Home() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════ */}
+      {/*  MATTERPORT 3D WALKAROUND                                 */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <section className="py-12 px-4 bg-[var(--pixel-bg-mid)]">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-sm sm:text-lg text-center mb-3">
+            Explore 700 Deer Ln in 3D
+          </h2>
+          <p className="font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] text-center mb-8">
+            Full property walkthrough -- rooms, hot tub, game room & 10-acre grounds
+          </p>
+          <div className="bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] rounded-lg overflow-hidden">
+            <iframe
+              src="https://my.matterport.com/show/?m=w4K3m2XemZG"
+              frameBorder="0"
+              allowFullScreen
+              sandbox="allow-same-origin allow-scripts allow-popups allow-presentation"
+              className="w-full aspect-video"
+              title="BOBR Property 3D Walkaround"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════ */}
       {/*  GOLD COUNTRY ATTRACTIONS                                 */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <section className="py-12 px-4 bg-gradient-to-b from-[var(--pixel-bg-mid)] to-[var(--pixel-bg-dark)]">
