@@ -20,6 +20,7 @@ import { getPlayerIdentifier } from '@/lib/trophyStateCollector'
 import { ChapterMap } from '@/components/adventure/ChapterMap'
 import { LocationView } from '@/components/adventure/LocationView'
 import { CampManagement } from '@/components/adventure/CampManagement'
+import { CampScreen } from '@/app/adventure/components/CampScreen'
 import { SkillTree } from '@/components/adventure/SkillTree'
 import AdventureRewardTracker from '@/components/adventure/AdventureRewardTracker'
 
@@ -1299,6 +1300,16 @@ function AdventureContent() {
                 playerStats={playerStats}
               />
             )}
+
+            {adventureState.phase === 'camp' && (
+              <CampScreen
+                chapter={adventureState.chapter}
+                playerStats={playerStats}
+                onSkillCheck={handleSkillCheck}
+                onApplyResult={handleCampResult}
+                onLeaveCamp={handleCampComplete}
+              />
+            )}
           </div>
 
           {/* Sidebar (1 col) */}
@@ -1375,16 +1386,10 @@ function AdventureContent() {
         />
       )}
 
-      {/* Camp Management */}
-      {showCamp && (
-        <CampManagement
-          chapter={adventureState.chapter}
-          playerStats={playerStats}
-          onSkillCheck={handleSkillCheck}
-          onApplyResult={handleCampResult}
-          onComplete={handleCampComplete}
-        />
-      )}
+      {/* Camp Management modal replaced by inline CampScreen rendered in the
+          main content column when phase==='camp'. CampManagement import
+          retained for now so the legacy component doesn't bitrot before the
+          facelift merge. */}
 
       {/* Skill Tree */}
       {showSkillTree && (
