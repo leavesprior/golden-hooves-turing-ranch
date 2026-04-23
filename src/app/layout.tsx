@@ -179,7 +179,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={pressStart2P.variable}>
       <head>
-        <meta httpEquiv="Content-Security-Policy" content="upgrade-insecure-requests" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

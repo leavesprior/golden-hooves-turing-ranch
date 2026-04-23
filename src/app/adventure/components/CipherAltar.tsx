@@ -4,20 +4,22 @@
  * CipherAltar — the Act 5 gate-opening puzzle.
  *
  * Renders a 2x2 draggable tray of the four Prologue keepsakes plus a central
- * void "altar heart". Dragging an artifact onto the heart snaps it to center
- * if dropped within ±12px and at a rotation that is a multiple of 90°.
+ * void "altar heart". Each artifact has an assigned inter-cardinal quadrant
+ * slot on the altar (NW, NE, SE, SW). Dropping an artifact within ±12px of
+ * its correct quadrant AND at a rotation that is a multiple of 90° snaps it
+ * into place. Dropping within ±12px of a WRONG quadrant shakes the artifact
+ * back to its tray slot. Drops far from any quadrant leave the artifact
+ * where the player released it (unbounded).
  *
  * When all four artifacts are aligned AND the COMBINE button is pressed,
  * `onCipherSolved()` fires. The button stays dim until every artifact is on
  * the altar; misalignment on COMBINE gets a shake + elder-NPC hint line
  * rather than auto-advancing, so the player owns the "I did it" beat.
  *
- * The component is intentionally self-contained: it does not read the act5
- * Zustand store directly (the caller owns state transitions). This keeps the
- * mechanism reusable from the dev route and the eventual Phase 8 integration.
- *
- * Styling is inline + scoped <style> tag so it can drop into either the
- * pixel-aesthetic adventure UI or a dream-sequence full-bleed overlay later.
+ * Phase 3.6 fixes the critical overlap bug (all four were snapping to 0,0),
+ * adds per-axis feedback, slot-hint circles visible during drag, tighter
+ * drag feel (opacity 0.6, scale 1.05, 0.1s ease-out), and a shake-back on
+ * wrong-quadrant drop.
  */
 
 import React, {
@@ -65,8 +67,14 @@ interface Placement {
   x: number
   y: number
   rot: number
-  /** True when |pos|<12 AND rot%90===0 after the last drop. */
+  /** True when dist to *correct* quadrant < 12 AND rot%90===0 after last drop. */
   aligned: boolean
+  /** x within 12 of target quadrant x. */
+  xAligned: boolean
+  /** y within 12 of target quadrant y. */
+  yAligned: boolean
+  /** rotation is a multiple of 90. */
+  rotAligned: boolean
   /** True while the pointer is down on this artifact. */
   held: boolean
 }
@@ -74,7 +82,30 @@ interface Placement {
 const ALTAR_SIZE = 520 // px — square canvas
 const CENTER = ALTAR_SIZE / 2
 const SNAP_RADIUS = 12
-const TRAY_SLOT_RADIUS = 170 // distance from center to each tray slot (2x2 corners)
+const AXIS_HINT_RADIUS = 18 // per-axis "close" band (tick appears)
+const QUADRANT_OFFSET = 90 // px — distance from center along each axis to quadrant slot
+const TRAY_SLOT_RADIUS = 190 // distance from center to each tray slot (2x2 corners)
+
+type Quadrant = { x: number; y: number }
+
+/** The canonical quadrant slot each artifact belongs to. */
+const ARTIFACT_QUADRANT: Record<ArtifactId, Quadrant> = {
+  // NW
+  norse_sunwheel: { x: -QUADRANT_OFFSET, y: -QUADRANT_OFFSET },
+  // NE
+  miss_gorget: { x: +QUADRANT_OFFSET, y: -QUADRANT_OFFSET },
+  // SE
+  chumash_stone: { x: +QUADRANT_OFFSET, y: +QUADRANT_OFFSET },
+  // SW
+  inca_chakana: { x: -QUADRANT_OFFSET, y: +QUADRANT_OFFSET },
+}
+
+function getTargetQuadrant(id: ArtifactId): Quadrant {
+  return ARTIFACT_QUADRANT[id]
+}
+
+/** All four quadrants, for proximity checks against "any wrong quadrant". */
+const ALL_QUADRANTS: Quadrant[] = Object.values(ARTIFACT_QUADRANT)
 
 const ARTIFACT_META: Record<
   ArtifactId,
@@ -103,10 +134,11 @@ const ARTIFACT_META: Record<
 }
 
 const ELDER_HINTS = [
-  'Elder: "Four winds, one heart. Bring them closer."',
-  'Elder: "The star-road falls through the center. Align the corners."',
+  'Elder: "Four winds, four corners. Each keepsake knows its quarter."',
+  'Elder: "The star-road falls through the crossroads, not the heart."',
   'Elder: "Turn each as the sun turns — by quarters, not by whim."',
   'Elder: "Not yet. The Council Fire burns square to the cardinal."',
+  'Elder: "That corner is not its home. Listen to the weight in your hand."',
 ]
 
 function pickHint(seed: number): string {
@@ -128,15 +160,28 @@ function ArtifactNode({
 }: ArtifactNodeProps) {
   const meta = ARTIFACT_META[p.id]
   const markup = useInlineSvg(meta.file)
+  // Phase 3.6: held state uses scale(1.05) + opacity 0.6 — still see what
+  // you're holding, a touch larger to read as "lifted above the altar".
   const style: React.CSSProperties = {
     transform: p.held
-      ? `scale(0.6) translate(${p.x}px, ${p.y}px) rotate(${p.rot}deg)`
+      ? `translate(${p.x}px, ${p.y}px) rotate(${p.rot}deg) scale(1.05)`
       : `translate(${p.x}px, ${p.y}px) rotate(${p.rot}deg)`,
-    opacity: p.held ? 0.25 : 1,
+    opacity: p.held ? 0.6 : 1,
   }
+  // Per-axis feedback: visual ring classes the CSS keys off.
+  const classes = [
+    'cipher-altar-artifact',
+    'placed',
+    p.held ? 'held' : '',
+    p.aligned ? 'aligned' : '',
+    !p.aligned && p.xAligned && p.yAligned ? 'rot-hint' : '',
+    overlayReveal ? 'overlay' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
   return (
     <div
-      className={`cipher-altar-artifact placed${p.held ? ' held' : ''}${p.aligned ? ' aligned' : ''}${overlayReveal ? ' overlay' : ''}`}
+      className={classes}
       style={style}
       onPointerDown={onPointerDown}
       role="button"
@@ -156,6 +201,7 @@ function ArtifactNode({
           type="button"
           onClick={() => onRotate(-90)}
           aria-label={`Rotate ${meta.label} left`}
+          className={!p.rotAligned && p.xAligned && p.yAligned ? 'rot-pulse' : ''}
         >
           ↺
         </button>
@@ -163,6 +209,7 @@ function ArtifactNode({
           type="button"
           onClick={() => onRotate(90)}
           aria-label={`Rotate ${meta.label} right`}
+          className={!p.rotAligned && p.xAligned && p.yAligned ? 'rot-pulse' : ''}
         >
           ↻
         </button>
@@ -183,6 +230,9 @@ export default function CipherAltar({
       y: ARTIFACT_META[id].tray.y,
       rot: 0,
       aligned: false,
+      xAligned: false,
+      yAligned: false,
+      rotAligned: true,
       held: false,
     })),
   )
@@ -190,6 +240,8 @@ export default function CipherAltar({
   const [solved, setSolved] = useState(false)
   const [shakeSeed, setShakeSeed] = useState(0)
   const [hint, setHint] = useState<string | null>(null)
+  /** Which artifact is currently being dragged (for slot-hint visibility). */
+  const [draggingId, setDraggingId] = useState<ArtifactId | null>(null)
   const altarRef = useRef<HTMLDivElement | null>(null)
   const dragRef = useRef<{
     id: ArtifactId
@@ -209,6 +261,9 @@ export default function CipherAltar({
             y: ARTIFACT_META[id].tray.y,
             rot: 0,
             aligned: false,
+            xAligned: false,
+            yAligned: false,
+            rotAligned: true,
             held: false,
           },
       )
@@ -243,8 +298,13 @@ export default function CipherAltar({
         offsetX: pointer.x - p.x,
         offsetY: pointer.y - p.y,
       }
+      setDraggingId(id)
       setPlacements((prev) =>
-        prev.map((pp) => (pp.id === id ? { ...pp, held: true } : pp)),
+        prev.map((pp) =>
+          pp.id === id
+            ? { ...pp, held: true, aligned: false }
+            : pp,
+        ),
       )
     },
     [placements, pointerToAltarCoords, solved],
@@ -268,20 +328,66 @@ export default function CipherAltar({
     if (!dragRef.current) return
     const { id } = dragRef.current
     dragRef.current = null
+    setDraggingId(null)
     setPlacements((prev) =>
       prev.map((pp) => {
         if (pp.id !== id) return pp
-        const dist = Math.hypot(pp.x, pp.y)
+        const target = getTargetQuadrant(pp.id)
+        const dxTarget = pp.x - target.x
+        const dyTarget = pp.y - target.y
+        const distTarget = Math.hypot(dxTarget, dyTarget)
+        const xAligned = Math.abs(dxTarget) < AXIS_HINT_RADIUS
+        const yAligned = Math.abs(dyTarget) < AXIS_HINT_RADIUS
         const rotMod = ((pp.rot % 360) + 360) % 360
         const rotAligned = rotMod % 90 === 0
-        const aligned = dist < SNAP_RADIUS && rotAligned
+
+        // Correct-quadrant snap
+        if (distTarget < SNAP_RADIUS && rotAligned) {
+          return {
+            ...pp,
+            held: false,
+            x: target.x,
+            y: target.y,
+            aligned: true,
+            xAligned: true,
+            yAligned: true,
+            rotAligned: true,
+          }
+        }
+
+        // Wrong-quadrant snap? If dropped within SNAP_RADIUS of ANY other
+        // quadrant, shake back to tray slot.
+        const wrongQuadrantHit = ALL_QUADRANTS.some(
+          (q) =>
+            (q.x !== target.x || q.y !== target.y) &&
+            Math.hypot(pp.x - q.x, pp.y - q.y) < SNAP_RADIUS,
+        )
+        if (wrongQuadrantHit) {
+          // Trigger a shake + hint, then return to tray slot.
+          setShakeSeed((s) => s + 1)
+          setHint('That corner is not its home.')
+          const tray = ARTIFACT_META[pp.id].tray
+          return {
+            ...pp,
+            held: false,
+            x: tray.x,
+            y: tray.y,
+            aligned: false,
+            xAligned: false,
+            yAligned: false,
+            rotAligned,
+          }
+        }
+
+        // Unbounded drop: leave where dropped, but record per-axis feedback
+        // against the TARGET quadrant so the UI can hint which axes are close.
         return {
           ...pp,
           held: false,
-          // Snap to exact center on alignment for the reveal moment.
-          x: aligned ? 0 : pp.x,
-          y: aligned ? 0 : pp.y,
-          aligned,
+          aligned: false,
+          xAligned,
+          yAligned,
+          rotAligned,
         }
       }),
     )
@@ -292,8 +398,26 @@ export default function CipherAltar({
       prev.map((pp) => {
         if (pp.id !== id) return pp
         const rot = pp.rot + delta
-        // Snap-on-release will re-evaluate alignment; for now just update rot.
-        return { ...pp, rot }
+        const rotMod = ((rot % 360) + 360) % 360
+        const rotAligned = rotMod % 90 === 0
+
+        // Re-evaluate alignment in place (helps rotate-to-finish UX).
+        const target = getTargetQuadrant(pp.id)
+        const dxTarget = pp.x - target.x
+        const dyTarget = pp.y - target.y
+        const distTarget = Math.hypot(dxTarget, dyTarget)
+        const onTarget = distTarget < SNAP_RADIUS
+        return {
+          ...pp,
+          rot,
+          rotAligned,
+          aligned: onTarget && rotAligned,
+          xAligned: Math.abs(dxTarget) < AXIS_HINT_RADIUS,
+          yAligned: Math.abs(dyTarget) < AXIS_HINT_RADIUS,
+          // Snap onto center of target if rotation completed alignment.
+          x: onTarget && rotAligned ? target.x : pp.x,
+          y: onTarget && rotAligned ? target.y : pp.y,
+        }
       }),
     )
   }, [])
@@ -313,6 +437,17 @@ export default function CipherAltar({
       onCipherSolved()
     }, 1200)
   }, [allOnAltar, onCipherSolved, shakeSeed, solved])
+
+  // Slot hints: visible when the matching artifact is being dragged and not
+  // yet aligned. Fade out once correctly placed.
+  const slotHints = useMemo(() => {
+    return (artifacts as ArtifactId[]).map((id) => {
+      const placement = placements.find((p) => p.id === id)
+      const q = getTargetQuadrant(id)
+      const visible = draggingId === id && !(placement?.aligned ?? false)
+      return { id, x: q.x, y: q.y, visible }
+    })
+  }, [artifacts, placements, draggingId])
 
   return (
     <div className="cipher-altar-root">
@@ -356,6 +491,24 @@ export default function CipherAltar({
             inset 0 0 24px #000,
             0 0 30px rgba(255, 200, 80, 0.35);
         }
+        /* Slot hint rings — visible only while the matching artifact is held */
+        .cipher-altar-slot-hint {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 40px;
+          height: 40px;
+          margin: -20px 0 0 -20px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 220, 150, 0.25);
+          opacity: 0;
+          transition: opacity 0.25s ease, transform 0.25s ease;
+          pointer-events: none;
+        }
+        .cipher-altar-slot-hint.visible {
+          opacity: 1;
+        }
         .cipher-altar-artifact {
           position: absolute;
           left: 50%;
@@ -365,23 +518,21 @@ export default function CipherAltar({
           margin: -60px 0 0 -60px;
           cursor: grab;
           transition:
-            opacity 0.15s ease,
-            transform 0.15s ease,
+            opacity 0.1s ease-out,
+            transform 0.1s ease-out,
             filter 0.3s ease;
           will-change: transform, opacity;
         }
         .cipher-altar-artifact.held {
           cursor: grabbing;
-          opacity: 0.25;
-          transform: scale(0.6) translate(var(--tx), var(--ty)) rotate(var(--rot));
           z-index: 5;
         }
-        .cipher-altar-artifact.placed {
-          opacity: 1;
-          transform: translate(var(--tx), var(--ty)) rotate(var(--rot));
-        }
         .cipher-altar-artifact.aligned {
-          filter: drop-shadow(0 0 8px rgba(255, 210, 120, 0.6));
+          filter: drop-shadow(0 0 10px rgba(255, 210, 120, 0.75));
+        }
+        /* Near-miss (x+y aligned but wrong rotation): gentle pulsing ring */
+        .cipher-altar-artifact.rot-hint {
+          filter: drop-shadow(0 0 6px rgba(255, 210, 120, 0.35));
         }
         .cipher-altar-artifact img,
         .cipher-altar-artifact .artifact-svg {
@@ -409,7 +560,10 @@ export default function CipherAltar({
           filter: drop-shadow(0 0 6px rgba(255, 210, 120, 0.55));
           transition: opacity 0.4s ease;
         }
-        .cipher-altar-artifact.overlay .artifact-svg svg #cipher-skeleton * {
+        /* Phase 3.6: children had stroke="none" attributes that wouldn't
+           inherit from the group's CSS rule. Explicit child selector forces
+           the gold stroke onto every <circle>, <line>, <polygon>. */
+        .cipher-altar-artifact.overlay .artifact-svg svg #cipher-skeleton > * {
           stroke: #ffd76a !important;
           stroke-width: 1.5 !important;
           fill: none !important;
@@ -425,7 +579,8 @@ export default function CipherAltar({
           transition: opacity 0.2s ease;
         }
         .cipher-altar-artifact:hover .rotctl,
-        .cipher-altar-artifact.aligned .rotctl {
+        .cipher-altar-artifact.aligned .rotctl,
+        .cipher-altar-artifact.rot-hint .rotctl {
           opacity: 0.9;
         }
         .cipher-altar-artifact .rotctl button {
@@ -440,6 +595,14 @@ export default function CipherAltar({
         }
         .cipher-altar-artifact .rotctl button:hover {
           background: #2a1f10;
+        }
+        .cipher-altar-artifact .rotctl button.rot-pulse {
+          animation: rot-pulse 1.2s ease-in-out infinite;
+          border-color: #c39447;
+        }
+        @keyframes rot-pulse {
+          0%, 100% { box-shadow: 0 0 0 rgba(255, 210, 120, 0); }
+          50% { box-shadow: 0 0 10px rgba(255, 210, 120, 0.75); }
         }
         .cipher-altar-shake {
           animation: altar-shake 0.45s ease-in-out;
@@ -533,6 +696,20 @@ export default function CipherAltar({
           className={`cipher-altar-heart${allOnAltar ? ' primed' : ''}${shakeSeed ? ' cipher-altar-shake' : ''}`}
           key={`heart-${shakeSeed}`}
         />
+
+        {/* Slot hints: faint circles at each artifact's correct quadrant.
+            Visible only while the matching artifact is being dragged. */}
+        {slotHints.map((h) => (
+          <div
+            key={`hint-${h.id}`}
+            className={`cipher-altar-slot-hint${h.visible ? ' visible' : ''}`}
+            style={{
+              transform: `translate(${h.x}px, ${h.y}px)`,
+            }}
+            aria-hidden="true"
+          />
+        ))}
+
         {placements.map((p) => (
           <ArtifactNode
             key={p.id}
@@ -559,7 +736,7 @@ export default function CipherAltar({
           title={
             allOnAltar
               ? 'Combine the four artifacts'
-              : 'Place all four artifacts at the altar heart'
+              : 'Place each artifact in its quadrant'
           }
         >
           COMBINE

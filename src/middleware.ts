@@ -1,9 +1,28 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+/**
+ * Phase 3.6: Treat any RFC1918 LAN host the same as localhost — never issue
+ * HSTS or upgrade-insecure-requests for dev machines reached by IP over the
+ * local network (e.g. 192.168.1.42:3000 from a phone testing the site). These
+ * headers would force the browser to try HTTPS against a plain-HTTP dev
+ * server and silently break access.
+ *
+ *   127.0.0.0/8    loopback
+ *   10.0.0.0/8     private
+ *   192.168.0.0/16 private
+ *   172.16.0.0/12  private (16..31 in the second octet)
+ */
+const LAN_HOST_RE =
+  /^(?:localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d+)?$/i
+
+function isLanHost(host: string): boolean {
+  return LAN_HOST_RE.test(host)
+}
+
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') || ''
-  const isLocalhost = host.startsWith('localhost') || host.startsWith('127.0.0.1')
+  const isLocalhost = isLanHost(host)
 
   // Note: HTTPS redirect is handled by Railway's edge proxy.
   // Doing it here breaks Railway's internal healthcheck (HTTP with x-forwarded-proto: http).

@@ -1,24 +1,12 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
-import { useRPG, TRAITS, type TraitId, type AttributeName } from '@/lib/rpgContext'
-import {
-  rollAllStats,
-  generateMandelbrotSeed,
-  distributeStatsMandelbrot,
-  attributeRollsToStats,
-  type AttributeRolls,
-  type CharacterAttributes,
-  type CreationMethod,
-} from '@/lib/rpgContext'
+import { useRPG, type AttributeName } from '@/lib/rpgContext'
 import { chapters } from '@/lib/chapters'
 import { KarmaStorage, getAlignmentPosition, type AlignmentPosition } from '@/lib/karmaStorage'
 
-// Character creation steps
-type CreationStep = 'name' | 'method' | 'stats' | 'trait' | 'confirm'
-
-// Attribute display names and descriptions
+// Attribute display names and descriptions (used by the active-session HUD).
 const ATTRIBUTE_INFO: Record<AttributeName, { name: string; abbr: string; desc: string }> = {
   str: { name: 'Strength', abbr: 'STR', desc: 'Mining & hauling' },
   dex: { name: 'Dexterity', abbr: 'DEX', desc: 'Panning & precision' },
@@ -28,143 +16,10 @@ const ATTRIBUTE_INFO: Record<AttributeName, { name: string; abbr: string; desc: 
   cha: { name: 'Charisma', abbr: 'CHA', desc: 'Negotiation & trust' },
 }
 
-// Dice component for visual display
-function DiceDisplay({ value, kept }: { value: number; kept: boolean }) {
-  const dots: Record<number, string[]> = {
-    1: ['50% 50%'],
-    2: ['25% 25%', '75% 75%'],
-    3: ['25% 25%', '50% 50%', '75% 75%'],
-    4: ['25% 25%', '25% 75%', '75% 25%', '75% 75%'],
-    5: ['25% 25%', '25% 75%', '50% 50%', '75% 25%', '75% 75%'],
-    6: ['25% 25%', '25% 50%', '25% 75%', '75% 25%', '75% 50%', '75% 75%'],
-  }
-
-  return (
-    <div
-      className={`
-        relative w-8 h-8 sm:w-10 sm:h-10 border-2 rounded
-        ${kept
-          ? 'bg-[var(--pixel-ui-bg)] border-[var(--pixel-gold-mid)]'
-          : 'bg-[var(--pixel-bg-dark)] border-[var(--pixel-fire-red)] opacity-50'}
-      `}
-    >
-      {dots[value]?.map((pos, i) => (
-        <div
-          key={i}
-          className={`absolute w-2 h-2 rounded-full ${kept ? 'bg-[var(--pixel-gold-light)]' : 'bg-[var(--pixel-fire-red)]'}`}
-          style={{
-            left: pos.split(' ')[0],
-            top: pos.split(' ')[1],
-            transform: 'translate(-50%, -50%)',
-          }}
-        />
-      ))}
-      {!kept && (
-        <div className="absolute inset-0 flex items-center justify-center text-[var(--pixel-fire-red)] font-bold text-lg">
-          ×
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Stat row with dice display
-function StatRollRow({
-  attr,
-  rolls,
-  total,
-}: {
-  attr: AttributeName
-  rolls: { value: number; kept: boolean }[]
-  total: number
-}) {
-  const info = ATTRIBUTE_INFO[attr]
-  const modifier = Math.floor((total - 10) / 2)
-  const modStr = modifier >= 0 ? `+${modifier}` : `${modifier}`
-
-  return (
-    <div className="flex items-center justify-between gap-2 py-2 border-b border-[var(--pixel-ui-border)] last:border-0">
-      <div className="w-16 sm:w-20">
-        <span className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-gold-light)]">
-          {info.abbr}
-        </span>
-        <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">
-          {info.desc}
-        </p>
-      </div>
-      <div className="flex gap-1">
-        {rolls.map((die, i) => (
-          <DiceDisplay key={i} value={die.value} kept={die.kept} />
-        ))}
-      </div>
-      <div className="text-right w-16">
-        <span className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)]">
-          {total}
-        </span>
-        <span className={`font-[var(--font-pixel)] text-[10px] sm:text-[12px] ml-1 ${modifier >= 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
-          ({modStr})
-        </span>
-      </div>
-    </div>
-  )
-}
-
-// Mandelbrot visualization
-function MandelbrotVisual({ c, iterations }: { c: { re: number; im: number }; iterations: number }) {
-  return (
-    <div className="relative w-32 h-32 mx-auto border-2 border-[var(--pixel-gold-mid)] bg-[var(--pixel-bg-dark)]">
-      {/* Simple fractal-like visualization */}
-      <div
-        className="absolute rounded-full bg-[var(--pixel-gold-mid)]"
-        style={{
-          width: `${Math.min(80, iterations * 0.8)}%`,
-          height: `${Math.min(80, iterations * 0.8)}%`,
-          left: `${50 + c.re * 20}%`,
-          top: `${50 + c.im * 20}%`,
-          transform: 'translate(-50%, -50%)',
-          opacity: 0.3 + (iterations / 100) * 0.7,
-        }}
-      />
-      <div
-        className="absolute w-2 h-2 bg-[var(--pixel-fire-orange)] rounded-full"
-        style={{
-          left: `${50 + c.re * 30}%`,
-          top: `${50 + c.im * 30}%`,
-          transform: 'translate(-50%, -50%)',
-        }}
-      />
-      <div className="absolute bottom-1 left-1 right-1 text-center">
-        <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
-          z = z² + ({c.re.toFixed(2)} + {c.im.toFixed(2)}i)
-        </span>
-      </div>
-    </div>
-  )
-}
-
 export default function AdventurePage() {
   const { session, startNewGame, loadGame, resetGame, getDiscountCode } = useRPG()
 
-  // Character creation state
-  const [creationStep, setCreationStep] = useState<CreationStep>('name')
-  const [nameInput, setNameInput] = useState('')
   const [showNewGame, setShowNewGame] = useState(false)
-  const [creationMethod, setCreationMethod] = useState<CreationMethod | null>(null)
-
-  // Dice roll state
-  const [attributeRolls, setAttributeRolls] = useState<AttributeRolls | null>(null)
-  const [rerollsUsed, setRerollsUsed] = useState(0)
-  const MAX_REROLLS = 3
-
-  // Mandelbrot state
-  const [mandelbrotResult, setMandelbrotResult] = useState<{ seed: number; iterations: number; c: { re: number; im: number }; escaped: boolean } | null>(null)
-  const [mandelbrotStats, setMandelbrotStats] = useState<CharacterAttributes | null>(null)
-
-  // Trait selection
-  const [selectedTrait, setSelectedTrait] = useState<TraitId | null>(null)
-
-  // Final stats for starting the game
-  const [finalStats, setFinalStats] = useState<CharacterAttributes | null>(null)
 
   // Unified karma carry-forward
   const [karmaAlignment, setKarmaAlignment] = useState<AlignmentPosition | null>(null)
@@ -181,104 +36,8 @@ export default function AdventurePage() {
   const hasSavedGame = typeof window !== 'undefined' && localStorage.getItem('bobr_rpg_session')
   const discount = getDiscountCode()
 
-  // Handle rolling dice
-  const handleRollDice = useCallback(() => {
-    const rolls = rollAllStats()
-    setAttributeRolls(rolls)
-    setFinalStats(attributeRollsToStats(rolls))
-  }, [])
-
-  // Handle reroll
-  const handleReroll = useCallback(() => {
-    if (rerollsUsed < MAX_REROLLS) {
-      handleRollDice()
-      setRerollsUsed(prev => prev + 1)
-    }
-  }, [rerollsUsed, handleRollDice])
-
-  // Handle Mandelbrot generation
-  const handleMandelbrot = useCallback(() => {
-    const result = generateMandelbrotSeed()
-    setMandelbrotResult(result)
-    const stats = distributeStatsMandelbrot(result.seed)
-    setMandelbrotStats(stats)
-    setFinalStats(stats)
-  }, [])
-
-  // Select creation method
-  const handleSelectMethod = useCallback((method: CreationMethod) => {
-    setCreationMethod(method)
-    if (method === 'dice_roll') {
-      handleRollDice()
-    } else if (method === 'mandelbrot') {
-      handleMandelbrot()
-    }
-    setCreationStep('stats')
-  }, [handleRollDice, handleMandelbrot])
-
-  // Proceed to trait selection
-  const handleConfirmStats = useCallback(() => {
-    setCreationStep('trait')
-  }, [])
-
-  // Apply karma alignment bonuses to stats
-  const applyKarmaBonuses = useCallback((base: CharacterAttributes | undefined): CharacterAttributes | undefined => {
-    if (!base || !karmaAlignment) return base
-    const bonused = { ...base }
-    // Alignment bonus table from plan
-    switch (karmaAlignment) {
-      case 'lawful_good':
-        bonused.cha = Math.min(20, bonused.cha + 2) // +2 Diplomacy via CHA
-        break
-      case 'chaotic_good':
-        bonused.wis = Math.min(20, bonused.wis + 2) // +2 Luck via WIS
-        break
-      case 'lawful_evil':
-        bonused.int = Math.min(20, bonused.int + 2) // +2 Shrewdness via INT
-        break
-      case 'chaotic_evil':
-        bonused.dex = Math.min(20, bonused.dex + 2) // +2 Agility via DEX
-        break
-      // Partial alignments get +1
-      case 'neutral_good':
-        bonused.cha = Math.min(20, bonused.cha + 1)
-        break
-      case 'lawful_neutral':
-        bonused.int = Math.min(20, bonused.int + 1)
-        break
-      case 'chaotic_neutral':
-        bonused.dex = Math.min(20, bonused.dex + 1)
-        break
-      case 'neutral_evil':
-        bonused.int = Math.min(20, bonused.int + 1)
-        break
-      // true_neutral: no bonuses
-    }
-    return bonused
-  }, [karmaAlignment])
-
-  // Start the game
-  const handleStartGame = useCallback(() => {
-    const playerName = nameInput.trim() || 'Prospector'
-    const adjustedStats = applyKarmaBonuses(finalStats ?? undefined)
-    startNewGame(playerName, {
-      attributes: adjustedStats,
-      creationMethod: creationMethod || 'standard',
-      rerollsUsed,
-      traits: selectedTrait ? [selectedTrait] : [],
-    })
-  }, [nameInput, finalStats, creationMethod, rerollsUsed, selectedTrait, startNewGame, applyKarmaBonuses])
-
   const handleContinue = () => {
     loadGame()
-  }
-
-  // Check if trait prerequisites are met
-  const isTraitAvailable = (traitId: TraitId): boolean => {
-    if (!finalStats) return true
-    const trait = TRAITS[traitId]
-    if (!trait.prerequisite) return true
-    return finalStats[trait.prerequisite.attribute] >= trait.prerequisite.min
   }
 
   return (
