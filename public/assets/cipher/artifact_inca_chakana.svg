@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Incan Chakana Tile">
+  <title>Yachay Wasi Chakana Tile</title>
+  <desc>Fired clay tile with stepped chakana in relief, central circular perforation, subtly rounded-square silhouette.</desc>
+
+  <defs>
+    <radialGradient id="clayBase" cx="45%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#c46b3c"/>
+      <stop offset="55%" stop-color="#944222"/>
+      <stop offset="100%" stop-color="#4a1d0f"/>
+    </radialGradient>
+    <linearGradient id="claySheen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffd9b2" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#ffd9b2" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.25"/>
+    </linearGradient>
+    <filter id="embossChakana" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="1.2" result="blur"/>
+      <feSpecularLighting in="blur" surfaceScale="3" specularConstant="0.9" specularExponent="16" lighting-color="#ffe3b8" result="spec">
+        <feDistantLight azimuth="135" elevation="55"/>
+      </feSpecularLighting>
+      <feComposite in="spec" in2="SourceAlpha" operator="in" result="specClip"/>
+      <feComposite in="SourceGraphic" in2="specClip" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"/>
+    </filter>
+  </defs>
+
+  <!-- === Invisible canonical cipher skeleton (identical across all artifacts) === -->
+  <g id="cipher-skeleton" stroke="none" fill="none" opacity="0">
+    <circle cx="200" cy="200" r="180"/>
+    <line x1="20" y1="200" x2="380" y2="200"/>
+    <line x1="200" y1="20" x2="200" y2="380"/>
+    <polygon points="73,73 327,73 327,327 73,327"/>
+    <circle cx="200" cy="200" r="14" fill="none"/>
+  </g>
+
+  <!-- Rounded-square tile silhouette (hides the circle via outline) -->
+  <g id="tile-base">
+    <rect x="22" y="22" width="356" height="356" rx="56" ry="56"
+          fill="url(#clayBase)" stroke="#3a1608" stroke-width="2.5"/>
+    <rect x="22" y="22" width="356" height="356" rx="56" ry="56" fill="url(#claySheen)"/>
+    <!-- Fine clay grog speckling -->
+    <g fill="#3a1608" opacity="0.45">
+      <circle cx="70" cy="80" r="1.2"/>
+      <circle cx="130" cy="60" r="0.9"/>
+      <circle cx="330" cy="90" r="1.1"/>
+      <circle cx="360" cy="200" r="1"/>
+      <circle cx="310" cy="330" r="1.2"/>
+      <circle cx="80" cy="330" r="1.1"/>
+      <circle cx="60" cy="250" r="0.9"/>
+      <circle cx="250" cy="60" r="1"/>
+      <circle cx="150" cy="350" r="0.9"/>
+      <circle cx="220" cy="350" r="1.1"/>
+      <circle cx="340" cy="140" r="0.7"/>
+      <circle cx="50" cy="180" r="0.8"/>
+    </g>
+    <!-- Kiln darkening at corners -->
+    <path d="M22 78 Q 22 22 78 22" fill="none" stroke="#2a0e04" stroke-width="3" opacity="0.55"/>
+    <path d="M322 22 Q 378 22 378 78" fill="none" stroke="#2a0e04" stroke-width="3" opacity="0.55"/>
+    <path d="M378 322 Q 378 378 322 378" fill="none" stroke="#2a0e04" stroke-width="3" opacity="0.55"/>
+    <path d="M78 378 Q 22 378 22 322" fill="none" stroke="#2a0e04" stroke-width="3" opacity="0.55"/>
+  </g>
+
+  <!-- Stepped chakana in relief — cardinal arms touch rim, step corners land at (73,73),(327,73),(327,327),(73,327) -->
+  <g id="stepped-chakana" fill="#d9825a" stroke="#3a1608" stroke-width="1.8" stroke-linejoin="miter">
+    <!-- Built as a single path: 12-point stepped cross with rotated-square step corners -->
+    <path d="M 170 40
+             L 230 40
+             L 230 110
+             L 327 110
+             L 327 73
+             L 360 110
+             L 360 170
+             L 290 170
+             L 290 230
+             L 360 230
+             L 360 290
+             L 327 290
+             L 327 327
+             L 290 327
+             L 290 360
+             L 230 360
+             L 230 290
+             L 170 290
+             L 170 360
+             L 110 360
+             L 110 327
+             L 73 327
+             L 73 290
+             L 40 290
+             L 40 230
+             L 110 230
+             L 110 170
+             L 40 170
+             L 40 110
+             L 73 110
+             L 73 73
+             L 110 73
+             L 110 110
+             L 170 110
+             Z"
+          filter="url(#embossChakana)"/>
+    <!-- Inner bevel line -->
+    <path d="M 178 48
+             L 222 48
+             L 222 118
+             L 282 118
+             L 282 178
+             L 352 178
+             L 352 222
+             L 282 222
+             L 282 282
+             L 222 282
+             L 222 352
+             L 178 352
+             L 178 282
+             L 118 282
+             L 118 222
+             L 48 222
+             L 48 178
+             L 118 178
+             L 118 118
+             L 178 118
+             Z"
+          fill="none" stroke="#5a1f0d" stroke-width="0.9" opacity="0.6"/>
+  </g>
+
+  <!-- Step-corner accents to sell the (73,73)/(327,73)/(327,327)/(73,327) vertex -->
+  <g fill="#6a2511" opacity="0.55">
+    <circle cx="73" cy="73" r="2.5"/>
+    <circle cx="327" cy="73" r="2.5"/>
+    <circle cx="327" cy="327" r="2.5"/>
+    <circle cx="73" cy="327" r="2.5"/>
+  </g>
+
+  <!-- Central perforation (hidden void) -->
+  <g id="center-perforation">
+    <circle cx="200" cy="200" r="14" fill="#1a0804"/>
+    <circle cx="200" cy="200" r="14" fill="none" stroke="#000" stroke-width="1.2"/>
+    <ellipse cx="197" cy="197" rx="4.5" ry="3" fill="#3a1608" opacity="0.7"/>
+  </g>
+</svg>

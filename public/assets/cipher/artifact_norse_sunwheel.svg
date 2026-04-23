@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Norse Sunwheel Whalebone">
+  <title>Thorvaldsson Sunwheel Whalebone</title>
+  <desc>Weathered whalebone disc with shallow cross, rim circle, four runic tally marks at inter-cardinal rim, and an 8mm thong hole.</desc>
+
+  <defs>
+    <radialGradient id="boneBase" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#f2ead3"/>
+      <stop offset="55%" stop-color="#d9c99a"/>
+      <stop offset="100%" stop-color="#8a7547"/>
+    </radialGradient>
+    <radialGradient id="boneInner" cx="55%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="roughen" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/>
+      <feDisplacementMap in="SourceGraphic" scale="2"/>
+    </filter>
+  </defs>
+
+  <!-- === Invisible canonical cipher skeleton (identical across all artifacts) === -->
+  <g id="cipher-skeleton" stroke="none" fill="none" opacity="0">
+    <circle cx="200" cy="200" r="180"/>
+    <line x1="20" y1="200" x2="380" y2="200"/>
+    <line x1="200" y1="20" x2="200" y2="380"/>
+    <polygon points="73,73 327,73 327,327 73,327"/>
+    <circle cx="200" cy="200" r="14" fill="none"/>
+  </g>
+
+  <!-- Bone disc base: irregular, weathered -->
+  <g id="bone-base">
+    <path d="M200 24
+             C 260 26 312 48 348 90
+             C 380 128 384 190 374 240
+             C 362 296 320 344 262 368
+             C 210 388 148 384 102 360
+             C 54 332 22 284 20 224
+             C 18 164 44 110 86 72
+             C 120 42 160 26 200 24 Z"
+          fill="url(#boneBase)" stroke="#6d5a33" stroke-width="2"/>
+    <!-- Age cracks & grain -->
+    <path d="M80 150 Q 140 160 210 140 T 330 170" stroke="#8a7547" stroke-width="0.8" fill="none" opacity="0.55"/>
+    <path d="M60 240 Q 130 220 200 235 T 340 220" stroke="#8a7547" stroke-width="0.6" fill="none" opacity="0.4"/>
+    <path d="M120 310 Q 180 300 240 320 T 320 300" stroke="#8a7547" stroke-width="0.5" fill="none" opacity="0.35"/>
+    <!-- Pits -->
+    <circle cx="110" cy="110" r="3" fill="#6d5a33" opacity="0.35"/>
+    <circle cx="300" cy="130" r="2" fill="#6d5a33" opacity="0.3"/>
+    <circle cx="260" cy="295" r="2.5" fill="#6d5a33" opacity="0.35"/>
+    <circle cx="130" cy="285" r="1.8" fill="#6d5a33" opacity="0.3"/>
+    <!-- Soft inner highlight -->
+    <ellipse cx="210" cy="190" rx="150" ry="120" fill="url(#boneInner)"/>
+  </g>
+
+  <!-- Rim-incised circle (the hidden circle) -->
+  <circle cx="200" cy="200" r="180" fill="none" stroke="#3a2e18" stroke-width="1.6" opacity="0.75"/>
+  <circle cx="200" cy="200" r="174" fill="none" stroke="#6d5a33" stroke-width="0.6" opacity="0.5"/>
+
+  <!-- Overt: shallow equal-armed cross carved across face -->
+  <g id="sunwheel-cross" stroke="#3a2e18" stroke-linecap="round">
+    <line x1="42" y1="200" x2="358" y2="200" stroke-width="6" opacity="0.85"/>
+    <line x1="200" y1="42" x2="200" y2="358" stroke-width="6" opacity="0.85"/>
+    <!-- Carved shadow line parallel, gives chiseled look -->
+    <line x1="42" y1="204" x2="358" y2="204" stroke-width="1.5" opacity="0.45"/>
+    <line x1="204" y1="42" x2="204" y2="358" stroke-width="1.5" opacity="0.45"/>
+  </g>
+
+  <!-- Runic tally marks at NE/SE/SW/NW rim (inter-cardinal — these tips form the hidden rotated square) -->
+  <g id="rune-tallies" stroke="#2a2010" stroke-width="2" stroke-linecap="round" fill="none">
+    <!-- NE at ~ (327,73) -->
+    <g transform="translate(327,73) rotate(-45)">
+      <line x1="-14" y1="-6" x2="14" y2="-6"/>
+      <line x1="-10" y1="0" x2="10" y2="0"/>
+      <line x1="-6" y1="6" x2="6" y2="6"/>
+    </g>
+    <!-- SE at (327,327) -->
+    <g transform="translate(327,327) rotate(45)">
+      <line x1="-14" y1="-6" x2="14" y2="-6"/>
+      <line x1="-10" y1="0" x2="10" y2="0"/>
+      <line x1="-6" y1="6" x2="6" y2="6"/>
+    </g>
+    <!-- SW at (73,327) -->
+    <g transform="translate(73,327) rotate(-45)">
+      <line x1="-14" y1="-6" x2="14" y2="-6"/>
+      <line x1="-10" y1="0" x2="10" y2="0"/>
+      <line x1="-6" y1="6" x2="6" y2="6"/>
+    </g>
+    <!-- NW at (73,73) -->
+    <g transform="translate(73,73) rotate(45)">
+      <line x1="-14" y1="-6" x2="14" y2="-6"/>
+      <line x1="-10" y1="0" x2="10" y2="0"/>
+      <line x1="-6" y1="6" x2="6" y2="6"/>
+    </g>
+  </g>
+
+  <!-- Central thong hole (the hidden void) -->
+  <g id="thong-hole">
+    <circle cx="200" cy="200" r="14" fill="#1a120a"/>
+    <circle cx="200" cy="200" r="14" fill="none" stroke="#000" stroke-width="1.2"/>
+    <ellipse cx="197" cy="196" rx="5" ry="3" fill="#2a1f10" opacity="0.6"/>
+  </g>
+</svg>

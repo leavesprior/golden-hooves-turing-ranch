@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Mississippian Shell Gorget">
+  <title>Cahokia Shell Gorget</title>
+  <desc>Whelk shell gorget with incised cross-in-circle, four petal-rays at inter-cardinal, and drilled suspension hole.</desc>
+
+  <defs>
+    <radialGradient id="shellBase" cx="42%" cy="38%" r="70%">
+      <stop offset="0%" stop-color="#fbf5e4"/>
+      <stop offset="45%" stop-color="#ead9b1"/>
+      <stop offset="100%" stop-color="#9c7e4c"/>
+    </radialGradient>
+    <radialGradient id="shellSheen" cx="38%" cy="28%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- === Invisible canonical cipher skeleton (identical across all artifacts) === -->
+  <g id="cipher-skeleton" stroke="none" fill="none" opacity="0">
+    <circle cx="200" cy="200" r="180"/>
+    <line x1="20" y1="200" x2="380" y2="200"/>
+    <line x1="200" y1="20" x2="200" y2="380"/>
+    <polygon points="73,73 327,73 327,327 73,327"/>
+    <circle cx="200" cy="200" r="14" fill="none"/>
+  </g>
+
+  <!-- Shell blank: slightly asymmetric whelk disc with wavy edge -->
+  <g id="shell-base">
+    <path d="M200 26
+             C 258 28 308 44 340 76
+             C 374 110 382 166 376 222
+             C 370 280 340 332 290 360
+             C 240 386 174 384 126 360
+             C 78 336 40 290 28 230
+             C 18 170 38 112 78 74
+             C 116 42 160 28 200 26 Z"
+          fill="url(#shellBase)" stroke="#7a5d30" stroke-width="1.8"/>
+    <!-- Growth striae -->
+    <g stroke="#b89a63" stroke-width="0.6" fill="none" opacity="0.55">
+      <path d="M50 150 Q 150 130 230 150 T 360 150"/>
+      <path d="M45 200 Q 150 180 230 200 T 365 200"/>
+      <path d="M50 250 Q 150 230 230 250 T 360 250"/>
+      <path d="M60 100 Q 150 90 230 105 T 340 105"/>
+      <path d="M60 300 Q 150 290 230 305 T 340 305"/>
+    </g>
+    <!-- Notched rim -->
+    <g fill="#7a5d30" opacity="0.45">
+      <circle cx="30" cy="200" r="2"/>
+      <circle cx="370" cy="200" r="2"/>
+      <circle cx="200" cy="30" r="1.6"/>
+      <circle cx="200" cy="380" r="2"/>
+    </g>
+    <!-- Highlight -->
+    <ellipse cx="160" cy="140" rx="110" ry="70" fill="url(#shellSheen)"/>
+  </g>
+
+  <!-- Overt: incised cross-in-circle -->
+  <g id="cross-in-circle" stroke="#3c2a10" fill="none" stroke-linecap="round">
+    <circle cx="200" cy="200" r="96" stroke-width="4"/>
+    <circle cx="200" cy="200" r="90" stroke-width="1" opacity="0.5"/>
+    <line x1="200" y1="110" x2="200" y2="290" stroke-width="4"/>
+    <line x1="110" y1="200" x2="290" y2="200" stroke-width="4"/>
+    <!-- Chisel shadows -->
+    <line x1="203" y1="110" x2="203" y2="290" stroke-width="1" opacity="0.45"/>
+    <line x1="110" y1="203" x2="290" y2="203" stroke-width="1" opacity="0.45"/>
+  </g>
+
+  <!-- Petal-rays at NE/SE/SW/NW — tips land at (327,73),(327,327),(73,327),(73,73) -->
+  <g id="petal-rays" stroke="#3c2a10" stroke-width="3" fill="none" stroke-linecap="round">
+    <!-- NE petal: tight loop fanning from circle rim to (327,73) -->
+    <path d="M268 132 Q 300 86 327 73 Q 310 110 268 132 Z"/>
+    <!-- SE -->
+    <path d="M268 268 Q 300 314 327 327 Q 310 290 268 268 Z"/>
+    <!-- SW -->
+    <path d="M132 268 Q 100 314 73 327 Q 90 290 132 268 Z"/>
+    <!-- NW -->
+    <path d="M132 132 Q 100 86 73 73 Q 90 110 132 132 Z"/>
+    <!-- Inner vein in each petal (gives "ray" feel) -->
+    <line x1="268" y1="132" x2="327" y2="73" stroke-width="1" opacity="0.6"/>
+    <line x1="268" y1="268" x2="327" y2="327" stroke-width="1" opacity="0.6"/>
+    <line x1="132" y1="268" x2="73" y2="327" stroke-width="1" opacity="0.6"/>
+    <line x1="132" y1="132" x2="73" y2="73" stroke-width="1" opacity="0.6"/>
+  </g>
+
+  <!-- Drilled suspension hole (the hidden void) -->
+  <g id="suspension-hole">
+    <circle cx="200" cy="200" r="14" fill="#2a1d08"/>
+    <circle cx="200" cy="200" r="14" fill="none" stroke="#000" stroke-width="1"/>
+    <ellipse cx="197" cy="197" rx="5" ry="3.2" fill="#4a3518" opacity="0.7"/>
+  </g>
+</svg>
