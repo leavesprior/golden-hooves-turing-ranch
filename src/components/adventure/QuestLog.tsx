@@ -39,7 +39,7 @@ interface QuestLogProps {
   activeQuestId?: string
 }
 
-type TabFilter = 'active' | 'completed' | 'all'
+type TabFilter = 'active' | 'available' | 'completed' | 'all'
 
 const STATUS_ICONS: Record<QuestStatus, string> = {
   available: '\u2753',
@@ -63,12 +63,17 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
     // Prerequisite-blocked quests show only in "all" so we don't tease the
     // player with content they can't take yet.
     if (q.blocked) return tab === 'all'
-    if (tab === 'active') return q.status === 'active' || q.status === 'available'
+    // Phase 3.5 RED #4 fix: ACTIVE means accepted-and-in-progress only.
+    // Offered-but-not-accepted quests now live under AVAILABLE so the tab
+    // counter stops contradicting the list contents.
+    if (tab === 'active') return q.status === 'active'
+    if (tab === 'available') return q.status === 'available'
     if (tab === 'completed') return q.status === 'completed' || q.status === 'failed'
     return true
   })
 
   const activeCount = quests.filter(q => !q.blocked && q.status === 'active').length
+  const availableCount = quests.filter(q => !q.blocked && q.status === 'available').length
   const completedCount = quests.filter(q => !q.blocked && q.status === 'completed').length
 
   return (
@@ -88,7 +93,7 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
 
       {/* Tabs */}
       <div className="flex border-b-2 border-[var(--pixel-ui-border)]">
-        {(['active', 'completed', 'all'] as TabFilter[]).map(t => (
+        {(['active', 'available', 'completed', 'all'] as TabFilter[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -98,7 +103,13 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
                 : 'text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)]'
             }`}
           >
-            {t === 'active' ? `ACTIVE (${activeCount})` : t === 'completed' ? `DONE (${completedCount})` : 'ALL'}
+            {t === 'active'
+              ? `ACTIVE (${activeCount})`
+              : t === 'available'
+                ? `AVAILABLE (${availableCount})`
+                : t === 'completed'
+                  ? `DONE (${completedCount})`
+                  : 'ALL'}
           </button>
         ))}
       </div>
@@ -107,7 +118,11 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
       <div className="p-2 space-y-1 max-h-[400px] overflow-y-auto">
         {filtered.length === 0 ? (
           <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-50 text-center py-8">
-            {tab === 'active' ? 'No active quests. Talk to NPCs to find work.' : 'No completed quests yet.'}
+            {tab === 'active'
+              ? 'No active quests. Accept a quest from the AVAILABLE tab.'
+              : tab === 'available'
+                ? 'No quests available. Talk to NPCs to find work.'
+                : 'No completed quests yet.'}
           </p>
         ) : (
           filtered.map(quest => {

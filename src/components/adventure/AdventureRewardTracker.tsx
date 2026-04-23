@@ -41,6 +41,8 @@ const EXTENDED_TIERS: Record<ExtendedTier, ExtendedTierInfo> = {
 
 const CODES_STORAGE_KEY = 'adventure_discount_codes'
 
+const COLLAPSED_STORAGE_KEY = 'adventure_reward_tracker_collapsed'
+
 export default function AdventureRewardTracker({
   locationsVisited,
   totalLocations,
@@ -63,6 +65,25 @@ export default function AdventureRewardTracker({
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [hasCheckedWelcome, setHasCheckedWelcome] = useState(false)
+
+  // Phase 3.5 RED #2: Panel was auto-opening on first map load and had no
+  // close button, blocking the player before they'd done anything. Now we
+  // start collapsed and only auto-open once the player has *something to
+  // track* (answered a clue, visited >1 location, or earned a code).
+  // User-initiated collapse persists to localStorage so we don't re-nag.
+  const [manuallyCollapsed, setManuallyCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return localStorage.getItem(COLLAPSED_STORAGE_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const persistCollapsed = useCallback((collapsed: boolean) => {
+    try {
+      localStorage.setItem(COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0')
+    } catch {}
+  }, [])
 
   const mysteryClues = getCorrectClueCount()
   const casesSolved = mysteryState.casesSolved.length
@@ -191,17 +212,58 @@ export default function AdventureRewardTracker({
     }
   }, [chapter, onUseHint])
 
+  // Phase 3.5 RED #2: Auto-show only when the player has something to track.
+  // Before that, render a small "REWARDS" tab they can click to open. Once
+  // they click the X, the user-collapsed state sticks (localStorage) so we
+  // never re-pop over them.
+  const hasSomethingToTrack =
+    cluesAnswered > 0 ||
+    locationsVisited > 1 ||
+    earnedCodes.length > 0 ||
+    currentTier !== null
+  const isOpen = hasSomethingToTrack && !manuallyCollapsed
+
+  const handleCollapse = useCallback(() => {
+    setManuallyCollapsed(true)
+    persistCollapsed(true)
+  }, [persistCollapsed])
+
+  const handleExpand = useCallback(() => {
+    setManuallyCollapsed(false)
+    persistCollapsed(false)
+  }, [persistCollapsed])
+
   return (
     <>
+      {!isOpen && (
+        <button
+          onClick={handleExpand}
+          aria-label="Open reward tracker"
+          className="fixed top-4 right-4 bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-gold-mid)] px-3 py-2 font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] uppercase tracking-wider z-50 hover:bg-[var(--pixel-gold-dark)]"
+        >
+          {'🏆'} Rewards{earnedCodes.length > 0 ? ` (${earnedCodes.length})` : ''}
+        </button>
+      )}
+      {isOpen && (
       <div className="fixed top-4 right-4 w-80 bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] p-4 font-[var(--font-pixel)] shadow-lg z-50">
         {/* Header */}
         <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-[var(--pixel-ui-border)]">
           <h3 className="text-[12px] text-[var(--pixel-gold-light)] uppercase tracking-wider">
             Reward Tracker
           </h3>
-          <span className="text-[10px] text-[var(--pixel-ui-text)]">
-            {playTimeMinutes} min
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-[var(--pixel-ui-text)]">
+              {playTimeMinutes} min
+            </span>
+            <button
+              onClick={handleCollapse}
+              aria-label="Close reward tracker"
+              title="Close"
+              className="text-[12px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] w-5 h-5 flex items-center justify-center border border-[var(--pixel-ui-border)]"
+            >
+              {'✕'}
+            </button>
+          </div>
         </div>
 
         {/* Current Tier */}
@@ -296,6 +358,7 @@ export default function AdventureRewardTracker({
           </div>
         )}
       </div>
+      )}
 
       {/* Welcome Modal */}
       {showWelcomeModal && (

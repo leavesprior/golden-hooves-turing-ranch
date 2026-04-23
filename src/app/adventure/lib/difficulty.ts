@@ -30,9 +30,9 @@ export const DIFFICULTY_LABELS: Record<GameDifficulty, string> = {
 }
 
 export const DIFFICULTY_TOOLTIPS: Record<GameDifficulty, string> = {
-  story: 'Gentler challenges, generous hints.',
-  explorer: 'Balanced adventure. (Default)',
-  challenger: 'Harder checks, fewer hints, truer depth.',
+  story: 'Checks are forgiving. Your goal is the story.',
+  explorer: 'Balanced. See your odds before rolling. (Default)',
+  challenger: 'Checks are harder. Trust your gut — odds shown only as tier.',
 }
 
 /**

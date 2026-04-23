@@ -443,6 +443,14 @@ function StatsSidebar({
   hasCloud,
   recruitedAllies,
   onDismissAlly,
+  // Phase 3.5 YELLOW #2 — MAKE CAMP is now discoverable from the sidebar
+  // HUD during the exploring phase. The existing COMPLETE CHAPTER button at
+  // the top header was the only affordance and players were missing it.
+  // Passing the same gating handler here and a disabled-reason tooltip.
+  onMakeCamp,
+  campEnabled,
+  campDisabledReason,
+  showMakeCamp,
 }: {
   stats: SaddleStats
   level: number
@@ -455,6 +463,10 @@ function StatsSidebar({
   hasCloud: boolean
   recruitedAllies: RecruitedAlly[]
   onDismissAlly: (enemyName: string) => void
+  onMakeCamp: () => void
+  campEnabled: boolean
+  campDisabledReason: string
+  showMakeCamp: boolean
 }) {
   return (
     <div className="space-y-3">
@@ -562,6 +574,24 @@ function StatsSidebar({
 
       {/* Actions */}
       <div className="space-y-2">
+        {/* Phase 3.5 YELLOW #2 — MAKE CAMP discoverable from sidebar HUD
+            during exploring phase. Disabled with tooltip when not yet
+            eligible to camp; enabled (gold, pulsing) when the player has
+            met the chapter's campsite conditions. */}
+        {showMakeCamp && (
+          <button
+            onClick={campEnabled ? onMakeCamp : undefined}
+            disabled={!campEnabled}
+            title={campEnabled ? 'Make camp and end the chapter' : campDisabledReason}
+            className={`w-full py-2 px-3 font-[var(--font-pixel)] text-[10px] border-2 transition-all ${
+              campEnabled
+                ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] hover:bg-[var(--pixel-gold-mid)] animate-pulse'
+                : 'bg-[var(--pixel-bg-dark)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] opacity-50 cursor-not-allowed'
+            }`}
+          >
+            {'⛺'} MAKE CAMP
+          </button>
+        )}
         <button
           onClick={onOpenSkillTree}
           className="w-full py-2 px-3 font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]"
@@ -637,6 +667,18 @@ function NarratorToast() {
 // REPUTATION DISPLAY
 // ============================================
 
+// Phase 3.5 RED #5: Faction bars were rendering as truncated 4-char labels
+// ("PINK SETT NATI OUTL") at <1920px viewports. Replaced with iconographic
+// glyphs + a hover tooltip showing full name + current standing. At xl (>=
+// 1280px) breakpoints we reveal the full label beside the icon for users
+// who explicitly chose a larger window.
+const FACTION_DISPLAY: Record<FactionId, { icon: string; name: string }> = {
+  pinkerton: { icon: '🎩', name: 'Pinkertons' }, // top hat
+  settlers: { icon: '🏘️', name: 'Settlers' }, // houses
+  natives: { icon: '🪶', name: 'Natives' }, // feather
+  outlaws: { icon: '🔫', name: 'Outlaws' }, // pistol
+}
+
 function ReputationDisplay() {
   const { state: repState, getReputationLevel } = useReputation()
 
@@ -644,10 +686,19 @@ function ReputationDisplay() {
     <div className="flex flex-wrap gap-2">
       {(Object.entries(repState.reputations) as [FactionId, number][]).map(([factionId, rep]) => {
         const level = getReputationLevel(factionId)
+        const info = FACTION_DISPLAY[factionId] ?? { icon: '❓', name: factionId }
+        const standing = rep > 25 ? 'Allied' : rep > 0 ? 'Friendly' : rep > -25 ? 'Neutral' : 'Hostile'
         return (
-          <div key={factionId} className="flex items-center gap-1">
-            <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-60">
-              {factionId.slice(0, 4).toUpperCase()}
+          <div
+            key={factionId}
+            className="flex items-center gap-1"
+            title={`${info.name}: ${standing} (${rep > 0 ? '+' : ''}${rep}) — ${level}`}
+          >
+            <span className="text-[11px] leading-none select-none" aria-hidden>
+              {info.icon}
+            </span>
+            <span className="hidden xl:inline font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-60">
+              {info.name.toUpperCase()}
             </span>
             <div className="w-10 h-1.5 bg-[var(--pixel-bg-dark)] border border-[var(--pixel-ui-border)]">
               <div
@@ -658,6 +709,9 @@ function ReputationDisplay() {
                 }}
               />
             </div>
+            <span className="sr-only">
+              {info.name}: {standing}
+            </span>
           </div>
         )
       })}
@@ -690,7 +744,15 @@ function AdventureContent() {
   const [travelDestination, setTravelDestination] = useState<string | null>(null)
   const [showCamp, setShowCamp] = useState(false)
   const [activeConfrontation, setActiveConfrontation] = useState<ConfrontationEnemy | null>(null)
-  const [explorationMode, setExplorationMode] = useState(true)
+  // Phase 3.5 RED #3: EXPLORE mode is experimental — in most environments the
+  // PixiJS canvas fails silently and the toggle looked like a no-op. Gate the
+  // whole toggle behind NEXT_PUBLIC_ENABLE_EXPLORE_MODE so players only ever
+  // see MAP unless the flag is explicitly set at build time. When disabled,
+  // we still construct the `explorationMode` state so downstream code paths
+  // compile unchanged, but initial value is `false` (MAP) and the toggle UI
+  // is hidden.
+  const EXPLORE_MODE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_EXPLORE_MODE === 'true'
+  const [explorationMode, setExplorationMode] = useState(EXPLORE_MODE_ENABLED)
   const [pixiFailed, setPixiFailed] = useState(false)
 
   // Phase 2 — Active dialogue tree from orphan `dialogues.ts`. Null when
@@ -1626,29 +1688,36 @@ function AdventureContent() {
           <div className="lg:col-span-3">
             {adventureState.phase === 'exploring' && (
               <div>
-                {/* Map/Explore toggle */}
-                <div className="flex items-center gap-2 mb-2">
-                  <button
-                    onClick={() => setExplorationMode(false)}
-                    className={`font-[var(--font-pixel)] text-[9px] px-3 py-1 border transition-all ${
-                      !explorationMode
-                        ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
-                        : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]'
-                    }`}
-                  >
-                    MAP
-                  </button>
-                  <button
-                    onClick={() => setExplorationMode(true)}
-                    className={`font-[var(--font-pixel)] text-[9px] px-3 py-1 border transition-all ${
-                      explorationMode
-                        ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
-                        : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]'
-                    }`}
-                  >
-                    EXPLORE
-                  </button>
-                </div>
+                {/* Phase 3.5 RED #3: Map/Explore toggle removed from default
+                    build — EXPLORE mode renders the same SVG visually and the
+                    PixiJS canvas fails silently in most environments. The
+                    toggle is gated behind NEXT_PUBLIC_ENABLE_EXPLORE_MODE so
+                    we can keep the code path warm without shipping the
+                    confusion. Setting the flag brings the toggle back. */}
+                {EXPLORE_MODE_ENABLED && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      onClick={() => setExplorationMode(false)}
+                      className={`font-[var(--font-pixel)] text-[9px] px-3 py-1 border transition-all ${
+                        !explorationMode
+                          ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
+                          : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]'
+                      }`}
+                    >
+                      MAP
+                    </button>
+                    <button
+                      onClick={() => setExplorationMode(true)}
+                      className={`font-[var(--font-pixel)] text-[9px] px-3 py-1 border transition-all ${
+                        explorationMode
+                          ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
+                          : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]'
+                      }`}
+                    >
+                      EXPLORE (beta)
+                    </button>
+                  </div>
+                )}
 
                 {explorationMode && !pixiFailed ? (
                   <ExplorationMap
@@ -1765,6 +1834,15 @@ function AdventureContent() {
               hasCloud={hasCloudSaveFlag}
               recruitedAllies={adventureState.recruitedAllies}
               onDismissAlly={handleDismissAlly}
+              // Phase 3.5 YELLOW #2 — surface the camp affordance.
+              showMakeCamp={adventureState.phase === 'exploring'}
+              onMakeCamp={handleCompleteChapter}
+              campEnabled={canCompleteChapter}
+              campDisabledReason={
+                canCompleteChapter
+                  ? ''
+                  : `Travel to more locations first (${adventureState.visitedLocationIds.filter(id => chapterLocs.some(l => l.id === id)).length}/${Math.ceil(chapterLocs.length * 0.6)} needed)`
+              }
             />
           </div>
         </div>

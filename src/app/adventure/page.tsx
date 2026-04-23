@@ -562,6 +562,21 @@ export default function AdventurePage() {
           `}</style>
         </div>
 
+        {/* Phase 3.5 RED #1: Character creation used to happen TWICE — once
+            on this landing page (name + dice/Mandelbrot stats + trait) and
+            again on /adventure/play which immediately pushes to
+            /adventure/character-creation (name + background + S.A.D.D.L.E.
+            picks + review). Players asked "didn't I just do this?" because
+            the two systems are different: STR/DEX/CON vs Shrewdness/Agility/
+            etc., and the picks system overrides the landing picks anyway.
+
+            Path A: the landing page is now pure intro + chapter select. All
+            character creation — name, background, picks — lives on the play
+            page (via /adventure/character-creation). Clicking "Begin Your
+            Journey" spins up a placeholder session with default attributes;
+            the placeholder gets overwritten the moment the player reaches
+            the play page and creates their real character. */}
+
         {/* Game Start Options */}
         {!session && !showNewGame && (
           <div className="space-y-4 max-w-md mx-auto">
@@ -571,7 +586,7 @@ export default function AdventurePage() {
               </PixelButton>
             )}
             <PixelButton onClick={() => setShowNewGame(true)} variant="green" size="md">
-              New Adventure
+              Begin Your Journey
             </PixelButton>
 
             {/* Karma carry-forward badge */}
@@ -620,262 +635,60 @@ export default function AdventurePage() {
           </div>
         )}
 
-        {/* New Game Form - Character Creation Flow */}
+        {/* Phase 3.5 RED #1: Streamlined intro screen. No stat rolling here
+            — the real character creation happens inside the play flow so we
+            don't duplicate systems. */}
         {!session && showNewGame && (
           <div className="max-w-lg mx-auto">
-            {/* Step 1: Name Entry */}
-            {creationStep === 'name' && (
-              <PixelCard title="Step 1: Name Your Character">
-                <div className="space-y-4">
-                  <div>
-                    <label className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)] block mb-2">
-                      What is your name, traveler?
-                    </label>
-                    <input
-                      type="text"
-                      value={nameInput}
-                      onChange={(e) => setNameInput(e.target.value)}
-                      placeholder="Tobias"
-                      className="w-full bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] p-3 font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-ui-text)] placeholder:text-[var(--pixel-ui-border)]"
-                      maxLength={20}
-                      onKeyDown={(e) => e.key === 'Enter' && setCreationStep('method')}
-                    />
-                  </div>
-                  <div className="flex gap-4">
-                    <PixelButton onClick={() => setCreationStep('method')} variant="gold" size="md">
-                      Next
-                    </PixelButton>
-                    <PixelButton onClick={() => setShowNewGame(false)} variant="blue" size="sm">
-                      Back
-                    </PixelButton>
-                  </div>
-                </div>
-              </PixelCard>
-            )}
-
-            {/* Step 2: Choose Creation Method */}
-            {creationStep === 'method' && (
-              <PixelCard title="Step 2: Choose Your Fate">
-                <div className="space-y-4">
-                  <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center mb-4">
-                    How shall destiny shape {nameInput || 'Prospector'}?
-                  </p>
-
-                  <div className="grid gap-4">
-                    {/* Dice Rolling Option */}
-                    <button
-                      onClick={() => handleSelectMethod('dice_roll')}
-                      className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-gold-mid)] p-4 hover:bg-[var(--pixel-gold-dark)] transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl">🎲</span>
-                        <div>
-                          <h3 className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)]">
-                            Roll the Dice
-                          </h3>
-                          <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
-                            Classic D&D style: 4d6, drop lowest
-                          </p>
-                          <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-forest-light)] mt-1">
-                            Higher highs, lower lows • {MAX_REROLLS} rerolls allowed
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-
-                    {/* Mandelbrot Option */}
-                    <button
-                      onClick={() => handleSelectMethod('mandelbrot')}
-                      className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-ui-border)] p-4 hover:bg-[var(--pixel-bg-light)] transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl">🌀</span>
-                        <div>
-                          <h3 className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)]">
-                            Just Start
-                          </h3>
-                          <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
-                            Mandelbrot-seeded balanced stats
-                          </p>
-                          <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-sky-light)] mt-1">
-                            z = z² + C • Balanced distribution (8-16)
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  </div>
-
-                  <div className="text-center pt-2">
-                    <button
-                      onClick={() => setCreationStep('name')}
-                      className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-border)] hover:text-[var(--pixel-ui-text)]"
-                    >
-                      ← Back to name
-                    </button>
-                  </div>
-                </div>
-              </PixelCard>
-            )}
-
-            {/* Step 3: View/Reroll Stats */}
-            {creationStep === 'stats' && (
-              <PixelCard title="Step 3: Your Attributes">
-                <div className="space-y-4">
-                  {/* Dice Roll Display */}
-                  {creationMethod === 'dice_roll' && attributeRolls && (
-                    <div className="space-y-2">
-                      <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center mb-2">
-                        4d6, drop lowest (shown crossed out)
-                      </p>
-                      <StatRollRow attr="str" rolls={attributeRolls.str.dice} total={attributeRolls.str.total} />
-                      <StatRollRow attr="dex" rolls={attributeRolls.dex.dice} total={attributeRolls.dex.total} />
-                      <StatRollRow attr="con" rolls={attributeRolls.con.dice} total={attributeRolls.con.total} />
-                      <StatRollRow attr="int" rolls={attributeRolls.int.dice} total={attributeRolls.int.total} />
-                      <StatRollRow attr="wis" rolls={attributeRolls.wis.dice} total={attributeRolls.wis.total} />
-                      <StatRollRow attr="cha" rolls={attributeRolls.cha.dice} total={attributeRolls.cha.total} />
-
-                      {/* Total and Reroll */}
-                      <div className="flex justify-between items-center pt-3 border-t-2 border-[var(--pixel-gold-mid)]">
-                        <span className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)]">
-                          Total: <span className="text-[var(--pixel-gold-light)]">
-                            {Object.values(attributeRolls).reduce((sum, r) => sum + r.total, 0)}
-                          </span>
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
-                            Rerolls: {MAX_REROLLS - rerollsUsed}/{MAX_REROLLS}
-                          </span>
-                          {rerollsUsed < MAX_REROLLS && (
-                            <PixelButton onClick={handleReroll} variant="orange" size="sm">
-                              Reroll All 🎲
-                            </PixelButton>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Mandelbrot Display */}
-                  {creationMethod === 'mandelbrot' && mandelbrotResult && mandelbrotStats && (
-                    <div className="space-y-4">
-                      <MandelbrotVisual c={mandelbrotResult.c} iterations={mandelbrotResult.iterations} />
-                      <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center">
-                        Seed: {mandelbrotResult.seed} • {mandelbrotResult.iterations} iterations
-                        {mandelbrotResult.escaped ? ' (escaped)' : ' (bounded)'}
-                      </p>
-
-                      <div className="grid grid-cols-3 gap-3">
-                        {(Object.keys(mandelbrotStats) as AttributeName[]).map((attr) => {
-                          const val = mandelbrotStats[attr]
-                          const mod = Math.floor((val - 10) / 2)
-                          return (
-                            <div key={attr} className="bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] p-2 text-center">
-                              <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
-                                {ATTRIBUTE_INFO[attr].abbr}
-                              </span>
-                              <p className="font-[var(--font-pixel)] text-[16px] text-[var(--pixel-ui-text)]">{val}</p>
-                              <span className={`font-[var(--font-pixel)] text-[10px] ${mod >= 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
-                                ({mod >= 0 ? '+' : ''}{mod})
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
-
-                      <div className="text-center">
-                        <PixelButton onClick={handleMandelbrot} variant="blue" size="sm">
-                          Generate New Seed 🌀
-                        </PixelButton>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex gap-4 pt-4">
-                    <PixelButton onClick={handleConfirmStats} variant="gold" size="md">
-                      Accept Stats
-                    </PixelButton>
-                    <PixelButton onClick={() => setCreationStep('method')} variant="blue" size="sm">
-                      Back
-                    </PixelButton>
-                  </div>
-                </div>
-              </PixelCard>
-            )}
-
-            {/* Step 4: Trait Selection */}
-            {creationStep === 'trait' && (
-              <PixelCard title="Step 4: Choose a Trait (Optional)">
-                <div className="space-y-4">
-                  <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center">
-                    Traits provide special bonuses. Some require minimum attributes.
-                  </p>
-
-                  <div className="grid gap-2 max-h-64 overflow-y-auto">
-                    {/* No Trait Option */}
-                    <button
-                      onClick={() => setSelectedTrait(null)}
-                      className={`text-left p-3 border-2 transition-colors ${
-                        selectedTrait === null
-                          ? 'border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]'
-                          : 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-bg-light)]'
-                      }`}
-                    >
-                      <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">
-                        No Trait (Start humble)
+            <PixelCard title="A Gold Rush Adventure">
+              <div className="space-y-4">
+                <p className="font-[var(--font-pixel)] text-[11px] sm:text-[13px] text-[var(--pixel-ui-text)] leading-relaxed">
+                  California, 1852. The gold has drawn people from every corner
+                  of the world — prospectors, scouts, settlers, outlaws. Five
+                  chapters await. Your choices — not your dice rolls — decide
+                  who your character becomes.
+                </p>
+                <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-forest-light)] leading-relaxed">
+                  Next you'll pick a chapter and forge your character inside
+                  the story. Background, advantages, flaws — it all happens in
+                  one place, with full S.A.D.D.L.E. stats (Shrewdness, Agility,
+                  Durability, Diplomacy, Luck, Expertise).
+                </p>
+                {karmaImported && karmaAlignment && (
+                  <div className="bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-mid)] p-3 text-center">
+                    <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
+                      KARMA IMPORTED FROM TRAIL
+                    </p>
+                    <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] mt-1">
+                      Alignment:{' '}
+                      <span className="text-[var(--pixel-gold-light)]">
+                        {karmaAlignment.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </span>
-                    </button>
-
-                    {/* Trait Options */}
-                    {(Object.keys(TRAITS) as TraitId[]).map((traitId) => {
-                      const trait = TRAITS[traitId]
-                      const available = isTraitAvailable(traitId)
-
-                      return (
-                        <button
-                          key={traitId}
-                          onClick={() => available && setSelectedTrait(traitId)}
-                          disabled={!available}
-                          className={`text-left p-3 border-2 transition-colors ${
-                            selectedTrait === traitId
-                              ? 'border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]'
-                              : available
-                              ? 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-bg-light)]'
-                              : 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-dark)] opacity-50 cursor-not-allowed'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
-                                {trait.name}
-                              </span>
-                              <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
-                                {trait.description}
-                              </p>
-                            </div>
-                            {trait.prerequisite && (
-                              <span className={`font-[var(--font-pixel)] text-[8px] ${available ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
-                                {ATTRIBUTE_INFO[trait.prerequisite.attribute].abbr} {trait.prerequisite.min}+
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      )
-                    })}
+                    </p>
                   </div>
-
-                  <div className="flex gap-4 pt-4">
-                    <PixelButton onClick={handleStartGame} variant="gold" size="md">
-                      Begin Adventure!
-                    </PixelButton>
-                    <PixelButton onClick={() => setCreationStep('stats')} variant="blue" size="sm">
-                      Back
-                    </PixelButton>
-                  </div>
+                )}
+                <div className="flex gap-3 pt-2">
+                  <PixelButton
+                    onClick={() => {
+                      // Create a placeholder session. Default attributes are
+                      // fine — the real character (name, background, picks,
+                      // S.A.D.D.L.E. stats) is forged on the play page.
+                      startNewGame('Prospector')
+                    }}
+                    variant="gold"
+                    size="md"
+                  >
+                    Begin Adventure
+                  </PixelButton>
+                  <PixelButton onClick={() => setShowNewGame(false)} variant="blue" size="sm">
+                    Back
+                  </PixelButton>
                 </div>
-              </PixelCard>
-            )}
+              </div>
+            </PixelCard>
           </div>
         )}
+
 
         {/* Active Session */}
         {session && (

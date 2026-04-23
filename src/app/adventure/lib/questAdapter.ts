@@ -152,8 +152,9 @@ export function adaptQuestsForLog(
     .filter((e): e is QuestLogEntry => e !== undefined)
 
   // Available (undiscovered) quests for the current + earlier chapters
-  // surface with `available` status. These show up under the "active" tab
-  // until the player accepts them in dialogue.
+  // surface with `available` status. Phase 3.5 RED #4: these now show up
+  // under the "AVAILABLE" tab (not ACTIVE) until the player accepts them
+  // in dialogue, so the tab counter stops contradicting the list.
   const available: QuestLogEntry[] = QUESTS
     .filter(q => q.chapter <= currentChapter && !seen.has(q.id))
     .map(q => ({
