@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import type { StatName } from '@/app/oregon-trail/characterContext'
+import {
+  DIFFICULTY_DEFAULT,
+  getSkillCheckPreview,
+  type GameDifficulty,
+} from '@/app/adventure/lib/difficulty'
+import { SkillCheckPreviewChip } from '@/app/adventure/components/SkillCheckPreview'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -45,6 +51,8 @@ interface DialogueViewProps {
   onEffect: (effects: DialogueOption['effects']) => void
   onSkillCheck: (stat: StatName, dc: number) => { success: boolean; roll: number; modifier: number; total: number }
   onGameStateChanged?: () => void
+  /** Story/Explorer/Challenger — drives preview chips on stat-gated options. */
+  gameDifficulty?: GameDifficulty
 }
 
 // ---------------------------------------------------------------------------
@@ -331,6 +339,7 @@ export function DialogueView({
   onEffect,
   onSkillCheck,
   onGameStateChanged,
+  gameDifficulty = DIFFICULTY_DEFAULT,
 }: DialogueViewProps) {
   // Resolve the starting node
   const getNode = useCallback((id: string): DialogueNode | undefined => {
@@ -598,15 +607,25 @@ export function DialogueView({
                         </span>
                       ))}
 
-                      {/* Stat requirement tag */}
+                      {/* Stat requirement tag — Fallout-style preview chip
+                          with effective DC (post-difficulty) and success %. */}
                       {hasReq && option.requirement && (
-                        <span className={`font-[var(--font-pixel)] text-[8px] px-1 border ${
-                          locked
-                            ? 'text-[var(--pixel-fire-red)] border-red-800'
-                            : 'text-[var(--pixel-gold-light)] border-[var(--pixel-gold-dark)]'
-                        }`}>
-                          [{option.requirement.stat} DC{option.requirement.dc}]
-                        </span>
+                        locked ? (
+                          <span className="font-[var(--font-pixel)] text-[8px] px-1 border text-[var(--pixel-fire-red)] border-red-800">
+                            [{option.requirement.stat} DC{option.requirement.dc} — locked]
+                          </span>
+                        ) : (
+                          <SkillCheckPreviewChip
+                            stat={option.requirement.stat}
+                            statValue={playerStats[option.requirement.stat] ?? 0}
+                            preview={getSkillCheckPreview(
+                              playerStats[option.requirement.stat] ?? 0,
+                              option.requirement.dc,
+                              gameDifficulty,
+                            )}
+                            compact
+                          />
+                        )
                       )}
 
                       {/* Visited indicator */}

@@ -5,6 +5,8 @@
  * Handles version migration for backwards compatibility.
  */
 
+import type { GameDifficulty } from '@/app/adventure/lib/difficulty'
+
 const STORAGE_KEY = 'bobr_adventure_state'
 const SAVE_VERSION = '1.0.0'
 const AUTO_SAVE_INTERVAL = 30000 // 30 seconds
@@ -39,6 +41,9 @@ export interface AdventureSaveData {
   level?: number
   xp?: number
   gold?: number
+  // Difficulty tier (Story/Explorer/Challenger). Optional so pre-facelift
+  // saves continue to load without error; migration backfills 'explorer'.
+  gameDifficulty?: GameDifficulty
 }
 
 /**
@@ -113,6 +118,7 @@ function migrateAdventureSave(oldData: Partial<AdventureSaveData>): AdventureSav
     level: oldData.level,
     xp: oldData.xp,
     gold: oldData.gold,
+    gameDifficulty: oldData.gameDifficulty ?? 'explorer',
   }
   saveAdventureState(migrated)
   return migrated

@@ -11,6 +11,12 @@ import {
 import type { StatName, SkillCheckResult } from '@/app/oregon-trail/characterContext'
 import { playSFX } from '@/app/oregon-trail/lib/audioManager'
 import { DOSMessage } from '@/components/ui/DOSMessage'
+import {
+  DIFFICULTY_DEFAULT,
+  getSkillCheckPreview,
+  type GameDifficulty,
+} from '@/app/adventure/lib/difficulty'
+import { SkillCheckPreviewChip } from '@/app/adventure/components/SkillCheckPreview'
 
 interface LocationViewProps {
   locationId: string
@@ -23,6 +29,8 @@ interface LocationViewProps {
   onClueAnswered?: (clue: DiscoveryClue, correct: boolean) => void
   onGameStateChanged?: () => void
   playerStats: Record<StatName, number>
+  /** Story/Explorer/Challenger — previews odds correctly. */
+  gameDifficulty?: GameDifficulty
 }
 
 type ViewMode = 'main' | 'npc_list' | 'services' | 'search' | 'clues'
@@ -94,6 +102,7 @@ export function LocationView({
   onClueAnswered,
   onGameStateChanged,
   playerStats,
+  gameDifficulty = DIFFICULTY_DEFAULT,
 }: LocationViewProps) {
   const [view, setView] = useState<ViewMode>('main')
   const [searchResult, setSearchResult] = useState<string | null>(null)
@@ -400,13 +409,16 @@ export function LocationView({
                       </span>
                     )}
                     {hasSkillCheck && (
-                      <span className={`font-[var(--font-pixel)] text-[7px] px-1 border ${
-                        canPass
-                          ? 'text-[var(--pixel-forest-light)] border-[var(--pixel-forest-dark)]'
-                          : 'text-[var(--pixel-fire-orange)] border-[var(--pixel-fire-red)]'
-                      }`}>
-                        {npc.skillCheckStat} DC{npc.skillCheckDC}
-                      </span>
+                      <SkillCheckPreviewChip
+                        stat={npc.skillCheckStat!}
+                        statValue={playerStats[npc.skillCheckStat!] ?? 0}
+                        preview={getSkillCheckPreview(
+                          playerStats[npc.skillCheckStat!] ?? 0,
+                          npc.skillCheckDC!,
+                          gameDifficulty,
+                        )}
+                        compact
+                      />
                     )}
                   </div>
                 </div>
@@ -540,20 +552,28 @@ export function LocationView({
             <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
               The sheriff listens to your report, chewing tobacco thoughtfully. He leans back and studies a map on the wall.
             </p>
-            <button
-              onClick={() => {
-                doServiceCheck(
-                  'Shrewdness', 10,
-                  'You piece together a new lead! The sheriff tips his hat in respect.',
-                  'Nothing new turns up this time. The trail has gone cold.',
-                  10, 3,
-                )
-                onEarnKarma(1, 'Investigated at sheriff')
-              }}
-              className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
-            >
-              REPORT / INVESTIGATE
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => {
+                  doServiceCheck(
+                    'Shrewdness', 10,
+                    'You piece together a new lead! The sheriff tips his hat in respect.',
+                    'Nothing new turns up this time. The trail has gone cold.',
+                    10, 3,
+                  )
+                  onEarnKarma(1, 'Investigated at sheriff')
+                }}
+                className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
+              >
+                REPORT / INVESTIGATE
+              </button>
+              <SkillCheckPreviewChip
+                stat="Shrewdness"
+                statValue={playerStats.Shrewdness ?? 0}
+                preview={getSkillCheckPreview(playerStats.Shrewdness ?? 0, 10, gameDifficulty)}
+                compact
+              />
+            </div>
           </div>
           <SvcResult />
         </div>
@@ -567,19 +587,27 @@ export function LocationView({
             <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
               The forge glows hot. The blacksmith wipes soot from his brow and looks at your worn equipment.
             </p>
-            <button
-              onClick={() => {
-                doServiceCheck(
-                  'Durability', 10,
-                  'Your equipment is restored! The smith hammers out every dent with expert precision.',
-                  'The smith does what he can. Some wear remains, but it will hold... for now.',
-                  10, 3,
-                )
-              }}
-              className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
-            >
-              REPAIR GEAR
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => {
+                  doServiceCheck(
+                    'Durability', 10,
+                    'Your equipment is restored! The smith hammers out every dent with expert precision.',
+                    'The smith does what he can. Some wear remains, but it will hold... for now.',
+                    10, 3,
+                  )
+                }}
+                className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
+              >
+                REPAIR GEAR
+              </button>
+              <SkillCheckPreviewChip
+                stat="Durability"
+                statValue={playerStats.Durability ?? 0}
+                preview={getSkillCheckPreview(playerStats.Durability ?? 0, 10, gameDifficulty)}
+                compact
+              />
+            </div>
           </div>
           <SvcResult />
         </div>
@@ -616,6 +644,14 @@ export function LocationView({
               >
                 {'\uD83C\uDF7B'} BUY A ROUND
               </button>
+              <div className="mt-2">
+                <SkillCheckPreviewChip
+                  stat="Diplomacy"
+                  statValue={playerStats.Diplomacy ?? 0}
+                  preview={getSkillCheckPreview(playerStats.Diplomacy ?? 0, 10, gameDifficulty)}
+                  compact
+                />
+              </div>
             </div>
             <div className="p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)]">
               <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50 mb-2">
@@ -647,6 +683,14 @@ export function LocationView({
               >
                 {'\uD83D\uDC42'} LISTEN TO RUMORS
               </button>
+              <div className="mt-2">
+                <SkillCheckPreviewChip
+                  stat="Shrewdness"
+                  statValue={playerStats.Shrewdness ?? 0}
+                  preview={getSkillCheckPreview(playerStats.Shrewdness ?? 0, 12, gameDifficulty)}
+                  compact
+                />
+              </div>
             </div>
           </div>
           <SvcResult />
@@ -661,19 +705,27 @@ export function LocationView({
             <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
               The stable smells of hay and leather. Horses stamp and snort in their stalls. A seasoned hand can always find work here.
             </p>
-            <button
-              onClick={() => {
-                doServiceCheck(
-                  'Expertise', 10,
-                  'You tend the animals with a steady hand. The stablemaster is impressed with your skill.',
-                  'You do your best, but the horses are skittish today. At least you tried.',
-                  10, 3,
-                )
-              }}
-              className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
-            >
-              TEND ANIMALS
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => {
+                  doServiceCheck(
+                    'Expertise', 10,
+                    'You tend the animals with a steady hand. The stablemaster is impressed with your skill.',
+                    'You do your best, but the horses are skittish today. At least you tried.',
+                    10, 3,
+                  )
+                }}
+                className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
+              >
+                TEND ANIMALS
+              </button>
+              <SkillCheckPreviewChip
+                stat="Expertise"
+                statValue={playerStats.Expertise ?? 0}
+                preview={getSkillCheckPreview(playerStats.Expertise ?? 0, 10, gameDifficulty)}
+                compact
+              />
+            </div>
           </div>
           <SvcResult />
         </div>
@@ -738,6 +790,13 @@ export function LocationView({
                 <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] mb-3">
                   You survey the area around {location.name}. An Expertise check determines what you find.
                 </p>
+                <div className="mb-2 flex justify-center">
+                  <SkillCheckPreviewChip
+                    stat="Expertise"
+                    statValue={playerStats.Expertise ?? 0}
+                    preview={getSkillCheckPreview(playerStats.Expertise ?? 0, 10, gameDifficulty)}
+                  />
+                </div>
                 <button
                   onClick={handleSearch}
                   className="font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] px-6 py-2 hover:bg-[var(--pixel-gold-mid)] transition-all"

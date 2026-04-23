@@ -21,6 +21,12 @@ import {
   type ActivityResult,
 } from '@/app/adventure/data/campActivities'
 import type { StatName, SkillCheckResult } from '@/app/oregon-trail/characterContext'
+import {
+  DIFFICULTY_DEFAULT,
+  getSkillCheckPreview,
+  type GameDifficulty,
+} from '@/app/adventure/lib/difficulty'
+import { SkillCheckPreviewChip } from '@/app/adventure/components/SkillCheckPreview'
 
 interface CampScreenProps {
   chapter: number
@@ -28,6 +34,8 @@ interface CampScreenProps {
   onSkillCheck: (stat: StatName, difficulty: number) => SkillCheckResult
   onApplyResult: (result: ActivityResult) => void
   onLeaveCamp: () => void
+  /** Story/Explorer/Challenger — lets the camp UI preview odds correctly. */
+  gameDifficulty?: GameDifficulty
 }
 
 interface FloatingToast {
@@ -69,6 +77,7 @@ export function CampScreen({
   onSkillCheck,
   onApplyResult,
   onLeaveCamp,
+  gameDifficulty = DIFFICULTY_DEFAULT,
 }: CampScreenProps) {
   const [daysRemaining, setDaysRemaining] = useState(CAMP_DAYS)
   const [log, setLog] = useState<LogEntry[]>([])
@@ -228,9 +237,16 @@ export function CampScreen({
                     {activity.description}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-1 items-center">
-                    <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-40">
-                      {activity.stat} DC {activity.difficulty}
-                    </span>
+                    <SkillCheckPreviewChip
+                      stat={activity.stat}
+                      statValue={playerStats[activity.stat] ?? 0}
+                      preview={getSkillCheckPreview(
+                        playerStats[activity.stat] ?? 0,
+                        activity.difficulty,
+                        gameDifficulty,
+                      )}
+                      compact
+                    />
                     {hintBits.length > 0 && (
                       <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-gold-light)] opacity-80">
                         {hintBits.join(' / ')}

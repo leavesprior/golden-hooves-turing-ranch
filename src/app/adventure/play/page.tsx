@@ -21,8 +21,20 @@ import { ChapterMap } from '@/components/adventure/ChapterMap'
 import { LocationView } from '@/components/adventure/LocationView'
 import { CampManagement } from '@/components/adventure/CampManagement'
 import { CampScreen } from '@/app/adventure/components/CampScreen'
+import { DifficultyDial } from '@/app/adventure/components/DifficultyDial'
+import { SkillCheckPreviewChip } from '@/app/adventure/components/SkillCheckPreview'
 import { SkillTree } from '@/components/adventure/SkillTree'
 import AdventureRewardTracker from '@/components/adventure/AdventureRewardTracker'
+
+// Difficulty tier (Story/Explorer/Challenger)
+import {
+  DIFFICULTY_DEFAULT,
+  applyDifficultyToDC,
+  getSkillCheckPreview,
+  loadDifficulty,
+  saveDifficulty,
+  type GameDifficulty,
+} from '@/app/adventure/lib/difficulty'
 
 // Lazy-load PixiJS exploration map (SSR-safe)
 import dynamic from 'next/dynamic'
@@ -74,6 +86,9 @@ interface AdventureState {
   confrontationsWon: number
   confrontationsLost: number
   recruitedAllies: RecruitedAlly[]
+  // Difficulty tier — Story/Explorer/Challenger. Adjustable any time, no
+  // penalty. Adjusts DC by multiplier (0.8/1.0/1.2) everywhere checks roll.
+  gameDifficulty: GameDifficulty
 }
 
 const SAVE_KEY = 'bobr_adventure_state'
@@ -93,6 +108,7 @@ function loadAdventureState(): AdventureState | null {
       confrontationsWon: parsed.confrontationsWon ?? 0,
       confrontationsLost: parsed.confrontationsLost ?? 0,
       recruitedAllies: parsed.recruitedAllies ?? [],
+      gameDifficulty: parsed.gameDifficulty ?? loadDifficulty(),
     }
   } catch {
     return null
@@ -131,6 +147,7 @@ function createNewAdventureState(): AdventureState {
     confrontationsWon: 0,
     confrontationsLost: 0,
     recruitedAllies: [],
+    gameDifficulty: loadDifficulty(),
   }
 }
 
@@ -144,13 +161,20 @@ function TravelEncounterOverlay({
   playerStats,
   onSkillCheck,
   allies,
+  difficulty,
 }: {
   encounter: TravelEncounter
   onResolve: (success: boolean, allyBonus?: { xp: number; gold: number; description: string }) => void
   playerStats: Record<StatName, number>
   onSkillCheck: (stat: StatName, difficulty: number) => { success: boolean }
   allies: RecruitedAlly[]
+  difficulty: GameDifficulty
 }) {
+  const preview = getSkillCheckPreview(
+    playerStats[encounter.stat] ?? 0,
+    encounter.difficulty,
+    difficulty,
+  )
   const [resolved, setResolved] = useState(false)
   const [success, setSuccess] = useState(false)
   const [allyTrigger, setAllyTrigger] = useState<{ triggered: boolean; effect?: string; magnitude?: number; description?: string } | null>(null)
@@ -214,10 +238,13 @@ function TravelEncounterOverlay({
 
         {!resolved ? (
           <div className="text-center">
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] mb-3 opacity-60">
-              {encounter.stat} check — DC {encounter.difficulty}
-              (Your {encounter.stat}: {playerStats[encounter.stat] ?? 0})
-            </p>
+            <div className="mb-3 flex justify-center">
+              <SkillCheckPreviewChip
+                stat={encounter.stat}
+                statValue={playerStats[encounter.stat] ?? 0}
+                preview={preview}
+              />
+            </div>
             <button
               onClick={handleResolve}
               className="font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] px-6 py-2 hover:bg-[var(--pixel-gold-mid)]"
@@ -850,7 +877,11 @@ function AdventureContent() {
   const handleNPCTalk = useCallback((npc: LocationNPC) => {
     // For now, do a skill check if the NPC has one
     if (npc.skillCheckStat && npc.skillCheckDC) {
-      const result = rollSkillCheck(npc.skillCheckStat, npc.skillCheckDC)
+      const effectiveDC = applyDifficultyToDC(
+        npc.skillCheckDC,
+        adventureState?.gameDifficulty ?? DIFFICULTY_DEFAULT,
+      )
+      const result = rollSkillCheck(npc.skillCheckStat, effectiveDC)
       if (result.success) {
         addExperience(15)
         narratorComment(
@@ -875,12 +906,31 @@ function AdventureContent() {
         modifyReputation(npc.faction, 2, `Conversation with ${npc.name}`)
       }
     }
-  }, [rollSkillCheck, addExperience, narratorComment, modifyReputation])
+  }, [rollSkillCheck, addExperience, narratorComment, modifyReputation, adventureState?.gameDifficulty])
 
   // === SKILL CHECK WRAPPER ===
+  // Applies the Story/Explorer/Challenger multiplier to the raw DC before
+  // the d20 roll. Callers (LocationView, CampScreen, ConfrontationView,
+  // DialogueView, travel encounters) pass the design-intent DC; this is
+  // the single choke-point where difficulty actually lands on the math.
   const handleSkillCheck = useCallback((stat: StatName, difficulty: number) => {
-    return rollSkillCheck(stat, difficulty)
-  }, [rollSkillCheck])
+    const tier = adventureState?.gameDifficulty ?? DIFFICULTY_DEFAULT
+    const effectiveDC = applyDifficultyToDC(difficulty, tier)
+    return rollSkillCheck(stat, effectiveDC)
+  }, [rollSkillCheck, adventureState?.gameDifficulty])
+
+  // === CHANGE DIFFICULTY ===
+  // Persist both to the top-level localStorage key (so the dial reflects
+  // player preference across fresh saves) and to the active adventure state.
+  const handleChangeDifficulty = useCallback((next: GameDifficulty) => {
+    saveDifficulty(next)
+    setAdventureState(prev => {
+      if (!prev) return prev
+      const updated = { ...prev, gameDifficulty: next }
+      saveAdventureState(updated)
+      return updated
+    })
+  }, [])
 
   // === KARMA ===
   const handleEarnKarma = useCallback((amount: number, memo: string) => {
@@ -1098,9 +1148,13 @@ function AdventureContent() {
             confrontationsWon: loaded.confrontationsWon ?? 0,
             confrontationsLost: loaded.confrontationsLost ?? 0,
             recruitedAllies: loaded.recruitedAllies ?? [],
+            gameDifficulty: loaded.gameDifficulty ?? loadDifficulty(),
           }
           setAdventureState(restored)
           saveAdventureState(restored)
+          // Mirror difficulty into its own key so the dial reflects the cloud
+          // load immediately, even if the player resets adventure state later.
+          saveDifficulty(restored.gameDifficulty)
           // Restore character if it was included in the cloud save
           if (savedCharacter) {
             loadCharacter(savedCharacter)
@@ -1162,7 +1216,12 @@ function AdventureContent() {
               {currentLoc?.icon} {currentLoc?.name ?? 'Unknown'}
             </span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <DifficultyDial
+              value={adventureState.gameDifficulty}
+              onChange={handleChangeDifficulty}
+              compact
+            />
             <ReputationDisplay />
             {adventureState.recruitedAllies.length > 0 && (
               <div className="flex items-center gap-1" title={adventureState.recruitedAllies.map(a => a.enemyName).join(', ')}>
@@ -1298,6 +1357,7 @@ function AdventureContent() {
                 onClueAnswered={handleClueAnswered}
                 onGameStateChanged={() => { if (adventureState) saveAdventureState(adventureState) }}
                 playerStats={playerStats}
+                gameDifficulty={adventureState.gameDifficulty}
               />
             )}
 
@@ -1308,6 +1368,7 @@ function AdventureContent() {
                 onSkillCheck={handleSkillCheck}
                 onApplyResult={handleCampResult}
                 onLeaveCamp={handleCampComplete}
+                gameDifficulty={adventureState.gameDifficulty}
               />
             )}
           </div>
@@ -1367,6 +1428,7 @@ function AdventureContent() {
           playerStats={playerStats}
           onSkillCheck={handleSkillCheck}
           allies={adventureState?.recruitedAllies ?? []}
+          difficulty={adventureState?.gameDifficulty ?? DIFFICULTY_DEFAULT}
         />
       )}
 
@@ -1383,6 +1445,7 @@ function AdventureContent() {
           recruitedAllies={adventureState?.recruitedAllies ?? []}
           onEnd={handleConfrontationEnd}
           onSkillCheck={handleSkillCheck}
+          gameDifficulty={adventureState?.gameDifficulty ?? DIFFICULTY_DEFAULT}
         />
       )}
 

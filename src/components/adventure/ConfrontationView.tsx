@@ -5,6 +5,12 @@ import type { StatName } from '@/app/oregon-trail/characterContext'
 import { canRecruitEnemy, attemptRecruitment, getRecruitmentData, type RecruitedAlly } from '@/app/adventure/data/enemyRecruitment'
 import { playSFX } from '@/app/oregon-trail/lib/audioManager'
 import { DOSMessage } from '@/components/ui/DOSMessage'
+import {
+  DIFFICULTY_DEFAULT,
+  getSkillCheckPreview,
+  type GameDifficulty,
+} from '@/app/adventure/lib/difficulty'
+import { SkillCheckPreviewChip } from '@/app/adventure/components/SkillCheckPreview'
 
 export interface Combatant {
   name: string
@@ -26,6 +32,10 @@ interface ConfrontationViewProps {
   recruitedAllies: RecruitedAlly[]
   onEnd: (result: ConfrontationResult) => void
   onSkillCheck: (stat: StatName, dc: number) => { success: boolean; roll: number; modifier: number; total: number }
+  /** Story/Explorer/Challenger — used for skill-check preview chips only.
+   * The actual DC multiplier is already baked into the onSkillCheck call
+   * sites upstream, so this is display-only. */
+  gameDifficulty?: GameDifficulty
 }
 
 export interface ConfrontationResult {
@@ -57,6 +67,7 @@ export function ConfrontationView({
   recruitedAllies,
   onEnd,
   onSkillCheck,
+  gameDifficulty = DIFFICULTY_DEFAULT,
 }: ConfrontationViewProps) {
   const [playerHP, setPlayerHP] = useState(initialPlayerHealth)
   const [enemyHP, setEnemyHP] = useState(enemy.health)
@@ -384,9 +395,18 @@ export function ConfrontationView({
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-mid)]">
               {'\uD83C\uDFC3'} FLEE
             </span>
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
-              Agility check
-            </p>
+            <div className="mt-1">
+              <SkillCheckPreviewChip
+                stat="Agility"
+                statValue={playerStats.Agility ?? 0}
+                preview={getSkillCheckPreview(
+                  playerStats.Agility ?? 0,
+                  10 + Math.floor(enemy.health / 20),
+                  gameDifficulty,
+                )}
+                compact
+              />
+            </div>
           </button>
 
           <button
@@ -396,9 +416,18 @@ export function ConfrontationView({
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-forest-light)]">
               {'\uD83D\uDDE3\uFE0F'} TALK
             </span>
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
-              Diplomacy DC {12 + talkAttempts * 3}
-            </p>
+            <div className="mt-1">
+              <SkillCheckPreviewChip
+                stat="Diplomacy"
+                statValue={playerStats.Diplomacy ?? 0}
+                preview={getSkillCheckPreview(
+                  playerStats.Diplomacy ?? 0,
+                  12 + talkAttempts * 3,
+                  gameDifficulty,
+                )}
+                compact
+              />
+            </div>
           </button>
         </div>
       )}
