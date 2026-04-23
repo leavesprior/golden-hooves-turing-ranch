@@ -65,6 +65,28 @@ import { type RecruitedAlly, updateAllyDurations, getAllyStatBonuses, rollAllyAb
 import { CompanionBar } from '@/components/adventure/CompanionBar'
 import type { DialogueContext } from '@/app/adventure/data/companionDialogues'
 
+// Phase 2 of Golden Frog Codex: wire orphaned quests + dialogue trees.
+import { DialogueView } from '@/components/adventure/DialogueView'
+import { QuestLog } from '@/components/adventure/QuestLog'
+import { adaptDialogue } from '@/app/adventure/lib/dialogueAdapter'
+import {
+  getDialoguesForNpc,
+  type Dialogue as OrphanDialogue,
+} from '@/app/adventure/data/dialogues'
+import {
+  getQuestById,
+  type Quest as OrphanQuest,
+  type QuestReward,
+} from '@/app/adventure/data/quests'
+import {
+  acceptQuest,
+  advanceQuestObjective,
+  adaptQuestsForLog,
+  commitQuestPath,
+  findOfferableQuestForNpc,
+  type QuestSaveEntry,
+} from '@/app/adventure/lib/questAdapter'
+
 // ============================================
 // ADVENTURE STATE
 // ============================================
@@ -89,6 +111,11 @@ interface AdventureState {
   // Difficulty tier — Story/Explorer/Challenger. Adjustable any time, no
   // penalty. Adjusts DC by multiplier (0.8/1.0/1.2) everywhere checks roll.
   gameDifficulty: GameDifficulty
+  // Phase 2 — orphan quest + dialogue tree integration. Persisted in the
+  // same save blob as everything else so cloud-load + localStorage stays
+  // consistent. Legacy saves without these fields migrate to empty lists.
+  questEntries: QuestSaveEntry[]
+  questFlags: string[]
 }
 
 const SAVE_KEY = 'bobr_adventure_state'
@@ -109,6 +136,8 @@ function loadAdventureState(): AdventureState | null {
       confrontationsLost: parsed.confrontationsLost ?? 0,
       recruitedAllies: parsed.recruitedAllies ?? [],
       gameDifficulty: parsed.gameDifficulty ?? loadDifficulty(),
+      questEntries: parsed.questEntries ?? [],
+      questFlags: parsed.questFlags ?? [],
     }
   } catch {
     return null
@@ -148,6 +177,8 @@ function createNewAdventureState(): AdventureState {
     confrontationsLost: 0,
     recruitedAllies: [],
     gameDifficulty: loadDifficulty(),
+    questEntries: [],
+    questFlags: [],
   }
 }
 
@@ -636,7 +667,15 @@ function ReputationDisplay() {
 function AdventureContent() {
   const router = useRouter()
   const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter, modifyStat } = useCharacter()
-  const { balance, earnNeutral, spendNeutral } = useKarmaWallet()
+  const {
+    balance,
+    earnNeutral,
+    spendNeutral,
+    recordLawfulAction,
+    recordChaoticAction,
+    recordGoodAction,
+    recordEvilAction,
+  } = useKarmaWallet()
   const { state: repState, modifyReputation, getReputationLevel, getReputation } = useReputation()
   const { comment: narratorComment } = useNarrator()
 
@@ -648,6 +687,20 @@ function AdventureContent() {
   const [activeConfrontation, setActiveConfrontation] = useState<ConfrontationEnemy | null>(null)
   const [explorationMode, setExplorationMode] = useState(true)
   const [pixiFailed, setPixiFailed] = useState(false)
+
+  // Phase 2 — Active dialogue tree from orphan `dialogues.ts`. Null when
+  // no NPC conversation is open. We keep the raw orphan Dialogue around so
+  // the effect bridge can look up side-effects (unlockLocation, quest
+  // objective ids) that the DialogueView's narrower effects shape elides.
+  const [activeDialogue, setActiveDialogue] = useState<{
+    orphan: OrphanDialogue
+    npc: LocationNPC
+  } | null>(null)
+  const [showQuestLog, setShowQuestLog] = useState(false)
+  // Quest-offer modal: shown when a dialogue triggers `questStart` on a
+  // multi-path quest so the player can pick a branch (lawful, diplomatic,
+  // pragmatic, etc.) before the quest leaves the "available" slot.
+  const [questOffer, setQuestOffer] = useState<OrphanQuest | null>(null)
 
   // Track page view on mount
   useEffect(() => {
@@ -873,9 +926,30 @@ function AdventureContent() {
     updateState({ phase: 'exploring' })
   }, [updateState])
 
-  // === NPC TALK ===
+  // === NPC TALK (Phase 2: branching dialogue trees) ===
+  // If the NPC has an orphan Dialogue in `dialogues.ts`, we open the
+  // branching tree view. Otherwise, fall back to the legacy one-liner +
+  // skill-check path so NPCs without a written tree still function.
   const handleNPCTalk = useCallback((npc: LocationNPC) => {
-    // For now, do a skill check if the NPC has one
+    const trees = getDialoguesForNpc(npc.id)
+    if (trees.length > 0) {
+      // Pick the first matching tree whose trigger condition is met.
+      // Most NPCs have exactly one tree; chapters 4-5 can have a second.
+      const flags = new Set(adventureState?.questFlags ?? [])
+      const tree =
+        trees.find(t => {
+          const cond = t.triggerCondition
+          if (!cond) return true
+          if (cond.flag && !flags.has(cond.flag)) return false
+          return true
+        }) ?? trees[0]
+      setActiveDialogue({ orphan: tree, npc })
+      return
+    }
+
+    // Legacy fallback — preserve existing behavior for NPCs without a
+    // rich dialogue tree yet. Kept verbatim so audited-NPC behavior does
+    // not silently shift underneath the player.
     if (npc.skillCheckStat && npc.skillCheckDC) {
       const effectiveDC = applyDifficultyToDC(
         npc.skillCheckDC,
@@ -888,7 +962,6 @@ function AdventureContent() {
           `${npc.name} seems to warm up to you. Information flows freely.`,
           'observation'
         )
-        // Faction reputation
         if (npc.faction) {
           modifyReputation(npc.faction, 3, `Talked with ${npc.name}`)
         }
@@ -906,7 +979,170 @@ function AdventureContent() {
         modifyReputation(npc.faction, 2, `Conversation with ${npc.name}`)
       }
     }
-  }, [rollSkillCheck, addExperience, narratorComment, modifyReputation, adventureState?.gameDifficulty])
+  }, [adventureState?.questFlags, adventureState?.gameDifficulty, rollSkillCheck, addExperience, narratorComment, modifyReputation])
+
+  // === APPLY QUEST REWARDS (shared by dialogue-triggered completions and
+  //     skill-check-triggered completions in the quest log) ===
+  const applyQuestReward = useCallback((reward: QuestReward) => {
+    if (reward.xp) addExperience(reward.xp)
+    if (reward.gold) earnNeutral(reward.gold, 'Quest reward')
+    if (reward.karma?.lawful) {
+      if (reward.karma.lawful > 0) recordLawfulAction(Math.abs(reward.karma.lawful))
+      else recordChaoticAction(Math.abs(reward.karma.lawful))
+    }
+    if (reward.karma?.good) {
+      if (reward.karma.good > 0) recordGoodAction(Math.abs(reward.karma.good))
+      else recordEvilAction(Math.abs(reward.karma.good))
+    }
+    if (reward.reputation) {
+      for (const r of reward.reputation) {
+        modifyReputation(r.faction, r.amount, 'Quest reward')
+      }
+    }
+    if (reward.setFlag) {
+      setAdventureState(prev => {
+        if (!prev) return prev
+        if (prev.questFlags.includes(reward.setFlag!)) return prev
+        const next = { ...prev, questFlags: [...prev.questFlags, reward.setFlag!] }
+        saveAdventureState(next)
+        return next
+      })
+    }
+  }, [addExperience, earnNeutral, recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction, modifyReputation])
+
+  // === DIALOGUE EFFECT BRIDGE ===
+  // The DialogueView carries a narrow effects shape. Here we translate it
+  // into the broader game-state mutations — karma alignment, reputation,
+  // flags, quest triggers. Lawful/good karma use the D&D alignment axes
+  // rather than the neutral-karma wallet, matching the orphan design.
+  const handleDialogueEffect = useCallback((
+    effects: Parameters<React.ComponentProps<typeof DialogueView>['onEffect']>[0],
+  ) => {
+    if (!effects) return
+    if (effects.xp) addExperience(effects.xp)
+    if (effects.gold !== undefined) {
+      if (effects.gold > 0) {
+        earnNeutral(effects.gold, 'Dialogue reward')
+      } else if (effects.gold < 0) {
+        // Best-effort — if not enough karma, the spend is dropped but the
+        // dialogue continues. This matches the Phase 1 rule: never make
+        // the player feel stupid. An insufficient-funds UI is future work.
+        spendNeutral(-effects.gold, 'Dialogue cost')
+      }
+    }
+    if (effects.karma?.lawful) {
+      if (effects.karma.lawful > 0) recordLawfulAction(Math.abs(effects.karma.lawful))
+      else recordChaoticAction(Math.abs(effects.karma.lawful))
+    }
+    if (effects.karma?.good) {
+      if (effects.karma.good > 0) recordGoodAction(Math.abs(effects.karma.good))
+      else recordEvilAction(Math.abs(effects.karma.good))
+    }
+    if (effects.reputation) {
+      modifyReputation(
+        effects.reputation.faction as FactionId,
+        effects.reputation.amount,
+        'Dialogue outcome',
+      )
+    }
+    if (effects.setFlag) {
+      setAdventureState(prev => {
+        if (!prev) return prev
+        if (prev.questFlags.includes(effects.setFlag!)) return prev
+        const next = { ...prev, questFlags: [...prev.questFlags, effects.setFlag!] }
+        saveAdventureState(next)
+        return next
+      })
+    }
+    if (effects.questStart) {
+      const quest = getQuestById(effects.questStart)
+      if (quest) {
+        setAdventureState(prev => {
+          if (!prev) return prev
+          const next = { ...prev, questEntries: acceptQuest(prev.questEntries, quest.id) }
+          saveAdventureState(next)
+          return next
+        })
+        // If the quest has multiple paths, surface the path-picker so the
+        // player explicitly commits (removes the "which path am I on?"
+        // confusion noted in the Phase 1 audit).
+        if (quest.paths.length > 1) {
+          setQuestOffer(quest)
+        } else if (quest.paths.length === 1) {
+          setAdventureState(prev => {
+            if (!prev) return prev
+            const next = {
+              ...prev,
+              questEntries: commitQuestPath(prev.questEntries, quest.id, quest.paths[0].id),
+            }
+            saveAdventureState(next)
+            return next
+          })
+        }
+        narratorComment(`New quest: ${quest.title}`, 'observation')
+      }
+    }
+    if (effects.questAdvance) {
+      setAdventureState(prev => {
+        if (!prev) return prev
+        const entry = prev.questEntries.find(e => e.questId === effects.questAdvance)
+        if (!entry || !entry.activePathId) return prev
+        const quest = getQuestById(entry.questId)
+        const path = quest?.paths.find(p => p.id === entry.activePathId)
+        // Advance the first incomplete objective on the path. The orphan
+        // effect shape doesn't carry an objectiveId; this matches the
+        // design intent that each `questProgress` tick = next step.
+        const nextObj = path?.objectives.find(
+          o => !entry.completedObjectiveIds.includes(o.id),
+        )
+        if (!nextObj) return prev
+        const { entry: advanced, justCompleted } = advanceQuestObjective(entry, nextObj.id)
+        const nextEntries = prev.questEntries.map(e =>
+          e.questId === entry.questId ? advanced : e,
+        )
+        const next = { ...prev, questEntries: nextEntries }
+        saveAdventureState(next)
+        // Fire quest rewards on completion
+        if (justCompleted && path) {
+          setTimeout(() => applyQuestReward(path.reward), 0)
+          narratorComment(`Quest complete: ${quest?.title ?? entry.questId}`, 'observation')
+        }
+        return next
+      })
+    }
+  }, [addExperience, earnNeutral, spendNeutral, recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction, modifyReputation, narratorComment, applyQuestReward])
+
+  // === QUEST PATH COMMIT ===
+  const handleCommitQuestPath = useCallback((pathId: string) => {
+    if (!questOffer) return
+    setAdventureState(prev => {
+      if (!prev) return prev
+      const next = { ...prev, questEntries: commitQuestPath(prev.questEntries, questOffer.id, pathId) }
+      saveAdventureState(next)
+      return next
+    })
+    const path = questOffer.paths.find(p => p.id === pathId)
+    if (path) {
+      narratorComment(`Path chosen: ${path.name}`, 'observation')
+    }
+    setQuestOffer(null)
+  }, [questOffer, narratorComment])
+
+  // === DIALOGUE CLOSE ===
+  const handleDialogueClose = useCallback(() => {
+    // If the NPC has an offerable quest we haven't surfaced yet, show the
+    // path-picker now. Otherwise, close and return to location view.
+    if (activeDialogue && adventureState) {
+      const offerable = findOfferableQuestForNpc(
+        activeDialogue.npc.id,
+        adventureState.questEntries,
+      )
+      if (offerable && offerable.paths.length > 1) {
+        setQuestOffer(offerable)
+      }
+    }
+    setActiveDialogue(null)
+  }, [activeDialogue, adventureState])
 
   // === SKILL CHECK WRAPPER ===
   // Applies the Story/Explorer/Challenger multiplier to the raw DC before
@@ -1149,6 +1385,8 @@ function AdventureContent() {
             confrontationsLost: loaded.confrontationsLost ?? 0,
             recruitedAllies: loaded.recruitedAllies ?? [],
             gameDifficulty: loaded.gameDifficulty ?? loadDifficulty(),
+            questEntries: loaded.questEntries ?? [],
+            questFlags: loaded.questFlags ?? [],
           }
           setAdventureState(restored)
           saveAdventureState(restored)
@@ -1222,6 +1460,16 @@ function AdventureContent() {
               onChange={handleChangeDifficulty}
               compact
             />
+            {/* Phase 2: Quest Log access. Sits beside the difficulty dial so
+                the "where do I stand?" signal is always one click away,
+                killing the YELLOW confusion point from the Phase 1 audit. */}
+            <button
+              onClick={() => setShowQuestLog(true)}
+              className="font-[var(--font-pixel)] text-[9px] bg-[var(--pixel-bg-dark)] border border-[var(--pixel-ui-border)] text-[var(--pixel-gold-light)] px-3 py-1 hover:border-[var(--pixel-gold-mid)] transition-all"
+              title="Quest Log"
+            >
+              {'📜'} QUESTS ({adventureState.questEntries.filter(e => e.status === 'active').length})
+            </button>
             <ReputationDisplay />
             {adventureState.recruitedAllies.length > 0 && (
               <div className="flex items-center gap-1" title={adventureState.recruitedAllies.map(a => a.enemyName).join(', ')}>
@@ -1474,6 +1722,133 @@ function AdventureContent() {
             (adventureState.phase === 'at_location' ? 'discovery' : 'idle') as DialogueContext
           }
         />
+      )}
+
+      {/* Phase 2: Dialogue Tree Overlay.
+          Opens when handleNPCTalk finds an orphan Dialogue for the NPC.
+          The adapter normalises the orphan shape into the DialogueView's
+          narrower types; side-effects (flags, quest triggers) flow through
+          handleDialogueEffect into game state. */}
+      {activeDialogue && (() => {
+        const adapted = adaptDialogue(activeDialogue.orphan)
+        // Resolve an icon for the NPC from their witnessType (shop-style
+        // emoji). Falls back to a generic speech bubble.
+        const iconMap: Record<string, string> = {
+          bartender: '🍺',
+          sheriff: '⭐',
+          settler: '👨‍🌾',
+          miner: '⛏️',
+          native: '🏹',
+          outlaw: '🔫',
+          merchant: '🛒',
+          doctor: '🩺',
+          preacher: '⛪',
+        }
+        const npcIcon = iconMap[activeDialogue.npc.witnessType] ?? '🗨️'
+        return (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+            <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <DialogueView
+                npcName={activeDialogue.npc.name}
+                npcIcon={npcIcon}
+                npcRole={activeDialogue.npc.role}
+                nodes={adapted.nodes}
+                startNodeId={adapted.startNodeId}
+                playerStats={playerStats}
+                onClose={handleDialogueClose}
+                onEffect={handleDialogueEffect}
+                onSkillCheck={handleSkillCheck}
+                onGameStateChanged={() => { if (adventureState) saveAdventureState(adventureState) }}
+                gameDifficulty={adventureState.gameDifficulty}
+              />
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Phase 2: Quest Log Panel.
+          Surfaces active + completed quests and previews unchosen paths
+          (ghosted) so the player can always see their branching choices. */}
+      {showQuestLog && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full max-h-[85vh] overflow-y-auto">
+            <QuestLog
+              quests={adaptQuestsForLog(adventureState.questEntries, adventureState.chapter)}
+              onClose={() => setShowQuestLog(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Phase 2: Quest Path Picker.
+          When a quest with multiple paths is offered, the player explicitly
+          commits to lawful/diplomatic/pragmatic/etc. before the quest goes
+          active. Each path shows its name + description + reward preview. */}
+      {questOffer && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full max-h-[85vh] overflow-y-auto bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)]">
+            <div className="p-3 border-b-2 border-[var(--pixel-ui-border)] flex justify-between items-center">
+              <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
+                {'📜'} CHOOSE YOUR PATH
+              </span>
+              <button
+                onClick={() => setQuestOffer(null)}
+                className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] px-2 py-1 border border-[var(--pixel-ui-border)]"
+              >
+                LATER
+              </button>
+            </div>
+            <div className="p-3">
+              <h3 className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] mb-1">
+                {questOffer.title}
+              </h3>
+              <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 mb-3">
+                {questOffer.description}
+              </p>
+              <div className="space-y-2">
+                {questOffer.paths.map(path => (
+                  <button
+                    key={path.id}
+                    onClick={() => handleCommitQuestPath(path.id)}
+                    className="w-full text-left p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)] hover:border-[var(--pixel-gold-mid)] hover:bg-[var(--pixel-gold-dark)]/10 transition-all"
+                  >
+                    <div className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] mb-1">
+                      {path.name}
+                    </div>
+                    <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70 mb-2">
+                      {path.description}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-gold-light)]">
+                        +{path.reward.xp} XP
+                      </span>
+                      {path.reward.gold !== undefined && path.reward.gold !== 0 && (
+                        <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-gold-light)]">
+                          {path.reward.gold > 0 ? '+' : ''}{path.reward.gold} karma
+                        </span>
+                      )}
+                      {path.reward.karma?.lawful !== undefined && (
+                        <span className={`font-[var(--font-pixel)] text-[7px] ${path.reward.karma.lawful > 0 ? 'text-blue-400' : 'text-purple-400'}`}>
+                          {path.reward.karma.lawful > 0 ? '+' : ''}{path.reward.karma.lawful} {path.reward.karma.lawful > 0 ? 'Lawful' : 'Chaotic'}
+                        </span>
+                      )}
+                      {path.reward.karma?.good !== undefined && (
+                        <span className={`font-[var(--font-pixel)] text-[7px] ${path.reward.karma.good > 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
+                          {path.reward.karma.good > 0 ? '+' : ''}{path.reward.karma.good} {path.reward.karma.good > 0 ? 'Good' : 'Evil'}
+                        </span>
+                      )}
+                      {path.reward.reputation?.map(r => (
+                        <span key={r.faction} className={`font-[var(--font-pixel)] text-[7px] ${r.amount > 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
+                          {r.amount > 0 ? '+' : ''}{r.amount} {r.faction}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
