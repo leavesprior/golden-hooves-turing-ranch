@@ -32,6 +32,11 @@ export interface DialogueOption {
     questStart?: string
     questAdvance?: string
     setFlag?: string
+    // Phase 2.5 auto-tick hooks — forwarded verbatim to the bridge layer so
+    // quest objective auto-advance (item/choice) runs at choice-time rather
+    // than waiting for an explicit questAdvance tick.
+    giveItem?: string
+    markChoice?: string
   }
   failNodeId?: string
   lockedText?: string

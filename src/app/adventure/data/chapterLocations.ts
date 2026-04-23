@@ -44,11 +44,29 @@ export interface LocationNPC {
   id: string
   name: string
   role: string
-  witnessType: 'bartender' | 'sheriff' | 'settler' | 'miner' | 'native' | 'outlaw' | 'merchant' | 'doctor' | 'preacher'
+  witnessType:
+    | 'bartender'
+    | 'sheriff'
+    | 'settler'
+    | 'miner'
+    | 'native'
+    | 'outlaw'
+    | 'merchant'
+    | 'doctor'
+    | 'preacher'
+    // Phase 2.5 — ethereal/non-human interactable shells. Visually styled as
+    // translucent/leaf/book/echo/stone to separate them from living NPCs.
+    | 'ethereal'
+    | 'echo'
+    | 'tree'
+    | 'journal'
+    | 'chamber'
   faction?: FactionId
   dialogueHint: string
   skillCheckStat?: StatName
   skillCheckDC?: number
+  /** Optional — true for Phase 2.5 ethereal shells, renders translucent. */
+  ethereal?: boolean
 }
 
 export interface TravelEncounter {
@@ -1455,6 +1473,14 @@ export const CHAPTER_4_LOCATIONS: ChapterLocation[] = [
     ],
     npcs: [
       { id: 'ch4_miller', name: 'Walt Henderson', role: 'Mill Owner', witnessType: 'merchant', faction: 'settlers', dialogueHint: 'Fair prices for friends. Expensive for strangers.' },
+      {
+        id: 'ch4_mill_owner',
+        name: 'The Mill Owner\'s Journal',
+        role: 'Absent Owner\'s Diary',
+        witnessType: 'journal',
+        dialogueHint: 'A leather-bound ledger sits open on the foreman\'s desk — the previous owner\'s hand still warm on the page.',
+        ethereal: true,
+      },
     ],
     historicalFact: 'Lumber was Gold Country\'s second gold. A single board that cost pennies in Sacramento fetched dollars in the mining camps. Sawmill operators like Henderson often became wealthier than miners — with none of the risk. James Marshall\'s discovery of gold happened at Sutter\'s sawmill, where he was building a lumber operation. The irony: the sawmill was never completed because all the workers left to dig for gold.',
   },
@@ -1816,7 +1842,16 @@ export const CHAPTER_5_LOCATIONS: ChapterLocation[] = [
     services: [
       { type: 'stable', name: 'Ranch Stable', description: 'Pegasus and the other horses' },
     ],
-    npcs: [],
+    npcs: [
+      {
+        id: 'ch5_barn_ghost',
+        name: 'Barn Spirit',
+        role: 'Ethereal Presence',
+        witnessType: 'ethereal',
+        dialogueHint: 'A cold draft curls through the hayloft — something moves in the shadows.',
+        ethereal: true,
+      },
+    ],
     clueIds: ['ch5_treasure_hunt'],
     historicalFact: 'Gold Country barns are architectural survivors. Built from local timber before the sawmills standardized lumber, each is unique — a record of the tree species, the builder\'s skill, and the era\'s tools. Many Gold Rush barns used square nails, which date them to before 1890. The transition from square to wire nails is one way historians date Gold Country structures.',
     discoveryClues: [
@@ -1844,7 +1879,16 @@ export const CHAPTER_5_LOCATIONS: ChapterLocation[] = [
     connectedTo: ['ch5_ranch_house', 'ch5_lookout'],
     travelDanger: 'safe',
     services: [],
-    npcs: [],
+    npcs: [
+      {
+        id: 'ch5_orchard_tree',
+        name: 'The Speaking Tree',
+        role: 'Ancient Apple Tree',
+        witnessType: 'tree',
+        dialogueHint: 'The oldest apple tree rustles in a windless afternoon — as if it wanted a word.',
+        ethereal: true,
+      },
+    ],
     clueIds: ['ch5_treasure_hunt'],
     historicalFact: 'Agriculture replaced mining as Gold Country\'s economic engine by the 1860s. The same fertile soil and abundant water that concentrated gold deposits also grew exceptional fruit, wine grapes, and timber. Calaveras and Amador counties became known for their orchards and vineyards. Many of the old fruit trees planted by former miners still survive — living monuments to the men who stayed when the gold left.',
     discoveryClues: [
@@ -1883,7 +1927,16 @@ export const CHAPTER_5_LOCATIONS: ChapterLocation[] = [
     connectedTo: ['ch5_ranch_house', 'ch5_hidden_chamber'],
     travelDanger: 'dangerous',
     services: [],
-    npcs: [],
+    npcs: [
+      {
+        id: 'ch5_mine_echo',
+        name: 'The Echo',
+        role: 'Disembodied Voice',
+        witnessType: 'echo',
+        dialogueHint: 'A voice drifts up from the deep shaft — yours, and not yours.',
+        ethereal: true,
+      },
+    ],
     clueIds: ['ch5_treasure_hunt'],
     historicalFact: 'Thousands of abandoned mines dot Gold Country, many of them unmarked and extremely dangerous. The California Department of Conservation estimates over 47,000 abandoned mines statewide. Cave-ins, bad air (carbon monoxide and low oxygen), and flooded shafts kill trespassers every year. Some mines are hundreds of feet deep with vertical shafts — a single misstep means death. The gold that remains in these mines is real but inaccessible without modern equipment and significant capital. Every generation produces someone who believes they can profitably rework an old claim. Most are wrong.',
     discoveryClues: [
@@ -1940,7 +1993,16 @@ export const CHAPTER_5_LOCATIONS: ChapterLocation[] = [
     travelDanger: 'dangerous',
     requiredReputation: { faction: 'settlers', level: 25 }, // Need community trust
     services: [],
-    npcs: [],
+    npcs: [
+      {
+        id: 'ch5_chamber',
+        name: 'The Chamber Itself',
+        role: 'Interactable Place',
+        witnessType: 'chamber',
+        dialogueHint: 'The chamber hums with a subsonic resonance — the room seems to be listening back.',
+        ethereal: true,
+      },
+    ],
     clueIds: ['ch5_treasure_hunt'],
     historicalFact: 'Many Gold Rush miners did find significant gold deposits and chose not to work them — sometimes out of exhaustion, sometimes out of wisdom, sometimes because the claim was too dangerous or too remote. Undiscovered veins certainly exist throughout Gold Country. In 2015, a California couple found $10 million in Gold Rush-era coins buried in their backyard. The "Saddle Ridge Hoard" proved that Gold Country still holds secrets from the 1850s, waiting for someone with the right combination of luck and persistence.',
     discoveryClues: [

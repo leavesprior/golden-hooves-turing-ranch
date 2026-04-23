@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { trackPageView, trackGameStart } from '@/lib/eventTracker'
@@ -81,10 +81,15 @@ import {
 import {
   acceptQuest,
   advanceQuestObjective,
-  adaptQuestsForLog,
+  adaptQuestsForLogGated,
+  autoTickChoice,
+  autoTickClue,
+  autoTickItem,
+  autoTickTravel,
   commitQuestPath,
-  findOfferableQuestForNpc,
+  findOfferableQuestForNpcGated,
   type QuestSaveEntry,
+  type QuestTickResult,
 } from '@/app/adventure/lib/questAdapter'
 
 // ============================================
@@ -697,6 +702,11 @@ function AdventureContent() {
     npc: LocationNPC
   } | null>(null)
   const [showQuestLog, setShowQuestLog] = useState(false)
+  // Phase 2.5 — forward-declared ref to applyQuestTick so handlers that are
+  // declared BEFORE applyQuestTick (handleTravelTo, handleVisitLocation)
+  // can still call the latest definition via ref.current. Assigned in a
+  // useEffect below once applyQuestTick is defined.
+  const applyQuestTickRef = useRef<((tick: QuestTickResult, source: string) => void) | null>(null)
   // Quest-offer modal: shown when a dialogue triggers `questStart` on a
   // multi-path quest so the player can pick a branch (lawful, diplomatic,
   // pragmatic, etc.) before the quest leaves the "available" slot.
@@ -826,6 +836,16 @@ function AdventureContent() {
       phase: 'exploring',
     })
 
+    // Phase 2.5 — auto-tick any active-quest `travel` objectives whose
+    // target matches this location. Idempotent; no-op if none match.
+    // Uses ref for forward-declaration: applyQuestTick is defined later
+    // in the component but we need it here in a pre-declared callback.
+    const travelTick = autoTickTravel(locationId, {
+      questEntries: adventureState.questEntries,
+      questFlags: adventureState.questFlags,
+    })
+    applyQuestTickRef.current?.(travelTick, 'travel')
+
     // Log location discovery for cross-game narrator
     const isFirstVisit = !adventureState.visitedLocationIds.includes(locationId)
     if (isFirstVisit) {
@@ -920,7 +940,17 @@ function AdventureContent() {
   // === VISIT LOCATION ===
   const handleVisitLocation = useCallback((locationId: string) => {
     updateState({ phase: 'at_location', currentLocationId: locationId })
-  }, [updateState])
+    // Phase 2.5 — same auto-tick as handleTravelTo: arriving at a specific
+    // location tile counts as a travel event for quest objectives. Ref
+    // pattern dodges the forward-declaration of applyQuestTick.
+    if (adventureState) {
+      const tick = autoTickTravel(locationId, {
+        questEntries: adventureState.questEntries,
+        questFlags: adventureState.questFlags,
+      })
+      applyQuestTickRef.current?.(tick, 'travel')
+    }
+  }, [updateState, adventureState])
 
   const handleReturnToMap = useCallback(() => {
     updateState({ phase: 'exploring' })
@@ -1009,6 +1039,50 @@ function AdventureContent() {
       })
     }
   }, [addExperience, earnNeutral, recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction, modifyReputation])
+
+  // === APPLY QUEST TICK (Phase 2.5) ===
+  // Merges a QuestTickResult into adventure state and fires rewards for any
+  // quests that just transitioned to `completed`. Idempotent — the tick
+  // helpers gate on "already ticked" so calling this during re-renders is
+  // safe. `source` is a short tag ("travel", "item", "clue", "choice") used
+  // only in the narrator toast so the player sees what advanced.
+  const applyQuestTick = useCallback((tick: QuestTickResult, source: string) => {
+    setAdventureState(prev => {
+      if (!prev) return prev
+      // Skip if nothing actually changed — keeps us idempotent and avoids
+      // a needless save write on every at_location transition.
+      const unchanged =
+        prev.questEntries.length === tick.entries.length &&
+        prev.questEntries.every((e, i) => {
+          const n = tick.entries[i]
+          return (
+            n &&
+            n.completedObjectiveIds.length === e.completedObjectiveIds.length &&
+            n.status === e.status &&
+            n.activePathId === e.activePathId
+          )
+        })
+      if (unchanged) return prev
+      const next = { ...prev, questEntries: tick.entries }
+      saveAdventureState(next)
+      return next
+    })
+    for (const { quest, path } of tick.justCompleted) {
+      // Defer so the state commit settles before rewards/reputation fire.
+      setTimeout(() => applyQuestReward(path.reward), 0)
+      narratorComment(
+        `Quest complete: ${quest.title} (${source})`,
+        'observation',
+      )
+    }
+  }, [applyQuestReward, narratorComment])
+
+  // Phase 2.5 — publish the latest applyQuestTick closure to the ref so
+  // forward-declared handlers (handleTravelTo/handleVisitLocation) always
+  // call the current version with fresh dependencies.
+  useEffect(() => {
+    applyQuestTickRef.current = applyQuestTick
+  }, [applyQuestTick])
 
   // === DIALOGUE EFFECT BRIDGE ===
   // The DialogueView carries a narrow effects shape. Here we translate it
@@ -1110,6 +1184,42 @@ function AdventureContent() {
         return next
       })
     }
+    // Phase 2.5 — auto-tick item/choice objectives when the dialogue
+    // explicitly grants an item or marks a registered choice. These run
+    // AFTER questStart/questAdvance so a dialogue can both kick off a
+    // quest and immediately tick its first item objective.
+    if (effects.giveItem) {
+      setAdventureState(prev => {
+        if (!prev) return prev
+        const tick = autoTickItem(effects.giveItem!, {
+          questEntries: prev.questEntries,
+          questFlags: prev.questFlags,
+        })
+        for (const { quest, path } of tick.justCompleted) {
+          setTimeout(() => applyQuestReward(path.reward), 0)
+          narratorComment(`Quest complete: ${quest.title} (item)`, 'observation')
+        }
+        const next = { ...prev, questEntries: tick.entries }
+        saveAdventureState(next)
+        return next
+      })
+    }
+    if (effects.markChoice) {
+      setAdventureState(prev => {
+        if (!prev) return prev
+        const tick = autoTickChoice(effects.markChoice!, {
+          questEntries: prev.questEntries,
+          questFlags: prev.questFlags,
+        })
+        for (const { quest, path } of tick.justCompleted) {
+          setTimeout(() => applyQuestReward(path.reward), 0)
+          narratorComment(`Quest complete: ${quest.title} (choice)`, 'observation')
+        }
+        const next = { ...prev, questEntries: tick.entries }
+        saveAdventureState(next)
+        return next
+      })
+    }
   }, [addExperience, earnNeutral, spendNeutral, recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction, modifyReputation, narratorComment, applyQuestReward])
 
   // === QUEST PATH COMMIT ===
@@ -1131,18 +1241,24 @@ function AdventureContent() {
   // === DIALOGUE CLOSE ===
   const handleDialogueClose = useCallback(() => {
     // If the NPC has an offerable quest we haven't surfaced yet, show the
-    // path-picker now. Otherwise, close and return to location view.
+    // path-picker now. Prerequisite-gated: quests whose questId/flag/rep
+    // prereqs aren't met are hidden (Phase 2.5 — avoids teasing content
+    // the player can't take yet).
     if (activeDialogue && adventureState) {
-      const offerable = findOfferableQuestForNpc(
+      const flags = new Set(adventureState.questFlags)
+      const reps = repState.reputations as Partial<Record<FactionId, number>>
+      const offerable = findOfferableQuestForNpcGated(
         activeDialogue.npc.id,
         adventureState.questEntries,
+        flags,
+        reps,
       )
       if (offerable && offerable.paths.length > 1) {
         setQuestOffer(offerable)
       }
     }
     setActiveDialogue(null)
-  }, [activeDialogue, adventureState])
+  }, [activeDialogue, adventureState, repState.reputations])
 
   // === SKILL CHECK WRAPPER ===
   // Applies the Story/Explorer/Challenger multiplier to the raw DC before
@@ -1201,7 +1317,7 @@ function AdventureContent() {
   }, [addExperience])
 
   // === CLUE ANSWERED ===
-  const handleClueAnswered = useCallback((_clue: import('@/app/adventure/data/chapterLocations').DiscoveryClue, correct: boolean) => {
+  const handleClueAnswered = useCallback((clue: import('@/app/adventure/data/chapterLocations').DiscoveryClue, correct: boolean) => {
     if (correct) {
       setAdventureState(prev => {
         if (!prev) return prev
@@ -1210,8 +1326,18 @@ function AdventureContent() {
         return next
       })
       narratorComment('Knowledge is its own reward. Well, that and the XP.', 'fourth_wall')
+      // Phase 2.5 — auto-tick any `clue` objectives whose target matches
+      // the clue id. Uses the latest adventureState snapshot; the tick is
+      // idempotent so racing with the cluesAnswered setter above is safe.
+      if (adventureState) {
+        const tick = autoTickClue(clue.id, {
+          questEntries: adventureState.questEntries,
+          questFlags: adventureState.questFlags,
+        })
+        applyQuestTick(tick, 'clue')
+      }
     }
-  }, [narratorComment])
+  }, [narratorComment, adventureState, applyQuestTick])
 
   // === COMPLETE CHAPTER ===
   const handleCompleteChapter = useCallback(() => {
@@ -1743,6 +1869,13 @@ function AdventureContent() {
           merchant: '🛒',
           doctor: '🩺',
           preacher: '⛪',
+          // Phase 2.5 — ethereal shells. Distinct icons signal
+          // non-human interaction to the player at a glance.
+          ethereal: '👻',
+          echo: '🔊',
+          tree: '🌳',
+          journal: '📔',
+          chamber: '💠',
         }
         const npcIcon = iconMap[activeDialogue.npc.witnessType] ?? '🗨️'
         return (
@@ -1773,7 +1906,12 @@ function AdventureContent() {
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <div className="max-w-2xl w-full max-h-[85vh] overflow-y-auto">
             <QuestLog
-              quests={adaptQuestsForLog(adventureState.questEntries, adventureState.chapter)}
+              quests={adaptQuestsForLogGated(
+                adventureState.questEntries,
+                adventureState.chapter,
+                new Set(adventureState.questFlags),
+                repState.reputations as Partial<Record<FactionId, number>>,
+              )}
               onClose={() => setShowQuestLog(false)}
             />
           </div>

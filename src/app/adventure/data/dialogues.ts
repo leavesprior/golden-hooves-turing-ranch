@@ -28,6 +28,12 @@ export interface DialogueEffect {
   questStart?: string
   questProgress?: { questId: string; objectiveId: string }
   unlockLocation?: string
+  // Phase 2.5 — auto-tick hooks. `giveItem` fires `autoTickItem(id)` in the
+  // quest adapter; `markChoice` fires `autoTickChoice(id)`. Dialogue trees
+  // can emit either to advance the matching quest objective without a
+  // manual `questProgress` tick.
+  giveItem?: string
+  markChoice?: string
 }
 
 export interface DialogueOption {

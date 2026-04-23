@@ -60,6 +60,11 @@ export function adaptEffect(
       amount: orphan.reputation.delta,
     }
   }
+  // Phase 2.5 — auto-tick passthrough. The view doesn't render these but
+  // the bridge layer in play/page.tsx consumes them to fire
+  // autoTickItem / autoTickChoice on the quest adapter.
+  if (orphan.giveItem) out.giveItem = orphan.giveItem
+  if (orphan.markChoice) out.markChoice = orphan.markChoice
 
   return Object.keys(out).length > 0 ? out : undefined
 }

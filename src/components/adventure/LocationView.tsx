@@ -383,12 +383,19 @@ export function LocationView({
             const canPass = hasSkillCheck
               ? (playerStats[npc.skillCheckStat!] ?? 0) >= (npc.skillCheckDC! - 2)
               : true
+            // Phase 2.5 — ethereal shells get a translucent border + italic
+            // hover so the player can tell at a glance this isn't a human
+            // NPC (spirit, tree, echo, journal, chamber).
+            const isEthereal = npc.ethereal === true
+            const npcBtnClass = isEthereal
+              ? 'w-full text-left p-3 bg-black/30 border-2 border-dashed border-[var(--pixel-ui-border)]/50 hover:border-[var(--pixel-gold-dark)] italic transition-all'
+              : 'w-full text-left p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)] hover:border-[var(--pixel-gold-dark)] transition-all'
 
             return (
               <button
                 key={npc.id}
                 onClick={() => onNPCTalk(npc)}
-                className="w-full text-left p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)] hover:border-[var(--pixel-gold-dark)] transition-all"
+                className={npcBtnClass}
               >
                 <div className="flex justify-between items-start">
                   <div>

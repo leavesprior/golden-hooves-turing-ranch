@@ -25,6 +25,11 @@ export interface QuestLogEntry {
     gold?: number
     reputation?: string
   }
+  // Phase 2.5 — prerequisite-blocked quests appear only in the "all" tab,
+  // ghosted, with an "Unlocks after: ..." hint. Absent or false means the
+  // quest is not blocked and renders normally.
+  blocked?: boolean
+  blockReason?: string
 }
 
 interface QuestLogProps {
@@ -55,13 +60,16 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
   const [expandedId, setExpandedId] = useState<string | null>(activeQuestId ?? null)
 
   const filtered = quests.filter(q => {
+    // Prerequisite-blocked quests show only in "all" so we don't tease the
+    // player with content they can't take yet.
+    if (q.blocked) return tab === 'all'
     if (tab === 'active') return q.status === 'active' || q.status === 'available'
     if (tab === 'completed') return q.status === 'completed' || q.status === 'failed'
     return true
   })
 
-  const activeCount = quests.filter(q => q.status === 'active').length
-  const completedCount = quests.filter(q => q.status === 'completed').length
+  const activeCount = quests.filter(q => !q.blocked && q.status === 'active').length
+  const completedCount = quests.filter(q => !q.blocked && q.status === 'completed').length
 
   return (
     <div className="bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] min-h-[300px]">
@@ -111,7 +119,11 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
               <div
                 key={quest.id}
                 className={`border-2 transition-all ${
-                  isExpanded ? 'border-[var(--pixel-gold-mid)] bg-[var(--pixel-bg-mid)]' : 'border-[var(--pixel-ui-border)] bg-black/20'
+                  quest.blocked
+                    ? 'border-dashed border-[var(--pixel-ui-border)]/40 bg-black/10 opacity-60'
+                    : isExpanded
+                      ? 'border-[var(--pixel-gold-mid)] bg-[var(--pixel-bg-mid)]'
+                      : 'border-[var(--pixel-ui-border)] bg-black/20'
                 }`}
               >
                 {/* Quest Header */}
@@ -154,6 +166,11 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="px-3 pb-3 pt-1 border-t border-[var(--pixel-ui-border)]/30">
+                    {quest.blocked && quest.blockReason && (
+                      <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-fire-orange)] mb-2 italic">
+                        {'🔒'} {quest.blockReason}
+                      </p>
+                    )}
                     <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70 mb-2">
                       {quest.description}
                     </p>
