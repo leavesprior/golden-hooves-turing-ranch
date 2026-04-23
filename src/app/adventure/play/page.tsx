@@ -1714,6 +1714,7 @@ function AdventureContent() {
                     factionReps={factionReps}
                     onTravelTo={handleTravelTo}
                     onVisitLocation={handleVisitLocation}
+                    gameDifficulty={adventureState.gameDifficulty}
                   />
                 )}
               </div>

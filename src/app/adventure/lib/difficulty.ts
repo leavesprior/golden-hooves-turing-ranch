@@ -122,3 +122,55 @@ export function saveDifficulty(difficulty: GameDifficulty): void {
 }
 
 export const DIFFICULTY_TIERS: GameDifficulty[] = ['story', 'explorer', 'challenger']
+
+// ============================================================================
+// Phase 3 — Travel-preview transparency by difficulty tier.
+// ============================================================================
+// The whole point of the three-tier system is to give Story/Explorer players
+// more foresight into what they're walking into. Challenger keeps mystery.
+//
+// Story      → tier + % + full encounter list (generous)
+// Explorer   → tier + %                        (balanced)
+// Challenger → tier only                       (veterans get minimal preview)
+
+import type { EdgeDangerInfo, DangerTier } from './travelDanger'
+
+export interface DifficultyTravelPreview {
+  /** Always shown — the colour-coded danger tier. */
+  tier: DangerTier
+  /** Story+Explorer only. Null on Challenger. */
+  chancePct: number | null
+  /** Story only. Empty array on Explorer/Challenger. */
+  possibleEncounters: string[]
+  /** Story only. Empty array on Explorer/Challenger. */
+  possibleConfrontations: string[]
+}
+
+export function getDifficultyTravelPreview(
+  difficulty: GameDifficulty,
+  edge: EdgeDangerInfo,
+): DifficultyTravelPreview {
+  switch (difficulty) {
+    case 'story':
+      return {
+        tier: edge.tier,
+        chancePct: edge.chancePct,
+        possibleEncounters: edge.possibleEncounters,
+        possibleConfrontations: edge.possibleConfrontations,
+      }
+    case 'explorer':
+      return {
+        tier: edge.tier,
+        chancePct: edge.chancePct,
+        possibleEncounters: [],
+        possibleConfrontations: [],
+      }
+    case 'challenger':
+      return {
+        tier: edge.tier,
+        chancePct: null,
+        possibleEncounters: [],
+        possibleConfrontations: [],
+      }
+  }
+}

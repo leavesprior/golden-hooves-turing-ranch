@@ -1,12 +1,25 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   getChapterLocations,
   getLocationById as getChapterLocation,
   type ChapterLocation,
 } from '@/app/adventure/data/chapterLocations'
 import type { FactionId } from '@/app/oregon-trail/reputationContext'
+import {
+  getPathDangerInfo,
+  findShortestPath,
+  TIER_ICON,
+  TIER_LABEL,
+  type DangerTier,
+} from '@/app/adventure/lib/travelDanger'
+import {
+  getDifficultyTravelPreview,
+  DIFFICULTY_DEFAULT,
+  type GameDifficulty,
+} from '@/app/adventure/lib/difficulty'
+import { TravelRoute } from '@/app/adventure/components/TravelRoute'
 
 interface ChapterMapProps {
   chapter: number
@@ -16,6 +29,14 @@ interface ChapterMapProps {
   factionReps: Record<FactionId, number>
   onTravelTo: (locationId: string) => void
   onVisitLocation: (locationId: string) => void
+  /** Phase 3 — controls how much of the travel preview is revealed. */
+  gameDifficulty?: GameDifficulty
+}
+
+const TIER_TEXT_COLOR: Record<DangerTier, string> = {
+  peaceful: 'var(--pixel-forest-light, #34d399)',
+  risky: 'var(--pixel-gold-mid, #fbbf24)',
+  dangerous: 'var(--pixel-fire-red, #f87171)',
 }
 
 const ATMOSPHERE_COLORS: Record<string, string> = {
@@ -67,14 +88,62 @@ export function ChapterMap({
   factionReps,
   onTravelTo,
   onVisitLocation,
+  gameDifficulty = DIFFICULTY_DEFAULT,
 }: ChapterMapProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  /** Phase 3 — sprite walks to this destination, then fires onTravelTo. */
+  const [walkingToId, setWalkingToId] = useState<string | null>(null)
 
   const allLocations = useMemo(() => getChapterLocations(chapter), [chapter])
   const currentLoc = getChapterLocation(currentLocationId)
   const discoveredSet = useMemo(() => new Set(discoveredLocationIds), [discoveredLocationIds])
   const visitedSet = useMemo(() => new Set(visitedLocationIds), [visitedLocationIds])
+
+  // ----- Phase 3: travel-route preview path ---------------------------------
+  // Which destination should we draw the route to?
+  //   walking > selected > hovered (adjacent-only for hover)
+  const previewDestId = walkingToId
+    ?? selectedId
+    ?? (hoveredId && hoveredId !== currentLocationId && (currentLoc?.connectedTo.includes(hoveredId) ?? false)
+        ? hoveredId
+        : null)
+
+  const routePath = useMemo(() => {
+    if (!previewDestId || !currentLoc) return null
+    const ids = findShortestPath(currentLocationId, previewDestId, discoveredSet)
+    if (!ids || ids.length < 2) return null
+    const nodes = ids
+      .map(id => {
+        const l = getChapterLocation(id)
+        return l ? { id, x: l.x, y: l.y } : null
+      })
+      .filter((n): n is { id: string; x: number; y: number } => n !== null)
+    return nodes.length === ids.length ? nodes : null
+  }, [previewDestId, currentLocationId, currentLoc, discoveredSet])
+
+  const routeEdge = useMemo(() => {
+    if (!routePath) return null
+    return getPathDangerInfo(routePath.map(n => n.id), chapter)
+  }, [routePath, chapter])
+
+  const routePreview = useMemo(() => {
+    if (!routeEdge) return null
+    return getDifficultyTravelPreview(gameDifficulty, routeEdge)
+  }, [routeEdge, gameDifficulty])
+
+  // Fire the actual travel once the sprite has visibly walked.
+  useEffect(() => {
+    if (!walkingToId) return
+    // Match walk duration roughly — TravelRoute scales by path length.
+    // Use a 1.6s floor, then fire.
+    const t = window.setTimeout(() => {
+      const dest = walkingToId
+      setWalkingToId(null)
+      onTravelTo(dest)
+    }, 1400)
+    return () => window.clearTimeout(t)
+  }, [walkingToId, onTravelTo])
 
   // Determine which locations are scoutable (adjacent to discovered, not yet discovered)
   const scoutableSet = useMemo(() => {
@@ -108,10 +177,11 @@ export function ChapterMap({
   }
 
   const handleTravel = () => {
-    if (selectedId) {
-      onTravelTo(selectedId)
-      setSelectedId(null)
-    }
+    if (!selectedId) return
+    // Phase 3 — kick off the walking-sprite animation; the effect above
+    // fires onTravelTo after the sprite visibly marches to destination.
+    setWalkingToId(selectedId)
+    setSelectedId(null)
   }
 
   const selectedLoc = selectedId ? getChapterLocation(selectedId) : null
@@ -167,6 +237,16 @@ export function ChapterMap({
               )
             })
           })}
+
+          {/* Phase 3 — animated travel route overlay (hover/selected/walking) */}
+          {routePath && routeEdge && (
+            <TravelRoute
+              path={routePath}
+              previewMode={walkingToId === null}
+              tier={routeEdge.tier}
+              routeKey={`${walkingToId ? 'commit' : 'preview'}-${routePath.map(p => p.id).join('>')}`}
+            />
+          )}
 
           {/* Fog of war (scoutable locations as question marks) */}
           {allLocations.filter(l => scoutableSet.has(l.id)).map(loc => (
@@ -312,11 +392,60 @@ export function ChapterMap({
                 {selectedLoc.npcs.length} NPC{selectedLoc.npcs.length > 1 ? 's' : ''} present
               </p>
             )}
+            {/* Phase 3 — difficulty-aware travel preview */}
+            {routePreview && routeEdge && routePath && (
+              <div
+                className="border-2 p-2 mt-1"
+                style={{
+                  borderColor: TIER_TEXT_COLOR[routePreview.tier],
+                  background: 'rgba(0,0,0,0.35)',
+                }}
+              >
+                <div className="flex items-baseline justify-between">
+                  <span
+                    className="font-[var(--font-pixel)] text-[10px]"
+                    style={{ color: TIER_TEXT_COLOR[routePreview.tier] }}
+                  >
+                    {TIER_ICON[routePreview.tier]} {TIER_LABEL[routePreview.tier].toUpperCase()}
+                    {routePreview.chancePct !== null && (
+                      <> {'\u2014'} {routePreview.chancePct}% encounter chance</>
+                    )}
+                  </span>
+                  {routePath.length > 2 && (
+                    <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70">
+                      {routePath.length - 1} hops
+                    </span>
+                  )}
+                </div>
+                {routePreview.chancePct === null && (
+                  <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-60 mt-1">
+                    Challenger mode {'\u2014'} exact odds hidden.
+                  </p>
+                )}
+                {(routePreview.possibleEncounters.length > 0 || routePreview.possibleConfrontations.length > 0) && (
+                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-80 mt-1">
+                    Possible: {[
+                      ...routePreview.possibleConfrontations.slice(0, 2),
+                      ...routePreview.possibleEncounters.slice(0, 3),
+                    ].join(', ')}
+                  </p>
+                )}
+                {routePath.length > 2 && (
+                  <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-earth-light)] opacity-70 mt-1 italic">
+                    via {routePath.slice(1, -1).map(n => getChapterLocation(n.id)?.name ?? n.id).join(' \u2192 ')}
+                  </p>
+                )}
+              </div>
+            )}
+
             <button
               onClick={handleTravel}
-              className="w-full py-2 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] hover:bg-[var(--pixel-gold-mid)] transition-all"
+              disabled={walkingToId !== null}
+              className="w-full py-2 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] hover:bg-[var(--pixel-gold-mid)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              TRAVEL TO {selectedLoc.name.toUpperCase()} {'\u25B6'}
+              {walkingToId
+                ? 'WALKING...'
+                : (<>TRAVEL TO {selectedLoc.name.toUpperCase()} {'\u25B6'}</>)}
             </button>
           </div>
         ) : hoveredLoc && discoveredSet.has(hoveredLoc.id) ? (
