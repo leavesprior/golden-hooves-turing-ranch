@@ -17,6 +17,11 @@ import {
   type GameDifficulty,
 } from '@/app/adventure/lib/difficulty'
 import { SkillCheckPreviewChip } from '@/app/adventure/components/SkillCheckPreview'
+import {
+  ListingBrowser,
+  CLUE_SECTION_MAP,
+  type ListingBrowserSection,
+} from '@/app/adventure/components/ListingBrowser'
 
 interface LocationViewProps {
   locationId: string
@@ -110,6 +115,12 @@ export function LocationView({
   const [clueAnswer, setClueAnswer] = useState('')
   const [activeClue, setActiveClue] = useState<DiscoveryClue | null>(null)
   const [clueResult, setClueResult] = useState<{ correct: boolean; message: string } | null>(null)
+  // Phase 4: in-game listing field-notes modal (closes the alt-tab RED).
+  const [listingBrowserOpen, setListingBrowserOpen] = useState(false)
+  const [listingBrowserFocus, setListingBrowserFocus] = useState<ListingBrowserSection | undefined>(undefined)
+  const [listingBrowserReveal, setListingBrowserReveal] = useState<
+    { question: string; answer: string } | undefined
+  >(undefined)
   const [answeredClueIds, setAnsweredClueIds] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set()
     try {
@@ -166,6 +177,19 @@ export function LocationView({
       onGameStateChanged?.()
     }, 1500)
   }, [onSkillCheck, onAddXP, onGameStateChanged])
+
+  // Phase 4: open the listing field-notes for a specific clue. Challenger
+  // tier never calls this (the [?] button is not rendered for them).
+  const handleOpenListingForClue = useCallback((clue: DiscoveryClue) => {
+    const section = CLUE_SECTION_MAP[clue.id]
+    setListingBrowserFocus(section)
+    setListingBrowserReveal(
+      gameDifficulty === 'story'
+        ? { question: clue.question, answer: clue.answer }
+        : undefined,
+    )
+    setListingBrowserOpen(true)
+  }, [gameDifficulty])
 
   const location = getChapterLocation(locationId)
   if (!location) {
@@ -831,39 +855,60 @@ export function LocationView({
 
           {!activeClue ? (
             <div className="space-y-2">
-              {unansweredClues.map(clue => (
-                <button
-                  key={clue.id}
-                  onClick={() => { setActiveClue(clue); setClueResult(null) }}
-                  className="w-full text-left p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)] hover:border-[var(--pixel-fire-orange)] transition-all"
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
-                        {clue.question}
-                      </span>
-                      <div className="flex gap-2 mt-1">
-                        <span className={`font-[var(--font-pixel)] text-[7px] px-1 border ${
-                          clue.difficulty === 'easy' ? 'text-green-400 border-green-800' :
-                          clue.difficulty === 'medium' ? 'text-yellow-400 border-yellow-800' :
-                          'text-red-400 border-red-800'
-                        }`}>
-                          {clue.difficulty.toUpperCase()}
-                        </span>
-                        <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-gold-light)]">
-                          +{clue.xpReward} XP
-                        </span>
-                        {clue.isListingClue && (
-                          <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-fire-orange)] border border-[var(--pixel-fire-orange)]/50 px-1">
-                            RANCH CLUE
+              {unansweredClues.map(clue => {
+                // Phase 4: Story/Explorer get the [?] field-notes button.
+                // Challenger must know, or alt-tab like a proper 1990s
+                // dungeon-crawler — preserves depth for veterans.
+                const showFieldNotes =
+                  !!clue.hintUrl && gameDifficulty !== 'challenger'
+                return (
+                  <div
+                    key={clue.id}
+                    className="w-full flex bg-black/30 border-2 border-[var(--pixel-ui-border)] hover:border-[var(--pixel-fire-orange)] transition-all"
+                  >
+                    <button
+                      onClick={() => { setActiveClue(clue); setClueResult(null) }}
+                      className="flex-1 text-left p-3"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
+                            {clue.question}
                           </span>
-                        )}
+                          <div className="flex gap-2 mt-1">
+                            <span className={`font-[var(--font-pixel)] text-[7px] px-1 border ${
+                              clue.difficulty === 'easy' ? 'text-green-400 border-green-800' :
+                              clue.difficulty === 'medium' ? 'text-yellow-400 border-yellow-800' :
+                              'text-red-400 border-red-800'
+                            }`}>
+                              {clue.difficulty.toUpperCase()}
+                            </span>
+                            <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-gold-light)]">
+                              +{clue.xpReward} XP
+                            </span>
+                            {clue.isListingClue && (
+                              <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-fire-orange)] border border-[var(--pixel-fire-orange)]/50 px-1">
+                                RANCH CLUE
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">{'\u25B6'}</span>
                       </div>
-                    </div>
-                    <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">{'\u25B6'}</span>
+                    </button>
+                    {showFieldNotes && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleOpenListingForClue(clue) }}
+                        aria-label={`Open listing field notes for: ${clue.question}`}
+                        title="Open ranch field notes"
+                        className="shrink-0 self-stretch px-3 border-l-2 border-[var(--pixel-ui-border)] font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] hover:text-[var(--pixel-bg-dark)] hover:bg-[var(--pixel-gold-mid)] transition-colors"
+                      >
+                        ?
+                      </button>
+                    )}
                   </div>
-                </button>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div className="bg-black/30 border-2 border-[var(--pixel-fire-orange)]/50 p-4">
@@ -877,14 +922,26 @@ export function LocationView({
                   HINT: {activeClue.hintText}
                 </p>
                 {activeClue.hintUrl && (
-                  <a
-                    href={`${activeClue.hintUrl}?utm_source=bobr_game&utm_medium=clue&utm_campaign=discovery_${activeClue.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block mt-2 font-[var(--font-pixel)] text-[9px] bg-[var(--pixel-fire-orange)] text-[var(--pixel-bg-dark)] px-3 py-1 border border-[var(--pixel-ui-border)] hover:bg-[var(--pixel-gold-mid)] transition-colors"
-                  >
-                    SEARCH THE LISTING
-                  </a>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {/* Phase 4: in-game field-notes modal — Story/Explorer only. */}
+                    {gameDifficulty !== 'challenger' && (
+                      <button
+                        onClick={() => handleOpenListingForClue(activeClue)}
+                        aria-label="Open ranch field notes"
+                        className="font-[var(--font-pixel)] text-[9px] bg-[var(--pixel-gold-mid)] text-[var(--pixel-bg-dark)] px-3 py-1 border border-[var(--pixel-ui-border)] hover:bg-[var(--pixel-gold-light)] transition-colors"
+                      >
+                        {'?'} FIELD NOTES
+                      </button>
+                    )}
+                    <a
+                      href={`${activeClue.hintUrl}?utm_source=bobr_game&utm_medium=clue&utm_campaign=discovery_${activeClue.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block font-[var(--font-pixel)] text-[9px] bg-[var(--pixel-fire-orange)] text-[var(--pixel-bg-dark)] px-3 py-1 border border-[var(--pixel-ui-border)] hover:bg-[var(--pixel-gold-mid)] transition-colors"
+                    >
+                      SEARCH THE LISTING
+                    </a>
+                  </div>
                 )}
               </div>
 
@@ -944,6 +1001,14 @@ export function LocationView({
           )}
         </div>
       )}
+
+      {/* Phase 4: in-game listing field-notes modal. */}
+      <ListingBrowser
+        open={listingBrowserOpen}
+        onClose={() => setListingBrowserOpen(false)}
+        focus={listingBrowserFocus}
+        answerReveal={listingBrowserReveal}
+      />
     </div>
   )
 }
