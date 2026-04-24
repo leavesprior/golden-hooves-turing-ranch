@@ -168,12 +168,19 @@ export function ChapterMap({
       onVisitLocation(loc.id)
       return
     }
-    if (isAdjacentToCurrent(loc.id) && discoveredSet.has(loc.id)) {
-      const access = canAccessLocation(loc, factionReps)
-      if (access.accessible) {
-        setSelectedId(loc.id)
-      }
-    }
+    // P0 fix (2026-04-21): clicking a discovered, non-adjacent node used
+    // to silently no-op (only adjacent nodes opened the travel panel).
+    // Phase 3's `findShortestPath` already supports multi-hop travel, so
+    // any discovered location the player can actually walk to via the
+    // discovered graph should select. Inaccessible (rep-locked) or
+    // path-less nodes still no-op — the tooltip/hover label already
+    // signals "why".
+    if (!discoveredSet.has(loc.id)) return
+    const access = canAccessLocation(loc, factionReps)
+    if (!access.accessible) return
+    const path = findShortestPath(currentLocationId, loc.id, discoveredSet)
+    if (!path || path.length < 2) return
+    setSelectedId(loc.id)
   }
 
   const handleTravel = () => {

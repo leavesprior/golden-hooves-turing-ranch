@@ -821,6 +821,22 @@ function AdventureContent() {
   // pragmatic, etc.) before the quest leaves the "available" slot.
   const [questOffer, setQuestOffer] = useState<OrphanQuest | null>(null)
 
+  // P0 fix (2026-04-21) — Escape key dismisses the quest-offer modal. The
+  // playtest report flagged all three path buttons AND the LATER button as
+  // inert after the Shaw dialogue; the main fix is the z-index + gate
+  // (see render block below), but a keyboard escape is a cheap second layer
+  // so the player can never get fully stuck behind this modal again.
+  useEffect(() => {
+    if (!questOffer) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setQuestOffer(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [questOffer])
+
   // Track page view on mount
   useEffect(() => {
     trackPageView('/adventure/play')
@@ -2167,17 +2183,28 @@ function AdventureContent() {
       {/* Phase 2: Quest Path Picker.
           When a quest with multiple paths is offered, the player explicitly
           commits to lawful/diplomatic/pragmatic/etc. before the quest goes
-          active. Each path shows its name + description + reward preview. */}
-      {questOffer && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="max-w-2xl w-full max-h-[85vh] overflow-y-auto bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)]">
+          active. Each path shows its name + description + reward preview.
+
+          P0 fix (2026-04-21) — the original z-50 put the path picker at the
+          same stacking level as the dialogue view, the quest log, the
+          narrator toast region (z-40), and the reward tracker welcome modal
+          (z-[100] was higher — benign here because it's rarely open mid-
+          dialogue but still a latent trap). The playtest surfaced clicks
+          being silently absorbed by a not-yet-torn-down z-50 sibling. Moving
+          the path picker to z-[60] and gating it on `!activeDialogue`
+          guarantees it's the only modal receiving clicks when a path has
+          to be chosen. */}
+      {questOffer && !activeDialogue && (
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
+          <div className="relative max-w-2xl w-full max-h-[85vh] overflow-y-auto bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)]">
             <div className="p-3 border-b-2 border-[var(--pixel-ui-border)] flex justify-between items-center">
               <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
                 {'📜'} CHOOSE YOUR PATH
               </span>
               <button
+                type="button"
                 onClick={() => setQuestOffer(null)}
-                className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] px-2 py-1 border border-[var(--pixel-ui-border)]"
+                className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] px-2 py-1 border border-[var(--pixel-ui-border)] cursor-pointer"
               >
                 LATER
               </button>
@@ -2193,8 +2220,9 @@ function AdventureContent() {
                 {questOffer.paths.map(path => (
                   <button
                     key={path.id}
+                    type="button"
                     onClick={() => handleCommitQuestPath(path.id)}
-                    className="w-full text-left p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)] hover:border-[var(--pixel-gold-mid)] hover:bg-[var(--pixel-gold-dark)]/10 transition-all"
+                    className="w-full text-left p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)] hover:border-[var(--pixel-gold-mid)] hover:bg-[var(--pixel-gold-dark)]/10 transition-all cursor-pointer"
                   >
                     <div className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] mb-1">
                       {path.name}

@@ -63,8 +63,11 @@ function CharacterCreationContent() {
 
   const handleCreateCharacter = useCallback(() => {
     if (!selectedBackground || !characterName) return
-    // Create character with the Oregon Trail characterContext
-    createCharacter(characterName, selectedBackground)
+    // P0 fix (2026-04-21): fold pick modifiers into the character stats
+    // at creation time so the play page sees the full SADDLE line the
+    // player chose. Previously `pickMods` was only stored in
+    // localStorage and never applied to `character.stats`.
+    createCharacter(characterName, selectedBackground, pickMods)
     // Store pick selections + tagged stats in localStorage for the adventure system to apply
     const adventureData = {
       picks: selectedPicks,

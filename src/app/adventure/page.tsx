@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { useRPG, type AttributeName } from '@/lib/rpgContext'
 import { chapters } from '@/lib/chapters'
@@ -17,6 +18,7 @@ const ATTRIBUTE_INFO: Record<AttributeName, { name: string; abbr: string; desc: 
 }
 
 export default function AdventurePage() {
+  const router = useRouter()
   const { session, startNewGame, loadGame, resetGame, getDiscountCode } = useRPG()
 
   const [showNewGame, setShowNewGame] = useState(false)
@@ -344,7 +346,11 @@ export default function AdventurePage() {
                 Continue Adventure
               </PixelButton>
             )}
-            <PixelButton onClick={() => setShowNewGame(true)} variant="green" size="md">
+            <PixelButton
+              onClick={() => router.push('/adventure/character-creation')}
+              variant="green"
+              size="md"
+            >
               Begin Your Journey
             </PixelButton>
 

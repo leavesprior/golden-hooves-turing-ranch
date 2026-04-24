@@ -77,7 +77,11 @@ interface CharacterContextValue {
   state: CharacterState
 
   // Character creation
-  createCharacter: (name: string, background: CharacterBackground) => void
+  createCharacter: (
+    name: string,
+    background: CharacterBackground,
+    extraStatModifiers?: Partial<SaddleStats>,
+  ) => void
   loadCharacter: (character: Character) => void
   allocateStatPoints: (stats: Partial<SaddleStats>) => void
 
@@ -297,13 +301,34 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   })
 
   // Create a new character
-  const createCharacter = useCallback((name: string, background: CharacterBackground) => {
+  //
+  // P0 fix (2026-04-21): accept `extraStatModifiers` so character creation
+  // can fold in the zero-sum pick modifiers (advantages + flaws). Previously
+  // the play page read stats that reflected only base + background bonuses
+  // — picks were persisted to localStorage under `bobr_adventure_picks` but
+  // never landed on `character.stats`, so a player who bought Agility+2
+  // would still see their in-game Agility at the background-default value.
+  const createCharacter = useCallback((
+    name: string,
+    background: CharacterBackground,
+    extraStatModifiers: Partial<SaddleStats> = {},
+  ) => {
     const bonuses = BACKGROUND_BONUSES[background]
     const stats: SaddleStats = { ...BASE_STATS }
 
     // Apply background bonuses
     Object.entries(bonuses).forEach(([stat, bonus]) => {
       stats[stat as StatName] += bonus
+    })
+
+    // Apply pick modifiers (advantages/flaws from the zero-sum picker).
+    // These are authored such that the final value stays within the
+    // SADDLE stat range; we don't clamp here so negative flaws land as
+    // authored.
+    Object.entries(extraStatModifiers).forEach(([stat, delta]) => {
+      if (typeof delta === 'number') {
+        stats[stat as StatName] += delta
+      }
     })
 
     const character: Character = {
