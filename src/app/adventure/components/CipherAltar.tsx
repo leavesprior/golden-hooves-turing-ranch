@@ -32,6 +32,20 @@ import React, {
 import type { ArtifactId } from '@/lib/act5GateStore'
 
 /**
+ * Phase 6 painterly integration. When `NEXT_PUBLIC_PAINTERLY=1`, the
+ * component swaps each artifact's inline-SVG body for a commissioned PNG
+ * (~1MB each, Sega-CD dream aesthetic) and composites the cipher-skeleton
+ * as a separate overlay SVG positioned absolutely on top of the PNG. This
+ * preserves the reveal mechanic (same skeleton geometry, viewBox 0 0 400
+ * 400) while using the painterly artwork as the artifact body. Default
+ * (flag unset) renders SVG as before, so production stays on the known
+ * surface until painterly is greenlit.
+ */
+const USE_PAINTERLY =
+  typeof process !== 'undefined' &&
+  process.env.NEXT_PUBLIC_PAINTERLY === '1'
+
+/**
  * Inline-fetches an SVG as text so we can render its DOM directly (needed to
  * toggle the invisible <g id="cipher-skeleton"> group via CSS). Falls back to
  * null until the fetch resolves; the parent renders a placeholder in that
@@ -40,6 +54,10 @@ import type { ArtifactId } from '@/lib/act5GateStore'
 function useInlineSvg(url: string): string | null {
   const [markup, setMarkup] = useState<string | null>(null)
   useEffect(() => {
+    if (!url) {
+      setMarkup(null)
+      return
+    }
     let cancelled = false
     fetch(url)
       .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${r.status}`))))
@@ -109,26 +127,35 @@ const ALL_QUADRANTS: Quadrant[] = Object.values(ARTIFACT_QUADRANT)
 
 const ARTIFACT_META: Record<
   ArtifactId,
-  { label: string; file: string; tray: { x: number; y: number } }
+  {
+    label: string
+    file: string
+    pngFile: string
+    tray: { x: number; y: number }
+  }
 > = {
   norse_sunwheel: {
     label: 'Sunwheel Whalebone',
     file: '/assets/cipher/artifact_norse_sunwheel.svg',
+    pngFile: '/assets/cipher/artifact_norse_sunwheel.png',
     tray: { x: -TRAY_SLOT_RADIUS, y: -TRAY_SLOT_RADIUS },
   },
   miss_gorget: {
     label: 'Cahokia Shell Gorget',
     file: '/assets/cipher/artifact_miss_gorget.svg',
+    pngFile: '/assets/cipher/artifact_miss_gorget.png',
     tray: { x: TRAY_SLOT_RADIUS, y: -TRAY_SLOT_RADIUS },
   },
   chumash_stone: {
     label: 'Painted Island Stone',
     file: '/assets/cipher/artifact_chumash_stone.svg',
+    pngFile: '/assets/cipher/artifact_chumash_stone.png',
     tray: { x: -TRAY_SLOT_RADIUS, y: TRAY_SLOT_RADIUS },
   },
   inca_chakana: {
     label: 'Chakana Tile',
     file: '/assets/cipher/artifact_inca_chakana.svg',
+    pngFile: '/assets/cipher/artifact_inca_chakana.png',
     tray: { x: TRAY_SLOT_RADIUS, y: TRAY_SLOT_RADIUS },
   },
 }
@@ -152,6 +179,62 @@ interface ArtifactNodeProps {
   onRotate: (delta: number) => void
 }
 
+/**
+ * Composite skeleton overlay used in painterly mode. Geometry matches the
+ * in-SVG `#cipher-skeleton` group exactly (viewBox 0 0 400 400): outer
+ * circle r=180, cardinal cross, rotated square polygon, center void r=14.
+ * Positioned absolutely over the PNG; `mix-blend-mode: screen` lets the
+ * gold lines sit cleanly on top of the painterly art during reveal.
+ */
+function CipherSkeletonOverlay() {
+  return (
+    <svg
+      className="cipher-skeleton-overlay"
+      viewBox="0 0 400 400"
+      aria-hidden="true"
+    >
+      <circle
+        cx="200"
+        cy="200"
+        r="180"
+        stroke="#ffd76a"
+        fill="none"
+        strokeWidth="2"
+      />
+      <line
+        x1="20"
+        y1="200"
+        x2="380"
+        y2="200"
+        stroke="#ffd76a"
+        strokeWidth="2"
+      />
+      <line
+        x1="200"
+        y1="20"
+        x2="200"
+        y2="380"
+        stroke="#ffd76a"
+        strokeWidth="2"
+      />
+      <polygon
+        points="73,73 327,73 327,327 73,327"
+        stroke="#ffd76a"
+        fill="none"
+        strokeWidth="2"
+      />
+      <circle
+        cx="200"
+        cy="200"
+        r="14"
+        stroke="#ffd76a"
+        fill="none"
+        strokeWidth="2"
+      />
+    </svg>
+  )
+}
+
 function ArtifactNode({
   placement: p,
   overlayReveal,
@@ -159,7 +242,12 @@ function ArtifactNode({
   onRotate,
 }: ArtifactNodeProps) {
   const meta = ARTIFACT_META[p.id]
-  const markup = useInlineSvg(meta.file)
+  // Inline-SVG fetch is only needed for SVG mode; in painterly mode we
+  // render the PNG directly and composite the skeleton overlay separately.
+  const markup = useInlineSvg(USE_PAINTERLY ? '' : meta.file)
+  // Painterly PNG load failure → fall back to SVG at render-time.
+  const [pngFailed, setPngFailed] = useState(false)
+  const painterly = USE_PAINTERLY && !pngFailed
   // Phase 3.6: held state uses scale(1.05) + opacity 0.6 — still see what
   // you're holding, a touch larger to read as "lifted above the altar".
   const style: React.CSSProperties = {
@@ -172,6 +260,7 @@ function ArtifactNode({
   const classes = [
     'cipher-altar-artifact',
     'placed',
+    painterly ? 'painterly' : '',
     p.held ? 'held' : '',
     p.aligned ? 'aligned' : '',
     !p.aligned && p.xAligned && p.yAligned ? 'rot-hint' : '',
@@ -188,7 +277,18 @@ function ArtifactNode({
       aria-label={`Drag ${meta.label}`}
       aria-pressed={p.aligned}
     >
-      {markup ? (
+      {painterly ? (
+        <>
+          <img
+            src={meta.pngFile}
+            alt={meta.label}
+            draggable={false}
+            className="cipher-artifact-painterly"
+            onError={() => setPngFailed(true)}
+          />
+          {overlayReveal && <CipherSkeletonOverlay />}
+        </>
+      ) : markup ? (
         <div
           className="artifact-svg"
           dangerouslySetInnerHTML={{ __html: markup }}
@@ -545,6 +645,39 @@ export default function CipherAltar({
           width: 100%;
           height: 100%;
           display: block;
+        }
+        /* Phase 6 painterly mode: PNG is the artifact body. The composite
+           cipher-skeleton SVG sits on top during reveal, blending screen so
+           the gold reads cleanly on the painted surface. */
+        .cipher-artifact-painterly {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          pointer-events: none;
+          display: block;
+          image-rendering: auto;
+        }
+        .cipher-skeleton-overlay {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          mix-blend-mode: screen;
+          opacity: 1;
+          filter: drop-shadow(0 0 6px rgba(255, 210, 120, 0.55));
+          animation: cipher-skeleton-fade-in 0.4s ease;
+        }
+        @keyframes cipher-skeleton-fade-in {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        /* Painterly mode + overlay toggle via "Show skeleton" button: dim
+           the PNG body so the gold cipher reads as the primary layer,
+           matching the SVG-mode behavior. */
+        .cipher-altar-artifact.painterly.overlay .cipher-artifact-painterly {
+          opacity: 0.22;
+          transition: opacity 0.4s ease;
         }
         /* Overlay mode: reveal the invisible cipher-skeleton in gold,
            dim every other layer inside the SVG to 0.15 opacity. */
