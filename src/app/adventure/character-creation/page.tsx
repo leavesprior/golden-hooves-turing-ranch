@@ -14,7 +14,18 @@ import {
 } from '@/app/oregon-trail/characterContext'
 import { STARTING_PICKS, getPickById } from '@/app/adventure/data/advantages'
 
-type Step = 'name' | 'background' | 'picks' | 'review'
+type Step = 'name' | 'background' | 'picks' | 'tags' | 'review'
+
+const ALL_STATS: StatName[] = ['Shrewdness', 'Agility', 'Durability', 'Diplomacy', 'Luck', 'Expertise']
+
+const STAT_TAG_HINT: Record<StatName, string> = {
+  Shrewdness: 'Notice clues, see through lies.',
+  Agility: 'Win chases. Dodge blows.',
+  Durability: 'Soak damage. Resist illness.',
+  Diplomacy: 'Persuade. Recruit. Haggle.',
+  Luck: 'Gold finds you. Dice favor you.',
+  Expertise: 'Tracking, repair, trail craft.',
+}
 
 const STAT_DISPLAY: Record<StatName, { name: string; icon: string; color: string }> = {
   Shrewdness: { name: 'Shrewdness', icon: '\uD83D\uDD0D', color: '#a78bfa' },
@@ -33,18 +44,28 @@ function CharacterCreationContent() {
   const [selectedBackground, setSelectedBackground] = useState<CharacterBackground | null>(null)
   const [selectedPicks, setSelectedPicks] = useState<string[]>([])
   const [pickMods, setPickMods] = useState<Partial<SaddleStats>>({})
+  // Phase 5 — up-to-2 tagged stats (Krondor-style, tagged stats grow faster).
+  const [taggedStats, setTaggedStats] = useState<StatName[]>([])
 
   const handleConfirmPicks = useCallback((ids: string[], mods: Partial<SaddleStats>) => {
     setSelectedPicks(ids)
     setPickMods(mods)
-    setStep('review')
+    setStep('tags')
+  }, [])
+
+  const toggleTag = useCallback((stat: StatName) => {
+    setTaggedStats(prev => {
+      if (prev.includes(stat)) return prev.filter(s => s !== stat)
+      if (prev.length >= 2) return prev // cap at 2
+      return [...prev, stat]
+    })
   }, [])
 
   const handleCreateCharacter = useCallback(() => {
     if (!selectedBackground || !characterName) return
     // Create character with the Oregon Trail characterContext
     createCharacter(characterName, selectedBackground)
-    // Store pick selections in localStorage for the adventure system to apply
+    // Store pick selections + tagged stats in localStorage for the adventure system to apply
     const adventureData = {
       picks: selectedPicks,
       pickModifiers: pickMods,
@@ -52,11 +73,13 @@ function CharacterCreationContent() {
         .map(id => getPickById(id))
         .filter(p => p?.specialAbility)
         .map(p => ({ id: p!.id, name: p!.name, ability: p!.specialAbility! })),
+      // Phase 5 — tagged stats get a 1.5x (solo) or 1.25x (paired) usage boost.
+      taggedStats,
     }
     localStorage.setItem('bobr_adventure_picks', JSON.stringify(adventureData))
     // Navigate to play
     router.push('/adventure/play')
-  }, [selectedBackground, characterName, selectedPicks, pickMods, createCharacter, router])
+  }, [selectedBackground, characterName, selectedPicks, pickMods, taggedStats, createCharacter, router])
 
   // Calculate final stats for review
   const getFinalStats = (): Partial<SaddleStats> => {
@@ -88,18 +111,18 @@ function CharacterCreationContent() {
           </p>
           {/* Step indicator */}
           <div className="flex justify-center gap-2 mt-4">
-            {(['name', 'background', 'picks', 'review'] as Step[]).map((s, i) => (
+            {(['name', 'background', 'picks', 'tags', 'review'] as Step[]).map((s, i) => (
               <div key={s} className="flex items-center gap-2">
                 <div className={`w-6 h-6 flex items-center justify-center border-2 font-[var(--font-pixel)] text-[10px] ${
                   step === s
                     ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
-                    : (['name', 'background', 'picks', 'review'].indexOf(step) > i)
+                    : (['name', 'background', 'picks', 'tags', 'review'].indexOf(step) > i)
                       ? 'bg-[var(--pixel-forest-dark)] border-[var(--pixel-forest-mid)] text-[var(--pixel-forest-light)]'
                       : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)]'
                 }`}>
-                  {(['name', 'background', 'picks', 'review'].indexOf(step) > i) ? '\u2713' : i + 1}
+                  {(['name', 'background', 'picks', 'tags', 'review'].indexOf(step) > i) ? '\u2713' : i + 1}
                 </div>
-                {i < 3 && <div className="w-4 h-0.5 bg-[var(--pixel-ui-border)]" />}
+                {i < 4 && <div className="w-4 h-0.5 bg-[var(--pixel-ui-border)]" />}
               </div>
             ))}
           </div>
@@ -214,7 +237,78 @@ function CharacterCreationContent() {
           </div>
         )}
 
-        {/* === STEP 4: REVIEW === */}
+        {/* === STEP 4: TAG UP TO 2 STATS === */}
+        {step === 'tags' && (
+          <div className="space-y-3">
+            <h2 className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] text-center mb-2">
+              TAG UP TO 2 STATS
+            </h2>
+            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] text-center opacity-60 mb-4">
+              Tagged stats grow faster from use. Pick 1 for a 1.5x boost, or 2 for 1.25x each.
+              Untagged stats still grow, just slower. You can skip this step.
+            </p>
+            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-mid)] text-center opacity-80 mb-4">
+              {taggedStats.length}/2 tags selected
+            </p>
+
+            <div className="grid grid-cols-2 gap-2">
+              {ALL_STATS.map(stat => {
+                const isTagged = taggedStats.includes(stat)
+                const atCap = !isTagged && taggedStats.length >= 2
+                const display = STAT_DISPLAY[stat]
+                return (
+                  <button
+                    key={stat}
+                    onClick={() => toggleTag(stat)}
+                    disabled={atCap}
+                    className={`p-3 text-left transition-all ${
+                      isTagged
+                        ? 'bg-[var(--pixel-gold-dark)]/40 border-[3px] border-[var(--pixel-gold-light)]'
+                        : atCap
+                          ? 'bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] opacity-30 cursor-not-allowed'
+                          : 'bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] hover:border-[var(--pixel-gold-dark)]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm">{display.icon}</span>
+                      <span
+                        className="font-[var(--font-pixel)] text-[10px]"
+                        style={{ color: display.color }}
+                      >
+                        {stat}
+                      </span>
+                      {isTagged && (
+                        <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] ml-auto">
+                          TAGGED
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70">
+                      {STAT_TAG_HINT[stat]}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setStep('picks')}
+                className="flex-1 py-3 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)]"
+              >
+                ← BACK
+              </button>
+              <button
+                onClick={() => setStep('review')}
+                className="flex-1 py-3 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] hover:bg-[var(--pixel-gold-mid)] transition-all"
+              >
+                {taggedStats.length === 0 ? 'SKIP →' : 'CONTINUE →'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* === STEP 5: REVIEW === */}
         {step === 'review' && (
           <div className="space-y-4">
             <h2 className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] text-center mb-2">
@@ -230,19 +324,30 @@ function CharacterCreationContent() {
                 {selectedBackground && BACKGROUND_DESCRIPTIONS[selectedBackground].name}
               </p>
 
-              {/* Stats Grid */}
+              {/* Stats Grid — tagged stats get a gold border */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
-                {(Object.entries(getFinalStats()) as [StatName, number][]).map(([stat, value]) => (
-                  <div key={stat} className="bg-[var(--pixel-bg-dark)] border border-[var(--pixel-ui-border)] p-2 text-center">
-                    <span className="text-sm">{STAT_DISPLAY[stat].icon}</span>
-                    <p className="font-[var(--font-pixel)] text-[10px]" style={{ color: STAT_DISPLAY[stat].color }}>
-                      {stat}
-                    </p>
-                    <p className="font-[var(--font-pixel)] text-[16px] text-[var(--pixel-ui-text)]">
-                      {value}
-                    </p>
-                  </div>
-                ))}
+                {(Object.entries(getFinalStats()) as [StatName, number][]).map(([stat, value]) => {
+                  const isTagged = taggedStats.includes(stat)
+                  return (
+                    <div
+                      key={stat}
+                      className={`bg-[var(--pixel-bg-dark)] p-2 text-center ${
+                        isTagged
+                          ? 'border-[3px] border-[var(--pixel-gold-light)]'
+                          : 'border border-[var(--pixel-ui-border)]'
+                      }`}
+                    >
+                      <span className="text-sm">{STAT_DISPLAY[stat].icon}</span>
+                      <p className="font-[var(--font-pixel)] text-[10px]" style={{ color: STAT_DISPLAY[stat].color }}>
+                        {stat}
+                        {isTagged && ' ★'}
+                      </p>
+                      <p className="font-[var(--font-pixel)] text-[16px] text-[var(--pixel-ui-text)]">
+                        {value}
+                      </p>
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Selected Picks */}
@@ -278,10 +383,10 @@ function CharacterCreationContent() {
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
-                onClick={() => setStep('picks')}
+                onClick={() => setStep('tags')}
                 className="flex-1 py-3 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]"
               >
-                {'\u2190'} CHANGE PICKS
+                {'\u2190'} CHANGE TAGS
               </button>
               <button
                 onClick={handleCreateCharacter}

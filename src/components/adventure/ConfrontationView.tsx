@@ -7,10 +7,12 @@ import { playSFX } from '@/app/oregon-trail/lib/audioManager'
 import { DOSMessage } from '@/components/ui/DOSMessage'
 import {
   DIFFICULTY_DEFAULT,
+  getAttackPreview,
   getSkillCheckPreview,
   type GameDifficulty,
 } from '@/app/adventure/lib/difficulty'
 import { SkillCheckPreviewChip } from '@/app/adventure/components/SkillCheckPreview'
+import { AttackPreviewChip } from '@/app/adventure/components/AttackPreview'
 
 export interface Combatant {
   name: string
@@ -367,13 +369,28 @@ export function ConfrontationView({
           <button
             onClick={() => handleAction('attack')}
             className="p-2 bg-red-950/30 border-2 border-[var(--pixel-fire-red)] hover:bg-red-900/40 transition-all text-left"
+            title={`${enemy.name} \u2014 AC ${10 + getStatMod('Agility', enemy.stats)} / HP ${enemy.maxHealth}`}
           >
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-fire-red)]">
               {'\u2694\uFE0F'} ATTACK
             </span>
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
-              Agility vs AC
-            </p>
+            {/* Phase 5 \u2014 Shining-Force-style attack preview. Shows
+                d20+Agi+weapon vs AC odds inline. Challenger hides AC; shows
+                coarse Weak/Avg/Tough tier instead. */}
+            <div className="mt-1">
+              <AttackPreviewChip
+                statName="Agility"
+                statValue={playerStats.Agility ?? 0}
+                preview={getAttackPreview(
+                  playerStats.Agility ?? 0,
+                  0,
+                  10 + getStatMod('Agility', enemy.stats),
+                  gameDifficulty,
+                )}
+                enemyHover={`${enemy.name} HP ${enemy.maxHealth}`}
+                compact
+              />
+            </div>
           </button>
 
           <button

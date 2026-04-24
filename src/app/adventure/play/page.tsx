@@ -36,6 +36,17 @@ import {
   type GameDifficulty,
 } from '@/app/adventure/lib/difficulty'
 
+// Phase 5 — Krondor-style usage-based SADDLE progression + Frog's Ledger.
+import {
+  createInitialProgressionState,
+  recordSkillUse as progressionRecordSkillUse,
+  runChapterBoundary,
+  type SkillProgressionState,
+  type EventWeight,
+} from '@/app/adventure/lib/skillProgression'
+import { FrogsLedger } from '@/app/adventure/components/FrogsLedger'
+import type { LedgerEntry } from '@/app/adventure/lib/skillProgression'
+
 // Lazy-load PixiJS exploration map (SSR-safe)
 import dynamic from 'next/dynamic'
 const ExplorationMap = dynamic(
@@ -121,6 +132,17 @@ interface AdventureState {
   // consistent. Legacy saves without these fields migrate to empty lists.
   questEntries: QuestSaveEntry[]
   questFlags: string[]
+  // Phase 5 — Krondor-style usage-based progression. Tracks per-stat usage
+  // buckets, tagged stats (1-2 chosen at character creation for 1.25-1.5x
+  // boost), and the chapter-end ledger. Silent during play; surfaces only
+  // at chapter transition via <FrogsLedger />.
+  skillProgression: SkillProgressionState
+  // When true, the Frog's Ledger overlay is showing. Gates progression to
+  // the next chapter until the player dismisses it.
+  showFrogsLedger: boolean
+  // Ledger entries frozen at chapter close — kept separate from the live
+  // skillProgression so re-renders while the ledger shows don't mutate them.
+  frozenLedger: LedgerEntry[]
 }
 
 const SAVE_KEY = 'bobr_adventure_state'
@@ -143,9 +165,31 @@ function loadAdventureState(): AdventureState | null {
       gameDifficulty: parsed.gameDifficulty ?? loadDifficulty(),
       questEntries: parsed.questEntries ?? [],
       questFlags: parsed.questFlags ?? [],
+      skillProgression: parsed.skillProgression ?? createInitialProgressionState(loadTaggedStatsFromPicks()),
+      showFrogsLedger: false, // never resume mid-ledger
+      frozenLedger: parsed.frozenLedger ?? [],
     }
   } catch {
     return null
+  }
+}
+
+/**
+ * Phase 5 — read the tagged-stat selections from the character-creation
+ * localStorage blob. Used when bootstrapping a fresh adventure state. Falls
+ * back to [] (untagged) for legacy characters.
+ */
+function loadTaggedStatsFromPicks(): StatName[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem('bobr_adventure_picks')
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as { taggedStats?: string[] }
+    const tags = parsed.taggedStats ?? []
+    const valid: StatName[] = ['Shrewdness', 'Agility', 'Durability', 'Diplomacy', 'Luck', 'Expertise']
+    return tags.filter((s): s is StatName => valid.includes(s as StatName)).slice(0, 2)
+  } catch {
+    return []
   }
 }
 
@@ -184,6 +228,9 @@ function createNewAdventureState(): AdventureState {
     gameDifficulty: loadDifficulty(),
     questEntries: [],
     questFlags: [],
+    skillProgression: createInitialProgressionState(loadTaggedStatsFromPicks()),
+    showFrogsLedger: false,
+    frozenLedger: [],
   }
 }
 
@@ -1050,6 +1097,25 @@ function AdventureContent() {
       const result = rollSkillCheck(npc.skillCheckStat, effectiveDC)
       if (result.success) {
         addExperience(15)
+        // Phase 5 — credit the skill-use bucket on NPC-talk success too.
+        if (adventureState && npc.skillCheckStat) {
+          const currentVal = charState.character?.stats[npc.skillCheckStat] ?? getStat(npc.skillCheckStat)
+          const { state: nextProg } = progressionRecordSkillUse(
+            adventureState.skillProgression,
+            {
+              stat: npc.skillCheckStat,
+              currentStatValue: currentVal,
+              chapter: adventureState.chapter,
+              weight: 'normal',
+            },
+          )
+          setAdventureState(prev => {
+            if (!prev) return prev
+            const next = { ...prev, skillProgression: nextProg }
+            saveAdventureState(next)
+            return next
+          })
+        }
         narratorComment(
           `${npc.name} seems to warm up to you. Information flows freely.`,
           'observation'
@@ -1071,7 +1137,7 @@ function AdventureContent() {
         modifyReputation(npc.faction, 2, `Conversation with ${npc.name}`)
       }
     }
-  }, [adventureState?.questFlags, adventureState?.gameDifficulty, rollSkillCheck, addExperience, narratorComment, modifyReputation])
+  }, [adventureState, charState.character, getStat, rollSkillCheck, addExperience, narratorComment, modifyReputation])
 
   // === APPLY QUEST REWARDS (shared by dialogue-triggered completions and
   //     skill-check-triggered completions in the quest log) ===
@@ -1327,11 +1393,36 @@ function AdventureContent() {
   // the d20 roll. Callers (LocationView, CampScreen, ConfrontationView,
   // DialogueView, travel encounters) pass the design-intent DC; this is
   // the single choke-point where difficulty actually lands on the math.
-  const handleSkillCheck = useCallback((stat: StatName, difficulty: number) => {
+  //
+  // Phase 5 — on SUCCESS, silently credit the Krondor-style usage bucket.
+  // No popup; growth narrates at chapter end via FrogsLedger. Event weight
+  // defaults to 'normal' and can be raised to 'climactic' by callers that
+  // know the roll is quest-critical (not yet threaded upstream — default
+  // is fine for now).
+  const handleSkillCheck = useCallback((stat: StatName, difficulty: number, weight: EventWeight = 'normal') => {
     const tier = adventureState?.gameDifficulty ?? DIFFICULTY_DEFAULT
     const effectiveDC = applyDifficultyToDC(difficulty, tier)
-    return rollSkillCheck(stat, effectiveDC)
-  }, [rollSkillCheck, adventureState?.gameDifficulty])
+    const result = rollSkillCheck(stat, effectiveDC)
+    if (result.success && adventureState) {
+      const currentVal = charState.character?.stats[stat] ?? getStat(stat)
+      const { state: nextProg } = progressionRecordSkillUse(
+        adventureState.skillProgression,
+        {
+          stat,
+          currentStatValue: currentVal,
+          chapter: adventureState.chapter,
+          weight,
+        },
+      )
+      setAdventureState(prev => {
+        if (!prev) return prev
+        const next = { ...prev, skillProgression: nextProg }
+        saveAdventureState(next)
+        return next
+      })
+    }
+    return result
+  }, [rollSkillCheck, adventureState, charState.character, getStat])
 
   // === CHANGE DIFFICULTY ===
   // Persist both to the top-level localStorage key (so the dial reflects
@@ -1469,13 +1560,62 @@ function AdventureContent() {
   }, [addExperience, earnNeutral, modifyStat, modifyReputation, adventureState, updateState])
 
   // === CAMP COMPLETE ===
+  // Phase 5 — camp leaving triggers the Frog's Ledger if there's anything to
+  // narrate. The ledger gates the actual chapter advance; handleLedgerContinue
+  // below is the thing that finally bumps chapter+1. If nothing changed this
+  // chapter (and Diplomacy doesn't decay), skip straight through.
   const handleCampComplete = useCallback(() => {
     if (!adventureState) return
-    const nextChapter = adventureState.chapter + 1
+
+    // Run chapter-boundary bookkeeping: apply Diplomacy decay (if applicable),
+    // reset per-chapter luck credits, and freeze the ledger entries.
+    const currentStats = charState.character?.stats ?? {
+      Shrewdness: 8, Agility: 8, Durability: 8, Diplomacy: 8, Luck: 8, Expertise: 8,
+    }
+    const { state: nextProg, statDeltas, ledgerEntries } = runChapterBoundary({
+      state: adventureState.skillProgression,
+      finishedChapter: adventureState.chapter,
+      currentStats,
+    })
+
+    // Apply any stat deltas (Diplomacy decay) via the character context.
+    for (const [stat, delta] of Object.entries(statDeltas) as [StatName, number][]) {
+      if (delta !== 0) modifyStat(stat, delta)
+    }
+
+    // If there's something to show → display the ledger and defer the
+    // actual chapter-advance to handleLedgerContinue. If not → pass straight
+    // through to the next chapter (legacy behavior).
+    if (ledgerEntries.length > 0) {
+      setAdventureState(prev => {
+        if (!prev) return prev
+        const next = {
+          ...prev,
+          skillProgression: nextProg,
+          frozenLedger: ledgerEntries,
+          showFrogsLedger: true,
+        }
+        saveAdventureState(next)
+        return next
+      })
+      setShowCamp(false)
+      return
+    }
+
+    // No ledger content → advance chapter immediately.
+    advanceToNextChapter(adventureState, nextProg)
+  }, [adventureState, charState.character, modifyStat])
+
+  // Shared chapter-advance helper — used by both the no-ledger fast-path and
+  // the ledger CONTINUE button.
+  const advanceToNextChapter = useCallback((
+    state: AdventureState,
+    newSkillProgression: SkillProgressionState,
+  ) => {
+    const nextChapter = state.chapter + 1
     const defaultLoc = getDefaultLocation(nextChapter)
     const nextLocs = getChapterLocations(nextChapter)
     const defaultDiscoveredIds = nextLocs.filter(l => l.discoveredByDefault).map(l => l.id)
-    // Also discover connectedTo neighbors (fog-of-war fix)
     const neighborIds = new Set(defaultDiscoveredIds)
     for (const locId of defaultDiscoveredIds) {
       const loc = nextLocs.find(l => l.id === locId)
@@ -1483,15 +1623,24 @@ function AdventureContent() {
     }
     const defaultDiscovered = Array.from(neighborIds)
 
-    updateState({
-      chapter: nextChapter,
-      currentLocationId: defaultLoc?.id ?? nextLocs[0]?.id ?? adventureState.currentLocationId,
-      discoveredLocationIds: [
-        ...adventureState.discoveredLocationIds,
-        ...defaultDiscovered,
-      ],
-      visitedLocationIds: [...adventureState.visitedLocationIds, defaultLoc?.id ?? ''],
-      phase: 'exploring',
+    setAdventureState(prev => {
+      if (!prev) return prev
+      const next: AdventureState = {
+        ...prev,
+        chapter: nextChapter,
+        currentLocationId: defaultLoc?.id ?? nextLocs[0]?.id ?? state.currentLocationId,
+        discoveredLocationIds: [
+          ...state.discoveredLocationIds,
+          ...defaultDiscovered,
+        ],
+        visitedLocationIds: [...state.visitedLocationIds, defaultLoc?.id ?? ''],
+        phase: 'exploring',
+        skillProgression: newSkillProgression,
+        frozenLedger: [],
+        showFrogsLedger: false,
+      }
+      saveAdventureState(next)
+      return next
     })
     setShowCamp(false)
 
@@ -1499,7 +1648,13 @@ function AdventureContent() {
       `Chapter ${nextChapter} begins. The road stretches on, indifferent to your hopes.`,
       'observation'
     )
-  }, [adventureState, updateState, narratorComment])
+  }, [narratorComment])
+
+  // Ledger CONTINUE button — completes the deferred chapter-advance.
+  const handleLedgerContinue = useCallback(() => {
+    if (!adventureState) return
+    advanceToNextChapter(adventureState, adventureState.skillProgression)
+  }, [adventureState, advanceToNextChapter])
 
   // === SKILL TREE ===
   const handleUnlockNode = useCallback((nodeId: string) => {
@@ -1872,6 +2027,18 @@ function AdventureContent() {
 
       {/* Narrator Toast */}
       <NarratorToast />
+
+      {/* Phase 5 — Frog's Ledger chapter-end review. Shown after CampScreen
+          is dismissed, gates the actual chapter advance until CONTINUE. */}
+      {adventureState?.showFrogsLedger && (
+        <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <FrogsLedger
+            chapter={adventureState.chapter}
+            entries={adventureState.frozenLedger}
+            onContinue={handleLedgerContinue}
+          />
+        </div>
+      )}
 
       {/* Travel Encounter Overlay */}
       {travelEncounter && (
