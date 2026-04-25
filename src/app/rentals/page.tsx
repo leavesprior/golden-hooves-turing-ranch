@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { useGame } from '@/lib/gameContext'
+import { airbnbBookingLink } from '@/lib/airbnbLink'
 
 const amenities = [
   { icon: '🛏️', name: '6 Bedrooms', desc: 'Sleeps 12 guests' },
@@ -163,7 +164,7 @@ export default function RentalsPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <PixelButton href="https://airbnb.com/h/backofbeyondranch" variant="gold" size="md">
+                  <PixelButton href={airbnbBookingLink('rentals')} variant="gold" size="md">
                     Check Availability
                   </PixelButton>
                   <p className="font-[var(--font-pixel)] text-[6px] text-center text-[var(--pixel-ui-text)]">

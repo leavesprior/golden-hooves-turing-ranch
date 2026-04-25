@@ -10,6 +10,7 @@ import { useRanch } from '../ranchContext'
 import { useChapter } from '../chapterContext'
 import { OUTLAWS } from '../data/outlaws'
 import { type DiscountTier, DISCOUNT_TIERS } from '../data/discountEngine'
+import { airbnbBookingLink } from '@/lib/airbnbLink'
 
 // ============================================================================
 // TYPES
@@ -1061,7 +1062,7 @@ function DiscountPresentation({
           </p>
 
           <a
-            href="https://airbnb.com/h/backofbeyondranch"
+            href={airbnbBookingLink('game')}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block mt-2 text-xs underline transition-colors"
