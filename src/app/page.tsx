@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { KarmaStorage, getAlignmentPosition, getDiscountMultiplier, type AlignmentPosition } from '@/lib/karmaStorage'
 import { trackPageView, trackBookingClick } from '@/lib/eventTracker'
+import { airbnbBookingLink } from '@/lib/airbnbLink'
 
 const cabinPhotos = [
   '/cabin-photos/cabin-1.jpg',
@@ -16,7 +17,10 @@ const cabinPhotos = [
   '/cabin-photos/cabin-8.jpg',
 ]
 
-const AIRBNB_URL = 'https://airbnb.com/h/backofbeyondranch'
+const AIRBNB_HERO_URL = airbnbBookingLink('site')
+const AIRBNB_CTA_URL = airbnbBookingLink('site', 'may2026-cta')
+const AIRBNB_CARD_URL = airbnbBookingLink('site', 'may2026-card')
+const AIRBNB_FOOTER_URL = airbnbBookingLink('footer')
 
 const amenities = [
   { icon: '\u2668\ufe0f', name: 'Hot Tub', desc: 'Soak under the stars' },
@@ -651,10 +655,19 @@ export default function Home() {
 
           <div className="mt-6 flex flex-col items-center gap-5" style={{ animation: 'fadeSlideIn 1s ease-out 0.8s both' }}>
             <span onClick={() => trackBookingClick('hero')}>
-              <PixelButton href={AIRBNB_URL} variant="orange" size="lg">
+              <PixelButton href={AIRBNB_HERO_URL} variant="orange" size="lg">
                 🏨 Book Your Stay
               </PixelButton>
             </span>
+            {/* May availability callout — authoritative, no discount signal */}
+            <div
+              className="font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] tracking-wider border border-[var(--pixel-gold-mid)]/40 bg-black/30 px-3 py-1.5 rounded-sm"
+              aria-label="Availability notice"
+            >
+              <span className="text-[var(--pixel-gold-light)]">May weekdays open</span>
+              <span className="opacity-60"> &middot; </span>
+              <span>Memorial Day weekend booked</span>
+            </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <PixelButton href="/oregon-trail" variant="gold" size="md">
                 ⚔️ Start Quest
@@ -958,7 +971,7 @@ export default function Home() {
                   <span className="adventure-tag bg-[var(--pixel-fire-orange)]/30">Book & Save</span>
                 </div>
                 <span onClick={() => trackBookingClick('cabin-card')}>
-                  <PixelButton href={AIRBNB_URL} variant="orange" size="sm">
+                  <PixelButton href={AIRBNB_CARD_URL} variant="orange" size="sm">
                     Book Stay
                   </PixelButton>
                 </span>
@@ -1051,7 +1064,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <span onClick={() => trackBookingClick('cta-section')}>
-              <PixelButton href={AIRBNB_URL} variant="orange" size="lg">
+              <PixelButton href={AIRBNB_CTA_URL} variant="orange" size="lg">
                 🏨 Book on Airbnb
               </PixelButton>
             </span>
@@ -1169,7 +1182,7 @@ export default function Home() {
             <div className="text-center sm:text-right">
               <h3 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-[9px] mb-2">Connect</h3>
               <div className="font-[var(--font-pixel)] text-[7px] space-y-1">
-                <Link href={AIRBNB_URL} target="_blank" onClick={() => trackBookingClick('footer')} className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Airbnb Listing</Link>
+                <Link href={AIRBNB_FOOTER_URL} target="_blank" onClick={() => trackBookingClick('footer')} className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Airbnb Listing</Link>
                 <Link href="https://x.com/BackBeyondRanch" target="_blank" className="block text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors">Twitter / X</Link>
               </div>
             </div>

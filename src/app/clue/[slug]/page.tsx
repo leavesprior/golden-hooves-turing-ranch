@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { useGame } from '@/lib/gameContext'
 import { getLocationBySlug, locations } from '@/lib/locations'
+import { airbnbBookingLink } from '@/lib/airbnbLink'
 
 export default function CluePage() {
   const params = useParams()
@@ -205,7 +206,7 @@ export default function CluePage() {
                 Book Direct & Save 15%
               </PixelButton>
               <PixelButton
-                href="https://airbnb.com/h/backofbeyondranch"
+                href={airbnbBookingLink('game')}
                 variant="blue"
                 size="sm"
               >
