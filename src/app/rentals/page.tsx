@@ -1,9 +1,23 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { useGame } from '@/lib/gameContext'
 import { airbnbBookingLink } from '@/lib/airbnbLink'
+
+// Real BOBR property photos shipped in /public/cabin-photos.
+// Hero = cabin-1; gallery = the rest. cabin-6 is .png; the rest are .jpg.
+const propertyPhotos = [
+  { src: '/cabin-photos/cabin-1.jpg', alt: 'BOBR exterior with mountain backdrop' },
+  { src: '/cabin-photos/cabin-2.jpg', alt: 'Living room with fireplace' },
+  { src: '/cabin-photos/cabin-3.jpg', alt: 'Hot tub with mountain views' },
+  { src: '/cabin-photos/cabin-4.jpg', alt: 'Game room and billiard table' },
+  { src: '/cabin-photos/cabin-5.jpg', alt: 'Full kitchen, ranch interior' },
+  { src: '/cabin-photos/cabin-6.png', alt: 'Master bedroom with views' },
+  { src: '/cabin-photos/cabin-7.jpg', alt: 'Lake and grounds' },
+  { src: '/cabin-photos/cabin-8.jpg', alt: 'Dining and gathering area' },
+]
 
 const amenities = [
   { icon: '🛏️', name: '6 Bedrooms', desc: 'Sleeps 12 guests' },
@@ -26,8 +40,11 @@ const nearby = [
 export default function RentalsPage() {
   const { getReward, getEarlyReward, gameState } = useGame()
   const [showBookingModal, setShowBookingModal] = useState(false)
+  const [heroIndex, setHeroIndex] = useState(0)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const reward = getReward()
   const earlyReward = getEarlyReward()
+  const hero = propertyPhotos[heroIndex]
 
   return (
     <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
@@ -102,23 +119,76 @@ export default function RentalsPage() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Property Image Placeholder */}
-            <div className="bg-gradient-to-b from-[var(--pixel-sky-dark)] to-[var(--pixel-forest-dark)] border-4 border-[var(--pixel-ui-border)] aspect-video relative overflow-hidden">
-              {/* Pixel art cabin scene */}
-              <div className="absolute inset-0 flex items-end justify-center pb-8">
-                <div className="relative">
-                  <div className="w-48 h-28 bg-[var(--pixel-earth-dark)] relative">
-                    <div className="absolute -top-14 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[100px] border-r-[100px] border-b-[55px] border-l-transparent border-r-transparent border-b-[var(--pixel-earth-mid)]" />
-                    <div className="absolute top-4 left-4 w-10 h-10 bg-[var(--pixel-cabin-window)] shadow-[0_0_20px_var(--pixel-cabin-glow)]" />
-                    <div className="absolute top-4 right-4 w-10 h-10 bg-[var(--pixel-cabin-window)] shadow-[0_0_20px_var(--pixel-cabin-glow)]" />
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-16 bg-[var(--pixel-earth-mid)]" />
-                  </div>
+            {/* Property Hero + Gallery */}
+            <div>
+              <button
+                onClick={() => setLightboxOpen(true)}
+                className="block w-full bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-ui-border)] aspect-video relative overflow-hidden cursor-zoom-in group"
+                aria-label="Open full-size photo"
+              >
+                <Image
+                  src={hero.src}
+                  alt={hero.alt}
+                  fill
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  sizes="(max-width: 1024px) 100vw, 800px"
+                  priority
+                />
+                <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] pointer-events-none">
+                  {heroIndex + 1} / {propertyPhotos.length} · click to enlarge
                 </div>
-              </div>
-              <div className="absolute bottom-4 left-4 font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
-                📸 Gallery coming soon
+              </button>
+
+              {/* Thumbnail strip */}
+              <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 mt-3">
+                {propertyPhotos.map((p, i) => (
+                  <button
+                    key={p.src}
+                    onClick={() => setHeroIndex(i)}
+                    className={`relative aspect-square border-2 overflow-hidden transition-all ${
+                      i === heroIndex
+                        ? 'border-[var(--pixel-gold-light)] shadow-[0_0_8px_var(--pixel-gold-mid)]'
+                        : 'border-[var(--pixel-ui-border)] opacity-70 hover:opacity-100'
+                    }`}
+                    aria-label={`View photo ${i + 1}: ${p.alt}`}
+                  >
+                    <Image
+                      src={p.src}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="100px"
+                    />
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* Lightbox */}
+            {lightboxOpen && (
+              <div
+                onClick={() => setLightboxOpen(false)}
+                className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+                role="dialog"
+                aria-label="Photo lightbox"
+              >
+                <div className="relative w-full max-w-5xl aspect-[3/2]">
+                  <Image
+                    src={hero.src}
+                    alt={hero.alt}
+                    fill
+                    className="object-contain"
+                    sizes="90vw"
+                  />
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setLightboxOpen(false) }}
+                  className="absolute top-4 right-4 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-light)] px-3 py-1 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]"
+                >
+                  Close
+                </button>
+              </div>
+            )}
 
             {/* Amenities */}
             <PixelCard title="✨ Amenities">
