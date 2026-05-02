@@ -4,9 +4,30 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+import { ClueSceneV2 } from '@/components/clue/ClueSceneV2'
 import { useGame } from '@/lib/gameContext'
 import { getLocationBySlug, locations, EARLY_DISCOUNT_MARKER, EARLY_DISCOUNT_VALID_DAYS } from '@/lib/locations'
 import { airbnbBookingLink } from '@/lib/airbnbLink'
+
+// Per-marker backdrop photo. All 14 are scene-specific renders tied to that
+// marker's canon beat. To swap a backdrop later, drop a new file at
+// /public/scene-backdrops/<slug>.jpg and update this map.
+const BACKDROP_BY_SLUG: Record<string, string> = {
+  welcome: '/scene-backdrops/welcome.jpg',
+  'hot-tub': '/scene-backdrops/hot-tub.jpg',
+  'game-room': '/scene-backdrops/game-room.jpg',
+  piano: '/scene-backdrops/piano.jpg',
+  fireplace: '/scene-backdrops/fireplace.jpg',
+  lake: '/scene-backdrops/lake.jpg',
+  bedroom: '/scene-backdrops/bedroom.jpg',
+  kitchen: '/scene-backdrops/kitchen.jpg',
+  deck: '/scene-backdrops/deck.jpg',
+  'ev-charger': '/scene-backdrops/ev-charger.jpg',
+  trail: '/scene-backdrops/trail.jpg',
+  'gold-history': '/scene-backdrops/gold-history.jpg',
+  stars: '/scene-backdrops/stars.jpg',
+  final: '/scene-backdrops/final.jpg',
+}
 
 export default function CluePage() {
   const params = useParams()
@@ -99,30 +120,23 @@ export default function CluePage() {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Location Header */}
-        <div className="text-center mb-8">
-          <div className="text-4xl mb-4">{location.icon}</div>
-          <h1 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-sm sm:text-lg mb-2">
-            {location.name}
-          </h1>
-          <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
-            Location {location.id} of 14
-          </p>
-        </div>
+      <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+        {/* Scene — real-photo backdrop + Tobias portrait + dialogue UI */}
+        <ClueSceneV2
+          backdropSrc={BACKDROP_BY_SLUG[slug] ?? '/cabin-photos/cabin-1.jpg'}
+          backdropAlt={`${location.name} — Back of Beyond Ranch`}
+          locationTitle={location.name.toUpperCase()}
+          locationNumber={location.id}
+          locationTotal={14}
+          dialogueText={location.storyFragment}
+          pointsEarned={discovered ? pointsEarned : undefined}
+        />
 
-        {/* Discovery Status */}
-        {gameState === 'playing' && (discovered || alreadyDiscovered) && (
-          <div className="bg-[var(--pixel-forest-dark)] border-4 border-[var(--pixel-forest-mid)] p-4 mb-6 text-center">
+        {/* Already-discovered sub-status — only when revisiting a previously found marker */}
+        {gameState === 'playing' && alreadyDiscovered && !discovered && (
+          <div className="bg-[var(--pixel-forest-dark)] border-4 border-[var(--pixel-forest-mid)] p-3 text-center">
             <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-forest-light)]">
-              {discovered ? (
-                <>
-                  <span className="text-[var(--pixel-gold-light)]">+{pointsEarned} POINTS!</span>
-                  <br />Location Discovered!
-                </>
-              ) : (
-                'Already Discovered'
-              )}
+              You&apos;ve already visited {location.name}.
             </p>
           </div>
         )}
@@ -185,13 +199,6 @@ export default function CluePage() {
             </div>
           )
         })()}
-
-        {/* Story Fragment */}
-        <PixelCard title="The Story Unfolds...">
-          <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed text-[var(--pixel-ui-text)] whitespace-pre-line">
-            {location.storyFragment}
-          </p>
-        </PixelCard>
 
         {/* Practical Info */}
         <PixelCard title="Good to Know">
