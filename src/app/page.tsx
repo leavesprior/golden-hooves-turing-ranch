@@ -1189,7 +1189,7 @@ export default function Home() {
           </div>
           <div className="border-t border-[var(--pixel-ui-border)]/30 pt-4 text-center">
             <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-60">
-              &copy; 2025 Back of Beyond Ranch &middot; Murphys, CA &middot; Gold Country
+              &copy; 2026 Back of Beyond Ranch &middot; Murphys, CA &middot; Gold Country
             </p>
           </div>
         </div>

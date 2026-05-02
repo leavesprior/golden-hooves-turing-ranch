@@ -44,7 +44,7 @@ export default function RentalsPage() {
               Use code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{reward.code}</span>
             </p>
             <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] mt-2">
-              Email <span className="text-[var(--pixel-gold-light)]">contact@backofbeyondranch.farm</span> when booking direct to redeem.
+              Email <a href="mailto:contact@backofbeyondranch.farm" className="text-[var(--pixel-gold-light)] underline hover:text-[var(--pixel-gold-mid)]">contact@backofbeyondranch.farm</a> when booking direct to redeem.
             </p>
           </div>
         )}
@@ -59,7 +59,7 @@ export default function RentalsPage() {
               Code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{earlyReward.code}</span>
             </p>
             <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] mt-2">
-              Email <span className="text-[var(--pixel-gold-light)]">contact@backofbeyondranch.farm</span> to redeem.
+              Email <a href="mailto:contact@backofbeyondranch.farm" className="text-[var(--pixel-gold-light)] underline hover:text-[var(--pixel-gold-mid)]">contact@backofbeyondranch.farm</a> to redeem.
             </p>
             <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-forest-light)] mt-2">
               Expires {earlyReward.expiresAt.toLocaleDateString()} — finish the quest for up to 27% OFF.
@@ -240,7 +240,7 @@ export default function RentalsPage() {
             <PixelCard title="📞 Questions?">
               <div className="font-[var(--font-pixel)] text-[8px] space-y-2">
                 <p>We respond within 1 hour</p>
-                <p className="text-[var(--pixel-gold-light)]">contact@backofbeyondranch.farm</p>
+                <p><a href="mailto:contact@backofbeyondranch.farm" className="text-[var(--pixel-gold-light)] underline hover:text-[var(--pixel-gold-mid)]">contact@backofbeyondranch.farm</a></p>
               </div>
             </PixelCard>
           </div>

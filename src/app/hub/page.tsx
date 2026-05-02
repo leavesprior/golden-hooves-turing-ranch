@@ -354,7 +354,7 @@ export default function HubPage() {
                 description="Crossroads tavern connecting all adventures"
                 href="/oregon-trail"
                 icon={'\uD83C\uDFE8'}
-                available={true}
+                available={false}
                 comingSoon={true}
                 features={['NPCs', 'Side Quests']}
               />

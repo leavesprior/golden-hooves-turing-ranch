@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePrologue, type PrologueCharacterId } from './prologueContext'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import { BookingGate } from '@/components/game/BookingGate'
+import { PixelNavigation } from '@/components/pixel'
 
 const CHARACTERS: {
   id: PrologueCharacterId
@@ -83,6 +84,7 @@ export default function ProloguePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-950 via-black to-purple-950">
+      <PixelNavigation />
       {/* Header */}
       <header className="border-b-2 border-purple-700 bg-indigo-950/50 px-4 py-6">
         <div className="max-w-4xl mx-auto flex items-center justify-between">

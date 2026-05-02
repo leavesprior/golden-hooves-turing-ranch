@@ -128,7 +128,13 @@ export default function CluePage() {
           locationTitle={location.name.toUpperCase()}
           locationNumber={location.id}
           locationTotal={14}
-          dialogueText={location.storyFragment}
+          // Final-marker storyFragment IS the quest reveal — gate it so direct
+          // visits / cross-difficulty players don't see the spoiler before completing.
+          dialogueText={
+            slug === 'final' && !isComplete && !alreadyDiscovered
+              ? 'Complete the quest to discover what Tobias hid here.'
+              : location.storyFragment
+          }
           pointsEarned={discovered ? pointsEarned : undefined}
         />
 
@@ -237,7 +243,7 @@ export default function CluePage() {
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <PixelButton href="/rentals" variant="orange" size="sm">
-                Book Direct & Save 15%
+                Book Direct & Save 10%
               </PixelButton>
               <PixelButton
                 href={airbnbBookingLink('game')}

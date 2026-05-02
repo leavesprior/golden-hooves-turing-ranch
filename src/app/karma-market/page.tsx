@@ -10,6 +10,7 @@ import { DonationPanel } from './components/DonationPanel'
 import { AnimalTreatsStore } from './components/AnimalTreatsStore'
 import { MomentoCollection } from './components/MomentoCollection'
 import { ConsensusIndicator } from './components/ConsensusIndicator'
+import { PixelNavigation } from '@/components/pixel'
 
 type MarketTab = 'market' | 'donate' | 'treats' | 'momentos'
 
@@ -33,6 +34,7 @@ export default function KarmaMarketPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-950 via-amber-900 to-amber-950">
+      <PixelNavigation />
       {/* Header */}
       <header className="border-b-4 border-amber-600 bg-amber-900/50 px-4 py-4">
         <div className="max-w-2xl mx-auto">

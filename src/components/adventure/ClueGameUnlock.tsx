@@ -39,6 +39,10 @@ export function ClueGameUnlock({
 
   const handleUnlock = () => {
     CrossGameStorage.recordMilestone('clue_game_unlocked', 'clue_game')
+    // Also write the legacy key so /clue-game (which only reads this) actually unlocks.
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bobr_clue_game_unlocked', 'true')
+    }
     setUnlocked(true)
   }
 

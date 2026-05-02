@@ -86,7 +86,9 @@ function loadAdventureState(): AdventureState | null {
     // Migrate older saves missing new fields
     return {
       ...parsed,
-      playStartTime: parsed.playStartTime || Date.now(),
+      // Reset playStartTime on each load so the Reward Tracker measures THIS
+      // session's active time, not total elapsed real-time across days/weeks.
+      playStartTime: Date.now(),
       cluesAnswered: parsed.cluesAnswered ?? 0,
       welcomeRewardClaimed: parsed.welcomeRewardClaimed ?? false,
       confrontationsWon: parsed.confrontationsWon ?? 0,

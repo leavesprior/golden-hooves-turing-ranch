@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { PixelNavigation } from '@/components/pixel';
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -323,6 +324,7 @@ export default function WorkerPage() {
 
   return (
     <div style={S.page}>
+      <PixelNavigation />
       {/* Toast */}
       {toast && (
         <div style={{ position: 'fixed', bottom: '1.25rem', left: '50%', transform: 'translateX(-50%)', background: '#1e293b', color: 'white', padding: '0.65rem 1.25rem', borderRadius: 8, fontWeight: 600, fontSize: '0.9rem', zIndex: 9999, whiteSpace: 'nowrap' }}>
