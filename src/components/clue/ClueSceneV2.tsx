@@ -120,8 +120,9 @@ export function ClueSceneV2({
           <div className="font-[var(--font-pixel)] text-[10px] sm:text-xs text-[var(--pixel-gold-mid)] mb-2 sm:mb-3">
             Location {locationNumber} of {locationTotal}
           </div>
-          {/* Story fragment */}
-          <p className="font-[var(--font-pixel)] text-[11px] sm:text-sm leading-relaxed text-[var(--pixel-ui-text)]">
+          {/* Story fragment / dialogue (whitespace-pre-line lets multi-step
+              dialogue migrations pass joined lines with paragraph breaks) */}
+          <p className="font-[var(--font-pixel)] text-[11px] sm:text-sm leading-relaxed text-[var(--pixel-ui-text)] whitespace-pre-line">
             {dialogueText}
           </p>
           {children}
