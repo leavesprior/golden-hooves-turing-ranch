@@ -1,7 +1,16 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { Location, locations, getLocationsForDifficulty, calculateRewardTier } from './locations'
+import {
+  Location,
+  locations,
+  getLocationsForDifficulty,
+  calculateRewardTier,
+  generateEarlyDiscountCode,
+  EARLY_DISCOUNT_MARKER,
+  EARLY_DISCOUNT_PERCENT,
+  EARLY_DISCOUNT_VALID_DAYS,
+} from './locations'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 export type GameState = 'menu' | 'playing' | 'complete'
@@ -14,6 +23,16 @@ interface GameSession {
   discoveredLocations: string[]
   hintsUsed: number
   score: number
+  earlyDiscountCode?: string
+  earlyDiscountIssuedAt?: Date
+}
+
+export interface EarlyReward {
+  tier: 'early'
+  discount: number
+  code: string
+  issuedAt: Date
+  expiresAt: Date
 }
 
 interface GameContextType {
@@ -25,11 +44,12 @@ interface GameContextType {
 
   // Actions
   startGame: (difficulty: Difficulty, playerName?: string) => void
-  discoverLocation: (slug: string) => { success: boolean; points: number; isComplete: boolean }
+  discoverLocation: (slug: string) => { success: boolean; points: number; isComplete: boolean; earlyUnlocked: boolean }
   useHint: () => string | null
   resetGame: () => void
   getProgress: () => { found: number; total: number; percent: number }
   getReward: () => { tier: string; discount: number; code: string } | null
+  getEarlyReward: () => EarlyReward | null
 
   // Player
   playerName: string
@@ -57,7 +77,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         setSession({
           ...parsed,
           startedAt: new Date(parsed.startedAt),
-          completedAt: parsed.completedAt ? new Date(parsed.completedAt) : undefined
+          completedAt: parsed.completedAt ? new Date(parsed.completedAt) : undefined,
+          earlyDiscountIssuedAt: parsed.earlyDiscountIssuedAt ? new Date(parsed.earlyDiscountIssuedAt) : undefined
         })
         setAvailableLocations(getLocationsForDifficulty(parsed.difficulty))
         setGameState(parsed.completedAt ? 'complete' : 'playing')
@@ -94,18 +115,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (name) setPlayerName(name)
   }
 
-  const discoverLocation = (slug: string): { success: boolean; points: number; isComplete: boolean } => {
-    if (!session) return { success: false, points: 0, isComplete: false }
+  const discoverLocation = (slug: string): { success: boolean; points: number; isComplete: boolean; earlyUnlocked: boolean } => {
+    if (!session) return { success: false, points: 0, isComplete: false, earlyUnlocked: false }
 
     // Check if already discovered
     if (session.discoveredLocations.includes(slug)) {
-      return { success: false, points: 0, isComplete: false }
+      return { success: false, points: 0, isComplete: false, earlyUnlocked: false }
     }
 
     // Find the location
     const location = availableLocations.find(loc => loc.slug === slug)
     if (!location) {
-      return { success: false, points: 0, isComplete: false }
+      return { success: false, points: 0, isComplete: false, earlyUnlocked: false }
     }
 
     // Calculate points with time bonus
@@ -117,18 +138,31 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const newDiscovered = [...session.discoveredLocations, slug]
     const isComplete = newDiscovered.length >= availableLocations.length
 
+    // Early-bird discount fires the first time the player crosses the marker threshold.
+    // Issued only once per session — preserved through completion so the rewards page can show both.
+    const shouldIssueEarly =
+      newDiscovered.length >= EARLY_DISCOUNT_MARKER && !session.earlyDiscountCode
+    const earlyDiscountCode = shouldIssueEarly
+      ? generateEarlyDiscountCode()
+      : session.earlyDiscountCode
+    const earlyDiscountIssuedAt = shouldIssueEarly
+      ? new Date()
+      : session.earlyDiscountIssuedAt
+
     setSession({
       ...session,
       discoveredLocations: newDiscovered,
       score: session.score + points,
-      completedAt: isComplete ? new Date() : undefined
+      completedAt: isComplete ? new Date() : undefined,
+      earlyDiscountCode,
+      earlyDiscountIssuedAt,
     })
 
     if (isComplete) {
       setGameState('complete')
     }
 
-    return { success: true, points, isComplete }
+    return { success: true, points, isComplete, earlyUnlocked: shouldIssueEarly }
   }
 
   const useHint = (): string | null => {
@@ -173,6 +207,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  const getEarlyReward = (): EarlyReward | null => {
+    if (!session || !session.earlyDiscountCode || !session.earlyDiscountIssuedAt) return null
+    const expiresAt = new Date(session.earlyDiscountIssuedAt)
+    expiresAt.setDate(expiresAt.getDate() + EARLY_DISCOUNT_VALID_DAYS)
+    return {
+      tier: 'early',
+      discount: EARLY_DISCOUNT_PERCENT,
+      code: session.earlyDiscountCode,
+      issuedAt: session.earlyDiscountIssuedAt,
+      expiresAt,
+    }
+  }
+
   const currentLocationIndex = session ? session.discoveredLocations.length : 0
 
   if (!mounted) return null
@@ -190,6 +237,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         resetGame,
         getProgress,
         getReward,
+        getEarlyReward,
         playerName,
         setPlayerName
       }}

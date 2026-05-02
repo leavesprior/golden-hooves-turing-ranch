@@ -41,14 +41,14 @@ export default function GamePage() {
 
   const handleMenuSelect = (index: number) => {
     switch (index) {
-      case 0: // New Game — character creation first
+      case 0: // QR Treasure Hunt at the Ranch — primary
+        setCurrentView('qr-hunt')
+        break
+      case 1: // Adventure RPG — character creation
         window.location.href = '/adventure/character-creation'
         break
-      case 1: // Continue — straight to adventure
+      case 2: // Continue Adventure RPG
         window.location.href = '/adventure/play'
-        break
-      case 2: // At the Ranch
-        setCurrentView('qr-hunt')
         break
       case 3: // About
         setCurrentView('about')
@@ -57,9 +57,9 @@ export default function GamePage() {
   }
 
   const menuItems = [
-    { label: 'NEW GAME', icon: '/gold-nuggets.png', desc: 'Forge your destiny' },
-    { label: 'CONTINUE', icon: '/leather-journal.png', desc: 'Resume your adventure' },
-    { label: 'AT THE RANCH', icon: '/pegasus-logo.webp', desc: 'QR treasure hunt' },
+    { label: 'TREASURE HUNT', icon: '/pegasus-logo.webp', desc: 'Find Tobias’ 14 clues — earn discounts off your stay' },
+    { label: 'ADVENTURE RPG', icon: '/gold-nuggets.png', desc: 'Forge your Gold Country destiny' },
+    { label: 'CONTINUE ADVENTURE', icon: '/leather-journal.png', desc: 'Resume your RPG run' },
     { label: 'ABOUT', icon: '/treasure-map.png', desc: 'The story so far' },
   ]
 

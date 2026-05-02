@@ -24,9 +24,10 @@ const nearby = [
 ]
 
 export default function RentalsPage() {
-  const { getReward, gameState } = useGame()
+  const { getReward, getEarlyReward, gameState } = useGame()
   const [showBookingModal, setShowBookingModal] = useState(false)
   const reward = getReward()
+  const earlyReward = getEarlyReward()
 
   return (
     <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
@@ -40,7 +41,28 @@ export default function RentalsPage() {
               Quest Complete! You earned <span className="text-[var(--pixel-gold-light)]">{reward.discount}% OFF</span>
             </p>
             <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mt-2">
-              Use code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{reward.code}</span> when booking
+              Use code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{reward.code}</span>
+            </p>
+            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] mt-2">
+              Email <span className="text-[var(--pixel-gold-light)]">contact@backofbeyondranch.farm</span> when booking direct to redeem.
+            </p>
+          </div>
+        )}
+
+        {/* Early-Bird Banner — visible mid-game until quest is completed */}
+        {gameState !== 'complete' && earlyReward && (
+          <div className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-gold-mid)] p-4 mb-6 text-center">
+            <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
+              Early-Bird Unlocked: <span className="text-[var(--pixel-fire-orange)]">{earlyReward.discount}% OFF</span> your next direct stay
+            </p>
+            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] mt-2">
+              Code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{earlyReward.code}</span>
+            </p>
+            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] mt-2">
+              Email <span className="text-[var(--pixel-gold-light)]">contact@backofbeyondranch.farm</span> to redeem.
+            </p>
+            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-forest-light)] mt-2">
+              Expires {earlyReward.expiresAt.toLocaleDateString()} — finish the quest for up to 27% OFF.
             </p>
           </div>
         )}

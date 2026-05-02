@@ -258,6 +258,25 @@ export function getLocationsForDifficulty(difficulty: 'easy' | 'medium' | 'hard'
   return locations.slice(0, counts[difficulty])
 }
 
+// Early-bird discount unlocks at marker 4 (~29% through Hard, ~50% Medium, 80% Easy).
+// Decision locked 2026-04-26 from Grok + GPT-5.5 (Thinking) consult — both verdicts agreed
+// on Marker 4. Sized at 5% so it's a "thank you" that does not cannibalize the Silver+
+// completion tiers (10–20% bonus). Codes are valid 30 days from issue.
+export const EARLY_DISCOUNT_MARKER = 4
+export const EARLY_DISCOUNT_PERCENT = 5
+export const EARLY_DISCOUNT_VALID_DAYS = 30
+
+export function generateEarlyDiscountCode(): string {
+  // Alphabet excludes ambiguous chars (0/O, 1/I/L) so guests can't misread
+  // the code when typing it into an email to redeem.
+  const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+  let suffix = ''
+  for (let i = 0; i < 6; i++) {
+    suffix += alphabet[Math.floor(Math.random() * alphabet.length)]
+  }
+  return `BOBR-EARLY-${suffix}`
+}
+
 // Calculate reward tier based on completion
 export function calculateRewardTier(
   locationsFound: number,

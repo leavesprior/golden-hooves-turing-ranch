@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { useGame } from '@/lib/gameContext'
-import { getLocationBySlug, locations } from '@/lib/locations'
+import { getLocationBySlug, locations, EARLY_DISCOUNT_MARKER, EARLY_DISCOUNT_VALID_DAYS } from '@/lib/locations'
 import { airbnbBookingLink } from '@/lib/airbnbLink'
 
 export default function CluePage() {
@@ -14,12 +14,13 @@ export default function CluePage() {
   const slug = params.slug as string
   const location = getLocationBySlug(slug)
 
-  const { gameState, session, discoverLocation, availableLocations, startGame } = useGame()
+  const { gameState, session, discoverLocation, availableLocations, startGame, getEarlyReward } = useGame()
 
   const [discovered, setDiscovered] = useState(false)
   const [pointsEarned, setPointsEarned] = useState(0)
   const [showConfetti, setShowConfetti] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
+  const [earlyJustUnlocked, setEarlyJustUnlocked] = useState(false)
 
   // Check if already discovered
   const alreadyDiscovered = session?.discoveredLocations.includes(slug) || false
@@ -36,6 +37,7 @@ export default function CluePage() {
           setPointsEarned(result.points)
           setShowConfetti(true)
           setIsComplete(result.isComplete)
+          setEarlyJustUnlocked(result.earlyUnlocked)
 
           // Play sound effect
           if (location.soundEffect) {
@@ -158,6 +160,31 @@ export default function CluePage() {
             </div>
           </PixelCard>
         )}
+
+        {/* Early-Bird Discount Unlock — fires once at marker 4 */}
+        {earlyJustUnlocked && !isComplete && (() => {
+          const early = getEarlyReward()
+          if (!early) return null
+          return (
+            <div className="bg-gradient-to-r from-[var(--pixel-gold-dark)] via-[var(--pixel-fire-orange)] to-[var(--pixel-gold-dark)] border-4 border-[var(--pixel-gold-mid)] p-6 my-6 text-center">
+              <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-3">
+                EARLY-BIRD UNLOCK!
+              </p>
+              <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] mb-4">
+                You've found {EARLY_DISCOUNT_MARKER} markers. Tobias tips his hat — here's <span className="text-[var(--pixel-ui-text)]">{early.discount}% OFF</span> your next direct stay.
+              </p>
+              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mb-2">
+                Code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{early.code}</span>
+              </p>
+              <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)]">
+                Email <span className="text-[var(--pixel-gold-light)]">contact@backofbeyondranch.farm</span> to redeem on your next direct booking.
+              </p>
+              <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] mt-1">
+                Valid {EARLY_DISCOUNT_VALID_DAYS} days — finish the quest for a bigger reward.
+              </p>
+            </div>
+          )
+        })()}
 
         {/* Story Fragment */}
         <PixelCard title="The Story Unfolds...">
