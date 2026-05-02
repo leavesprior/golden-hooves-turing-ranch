@@ -276,11 +276,13 @@ export default function HubPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <GameCard
                 title="Mystery Game"
-                description="Solve crimes in Gold Country and earn discounts"
-                href="https://bobr-mystery-game.pages.dev"
+                description="A hidden quest waits for guests at the ranch"
+                href="/clue-game"
                 icon="🔍"
                 available={true}
-                features={['Black Bart', 'Evidence', 'Discounts']}
+                locked={true}
+                lockHint="Find the key during your stay"
+                features={['Hidden', 'Guests Only', 'Discounts']}
               />
               <GameCard
                 title="Gold Country Explorer"
