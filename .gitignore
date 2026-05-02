@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .grepai/
+
+# Copyrighted soundtrack uploads (root-owned, ~316MB) — kept on-disk for
+# local development but never committed.
+public/rpg/sounds/parov/
+public/rpg/sounds/western/

@@ -66,7 +66,7 @@ export function ClueSceneV2({
     ? 'bg-gradient-to-t from-black/40 via-transparent to-transparent'
     : 'bg-gradient-to-t from-black/70 via-transparent to-transparent'
   return (
-    <div className="relative w-full max-w-5xl mx-auto aspect-[16/10] overflow-hidden border-4 border-[var(--pixel-ui-border)] shadow-2xl">
+    <div className="relative w-full max-w-5xl mx-auto aspect-video overflow-hidden border-4 border-[var(--pixel-ui-border)] shadow-2xl">
       {/* Backdrop */}
       <Image
         src={backdropSrc}
