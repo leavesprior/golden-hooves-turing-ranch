@@ -95,20 +95,34 @@ Providers wrap in specific order — changing order breaks state:
 6. **Lint policy**: 0 errors allowed. Warnings are acceptable (mostly react-hooks/exhaustive-deps).
 7. **Branch naming**: `feat/`, `fix/`, `deploy/` prefixes.
 
-## Current State (2026-02-27)
+## Game Cohesion Contract
 
-### Deployed (origin/main @ 8409df4, 2026-02-27)
-Full feature set live on Railway:
-- 10 DOS improvements, cross-game karma, Twain narrator, historical content
-- Chapters, towns, journal, visual enhancements, interaction depth
-- Stackable timed buffs + active effects strip
-- Personality-based NPC loyalty, wagon repair, special item effects
-- Unified game layer (cross-mode narrator, ShareLegacy, ExplorationMap)
-- Gameplay polish (talk bubble reset, save fallback, 30% event rate)
+**Read before touching any game route** (`/game`, `/clue/*`, `/adventure/*`, `/oregon-trail`, `/prologue`, `/karma-market`, `/clue-game`, `/explore`, `/ranch-treasure-hunt`):
+- `~/Documents/BOBR/marketing/BOBR_GAME_CONTINUITY_ARCHITECTURE_20260502.md` — 5 grammars (character / color / UI / sound / world) + 3 cross-game guarantees. New scenes compose from `ClueSceneV2`, route assets through `BACKDROP_BY_SLUG` / `SPRITE_BY_CHARACTER`, and cross-game state goes through `crossGameProgressionContext` (dual-written to legacy localStorage keys).
 
-### Unmerged Branch
-- `feat/neoma-dual-mode-chat` — has dialogueTrees, dreamingEngine, expanded liveNeomaContext
-- **Do NOT merge directly** — it's behind main and would delete newer work. Cherry-pick only.
+## Current State (2026-05-03)
+
+### Deployed (origin/main @ 4b9dd33, 2026-05-02)
+Recent shipped wave (May 2 session):
+- Visual upgrade on `/clue/[slug]` — real-photo backdrops + Tobias portrait + JRPG dialogue UI (`b87e770`)
+- Marker-4 early-bird `BOBR-EARLY` direct-booking discount unlock (`8fd6b11`)
+- ClueGameUnlock migrated to `ClueSceneV2` — first cross-game cohesion proof (`4b9dd33`)
+- Adventure error boundary + `ClueSceneV2` 16:9 + ignore copyrighted music (`eeddd0e`)
+- Real property photo gallery + lightbox on `/rentals` (8 photos, `cb9b34d`)
+- 8-bug bundle — unlock-path repairs + UX cleanups (`34674d4`)
+- Hub: Mystery Game card locked — broken external URL → hidden Easter-egg (`bf0a789`)
+- UTM-tag booking links + May availability hero callout (`c9d0033`)
+- Acreage corrected to 60 site-wide + Matterport iframe `allow` (`88d5e01`)
+- Matterport 3D walkaround on homepage (`ea3b268`)
+
+Earlier baseline still live: 10 DOS improvements, cross-game karma, Twain narrator, historical chapters/towns/journal, stackable timed buffs + active effects strip, personality-based NPC loyalty, wagon repair, ShareLegacy, ExplorationMap.
+
+### Stale branches (do not revive)
+- `feat/game-facelift` — DELETED 2026-05-03 (local + origin). Marker-4 + visual upgrade re-coded onto main as `8fd6b11` / `b87e770` / `4b9dd33` / `eeddd0e`.
+- `feat/neoma-dual-mode-chat` — has dialogueTrees, dreamingEngine, expanded liveNeomaContext. **Do NOT merge directly** — it's behind main and would delete newer work. Cherry-pick only.
+
+### Open audit findings (2026-05-03)
+Navigation bypass audit found gates are client-side only — direct URL typing or localStorage forgery defeats most progression locks (`/prologue/[character]/play`, `/clue-game`, `/adventure/play` ch5, `/ranch-treasure-hunt`, marker-4 `BOBR-EARLY` redemption). No `middleware.ts`, `PixelNavigation` exposes all routes regardless of progress. Tier-1 client-side redirect guards (small patch) and Tier-2 server-side `middleware.ts` + Supabase milestone signing (Grok-before required) both pending greenlight.
 
 ### Standing Goal: DECOMPOSE BEFORE NEXT FEATURES
 The codebase has drifted from Turing's small machine principle. Before adding new features, decompose:
