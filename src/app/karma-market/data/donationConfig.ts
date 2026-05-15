@@ -118,7 +118,7 @@ export function generateConfirmationCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // No ambiguous chars
   let code = 'BOBR-'
   for (let i = 0; i < 4; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)]
+    code += chars[Math.floor(Math.random() * chars.length)] // safe-mint: donation receipt confirmation, not a monetary reward
   }
   return code
 }

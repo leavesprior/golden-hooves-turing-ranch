@@ -39,7 +39,7 @@ export function EventScreen({ setLastStatVariant }: EventScreenProps) {
     // SPECIAL HANDLING: Panning for gold uses dice roll + Luck
     if (state.currentEvent.id === 'found_gold' && choiceId === 'pan') {
       const luck = getStat('Luck')
-      const roll = Math.floor(Math.random() * 20) + 1  // d20
+      const roll = Math.floor(Math.random() * 20) + 1  // d20 // safe-mint: game-event roll, not a booking code
       const luckBonus = Math.floor((luck - 10) / 2)    // D&D-style modifier
       const total = roll + luckBonus
 
@@ -54,15 +54,15 @@ export function EventScreen({ setLastStatVariant }: EventScreenProps) {
         comment("The narrator has witnessed many fortunes found and lost. This one sparkles with promise.", 'observation')
       } else if (total >= 18) {
         // Excellent find
-        reward = 60 + Math.floor(Math.random() * 30)
+        reward = 60 + Math.floor(Math.random() * 30) // safe-mint: in-game taco reward only, not redeemable value
         message = `Excellent! You find several quality nuggets! (+${reward}🌮)`
       } else if (total >= 12) {
         // Decent find
-        reward = 25 + Math.floor(Math.random() * 20)
+        reward = 25 + Math.floor(Math.random() * 20) // safe-mint: in-game taco reward only, not redeemable value
         message = `Not bad! You find some flakes and a small nugget. (+${reward}🌮)`
       } else if (total >= 6) {
         // Poor find
-        reward = 5 + Math.floor(Math.random() * 10)
+        reward = 5 + Math.floor(Math.random() * 10) // safe-mint: in-game taco reward only, not redeemable value
         message = `Slim pickings. Just a few flakes of color. (+${reward}🌮)`
       } else {
         // Nothing
