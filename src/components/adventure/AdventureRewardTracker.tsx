@@ -39,8 +39,6 @@ const EXTENDED_TIERS: Record<ExtendedTier, ExtendedTierInfo> = {
   platinum: { ...DISCOUNT_TIERS.platinum, badge: '\uD83D\uDC8E' },
 }
 
-const CODES_STORAGE_KEY = 'adventure_discount_codes'
-
 export default function AdventureRewardTracker({
   locationsVisited,
   totalLocations,
@@ -52,16 +50,7 @@ export default function AdventureRewardTracker({
   const { getDiscountMultiplier, getAlignmentDisplayName } = useKarmaWallet()
   const { getCorrectClueCount, getCurrentDiscountTier, state: mysteryState } = useMystery()
 
-  // Load earned codes synchronously from localStorage to avoid race condition
-  const [earnedCodes, setEarnedCodes] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return []
-    try {
-      const stored = localStorage.getItem(CODES_STORAGE_KEY)
-      return stored ? JSON.parse(stored) : []
-    } catch { return [] }
-  })
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
-  const [copiedCode, setCopiedCode] = useState<string | null>(null)
   const [hasCheckedWelcome, setHasCheckedWelcome] = useState(false)
 
   const mysteryClues = getCorrectClueCount()
@@ -83,51 +72,13 @@ export default function AdventureRewardTracker({
 
   const currentTier = getCurrentTier()
 
-  // Generate discount code
-  const generateCode = useCallback((tier: ExtendedTier): string => {
-    const tierInfo = EXTENDED_TIERS[tier]
-    const timestamp = Math.floor(Date.now() / 1000)
-    const signature = Math.random().toString(36).substring(2, 6).toUpperCase()
-    return `TOBIAS-${tierInfo.prefix}${tierInfo.discount.toString().padStart(2, '0')}-${timestamp}-${signature}`
-  }, [])
-
-  // Persist codes helper
-  const persistCodes = useCallback((codes: string[]) => {
-    try { localStorage.setItem(CODES_STORAGE_KEY, JSON.stringify(codes)) } catch {}
-  }, [])
-
   // Check for Welcome tier achievement
   useEffect(() => {
     if (!hasCheckedWelcome && welcomeEligible) {
       setHasCheckedWelcome(true)
-      const hasWelcomeCode = earnedCodes.some(code => code.includes('-W05-'))
-      if (!hasWelcomeCode) {
-        const welcomeCode = generateCode('welcome')
-        setEarnedCodes(prev => {
-          const updated = [...prev, welcomeCode]
-          persistCodes(updated)
-          return updated
-        })
-        setShowWelcomeModal(true)
-      }
+      setShowWelcomeModal(true)
     }
-  }, [welcomeEligible, hasCheckedWelcome, earnedCodes, generateCode, persistCodes])
-
-  // Generate new codes when tiers are achieved (beyond welcome)
-  useEffect(() => {
-    if (!currentTier || currentTier === 'welcome') return
-    const tierInfo = EXTENDED_TIERS[currentTier]
-    const codePrefix = `-${tierInfo.prefix}${tierInfo.discount.toString().padStart(2, '0')}-`
-    const hasCodeForTier = earnedCodes.some(code => code.includes(codePrefix))
-    if (!hasCodeForTier) {
-      const newCode = generateCode(currentTier)
-      setEarnedCodes(prev => {
-        const updated = [...prev, newCode]
-        persistCodes(updated)
-        return updated
-      })
-    }
-  }, [currentTier, earnedCodes, generateCode, persistCodes])
+  }, [welcomeEligible, hasCheckedWelcome])
 
   // Progress to next tier
   const getProgressInfo = useCallback(() => {
@@ -174,13 +125,6 @@ export default function AdventureRewardTracker({
   const progress = getProgressInfo()
   const karmaMultiplier = getDiscountMultiplier()
   const alignmentName = getAlignmentDisplayName()
-
-  const handleCopyCode = useCallback((code: string) => {
-    navigator.clipboard.writeText(code).then(() => {
-      setCopiedCode(code)
-      setTimeout(() => setCopiedCode(null), 2000)
-    }).catch(() => {})
-  }, [])
 
   const handleUseHint = useCallback(() => {
     const hintUrl = `https://www.airbnb.com/rooms/30045739?utm_source=bobr_game&utm_medium=hint&utm_campaign=adventure_ch${chapter}`
@@ -273,25 +217,19 @@ export default function AdventureRewardTracker({
           </div>
         </div>
 
-        {/* Earned Codes */}
-        {earnedCodes.length > 0 && (
+        {/* Reward Verification */}
+        {currentTier && (
           <div className="border-t-2 border-[var(--pixel-ui-border)] pt-3">
             <div className="text-[8px] text-[var(--pixel-ui-text)] uppercase mb-2">
-              Earned Codes ({earnedCodes.length})
+              Reward Verification
             </div>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {earnedCodes.map((code, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleCopyCode(code)}
-                  className="w-full p-2 bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-ui-border)] text-left transition-colors"
-                >
-                  <div className="text-[8px] text-[var(--pixel-gold-light)] font-mono break-all">{code}</div>
-                  <div className="text-[7px] text-[var(--pixel-ui-text)] mt-1">
-                    {copiedCode === code ? '\u2713 Copied!' : 'Click to copy'}
-                  </div>
-                </button>
-              ))}
+            <div className="p-2 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)]">
+              <div className="text-[8px] text-[var(--pixel-gold-light)] uppercase">
+                {EXTENDED_TIERS[currentTier].displayName} earned
+              </div>
+              <div className="text-[7px] text-[var(--pixel-ui-text)] mt-1 leading-relaxed">
+                Booking rewards now require host verification. No client discount codes are issued from this tracker.
+              </div>
             </div>
           </div>
         )}
@@ -312,16 +250,10 @@ export default function AdventureRewardTracker({
             </div>
 
             <div className="mb-4 p-3 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-mid)]">
-              <div className="text-[8px] text-[var(--pixel-ui-text)] uppercase mb-2 text-center">Your Discount Code</div>
-              <div className="text-[10px] text-[var(--pixel-gold-light)] font-mono text-center break-all mb-2">
-                {earnedCodes[earnedCodes.length - 1]}
-              </div>
-              <button
-                onClick={() => handleCopyCode(earnedCodes[earnedCodes.length - 1])}
-                className="w-full p-2 bg-[var(--pixel-gold-mid)] hover:bg-[var(--pixel-gold-light)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-bg-dark)] text-[8px] uppercase transition-colors"
-              >
-                {copiedCode === earnedCodes[earnedCodes.length - 1] ? '\u2713 Copied!' : 'Copy Code'}
-              </button>
+              <div className="text-[8px] text-[var(--pixel-ui-text)] uppercase mb-2 text-center">Host Verification Required</div>
+              <p className="text-[8px] text-[var(--pixel-gold-light)] text-center leading-relaxed">
+                Your Welcome tier is tracked here, but booking discounts must be verified by the host before a code is issued.
+              </p>
             </div>
 
             <a
