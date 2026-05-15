@@ -1,6 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { isTopDownBetaRoute } from '@/lib/topDownBetaRoute'
+import { pickLine } from './greggoryLines'
+import type { Hotspot, SourceLayer } from './hotspotSchema'
 
 export type ObservationSourceLayer = 'Gold' | 'Silver' | 'Bronze'
 export type TerrainKind = 'grass' | 'path' | 'scrub' | 'stone' | 'water'
@@ -64,7 +67,7 @@ export interface TopDownSceneBetaProps {
   guideName: string
   guideRole: string
   guideIntro: string
-  hotspots: ObservationHotspot[]
+  hotspots: Array<Hotspot | ObservationHotspot>
   assets?: SceneAssetMetadata[]
   terrainTiles?: TerrainTile[]
   sceneProps?: ScenePropData[]
@@ -73,23 +76,58 @@ export interface TopDownSceneBetaProps {
   playerStart?: MapPoint
 }
 
+interface RuntimeHotspot {
+  id: string
+  position: MapPoint
+  triggerRadius: number
+  evidenceKey: string
+  dialogueRef: string
+  sourceLayer: SourceLayer
+  publicLabel: string
+  fallbackPrompt?: string
+  fallbackEvidence?: string
+  fallbackResponse?: string
+  fallbackSourceNote?: string
+}
+
+interface BetaEvidenceEntry {
+  hotspotId: string
+  ts: string
+  sourceLayer: SourceLayer
+}
+
+interface BetaEvidenceState {
+  entries: BetaEvidenceEntry[]
+}
+
+const BETA_EVIDENCE_KEY = 'beta_evidence_v1'
+const PROD_STORAGE_PREFIXES = ['adventure_', 'bobr_', 'gold_country_', 'marker_']
+
+const PUBLIC_HOTSPOT_LABELS: Record<string, string> = {
+  entry_gate: 'Gate',
+  water_infrastructure: 'Water',
+  construction_materials: 'Work Yard',
+  land_parcel: 'Land',
+  guest_operations: 'Steward',
+}
+
 const SOURCE_LAYER_STYLES: Record<
-  ObservationSourceLayer,
+  SourceLayer,
   { border: string; background: string; text: string; glow: string }
 > = {
-  Gold: {
+  gold: {
     border: '#f4d76b',
     background: '#5d3b12',
     text: '#fff0a8',
     glow: '0 0 18px rgba(244, 215, 107, 0.75)',
   },
-  Silver: {
+  silver: {
     border: '#c0cbdc',
     background: '#29366f',
     text: '#e6ecff',
     glow: '0 0 16px rgba(192, 203, 220, 0.55)',
   },
-  Bronze: {
+  bronze: {
     border: '#d08a4d',
     background: '#4a2d1a',
     text: '#ffd2a3',
@@ -97,32 +135,137 @@ const SOURCE_LAYER_STYLES: Record<
   },
 }
 
-const TERRAIN_STYLES: Record<TerrainKind, { top: string; side: string; border: string }> = {
-  grass: {
-    top: 'linear-gradient(135deg, #5b8f45 0%, #2f6b37 52%, #204a2a 100%)',
-    side: '#18351f',
-    border: '#8cc36f',
-  },
-  path: {
-    top: 'linear-gradient(135deg, #c09a64 0%, #8f6845 56%, #5c3d2e 100%)',
-    side: '#3b2a1f',
-    border: '#e0bd7a',
-  },
-  scrub: {
-    top: 'linear-gradient(135deg, #8a9a52 0%, #5f7135 54%, #35451f 100%)',
-    side: '#263217',
-    border: '#b4c56a',
-  },
-  stone: {
-    top: 'linear-gradient(135deg, #9aa0a8 0%, #5f6770 55%, #343b43 100%)',
-    side: '#232830',
-    border: '#c0cbdc',
-  },
-  water: {
-    top: 'linear-gradient(135deg, #41a6f6 0%, #286bb0 52%, #163f73 100%)',
-    side: '#0b2746',
-    border: '#8bd8ff',
-  },
+const TERRAIN_STYLES: Record<TerrainKind, { top: string; border: string }> = {
+  grass: { top: 'linear-gradient(135deg, #5b8f45 0%, #2f6b37 56%, #204a2a 100%)', border: '#8cc36f' },
+  path: { top: 'linear-gradient(135deg, #c09a64 0%, #8f6845 58%, #5c3d2e 100%)', border: '#e0bd7a' },
+  scrub: { top: 'linear-gradient(135deg, #8a9a52 0%, #5f7135 55%, #35451f 100%)', border: '#b4c56a' },
+  stone: { top: 'linear-gradient(135deg, #9aa0a8 0%, #5f6770 55%, #343b43 100%)', border: '#c0cbdc' },
+  water: { top: 'linear-gradient(135deg, #41a6f6 0%, #286bb0 52%, #163f73 100%)', border: '#8bd8ff' },
+}
+
+function isProdStorageKey(key: string) {
+  return PROD_STORAGE_PREFIXES.some(prefix => key.startsWith(prefix))
+}
+
+function installBetaLocalStorageGuard() {
+  if (process.env.NODE_ENV === 'production') return
+  if (typeof window === 'undefined') return
+
+  const guardWindow = window as typeof window & { __bobrTopDownBetaStorageGuardInstalled?: boolean }
+  if (guardWindow.__bobrTopDownBetaStorageGuardInstalled) return
+
+  const originalSetItem = window.localStorage.setItem.bind(window.localStorage)
+  window.localStorage.setItem = (key: string, value: string) => {
+    if (isTopDownBetaRoute() && isProdStorageKey(key)) {
+      throw new Error(`Top-down beta attempted prod localStorage write: ${key}`)
+    }
+
+    originalSetItem(key, value)
+  }
+
+  guardWindow.__bobrTopDownBetaStorageGuardInstalled = true
+}
+
+installBetaLocalStorageGuard()
+
+function normalizeUnit(value: number) {
+  return value > 1 ? value / 100 : value
+}
+
+function normalizePoint(point: MapPoint): MapPoint {
+  return {
+    x: normalizeUnit(point.x),
+    y: normalizeUnit(point.y),
+  }
+}
+
+function pointPercent(value: number) {
+  return `${normalizeUnit(value) * 100}%`
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function clampPoint(point: MapPoint): MapPoint {
+  return {
+    x: clamp(point.x, 0.08, 0.92),
+    y: clamp(point.y, 0.16, 0.9),
+  }
+}
+
+function distance(a: MapPoint, b: MapPoint) {
+  return Math.hypot(a.x - b.x, a.y - b.y)
+}
+
+function displaySourceLayer(sourceLayer: SourceLayer) {
+  return sourceLayer[0].toUpperCase() + sourceLayer.slice(1)
+}
+
+function legacySourceLayer(sourceLayer: ObservationSourceLayer): SourceLayer {
+  return sourceLayer.toLowerCase() as SourceLayer
+}
+
+function isSchemaHotspot(hotspot: Hotspot | ObservationHotspot): hotspot is Hotspot {
+  return 'position' in hotspot
+}
+
+function normalizeHotspot(hotspot: Hotspot | ObservationHotspot): RuntimeHotspot {
+  if (isSchemaHotspot(hotspot)) {
+    return {
+      id: hotspot.id,
+      position: normalizePoint(hotspot.position),
+      triggerRadius: hotspot.triggerRadius,
+      evidenceKey: hotspot.evidenceKey,
+      dialogueRef: hotspot.dialogueRef,
+      sourceLayer: hotspot.sourceLayer,
+      publicLabel: PUBLIC_HOTSPOT_LABELS[hotspot.id] ?? hotspot.id.replace(/_/g, ' '),
+    }
+  }
+
+  return {
+    id: hotspot.id,
+    position: normalizePoint({ x: hotspot.x, y: hotspot.y }),
+    triggerRadius: 0.08,
+    evidenceKey: hotspot.id,
+    dialogueRef: hotspot.id,
+    sourceLayer: legacySourceLayer(hotspot.sourceLayer),
+    publicLabel: hotspot.label,
+    fallbackPrompt: hotspot.prompt,
+    fallbackEvidence: hotspot.evidence,
+    fallbackResponse: hotspot.response,
+    fallbackSourceNote: hotspot.sourceNote,
+  }
+}
+
+function readBetaEvidence(): BetaEvidenceState {
+  if (typeof window === 'undefined') return { entries: [] }
+
+  try {
+    const raw = window.localStorage.getItem(BETA_EVIDENCE_KEY)
+    if (!raw) return { entries: [] }
+    const parsed = JSON.parse(raw) as Partial<BetaEvidenceState>
+    return { entries: Array.isArray(parsed.entries) ? parsed.entries : [] }
+  } catch {
+    return { entries: [] }
+  }
+}
+
+function appendBetaEvidenceEntry(hotspot: RuntimeHotspot): BetaEvidenceEntry[] {
+  if (typeof window === 'undefined') return []
+
+  const state = readBetaEvidence()
+  const entries = [
+    ...state.entries,
+    {
+      hotspotId: hotspot.id,
+      ts: new Date().toISOString(),
+      sourceLayer: hotspot.sourceLayer,
+    },
+  ]
+
+  window.localStorage.setItem(BETA_EVIDENCE_KEY, JSON.stringify({ entries }))
+  return entries
 }
 
 function IsoTile({ x, y, kind }: { x: number; y: number; kind: TerrainKind }) {
@@ -131,16 +274,9 @@ function IsoTile({ x, y, kind }: { x: number; y: number; kind: TerrainKind }) {
   return (
     <div
       className="absolute h-[clamp(36px,9vw,78px)] w-[clamp(66px,17vw,144px)] -translate-x-1/2 -translate-y-1/2"
-      style={{ left: `${x}%`, top: `${y}%` }}
+      style={{ left: pointPercent(x), top: pointPercent(y) }}
       aria-hidden="true"
     >
-      <div
-        className="absolute inset-x-2 bottom-0 h-4"
-        style={{
-          background: style.side,
-          clipPath: 'polygon(0 0, 100% 0, 84% 100%, 16% 100%)',
-        }}
-      />
       <div
         className="absolute inset-0 border-2"
         style={{
@@ -148,14 +284,12 @@ function IsoTile({ x, y, kind }: { x: number; y: number; kind: TerrainKind }) {
           borderColor: style.border,
           clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
           boxShadow:
-            'inset -12px -12px 0 rgba(0,0,0,0.14), inset 10px 8px 0 rgba(255,255,255,0.08)',
+            'inset -12px -12px 0 rgba(0,0,0,0.14), inset 10px 8px 0 rgba(255,255,255,0.08), 0 12px 0 rgba(0,0,0,0.18)',
         }}
       />
       <div
         className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 bg-white/25"
-        style={{
-          boxShadow: '18px 10px 0 rgba(255,255,255,0.12), -22px 8px 0 rgba(0,0,0,0.15)',
-        }}
+        style={{ boxShadow: '18px 10px 0 rgba(255,255,255,0.12), -22px 8px 0 rgba(0,0,0,0.15)' }}
       />
     </div>
   )
@@ -165,22 +299,22 @@ function SceneProp({ x, y, kind }: { x: number; y: number; kind: ScenePropKind }
   return (
     <div
       className="absolute z-20 -translate-x-1/2 -translate-y-full origin-bottom scale-[0.72] sm:scale-100"
-      style={{ left: `${x}%`, top: `${y}%` }}
+      style={{ left: pointPercent(x), top: pointPercent(y) }}
       aria-hidden="true"
     >
       {kind === 'gate' && (
         <div className="relative h-20 w-32">
           <div className="absolute bottom-0 left-4 h-20 w-4 bg-[#5c3420] shadow-[inset_-3px_0_0_#2b170d]" />
           <div className="absolute bottom-0 right-4 h-20 w-4 bg-[#5c3420] shadow-[inset_-3px_0_0_#2b170d]" />
-          <div className="absolute bottom-12 left-0 h-4 w-full bg-[#6e4527] shadow-[inset_0_-2px_0_#2b170d]" />
-          <div className="absolute bottom-6 left-5 h-4 w-[88px] bg-[#754a2c] shadow-[inset_0_-2px_0_#2b170d]" />
+          <div className="absolute bottom-12 left-0 h-4 w-full bg-[#6e4527]" />
+          <div className="absolute bottom-6 left-5 h-4 w-[88px] bg-[#754a2c]" />
           <div className="absolute bottom-[34px] left-8 h-3 w-20 rotate-[24deg] bg-[#4f2d1d]" />
           <div className="absolute bottom-[34px] left-8 h-3 w-20 rotate-[-24deg] bg-[#4f2d1d]" />
         </div>
       )}
       {kind === 'oak' && (
         <div className="relative h-24 w-20">
-          <div className="absolute bottom-0 left-8 h-16 w-5 bg-[#5c3420] shadow-[inset_-3px_0_0_#2a170d]" />
+          <div className="absolute bottom-0 left-8 h-16 w-5 bg-[#5c3420]" />
           <div className="absolute left-3 top-3 h-12 w-12 bg-[#1e4d2b] shadow-[12px_5px_0_#2f6b37,-7px_13px_0_#315f31,2px_-6px_0_#49793a]" />
           <div className="absolute left-11 top-7 h-9 w-9 bg-[#163b22]" />
         </div>
@@ -204,13 +338,13 @@ function SceneProp({ x, y, kind }: { x: number; y: number; kind: ScenePropKind }
       )}
       {kind === 'waterTank' && (
         <div className="relative h-16 w-14">
-          <div className="absolute bottom-0 left-2 h-10 w-10 border-2 border-[#c0cbdc] bg-[#286bb0] shadow-[inset_-6px_-4px_0_#163f73]" />
-          <div className="absolute left-0 top-1 h-5 w-14 bg-[#8f6845] shadow-[inset_0_-3px_0_#5c3d2e]" />
+          <div className="absolute bottom-0 left-2 h-10 w-10 border-2 border-[#c0cbdc] bg-[#286bb0]" />
+          <div className="absolute left-0 top-1 h-5 w-14 bg-[#8f6845]" />
         </div>
       )}
       {kind === 'workShed' && (
         <div className="relative h-16 w-20">
-          <div className="absolute bottom-0 left-2 h-10 w-16 bg-[#5c3d2e] shadow-[inset_-5px_-4px_0_#3b2a1f]" />
+          <div className="absolute bottom-0 left-2 h-10 w-16 bg-[#5c3d2e]" />
           <div
             className="absolute left-0 top-1 h-8 w-20 bg-[#8f6845]"
             style={{ clipPath: 'polygon(50% 0, 100% 100%, 0 100%)' }}
@@ -220,45 +354,14 @@ function SceneProp({ x, y, kind }: { x: number; y: number; kind: ScenePropKind }
       )}
       {kind === 'house' && (
         <div className="relative h-24 w-32">
-          <div className="absolute bottom-0 left-4 h-16 w-24 bg-[#70472c] shadow-[inset_-7px_-5px_0_#3b2416]" />
-          <div
-            className="absolute left-0 top-0 h-12 w-32 bg-[#9b6a3d]"
-            style={{ clipPath: 'polygon(50% 0, 100% 100%, 0 100%)' }}
-          />
+          <div className="absolute bottom-0 left-4 h-16 w-24 bg-[#70472c]" />
+          <div className="absolute left-0 top-0 h-12 w-32 bg-[#9b6a3d]" style={{ clipPath: 'polygon(50% 0, 100% 100%, 0 100%)' }} />
           <div className="absolute bottom-0 left-14 h-9 w-5 bg-[#1a1210]" />
-          <div className="absolute bottom-8 left-9 h-5 w-5 border-2 border-[#c0cbdc] bg-[#29366f]" />
-          <div className="absolute bottom-8 right-9 h-5 w-5 border-2 border-[#c0cbdc] bg-[#29366f]" />
-          <div className="absolute bottom-14 right-7 h-8 w-4 bg-[#3b2416]" />
         </div>
       )}
-      {kind === 'deck' && (
-        <div className="relative h-12 w-32">
-          <div className="absolute bottom-6 left-0 h-4 w-full bg-[#8f6845] shadow-[inset_0_-2px_0_#4f2d1d]" />
-          <div className="absolute bottom-1 left-2 h-4 w-[118px] bg-[#6e4527] shadow-[inset_0_-2px_0_#2b170d]" />
-          {[4, 28, 52, 76, 100, 124].map(post => (
-            <div key={post} className="absolute bottom-0 h-11 w-3 bg-[#5c3420]" style={{ left: post }} />
-          ))}
-        </div>
-      )}
-      {kind === 'hearth' && (
-        <div className="relative h-16 w-16">
-          <div className="absolute bottom-0 left-1 h-14 w-14 border-2 border-[#9aa0a8] bg-[#343b43] shadow-[inset_-5px_-4px_0_#232830]" />
-          <div className="absolute bottom-2 left-4 h-8 w-8 bg-[#130e09]" />
-          <div className="absolute bottom-2 left-5 h-7 w-3 bg-[#e8a027]" />
-          <div className="absolute bottom-2 right-5 h-6 w-3 bg-[#b13e53]" />
-        </div>
-      )}
-      {kind === 'table' && (
-        <div className="relative h-12 w-24">
-          <div className="absolute bottom-5 left-1 h-5 w-[88px] bg-[#8f6845] shadow-[inset_-5px_-3px_0_#5c3d2e]" />
-          <div className="absolute bottom-0 left-5 h-8 w-3 bg-[#3b2a1f]" />
-          <div className="absolute bottom-0 right-5 h-8 w-3 bg-[#3b2a1f]" />
-          <div className="absolute bottom-8 left-9 h-3 w-8 bg-[#f4d76b]" />
-        </div>
-      )}
-      {kind === 'toolBench' && (
+      {(kind === 'deck' || kind === 'table' || kind === 'toolBench' || kind === 'hearth') && (
         <div className="relative h-14 w-24">
-          <div className="absolute bottom-0 left-3 h-10 w-[72px] bg-[#5c3d2e] shadow-[inset_-4px_-3px_0_#3b2a1f]" />
+          <div className="absolute bottom-0 left-3 h-10 w-[72px] bg-[#5c3d2e]" />
           <div className="absolute bottom-9 left-0 h-4 w-24 bg-[#8f6845]" />
           <div className="absolute bottom-12 left-5 h-2 w-7 bg-[#c0cbdc]" />
           <div className="absolute bottom-12 right-5 h-2 w-5 bg-[#f4d76b]" />
@@ -271,20 +374,15 @@ function SceneProp({ x, y, kind }: { x: number; y: number; kind: ScenePropKind }
 function PlayerSprite({ x, y }: { x: number; y: number }) {
   return (
     <div
-      className="absolute z-40 h-12 w-8 -translate-x-1/2 -translate-y-full scale-90 transition-[left,top] duration-500 ease-out sm:scale-100"
-      style={{ left: `${x}%`, top: `${y}%` }}
+      className="absolute z-40 h-12 w-8 -translate-x-1/2 -translate-y-full scale-90 transition-[left,top] duration-300 ease-out sm:scale-100"
+      style={{ left: pointPercent(x), top: pointPercent(y) }}
       aria-hidden="true"
     >
-      <div
-        className="absolute -bottom-2 left-1/2 h-3 w-8 -translate-x-1/2 bg-black/45"
-        style={{ clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)' }}
-      />
+      <div className="absolute -bottom-2 left-1/2 h-3 w-8 -translate-x-1/2 bg-black/45" style={{ clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)' }} />
       <div className="absolute left-2 top-0 h-2 w-4 bg-[#8f6845]" />
       <div className="absolute left-0 top-2 h-2 w-8 bg-[#5c3d2e]" />
       <div className="absolute left-2 top-5 h-4 w-4 bg-[#d2a679]" />
-      <div className="absolute left-[9px] top-6 h-1.5 w-1.5 bg-[#1a1c2c]" />
-      <div className="absolute right-[9px] top-6 h-1.5 w-1.5 bg-[#1a1c2c]" />
-      <div className="absolute left-1.5 top-9 h-6 w-5 bg-[#315f43] shadow-[inset_-3px_0_0_#1e4d2b]" />
+      <div className="absolute left-1.5 top-9 h-6 w-5 bg-[#315f43]" />
       <div className="absolute bottom-0 left-1.5 h-3 w-2 bg-[#2b2117]" />
       <div className="absolute bottom-0 right-1.5 h-3 w-2 bg-[#2b2117]" />
     </div>
@@ -295,17 +393,14 @@ function GuideSprite({ x, y }: { x: number; y: number }) {
   return (
     <div
       className="absolute z-30 h-14 w-10 -translate-x-1/2 -translate-y-full scale-90 sm:scale-100"
-      style={{ left: `${x}%`, top: `${y}%` }}
+      style={{ left: pointPercent(x), top: pointPercent(y) }}
       aria-hidden="true"
     >
-      <div
-        className="absolute -bottom-2 left-1/2 h-3 w-10 -translate-x-1/2 bg-[#f4d76b]/30"
-        style={{ clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)' }}
-      />
+      <div className="absolute -bottom-2 left-1/2 h-3 w-10 -translate-x-1/2 bg-[#f4d76b]/30" style={{ clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)' }} />
       <div className="absolute left-2 top-0 h-3 w-6 bg-[#3b2a1f]" />
       <div className="absolute left-0 top-3 h-2 w-10 bg-[#2b170d]" />
       <div className="absolute left-3 top-7 h-4 w-4 bg-[#c49a6c]" />
-      <div className="absolute left-2 top-11 h-7 w-6 bg-[#6d4b2a] shadow-[inset_-3px_0_0_#3b2a1f]" />
+      <div className="absolute left-2 top-11 h-7 w-6 bg-[#6d4b2a]" />
       <div className="absolute right-0 top-9 h-8 w-2 rotate-[-18deg] bg-[#8f6845]" />
     </div>
   )
@@ -322,25 +417,102 @@ export function TopDownSceneBeta({
   terrainTiles = [],
   sceneProps = [],
   walkwayPoints = [],
-  guidePosition = { x: 35, y: 72 },
-  playerStart = { x: 50, y: 50 },
+  guidePosition = { x: 0.35, y: 0.72 },
+  playerStart = { x: 0.47, y: 0.77 },
 }: TopDownSceneBetaProps) {
-  const [activeHotspotId, setActiveHotspotId] = useState(hotspots[0]?.id ?? '')
-  const [recordedEvidenceIds, setRecordedEvidenceIds] = useState<string[]>([])
-  const activeHotspot = hotspots.find(hotspot => hotspot.id === activeHotspotId) ?? hotspots[0]
-  const playerPosition = activeHotspot ? { x: activeHotspot.x, y: activeHotspot.y } : playerStart
-  const recordedEvidence = hotspots.filter(hotspot => recordedEvidenceIds.includes(hotspot.id))
-  const activeEvidenceRecorded = activeHotspot ? recordedEvidenceIds.includes(activeHotspot.id) : false
-  const activeLayerStyle = activeHotspot ? SOURCE_LAYER_STYLES[activeHotspot.sourceLayer] : SOURCE_LAYER_STYLES.Bronze
-  const journalProgress = `${recordedEvidence.length}/${hotspots.length}`
+  const runtimeHotspots = useMemo(() => hotspots.map(normalizeHotspot), [hotspots])
+  const normalizedPlayerStart = useMemo(() => normalizePoint(playerStart), [playerStart])
+  const [playerPosition, setPlayerPosition] = useState<MapPoint>(normalizedPlayerStart)
+  const [activeHotspotId, setActiveHotspotId] = useState<string | null>(null)
+  const [interactionCounts, setInteractionCounts] = useState<Record<string, number>>({})
+  const [evidenceEntries, setEvidenceEntries] = useState<BetaEvidenceEntry[]>([])
+  const lastTriggeredHotspotId = useRef<string | null>(null)
 
-  function inspectHotspot(hotspotId: string) {
-    setActiveHotspotId(hotspotId)
+  const activeHotspot = runtimeHotspots.find(hotspot => hotspot.id === activeHotspotId) ?? null
+  const activeInteractionCount = activeHotspot ? interactionCounts[activeHotspot.id] ?? 0 : 0
+  const activeLine = activeHotspot
+    ? pickLine(activeHotspot.dialogueRef, Math.max(1, activeInteractionCount))
+    : null
+  const activeLayerStyle = activeHotspot
+    ? SOURCE_LAYER_STYLES[activeHotspot.sourceLayer]
+    : SOURCE_LAYER_STYLES.bronze
+  const uniqueEvidenceCount = new Set(evidenceEntries.map(entry => entry.hotspotId)).size
+  const journalProgress = `${uniqueEvidenceCount}/${runtimeHotspots.length}`
+
+  const triggerHotspot = useCallback((hotspot: RuntimeHotspot) => {
+    setActiveHotspotId(hotspot.id)
+    setInteractionCounts(current => ({
+      ...current,
+      [hotspot.id]: (current[hotspot.id] ?? 0) + 1,
+    }))
+    setEvidenceEntries(appendBetaEvidenceEntry(hotspot))
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setEvidenceEntries(readBetaEvidence().entries)
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase()
+      const step = event.shiftKey ? 0.06 : 0.035
+      let dx = 0
+      let dy = 0
+
+      if (key === 'arrowleft' || key === 'a') dx = -step
+      if (key === 'arrowright' || key === 'd') dx = step
+      if (key === 'arrowup' || key === 'w') dy = -step
+      if (key === 'arrowdown' || key === 's') dy = step
+      if (dx === 0 && dy === 0) return
+
+      event.preventDefault()
+      setPlayerPosition(current => clampPoint({ x: current.x + dx, y: current.y + dy }))
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  useEffect(() => {
+    const nearestHotspot = runtimeHotspots.find(
+      hotspot => distance(playerPosition, hotspot.position) <= hotspot.triggerRadius,
+    )
+
+    if (!nearestHotspot) {
+      lastTriggeredHotspotId.current = null
+      return
+    }
+
+    if (lastTriggeredHotspotId.current === nearestHotspot.id) return undefined
+    lastTriggeredHotspotId.current = nearestHotspot.id
+
+    const timer = window.setTimeout(() => {
+      triggerHotspot(nearestHotspot)
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [playerPosition, runtimeHotspots, triggerHotspot])
+
+  function handleMapPointerDown(event: PointerEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement
+    if (target.closest('[data-hotspot-id]')) return
+
+    const bounds = event.currentTarget.getBoundingClientRect()
+    setPlayerPosition(clampPoint({
+      x: (event.clientX - bounds.left) / bounds.width,
+      y: (event.clientY - bounds.top) / bounds.height,
+    }))
   }
 
-  function recordActiveEvidence() {
-    if (!activeHotspot || activeEvidenceRecorded) return
-    setRecordedEvidenceIds(current => [...current, activeHotspot.id])
+  function handleHotspotPointerDown(event: PointerEvent<HTMLButtonElement>, hotspot: RuntimeHotspot) {
+    event.stopPropagation()
+    lastTriggeredHotspotId.current = hotspot.id
+    setPlayerPosition(hotspot.position)
+    triggerHotspot(hotspot)
   }
 
   return (
@@ -360,8 +532,11 @@ export function TopDownSceneBeta({
           </p>
         </div>
 
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="relative isolate min-h-[430px] overflow-hidden bg-[#101916] sm:min-h-[560px] lg:min-h-[590px]">
+        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div
+            className="relative isolate min-h-[430px] overflow-hidden bg-[#101916] sm:min-h-[560px] lg:min-h-[590px]"
+            onPointerDown={handleMapPointerDown}
+          >
             <div
               className="absolute inset-0 scale-110 bg-cover bg-center opacity-40 blur-[1px] saturate-125"
               style={{ backgroundImage: `url(${backdropSrc})` }}
@@ -381,8 +556,8 @@ export function TopDownSceneBeta({
                 key={`${point.x}-${point.y}`}
                 className="absolute z-10 h-3 w-3 -translate-x-1/2 -translate-y-1/2 bg-[#f4d76b]/70"
                 style={{
-                  left: `${point.x}%`,
-                  top: `${point.y}%`,
+                  left: pointPercent(point.x),
+                  top: pointPercent(point.y),
                   clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
                   opacity: 0.35 + index * 0.08,
                 }}
@@ -397,23 +572,24 @@ export function TopDownSceneBeta({
             <GuideSprite x={guidePosition.x} y={guidePosition.y} />
             <PlayerSprite x={playerPosition.x} y={playerPosition.y} />
 
-            {hotspots.map(hotspot => {
+            {runtimeHotspots.map(hotspot => {
               const isActive = hotspot.id === activeHotspot?.id
-              const isRecorded = recordedEvidenceIds.includes(hotspot.id)
+              const isRecorded = evidenceEntries.some(entry => entry.hotspotId === hotspot.id)
               const layerStyle = SOURCE_LAYER_STYLES[hotspot.sourceLayer]
 
               return (
                 <button
                   key={hotspot.id}
                   type="button"
-                  onClick={() => inspectHotspot(hotspot.id)}
-                  className="absolute z-50 -translate-x-1/2 -translate-y-full p-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-[#fff0a8]"
-                  style={{ left: `${hotspot.x}%`, top: `${hotspot.y}%` }}
+                  data-hotspot-id={hotspot.id}
+                  onPointerDown={event => handleHotspotPointerDown(event, hotspot)}
+                  className="absolute z-50 -translate-x-1/2 -translate-y-full p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[#fff0a8]"
+                  style={{ left: pointPercent(hotspot.position.x), top: pointPercent(hotspot.position.y) }}
                   aria-pressed={isActive}
-                  aria-label={`Inspect ${hotspot.label}`}
+                  aria-label={`Inspect ${hotspot.publicLabel}`}
                 >
                   <span
-                    className="mx-auto block h-8 w-8 border-2 shadow-[0_10px_0_rgba(0,0,0,0.3)] sm:h-7 sm:w-7"
+                    className="mx-auto block h-8 w-8 border-2 shadow-[0_10px_0_rgba(0,0,0,0.3)]"
                     style={{
                       background: isActive ? layerStyle.border : layerStyle.background,
                       borderColor: isActive ? '#fff7c7' : layerStyle.border,
@@ -425,7 +601,7 @@ export function TopDownSceneBeta({
                     className="mt-2 hidden max-w-[124px] -translate-x-8 items-center gap-1 border-2 bg-[#130e09]/90 px-2 py-1 font-[var(--font-pixel)] text-[7px] leading-relaxed sm:flex"
                     style={{ borderColor: isActive ? layerStyle.border : '#3b2a1f', color: layerStyle.text }}
                   >
-                    <span>{hotspot.label}</span>
+                    <span>{hotspot.publicLabel}</span>
                     {isRecorded && <span aria-label="Evidence recorded">OK</span>}
                   </span>
                 </button>
@@ -434,34 +610,39 @@ export function TopDownSceneBeta({
           </div>
 
           <aside className="border-t-4 border-[var(--pixel-ui-border)] bg-[#151b2c] p-3 sm:p-4 lg:border-l-4 lg:border-t-0">
-            <div className="mb-3 border-2 border-[#41a6f6] bg-[#0f0f1b] p-3 shadow-[inset_0_0_0_2px_#29366f] sm:mb-4">
-              <p className="font-[var(--font-pixel)] text-[8px] uppercase text-[var(--pixel-forest-light)]">
-                {guideRole}
-              </p>
-              <h2 className="mt-2 font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
-                {guideName}
-              </h2>
-              <p className="mt-3 font-[var(--font-pixel)] text-[8px] leading-relaxed text-[var(--pixel-ui-text)]">
-                {guideIntro}
-              </p>
+            <div className="mb-3 flex gap-3 border-2 border-[#41a6f6] bg-[#0f0f1b] p-3 shadow-[inset_0_0_0_2px_#29366f] sm:mb-4">
+              <div className="grid h-16 w-16 shrink-0 place-items-center border-2 border-[#d4a04a] bg-[#2b2117] font-[var(--font-pixel)] text-[13px] text-[var(--pixel-gold-light)]">
+                GP
+              </div>
+              <div>
+                <p className="font-[var(--font-pixel)] text-[7px] uppercase text-[var(--pixel-forest-light)]">
+                  {guideRole}
+                </p>
+                <h2 className="mt-2 font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
+                  {guideName}
+                </h2>
+                <p className="mt-3 font-[var(--font-pixel)] text-[8px] leading-relaxed text-[var(--pixel-ui-text)]">
+                  {guideIntro}
+                </p>
+              </div>
             </div>
 
-            {activeHotspot && (
+            {activeHotspot && activeLine ? (
               <div className="space-y-2 sm:space-y-3">
                 <div className="border-2 border-[#29366f] bg-[#111827] p-3">
                   <p className="font-[var(--font-pixel)] text-[7px] uppercase text-[var(--pixel-forest-light)]">
-                    Observe
+                    Observed Detail
                   </p>
                   <p className="mt-2 font-[var(--font-pixel)] text-[9px] leading-relaxed text-[var(--pixel-ui-text)]">
-                    {activeHotspot.prompt}
+                    {activeHotspot.publicLabel}
                   </p>
                 </div>
-                <div className="border-2 border-[#29366f] bg-[#111827] p-3">
+                <div className="border-2 border-[#41a6f6] bg-[#0f0f1b] p-3 shadow-[inset_0_0_0_2px_#29366f]">
                   <p className="font-[var(--font-pixel)] text-[7px] uppercase text-[var(--pixel-forest-light)]">
-                    Evidence
+                    Greggory Pryor
                   </p>
-                  <p className="mt-2 font-[var(--font-pixel)] text-[9px] leading-relaxed text-[var(--pixel-gold-light)]">
-                    {activeHotspot.evidence}
+                  <p className="mt-2 font-[var(--font-pixel)] text-[9px] leading-relaxed text-[var(--pixel-ui-text)]">
+                    {activeLine.text}
                   </p>
                 </div>
                 <div>
@@ -477,26 +658,19 @@ export function TopDownSceneBeta({
                         color: activeLayerStyle.text,
                       }}
                     >
-                      {activeHotspot.sourceLayer}
+                      {displaySourceLayer(activeHotspot.sourceLayer)}
                     </span>
                     <p className="min-w-0 flex-1 font-[var(--font-pixel)] text-[8px] leading-relaxed text-[var(--pixel-ui-text)]">
-                      {activeHotspot.sourceNote}
+                      Evidence key: {activeHotspot.evidenceKey}
                     </p>
                   </div>
                 </div>
-                <div className="border-2 border-[#41a6f6] bg-[#0f0f1b] p-3 shadow-[inset_0_0_0_2px_#29366f]">
-                  <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed text-[var(--pixel-ui-text)]">
-                    {activeHotspot.response}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={recordActiveEvidence}
-                  disabled={activeEvidenceRecorded}
-                  className="w-full border-2 border-[#d4a04a] bg-[#61401c] px-3 py-3 font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] shadow-[inset_0_0_0_2px_#130e09] transition-colors hover:bg-[#775023] disabled:cursor-not-allowed disabled:border-[#6d4b2a] disabled:bg-[#2b2117] disabled:text-[var(--pixel-ui-text)]"
-                >
-                  {activeEvidenceRecorded ? 'Evidence Recorded' : 'Record Evidence'}
-                </button>
+              </div>
+            ) : (
+              <div className="border-2 border-[#29366f] bg-[#111827] p-3">
+                <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed text-[var(--pixel-ui-text)]">
+                  {guideIntro}
+                </p>
               </div>
             )}
 
@@ -505,14 +679,16 @@ export function TopDownSceneBeta({
                 <p className="font-[var(--font-pixel)] text-[7px] uppercase text-[var(--pixel-forest-light)]">Field Journal</p>
                 <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)]">{journalProgress}</p>
               </div>
-              {recordedEvidence.length > 0 ? (
+              {evidenceEntries.length > 0 ? (
                 <ul className="mt-3 space-y-2">
-                  {recordedEvidence.map(entry => (
+                  {evidenceEntries.slice(-5).map((entry, index) => (
                     <li
-                      key={entry.id}
+                      key={`${entry.hotspotId}-${entry.ts}-${index}`}
                       className="font-[var(--font-pixel)] text-[8px] leading-relaxed text-[var(--pixel-gold-light)]"
                     >
-                      {entry.label}: {entry.evidence}
+                      {PUBLIC_HOTSPOT_LABELS[entry.hotspotId] ?? entry.hotspotId.replace(/_/g, ' ')}:
+                      {' '}
+                      {displaySourceLayer(entry.sourceLayer)}
                     </li>
                   ))}
                 </ul>

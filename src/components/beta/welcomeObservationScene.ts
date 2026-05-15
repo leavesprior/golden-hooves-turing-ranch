@@ -1,12 +1,12 @@
-import { BOBR_CANON_GHOST_NARRATOR, BOBR_CANON_PRIMARY_GUIDE } from '@/lib/bobrCanon'
+import { BOBR_CANON_PRIMARY_GUIDE } from '@/lib/bobrCanon'
 import type {
   MapPoint,
-  ObservationHotspot,
   SceneAssetMetadata,
   ScenePropData,
   TerrainTile,
   TopDownSceneBetaProps,
 } from './TopDownSceneBeta'
+import { WELCOME_HOTSPOTS } from './welcomeHotspots'
 
 export const WELCOME_SCENE_ASSETS: SceneAssetMetadata[] = [
   {
@@ -76,73 +76,7 @@ export const WELCOME_WALKWAY_POINTS: MapPoint[] = [
   { x: 49, y: 43 },
 ]
 
-export const WELCOME_OBSERVATION_HOTSPOTS: ObservationHotspot[] = [
-  {
-    id: 'raw_land',
-    label: 'Raw Land',
-    x: 28,
-    y: 62,
-    prompt: 'Look past the entrance. What would it take to turn raw foothill land into a place guests can safely reach?',
-    evidence: 'No ranch works by accident: roads, drainage, power, water, and defensible space all had to be made legible.',
-    sourceLayer: 'Silver',
-    sourceNote:
-      "Candidate family-history beat from Dad's Book notes; verify final public wording before treating it as settled lore.",
-    response:
-      'Greggory does not hand you the answer. He points at the land and asks what had to be solved first: access, water, fire, or shelter.',
-  },
-  {
-    id: 'first_thirteen',
-    label: 'First 13 Acres',
-    x: 52,
-    y: 38,
-    prompt: 'Find the first boundary in your mind. Why would a family start with a smaller parcel and add piece by piece?',
-    evidence:
-      "Candidate lore thread: Dad's Book points toward a first smaller land purchase and later parcel-by-parcel growth.",
-    sourceLayer: 'Silver',
-    sourceNote:
-      "Potential family-history information from Dad's Book; keep as lore candidate until verified for public canon.",
-    response:
-      'He says a ranch is not bought all at once when you have more time than money. You build until the land starts answering back.',
-  },
-  {
-    id: 'work_trace',
-    label: 'Work Trace',
-    x: 72,
-    y: 58,
-    prompt: 'Inspect the built edges: posts, paths, cleared limbs, utility routes. Which details show work instead of decoration?',
-    evidence: 'Observation clue: built systems are part of the mystery, not background art.',
-    sourceLayer: 'Silver',
-    sourceNote: 'Interpretive beat from verified construction and ranch-maintenance themes, not a quoted passage.',
-    response:
-      'Greggory tells you to notice straight lines, cleared fuel, places water would run, and anything too practical to be accidental.',
-  },
-  {
-    id: 'living_steward',
-    label: 'Living Steward',
-    x: 47,
-    y: 76,
-    prompt: 'The ranch is not frozen in memory. Who keeps the systems working now?',
-    evidence:
-      "Leif is the present-day bridge between family lore, guest operations, maintenance, and the living ranch.",
-    sourceLayer: 'Silver',
-    sourceNote:
-      "Current-ranch and family-history beat; use Dad's Book as support material, then verify exact public phrasing.",
-    response:
-      'The old work only matters if someone keeps it alive. The next clue is not just what was built, but who keeps it running.',
-  },
-  {
-    id: 'memory_layer',
-    label: 'Memory Layer',
-    x: 64,
-    y: 27,
-    prompt: 'Some parts of the ranch are practical. Some are remembered. What changes when a place keeps both?',
-    evidence: `${BOBR_CANON_GHOST_NARRATOR.displayName} belongs to the memory layer, but her final public spelling is still pending.`,
-    sourceLayer: 'Silver',
-    sourceNote: 'Leif-directed ghost narrator role; display spelling and public relationship wording still need verification.',
-    response:
-      'Greggory gets quieter here. He says some clues are built with tools, and some are kept because someone loved the place enough to leave a shape behind.',
-  },
-]
+export const WELCOME_OBSERVATION_HOTSPOTS = WELCOME_HOTSPOTS
 
 export const WELCOME_OBSERVATION_SCENE: TopDownSceneBetaProps = {
   sceneTitle: 'Welcome Gate',
@@ -159,5 +93,5 @@ export const WELCOME_OBSERVATION_SCENE: TopDownSceneBetaProps = {
   walkwayPoints: WELCOME_WALKWAY_POINTS,
   guidePosition: { x: 35, y: 72 },
   playerStart: { x: 47, y: 77 },
-  hotspots: WELCOME_OBSERVATION_HOTSPOTS,
+  hotspots: WELCOME_HOTSPOTS,
 }
