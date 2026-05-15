@@ -117,7 +117,11 @@ export default function CertificatePage() {
               <p className="font-[var(--font-pixel)] text-[8px] text-[#3b2a1f] mb-2">REWARD EARNED</p>
               <p className="font-[var(--font-pixel)] text-xl text-[#1a1c2c]">{reward.discount}% OFF</p>
               <p className="font-[var(--font-pixel)] text-[10px] text-[#5c3d2e] mt-2">
-                Code: <span className="text-[#1a1c2c]">{reward.code}</span>
+                {reward.code ? (
+                  <>Code: <span className="text-[#1a1c2c]">{reward.code}</span></>
+                ) : (
+                  <span className="text-[#1a1c2c]">Host verification required before booking</span>
+                )}
               </p>
             </div>
 
@@ -164,7 +168,7 @@ export default function CertificatePage() {
         {/* Instructions */}
         <div className="mt-8 text-center print:hidden">
           <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
-            Use your discount code when booking direct at backofbeyondranch.farm
+            Email your certificate when booking direct at backofbeyondranch.farm for host verification
           </p>
           <p className="font-[var(--font-pixel)] text-[6px] text-[var(--pixel-gold-mid)] mt-2">
             Valid for 1 year from date of completion

@@ -47,7 +47,7 @@ interface GameContextType {
   useHint: () => string | null
   resetGame: () => void
   getProgress: () => { found: number; total: number; percent: number }
-  getReward: () => { tier: string; discount: number; code: string } | null
+  getReward: () => { tier: string; discount: number; code: string | null; serverMintRequired: boolean } | null
   getEarlyReward: () => EarlyReward | null
 
   // Player
@@ -140,8 +140,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // Early-bird discount: as of P-1 (server-mint), the actual BOBR-EARLY code is
     // fetched from /api/issue-bobr-early by the useEffect below. Here we only
     // record that the threshold was crossed and let the async fetch populate the
-    // code field. This closes the live forgery vuln where Math.random() in the
-    // browser allowed a devtools user to mint arbitrary codes.
+    // code field. This closes the live forgery vuln where browser randomness
+    // allowed a devtools user to mint arbitrary codes.
     const shouldIssueEarly =
       newDiscovered.length >= EARLY_DISCOUNT_MARKER && !session.earlyDiscountCode
 

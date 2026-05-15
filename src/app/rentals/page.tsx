@@ -57,11 +57,17 @@ export default function RentalsPage() {
             <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
               Quest Complete! You earned <span className="text-[var(--pixel-gold-light)]">{reward.discount}% OFF</span>
             </p>
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mt-2">
-              Use code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{reward.code}</span>
-            </p>
+            {reward.code ? (
+              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mt-2">
+                Use code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{reward.code}</span>
+              </p>
+            ) : (
+              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mt-2">
+                Completion rewards are verified by the host before booking.
+              </p>
+            )}
             <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] mt-2">
-              Email <a href="mailto:contact@backofbeyondranch.farm" className="text-[var(--pixel-gold-light)] underline hover:text-[var(--pixel-gold-mid)]">contact@backofbeyondranch.farm</a> when booking direct to redeem.
+              Email <a href="mailto:contact@backofbeyondranch.farm" className="text-[var(--pixel-gold-light)] underline hover:text-[var(--pixel-gold-mid)]">contact@backofbeyondranch.farm</a> when booking direct to verify your quest completion.
             </p>
           </div>
         )}
