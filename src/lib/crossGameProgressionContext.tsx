@@ -19,6 +19,7 @@ import {
   type ReputationSnapshot,
   type TimeEcho,
 } from './crossGameProgression'
+import { isTopDownBetaRoute } from './topDownBetaRoute'
 
 // Re-export types for convenience
 export {
@@ -109,7 +110,9 @@ export function CrossGameProgressionProvider({ children }: CrossGameProgressionP
 
   // Initialize from localStorage
   useEffect(() => {
-    const loaded = CrossGameStorage.init()
+    const loaded = isTopDownBetaRoute()
+      ? CrossGameStorage.load() ?? { ...DEFAULT_CROSS_GAME_STATE }
+      : CrossGameStorage.init()
     setState(loaded)
     setIsInitialized(true)
   }, [])

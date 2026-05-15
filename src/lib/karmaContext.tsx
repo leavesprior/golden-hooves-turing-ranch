@@ -14,6 +14,7 @@ import {
   ALIGNMENT_DISPLAY_NAMES,
   KARMA_MULTIPLIERS,
 } from './karmaStorage'
+import { isTopDownBetaRoute } from './topDownBetaRoute'
 
 // Re-export types and utilities for convenience
 export {
@@ -79,7 +80,9 @@ export function KarmaProvider({ children }: KarmaProviderProps) {
 
   // Initialize from localStorage
   useEffect(() => {
-    const state = KarmaStorage.init()
+    const state = isTopDownBetaRoute()
+      ? KarmaStorage.load() ?? { ...DEFAULT_KARMA_STATE }
+      : KarmaStorage.init()
     setKarma(state)
     setIsInitialized(true)
   }, [])
