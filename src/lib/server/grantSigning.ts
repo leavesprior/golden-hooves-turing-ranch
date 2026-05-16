@@ -68,6 +68,17 @@ function assertSecret(secret: string): void {
   }
 }
 
+export function resolveGrantTtlSeconds(type: string, requestedTtlSeconds?: number): number {
+  if (requestedTtlSeconds !== undefined) {
+    if (!Number.isInteger(requestedTtlSeconds) || requestedTtlSeconds <= 0) {
+      throw new Error('Grant ttl must be a positive integer number of seconds');
+    }
+    return requestedTtlSeconds;
+  }
+
+  return GRANT_TTL_SECONDS_BY_TYPE[type] ?? DEFAULT_GRANT_TTL_SECONDS;
+}
+
 function normalizePayload(payload: GrantPayload): Required<Pick<GrantPayload, 'type' | 'payload' | 'iat' | 'exp' | 'jti'>> & GrantPayload {
   if (!payload || typeof payload.type !== 'string' || payload.type.trim().length === 0) {
     throw new Error('Grant payload requires a non-empty type');
@@ -77,7 +88,7 @@ function normalizePayload(payload: GrantPayload): Required<Pick<GrantPayload, 't
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const configuredTtl = GRANT_TTL_SECONDS_BY_TYPE[payload.type] ?? DEFAULT_GRANT_TTL_SECONDS;
+  const configuredTtl = resolveGrantTtlSeconds(payload.type);
   const iat = Number.isFinite(payload.iat) ? Number(payload.iat) : now;
   const exp = Number.isFinite(payload.exp) ? Number(payload.exp) : iat + configuredTtl;
 
