@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
-import { useRPG, TRAITS, type TraitId, type AttributeName } from '@/lib/rpgContext'
+import { useRPG, TRAITS, type TraitId, type AttributeName, type RPGSession } from '@/lib/rpgContext'
 import {
   rollAllStats,
   generateMandelbrotSeed,
@@ -17,6 +17,21 @@ import { KarmaStorage, getAlignmentPosition, type AlignmentPosition } from '@/li
 
 // Character creation steps
 type CreationStep = 'name' | 'method' | 'stats' | 'trait' | 'confirm'
+
+function getRewardTierPercent(session: RPGSession | null): number {
+  if (!session) return 0
+
+  const completedCount = Object.values(session.chapters).filter(c => c.completed).length
+  const perfectScore = session.hintsUsed === 0 && completedCount === 5
+
+  let percent = 0
+  if (completedCount >= 1) percent = 5
+  if (completedCount >= 3) percent = 10
+  if (completedCount >= 5) percent = 15
+  if (perfectScore) percent = 20
+
+  return percent
+}
 
 // Attribute display names and descriptions
 const ATTRIBUTE_INFO: Record<AttributeName, { name: string; abbr: string; desc: string }> = {
@@ -179,7 +194,9 @@ export default function AdventurePage() {
   }, [])
 
   const hasSavedGame = typeof window !== 'undefined' && localStorage.getItem('bobr_rpg_session')
+  // Client discount-code minting is quarantined; this returns null until server-issued codes exist.
   const discount = getDiscountCode()
+  const rewardPercent = discount?.percent ?? getRewardTierPercent(session)
 
   // Handle rolling dice
   const handleRollDice = useCallback(() => {
@@ -1003,14 +1020,14 @@ export default function AdventurePage() {
               </div>
             </PixelCard>
 
-            {/* Discount earned */}
-            {discount && (
+            {/* Reward verification */}
+            {rewardPercent > 0 && (
               <div className="bg-gradient-to-r from-[var(--pixel-gold-dark)] to-[var(--pixel-fire-orange)] border-4 border-[var(--pixel-gold-mid)] p-4 text-center">
                 <p className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-ui-text)]">
-                  Discount Earned: <span className="text-[var(--pixel-gold-light)]">{discount.percent}% OFF</span>
+                  Reward Tier Earned: <span className="text-[var(--pixel-gold-light)]">{rewardPercent}% OFF</span>
                 </p>
                 <p className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-gold-light)] mt-1">
-                  Code: {discount.code}
+                  Contact your host at Back of Beyond Ranch to confirm your discount — server-issued codes coming soon.
                 </p>
               </div>
             )}
