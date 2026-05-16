@@ -3,7 +3,6 @@
 import React, { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { usePrologue, type PrologueCharacterId } from './prologueContext'
-import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import { BookingGate } from '@/components/game/BookingGate'
 import { PixelNavigation } from '@/components/pixel'
 
@@ -61,15 +60,14 @@ const CHARACTERS: {
 
 export default function ProloguePage() {
   const { state, selectCharacter, isCharacterUnlocked, getCompletedActCount } = usePrologue()
-  const { isUnlocked, hasMilestone } = useCrossGame()
-  const [showGate, setShowGate] = useState(!isUnlocked('prologue'))
+  const [showGate, setShowGate] = useState(true)
   const [selectedForDetail, setSelectedForDetail] = useState<PrologueCharacterId | null>(null)
 
   const handleGateUnlocked = useCallback(() => {
     setShowGate(false)
   }, [])
 
-  if (showGate && !hasMilestone('booking_verified')) {
+  if (showGate) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-indigo-950 via-black to-purple-950 flex items-center justify-center p-4">
         <div className="max-w-lg w-full">
