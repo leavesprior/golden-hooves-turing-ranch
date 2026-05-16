@@ -29,6 +29,42 @@ export interface RedeemResult {
   reason?: 'not_found' | 'already_redeemed' | 'expired';
 }
 
+export type GrantAuditStatus =
+  | 'issued'
+  | 'issue_rejected'
+  | 'verify_ok'
+  | 'verify_failed';
+
+export interface GrantAuditParams {
+  grantId?: string | null;
+  grantType: string;
+  subject?: string | null;
+  audience?: string | null;
+  issuedAt?: string | null;
+  expiresAt?: string | null;
+  ttlSeconds?: number | null;
+  payload?: unknown;
+  status: GrantAuditStatus;
+  reason?: string | null;
+  source?: string | null;
+}
+
+export interface GrantAuditRow {
+  id: string;
+  grant_id: string | null;
+  grant_type: string;
+  subject: string | null;
+  audience: string | null;
+  issued_at: string | null;
+  expires_at: string | null;
+  ttl_seconds: number | null;
+  payload_json: string | null;
+  status: GrantAuditStatus;
+  reason: string | null;
+  source: string | null;
+  created_at: string;
+}
+
 function getDbPath(): string {
   const volumePath = '/data';
   try {
@@ -62,6 +98,26 @@ function getDb(): Database.Database {
       );
       CREATE INDEX IF NOT EXISTS idx_discount_codes_redeemed
         ON discount_codes (redeemed_at);
+
+      CREATE TABLE IF NOT EXISTS grant_audit (
+        id           TEXT PRIMARY KEY,
+        grant_id     TEXT,
+        grant_type   TEXT NOT NULL,
+        subject      TEXT,
+        audience     TEXT,
+        issued_at    TEXT,
+        expires_at   TEXT,
+        ttl_seconds  INTEGER,
+        payload_json TEXT,
+        status       TEXT NOT NULL,
+        reason       TEXT,
+        source       TEXT,
+        created_at   TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_grant_audit_type_created
+        ON grant_audit (grant_type, created_at);
+      CREATE INDEX IF NOT EXISTS idx_grant_audit_status_created
+        ON grant_audit (status, created_at);
     `);
   }
   return _db;
@@ -150,4 +206,34 @@ export function dbRedeemCode(code: string): RedeemResult {
   if (!existing) return { ok: false, reason: 'not_found' };
   if (existing.redeemed_at) return { ok: false, reason: 'already_redeemed', code: existing };
   return { ok: false, reason: 'expired', code: existing };
+}
+
+export function dbRecordGrantAudit(params: GrantAuditParams): GrantAuditRow {
+  const row: GrantAuditRow = {
+    id: crypto.randomUUID(),
+    grant_id: params.grantId ?? null,
+    grant_type: params.grantType,
+    subject: params.subject ?? null,
+    audience: params.audience ?? null,
+    issued_at: params.issuedAt ?? null,
+    expires_at: params.expiresAt ?? null,
+    ttl_seconds: params.ttlSeconds ?? null,
+    payload_json: params.payload === undefined ? null : JSON.stringify(params.payload),
+    status: params.status,
+    reason: params.reason ?? null,
+    source: params.source ?? null,
+    created_at: new Date().toISOString(),
+  };
+
+  getDb().prepare(`
+    INSERT INTO grant_audit
+      (id, grant_id, grant_type, subject, audience, issued_at, expires_at,
+       ttl_seconds, payload_json, status, reason, source, created_at)
+    VALUES
+      (@id, @grant_id, @grant_type, @subject, @audience, @issued_at,
+       @expires_at, @ttl_seconds, @payload_json, @status, @reason,
+       @source, @created_at)
+  `).run(row);
+
+  return row;
 }
