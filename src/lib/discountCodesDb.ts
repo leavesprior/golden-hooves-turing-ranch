@@ -23,6 +23,22 @@ export interface MintParams {
   source?: string;
 }
 
+export interface MarkerProgress {
+  session_id: string;
+  marker_slug: string;
+  recorded_at: string;
+}
+
+export interface RecordMarkerProgressParams {
+  sessionId: string;
+  markerSlug: string;
+}
+
+export interface RecordMarkerProgressResult {
+  markerCount: number;
+  marker: MarkerProgress;
+}
+
 export interface RedeemResult {
   ok: boolean;
   code?: DiscountCode;
@@ -62,6 +78,15 @@ function getDb(): Database.Database {
       );
       CREATE INDEX IF NOT EXISTS idx_discount_codes_redeemed
         ON discount_codes (redeemed_at);
+
+      CREATE TABLE IF NOT EXISTS bobr_marker_progress (
+        session_id  TEXT NOT NULL,
+        marker_slug TEXT NOT NULL,
+        recorded_at TEXT NOT NULL,
+        PRIMARY KEY (session_id, marker_slug)
+      );
+      CREATE INDEX IF NOT EXISTS idx_bobr_marker_progress_session
+        ON bobr_marker_progress (session_id);
     `);
   }
   return _db;
@@ -82,6 +107,21 @@ function generateSuffix(): string {
 
 export function dbMintCode(params: MintParams): DiscountCode {
   const db = getDb();
+  const source = params.source ?? 'marker_4_unlock';
+
+  if (params.sessionId) {
+    const existing = db.prepare(`
+      SELECT *
+        FROM discount_codes
+       WHERE session_id = ?
+         AND source = ?
+       ORDER BY granted_at ASC
+       LIMIT 1
+    `).get(params.sessionId, source) as DiscountCode | undefined;
+
+    if (existing) return existing;
+  }
+
   const insert = db.prepare(`
     INSERT INTO discount_codes
       (id, code, granted_at, expires_at, redeemed_at, session_id, marker_count, percent, source)
@@ -104,7 +144,7 @@ export function dbMintCode(params: MintParams): DiscountCode {
       session_id: params.sessionId ?? null,
       marker_count: params.markerCount,
       percent: params.percent,
-      source: params.source ?? 'marker_4_unlock',
+      source,
     };
 
     try {
@@ -117,6 +157,35 @@ export function dbMintCode(params: MintParams): DiscountCode {
     }
   }
   throw new Error('dbMintCode: failed to allocate unique code after 5 attempts');
+}
+
+export function dbRecordMarkerProgress(params: RecordMarkerProgressParams): RecordMarkerProgressResult {
+  const db = getDb();
+  const marker: MarkerProgress = {
+    session_id: params.sessionId,
+    marker_slug: params.markerSlug,
+    recorded_at: new Date().toISOString(),
+  };
+
+  db.prepare(`
+    INSERT OR IGNORE INTO bobr_marker_progress
+      (session_id, marker_slug, recorded_at)
+    VALUES
+      (@session_id, @marker_slug, @recorded_at)
+  `).run(marker);
+
+  const markerCount = dbGetMarkerProgressCount(params.sessionId);
+  return { markerCount, marker };
+}
+
+export function dbGetMarkerProgressCount(sessionId: string): number {
+  const row = getDb().prepare(`
+    SELECT COUNT(*) AS count
+      FROM bobr_marker_progress
+     WHERE session_id = ?
+  `).get(sessionId) as { count: number } | undefined;
+
+  return row?.count ?? 0;
 }
 
 export function dbGetCode(code: string): DiscountCode | null {
