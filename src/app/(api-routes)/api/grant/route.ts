@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbRecordGrantAudit } from '@/lib/discountCodesDb';
+import { isMilestoneId } from '@/lib/crossGameProgression';
 import {
   DEFAULT_GRANT_TTL_SECONDS,
   getGrantSigningSecret,
@@ -43,6 +44,24 @@ function parseRequestedTtl(type: string, ttl: unknown): number {
   return ttlSeconds;
 }
 
+function validatePayload(type: string, payload: Record<string, unknown>): Record<string, unknown> {
+  if (type !== 'milestone') return payload;
+
+  if (!isMilestoneId(payload.milestoneId)) {
+    throw new Error('milestone_not_allowed');
+  }
+  if (typeof payload.sessionId !== 'string' || payload.sessionId.trim().length === 0) {
+    throw new Error('missing_session_id');
+  }
+
+  return {
+    milestoneId: payload.milestoneId,
+    sessionId: payload.sessionId,
+    source: typeof payload.source === 'string' ? payload.source : 'unknown',
+    metadata: isRecord(payload.metadata) ? payload.metadata : {},
+  };
+}
+
 export async function POST(req: NextRequest) {
   let body: GrantRequestBody;
   try {
@@ -56,6 +75,14 @@ export async function POST(req: NextRequest) {
   if (!GRANT_TYPE_ALLOWLIST.has(type)) return rejectGrant(type, 'grant_type_not_allowed', body, 403);
   if (!isRecord(body.payload)) return rejectGrant(type, 'invalid_payload', body.payload);
 
+  let grantPayload: Record<string, unknown>;
+  try {
+    grantPayload = validatePayload(type, body.payload);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : 'invalid_payload';
+    return rejectGrant(type, reason, body.payload);
+  }
+
   let ttlSeconds: number;
   try {
     ttlSeconds = parseRequestedTtl(type, body.ttl);
@@ -67,7 +94,8 @@ export async function POST(req: NextRequest) {
   const now = Math.floor(Date.now() / 1000);
   const payload: GrantPayload = {
     type,
-    payload: body.payload,
+    payload: grantPayload,
+    sub: typeof grantPayload.sessionId === 'string' ? grantPayload.sessionId : undefined,
     iat: now,
     exp: now + ttlSeconds,
     aud: `bobr-grant:${type}`,

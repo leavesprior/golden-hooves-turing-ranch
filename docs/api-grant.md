@@ -25,8 +25,8 @@ Request body:
 - `payload` must be a JSON object.
 - `ttl` is optional seconds. It defaults to 30 days and cannot exceed 30 days.
 - Auth is intentionally narrow for this substrate pass: the route refuses
-  unknown grant types, and milestone-specific eligibility is layered in the
-  milestone migration PR.
+  unknown grant types. Milestone grants additionally reject milestone ids that
+  are not in the server-side `MilestoneId` allowlist.
 
 Successful response:
 
@@ -86,3 +86,11 @@ Successful response:
 Invalid or expired tokens return `ok: false` with `invalid_token`.
 Verification successes and failures are recorded in `grant_audit` so the
 post-merge soak can track failure rates and retry storms.
+
+## Milestone Migration Notes
+
+Milestone grants are stored by the client under
+`bobr_grant_milestone_${milestoneId}`. Legacy `bobr_cross_game_progression`
+milestones that predate signed grants receive a 7-day amnesty marker on first
+read. After that window, unlock checks stop counting the raw milestone unless a
+signed grant token exists.

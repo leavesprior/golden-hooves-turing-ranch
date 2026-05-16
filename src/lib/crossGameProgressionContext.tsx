@@ -13,6 +13,7 @@ import {
   CROSS_GAME_STORAGE_KEY,
   DEFAULT_CROSS_GAME_STATE,
   GAME_UNLOCK_CONFIGS,
+  getGrantEligibleMilestones,
   isGameUnlocked,
   qualitiesFromSaddle,
   type FactionId,
@@ -188,7 +189,7 @@ export function CrossGameProgressionProvider({ children }: CrossGameProgressionP
 
   // Check if a milestone has been reached
   const hasMilestone = useCallback((milestoneId: MilestoneId): boolean => {
-    return state.milestones.some(m => m.id === milestoneId)
+    return getGrantEligibleMilestones(state.milestones).some(m => m.id === milestoneId)
   }, [state.milestones])
 
   // Update character qualities

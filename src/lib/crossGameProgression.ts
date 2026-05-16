@@ -10,8 +10,16 @@
  * localStorage key: bobr_cross_game_progression
  */
 
+import {
+  hasUsableMilestoneGrant,
+  issueMilestoneGrant,
+} from './grantTokens'
+
 export const CROSS_GAME_STORAGE_KEY = 'bobr_cross_game_progression'
-export const CROSS_GAME_VERSION = '1.0.0'
+export const CROSS_GAME_VERSION = '1.1.0'
+export const LEGACY_MILESTONE_AMNESTY_DAYS = 7
+export const LEGACY_MILESTONE_AMNESTY_MS = LEGACY_MILESTONE_AMNESTY_DAYS * 24 * 60 * 60 * 1000
+export const PENDING_MILESTONE_GRANT_MS = 5 * 60 * 1000
 
 // ============================================
 // GAME IDS
@@ -72,6 +80,46 @@ export type MilestoneId =
   | 'karma_good_alignment'
   | 'karma_lawful_good'
   | 'karma_total_1000'
+
+export const MILESTONE_IDS: readonly MilestoneId[] = [
+  'reached_west_point',
+  'completed_journey_west',
+  'completed_gold_country',
+  'captured_black_bart',
+  'adventure_chapter_1',
+  'adventure_chapter_2',
+  'adventure_chapter_3',
+  'adventure_chapter_4',
+  'adventure_chapter_5',
+  'clue_game_unlocked',
+  'prologue_norseman_complete',
+  'prologue_native_complete',
+  'prologue_califia_complete',
+  'prologue_incan_complete',
+  'prologue_convergence_complete',
+  'booking_verified',
+  'first_donation',
+  'treat_all_animals',
+  'momento_collector',
+  'complete_momentos',
+  'explorer_first_mystery_solved',
+  'explorer_all_mysteries_solved',
+  'explorer_legendary_level',
+  'explorer_spiritual_awareness',
+  'explorer_twain_scholar',
+  'explorer_califia_seeker',
+  'explorer_miwok_historian',
+  'explorer_ranch_pioneer',
+  'karma_good_alignment',
+  'karma_lawful_good',
+  'karma_total_1000',
+]
+
+const MILESTONE_ID_SET = new Set<string>(MILESTONE_IDS)
+
+export function isMilestoneId(value: unknown): value is MilestoneId {
+  return typeof value === 'string' && MILESTONE_ID_SET.has(value)
+}
 
 export interface Milestone {
   id: MilestoneId
@@ -495,6 +543,90 @@ function hasMilestone(milestones: Milestone[], id: MilestoneId): boolean {
   return milestones.some(m => m.id === id)
 }
 
+function getMetadataString(milestone: Milestone, key: string): string | null {
+  const value = milestone.metadata?.[key]
+  return typeof value === 'string' ? value : null
+}
+
+function isFutureIso(value: string | null, nowMs: number): boolean {
+  if (!value) return false
+  const time = Date.parse(value)
+  return Number.isFinite(time) && time > nowMs
+}
+
+function isPendingGrant(milestone: Milestone, nowMs: number): boolean {
+  if (milestone.metadata?.grantStatus !== 'pending') return false
+  return isFutureIso(getMetadataString(milestone, 'pendingGrantExpiresAt'), nowMs)
+}
+
+function isLegacyAmnestyMilestone(milestone: Milestone, nowMs: number): boolean {
+  return isFutureIso(getMetadataString(milestone, 'legacyAmnestyExpiresAt'), nowMs)
+}
+
+function isGrantEligibleMilestone(milestone: Milestone, nowMs = Date.now()): boolean {
+  return (
+    hasUsableMilestoneGrant(milestone.id, nowMs)
+    || isLegacyAmnestyMilestone(milestone, nowMs)
+    || isPendingGrant(milestone, nowMs)
+  )
+}
+
+export function getGrantEligibleMilestones(milestones: Milestone[], nowMs = Date.now()): Milestone[] {
+  return milestones.filter(milestone => isGrantEligibleMilestone(milestone, nowMs))
+}
+
+function withLegacyMilestoneAmnesty(state: CrossGameState, nowMs = Date.now()): { state: CrossGameState; changed: boolean } {
+  let changed = false
+  const nowIso = new Date(nowMs).toISOString()
+  const expiresAt = new Date(nowMs + LEGACY_MILESTONE_AMNESTY_MS).toISOString()
+
+  const milestones = state.milestones.map(milestone => {
+    if (hasUsableMilestoneGrant(milestone.id, nowMs)) return milestone
+    if (milestone.metadata?.grantStatus === 'pending') return milestone
+    if (milestone.metadata?.legacyAmnestyExpiresAt) return milestone
+
+    changed = true
+    return {
+      ...milestone,
+      metadata: {
+        ...milestone.metadata,
+        grantStatus: 'legacy_amnesty',
+        legacyAmnestyStartedAt: nowIso,
+        legacyAmnestyExpiresAt: expiresAt,
+      },
+    }
+  })
+
+  if (!changed) return { state, changed: false }
+  return { state: { ...state, milestones }, changed: true }
+}
+
+function markMilestoneGrantPending(milestone: Milestone, nowMs = Date.now()): Milestone {
+  return {
+    ...milestone,
+    metadata: {
+      ...milestone.metadata,
+      grantStatus: 'pending',
+      pendingGrantStartedAt: new Date(nowMs).toISOString(),
+      pendingGrantExpiresAt: new Date(nowMs + PENDING_MILESTONE_GRANT_MS).toISOString(),
+    },
+  }
+}
+
+function markMilestoneGrantIssued(milestone: Milestone, token: string, nowMs = Date.now()): Milestone {
+  return {
+    ...milestone,
+    metadata: {
+      ...milestone.metadata,
+      grantStatus: 'signed',
+      grantIssuedAt: new Date(nowMs).toISOString(),
+      grantTokenPreview: token.slice(0, 16),
+      legacyAmnestyExpiresAt: undefined,
+      pendingGrantExpiresAt: undefined,
+    },
+  }
+}
+
 export function evaluateUnlockCondition(
   condition: UnlockCondition,
   milestones: Milestone[]
@@ -516,7 +648,7 @@ export function evaluateUnlockCondition(
 export function isGameUnlocked(gameId: GameId, milestones: Milestone[]): boolean {
   const config = GAME_UNLOCK_CONFIGS.find(c => c.gameId === gameId)
   if (!config) return true // Unknown games are accessible by default
-  return evaluateUnlockCondition(config.condition, milestones)
+  return evaluateUnlockCondition(config.condition, getGrantEligibleMilestones(milestones))
 }
 
 // ============================================
@@ -546,7 +678,14 @@ export const CrossGameStorage = {
     try {
       if (typeof window === 'undefined') return null
       const data = localStorage.getItem(CROSS_GAME_STORAGE_KEY)
-      return data ? JSON.parse(data) : null
+      if (!data) return null
+
+      const parsed = JSON.parse(data) as CrossGameState
+      const normalized = withLegacyMilestoneAmnesty(parsed)
+      if (normalized.changed) {
+        this.save(normalized.state)
+      }
+      return normalized.state
     } catch (e) {
       console.error('Failed to load cross-game state:', e)
       return null
@@ -583,19 +722,25 @@ export const CrossGameStorage = {
     const state = this.load() || { ...DEFAULT_CROSS_GAME_STATE }
 
     // Don't duplicate milestones
-    if (state.milestones.some(m => m.id === milestoneId)) {
+    const existingIndex = state.milestones.findIndex(m => m.id === milestoneId)
+    if (existingIndex >= 0 && isGrantEligibleMilestone(state.milestones[existingIndex])) {
       return state
     }
 
-    const milestone: Milestone = {
+    const milestone = markMilestoneGrantPending({
       id: milestoneId,
       source,
       timestamp: new Date().toISOString(),
       metadata,
-    }
+    })
 
-    state.milestones.push(milestone)
+    if (existingIndex >= 0) {
+      state.milestones[existingIndex] = milestone
+    } else {
+      state.milestones.push(milestone)
+    }
     this.save(state)
+    this.issueGrantForMilestone(milestoneId, source, metadata)
     return state
   },
 
@@ -608,12 +753,45 @@ export const CrossGameStorage = {
   },
 
   /**
+   * Check if a milestone has a signed grant, active legacy amnesty, or pending grant.
+   */
+  hasMilestone(milestoneId: MilestoneId): boolean {
+    const state = this.load() || DEFAULT_CROSS_GAME_STATE
+    return getGrantEligibleMilestones(state.milestones).some(m => m.id === milestoneId)
+  },
+
+  /**
+   * Issue and cache a signed grant for a milestone without blocking the current UI.
+   */
+  issueGrantForMilestone(
+    milestoneId: MilestoneId,
+    source: GameId,
+    metadata?: Record<string, unknown>
+  ): void {
+    void issueMilestoneGrant({ milestoneId, source, metadata })
+      .then(token => {
+        if (!token) return
+        const state = this.load()
+        if (!state) return
+        const index = state.milestones.findIndex(m => m.id === milestoneId)
+        if (index < 0) return
+        state.milestones[index] = markMilestoneGrantIssued(state.milestones[index], token)
+        this.save(state)
+      })
+      .catch(err => {
+        console.error('Failed to issue milestone grant:', err)
+      })
+  },
+
+  /**
    * Get all newly unlocked games after a milestone is recorded
    */
   getNewlyUnlockedGames(previousMilestones: Milestone[], currentMilestones: Milestone[]): GameUnlockConfig[] {
+    const previousEligible = getGrantEligibleMilestones(previousMilestones)
+    const currentEligible = getGrantEligibleMilestones(currentMilestones)
     return GAME_UNLOCK_CONFIGS.filter(config => {
-      const wasLocked = !evaluateUnlockCondition(config.condition, previousMilestones)
-      const isNowUnlocked = evaluateUnlockCondition(config.condition, currentMilestones)
+      const wasLocked = !evaluateUnlockCondition(config.condition, previousEligible)
+      const isNowUnlocked = evaluateUnlockCondition(config.condition, currentEligible)
       return wasLocked && isNowUnlocked
     })
   },
