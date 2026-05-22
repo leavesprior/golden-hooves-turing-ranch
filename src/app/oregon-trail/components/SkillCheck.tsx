@@ -60,7 +60,7 @@ export function SkillCheck({ stat, difficulty, description, onResult, onCancel }
 
   return (
     <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border-2 border-purple-600 rounded-lg p-6 max-w-md w-full">
+      <div className="bg-gray-900 border-2 border-purple-600 rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="text-center mb-6">
           <h2 className="text-purple-400 text-xl mb-2">Skill Check</h2>
