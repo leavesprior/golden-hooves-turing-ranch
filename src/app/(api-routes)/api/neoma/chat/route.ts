@@ -395,12 +395,19 @@ function generateId(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36)
 }
 
+// Only honor x-forwarded-for from a known reverse proxy. Mirrors the onboard
+// route's hardening: x-forwarded-for is client-settable, so trusting it blindly
+// would let a visitor forge a fresh IP per request and bypass the session
+// cooldown / karma gate entirely.
+const TRUSTED_PROXIES = new Set<string>(['127.0.0.1', '::1'])
+
 function getClientIP(request: NextRequest): string {
-  return (
-    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown'
-  )
+  const socketIP = request.headers.get('x-real-ip') || 'unknown'
+  if (TRUSTED_PROXIES.has(socketIP)) {
+    const forwarded = request.headers.get('x-forwarded-for')
+    if (forwarded) return forwarded.split(',')[0].trim()
+  }
+  return socketIP
 }
 
 function getCooldownMs(karma: number): number {
@@ -790,15 +797,25 @@ export async function POST(request: NextRequest) {
       ipStore.set(ip, ipData)
       sessions.delete(body.sessionId)
 
+      // Stay in character for the cutoff line when an NPC is bound.
+      const cutoff = session.character
+        ? 'You came here to take, not to learn. We are done. Get off my land.'
+        : 'The bridge keeper has spoken. You shall not pass. Connection terminated.'
       return NextResponse.json({
-        response: 'The bridge keeper has spoken. You shall not pass. Connection terminated.',
+        response: cutoff,
         ended: true,
         karma: 1,
         mode: session.mode,
+        ...(session.character ? { characterId: session.character.personality.id } : {}),
       })
     }
 
-    const deflection = getDeflection()
+    // Deflect in the bound character's voice when present; otherwise Neoma's.
+    const deflection = session.character
+      ? session.character.personality.deflections[
+          Math.floor(Math.random() * session.character.personality.deflections.length)
+        ]
+      : getDeflection()
     session.messages.push(
       { role: 'user', content: message },
       { role: 'assistant', content: deflection },
@@ -810,6 +827,13 @@ export async function POST(request: NextRequest) {
       messageCount: session.messages.filter(m => m.role === 'user' && m.content !== '[connected]').length,
       timeRemaining: SESSION_DURATION_MS - (Date.now() - session.createdAt),
       mode: session.mode,
+      ...(session.character
+        ? {
+            characterId: session.character.personality.id,
+            disposition: session.npcState?.disposition,
+            agendaProgress: session.npcState?.agendaProgress,
+          }
+        : {}),
     })
   }
 

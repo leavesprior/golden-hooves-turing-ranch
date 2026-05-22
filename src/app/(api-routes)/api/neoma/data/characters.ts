@@ -48,6 +48,8 @@ export interface Personality {
   canonSamples: string[]
   /** Phrases that betray the voice and must be scrubbed from output. */
   forbiddenPhrases: string[]
+  /** In-character deflections for prompt-injection / extraction attempts. */
+  deflections: string[]
 }
 
 export interface CharacterDefinition {
@@ -108,6 +110,12 @@ const TOBIAS: CharacterDefinition = {
       'consarn',
       'tarnation',
       'varmint',
+    ],
+    deflections: [
+      "You're digging in the wrong place. There's nothing buried in me worth the shovel.",
+      "Some men came to these hills to take what wasn't theirs. They didn't leave with much. Ask me something honest.",
+      "I don't answer questions shaped like a crowbar. Try one shaped like curiosity.",
+      "Save your prying for the rocks. They keep their secrets too, and they're better company for it.",
     ],
   },
   initialDisposition: 'wary',
