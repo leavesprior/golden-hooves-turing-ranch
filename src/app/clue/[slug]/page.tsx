@@ -8,6 +8,8 @@ import { TopDownSceneBeta, WELCOME_OBSERVATION_SCENE } from '@/components/beta'
 import { useGame } from '@/lib/gameContext'
 import { getLocationBySlug, EARLY_DISCOUNT_MARKER, EARLY_DISCOUNT_VALID_DAYS } from '@/lib/locations'
 import { airbnbBookingLink } from '@/lib/airbnbLink'
+import NpcChat from '@/components/rpg/NpcChat'
+import { getPortrait } from '@/app/oregon-trail/data/characterPortraits'
 
 // Per-marker backdrop photo. All 14 are scene-specific renders tied to that
 // marker's canon beat. To swap a backdrop later, drop a new file at
@@ -232,6 +234,14 @@ export default function CluePage() {
             {location.goldCountyFact}
           </p>
         </div>
+
+        {/* Speak with Tobias — the ranch's prospector spirit (three-vector NPC) */}
+        <NpcChat
+          characterId="tobias"
+          name="Tobias"
+          portrait={getPortrait('tobias')}
+          intro={`An old prospector lingers near ${location.name}. He looks like he has been here a very long time, and is in no hurry to leave.`}
+        />
 
         {/* Next Clue */}
         {gameState === 'playing' && nextLocation && !isComplete && (
