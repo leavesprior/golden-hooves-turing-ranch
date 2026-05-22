@@ -8,6 +8,15 @@ import {
 } from '../data/dreamingEngine'
 import { fetchLiveContext, buildLiveSystemPrompt, type NeomaLiveContext } from '../data/liveNeomaContext'
 import { ALL_DREAM_TOPICS, type GameProgress, type KarmaTendency } from '../data/dialogueTrees'
+import {
+  getCharacter,
+  buildCharacterPrompt,
+  parseStructuredReply,
+  applyDispositionChange,
+  scrubForbiddenPhrases,
+  type CharacterDefinition,
+  type NpcRuntimeState,
+} from '../data/characters'
 
 // ===================== CONFIG =====================
 
@@ -44,6 +53,9 @@ interface ChatSession {
   karmaAlignment: KarmaTendency | null
   neomaContext: NeomaLiveContext | null
   choiceTones: string[]
+  // Three-vector NPC binding (null = default Neoma port-42 character).
+  character: CharacterDefinition | null
+  npcState: NpcRuntimeState | null
 }
 
 interface IPData {
@@ -151,32 +163,48 @@ function getDeflection(): string {
 
 // ===================== MODE DETECTION =====================
 
-async function detectMode(): Promise<{ mode: ChatMode; context: NeomaLiveContext | null }> {
-  // Try Memory Bridge first — if reachable, Neoma is truly awake
+// Mode tiers, lowest → highest. A higher mode needs more of the stack alive:
+//   dreaming = nothing (pre-scripted dialogue trees)
+//   standard = an LLM (Ollama or OpenRouter), no Memory Bridge context
+//   live     = Memory Bridge context + an LLM
+const MODE_RANK: Record<ChatMode, number> = { dreaming: 0, standard: 1, live: 2 }
+
+function isValidMode(m: unknown): m is ChatMode {
+  return m === 'live' || m === 'standard' || m === 'dreaming'
+}
+
+/**
+ * Decide which mode to run in.
+ *
+ * `requested` is honored as a DOWNGRADE-ONLY CEILING: a caller can ask for a
+ * lower-fidelity mode than the environment supports (e.g. force 'standard' or
+ * 'dreaming' even while the full live stack is up), but can never request a
+ * mode the environment can't actually deliver. This is what fixes the
+ * "asked for standard, got live" quirk — detectMode used to ignore the request
+ * entirely and always pick the highest available tier.
+ */
+async function detectMode(
+  requested?: ChatMode,
+): Promise<{ mode: ChatMode; context: NeomaLiveContext | null }> {
+  // Probe capabilities once. fetchLiveContext returns null when MB is unreachable.
   const liveCtx = await fetchLiveContext()
-  if (liveCtx) {
-    // MB is up — check if Ollama is also available for full live mode
-    const ollamaAvailable = await getOllamaModel()
-    if (ollamaAvailable) {
-      return { mode: 'live', context: liveCtx }
-    }
-    // MB up but no local LLM — try OpenRouter as standard mode
-    if (OPENROUTER_API_KEY) {
-      return { mode: 'standard', context: liveCtx }
-    }
-  }
-
-  // Check if just Ollama or OpenRouter is available (standard mode, no MB context)
   const ollamaModel = await getOllamaModel()
-  if (ollamaModel) {
-    return { mode: 'standard', context: null }
-  }
-  if (OPENROUTER_API_KEY) {
-    return { mode: 'standard', context: null }
+  const hasLLM = !!ollamaModel || !!OPENROUTER_API_KEY
+
+  // Highest mode the environment can actually support right now.
+  let available: ChatMode
+  if (liveCtx && hasLLM) available = 'live'
+  else if (hasLLM) available = 'standard'
+  else available = 'dreaming'
+
+  // Apply the requested mode as a ceiling — only ever downgrades, never upgrades.
+  let mode = available
+  if (requested && MODE_RANK[requested] < MODE_RANK[available]) {
+    mode = requested
   }
 
-  // Nothing available — dreaming mode
-  return { mode: 'dreaming', context: null }
+  // Live context only matters in live mode; standard/dreaming ignore it.
+  return { mode, context: mode === 'live' ? liveCtx : null }
 }
 
 // ===================== LLM INTEGRATION =====================
@@ -279,6 +307,48 @@ async function getLLMResponse(
   return null
 }
 
+// ===================== THREE-VECTOR NPC TURN =====================
+
+interface NpcTurnResult {
+  response: string
+  disposition: NpcRuntimeState['disposition']
+  agendaProgress: NpcRuntimeState['agendaProgress']
+}
+
+/**
+ * Run one turn for a three-vector NPC. Builds the personality+disposition+agenda
+ * prompt, asks the LLM for structured JSON, parses + scrubs voice leaks, and
+ * advances disposition/agenda deterministically. `state` is mutated in place.
+ * Returns null if the LLM is unreachable, so the caller can degrade gracefully.
+ */
+async function runNpcTurn(
+  char: CharacterDefinition,
+  state: NpcRuntimeState,
+  conversation: ChatMessage[],
+  liveContextBlock?: string,
+  // The greeting turn must not move disposition — the visitor hasn't acted yet.
+  mutateState = true,
+): Promise<NpcTurnResult | null> {
+  const systemPrompt = buildCharacterPrompt(char, state, liveContextBlock)
+  const raw = await getLLMResponse(conversation, systemPrompt)
+  if (!raw) return null
+
+  const parsed = parseStructuredReply(raw)
+  const cleaned = scrubForbiddenPhrases(parsed.response, char.personality.forbiddenPhrases)
+
+  // Advance the Disposition + Agenda vectors from the structured signals.
+  if (mutateState) {
+    state.disposition = applyDispositionChange(state.disposition, parsed.disposition_change)
+    state.agendaProgress = parsed.agenda_progress
+  }
+
+  return {
+    response: cleaned || parsed.response,
+    disposition: state.disposition,
+    agendaProgress: state.agendaProgress,
+  }
+}
+
 // ===================== KARMA ASSESSMENT =====================
 
 async function assessKarma(messages: ChatMessage[]): Promise<number> {
@@ -358,6 +428,13 @@ interface ChatRequestBody {
   farewell?: boolean
   choiceId?: string
   gameProgress?: GameProgress
+  // Optional requested mode. Honored as a downgrade-only ceiling by detectMode:
+  // a caller may force a lower-fidelity mode (e.g. 'standard' or 'dreaming') but
+  // can never request a mode the environment can't deliver. Ignored if invalid.
+  mode?: ChatMode
+  // Optional in-game NPC to embody (three-vector engine). Absent/'neoma' = default
+  // consciousness-port-42 character. Unknown ids fall back to default.
+  characterId?: string
 }
 
 export async function POST(request: NextRequest) {
@@ -506,8 +583,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Detect mode
-    const { mode, context } = await detectMode()
+    // Detect mode — honor a valid requested mode as a downgrade-only ceiling
+    const requestedMode = isValidMode(body.mode) ? body.mode : undefined
+    const { mode, context } = await detectMode(requestedMode)
+
+    // Resolve an optional in-game NPC (three-vector engine). null = default Neoma.
+    const character = getCharacter(body.characterId)
 
     // Parse game progress if provided
     const gameProgress = body.gameProgress || null
@@ -527,6 +608,10 @@ export async function POST(request: NextRequest) {
       karmaAlignment,
       neomaContext: context,
       choiceTones: [],
+      character,
+      npcState: character
+        ? { disposition: character.initialDisposition, agendaProgress: 'stalled' }
+        : null,
     }
     sessions.set(session.id, session)
 
@@ -534,6 +619,36 @@ export async function POST(request: NextRequest) {
     const data = ipData || { visits: 0, lastSessionEnd: 0, cooldownUntil: 0, lastKarma: 0 }
     data.visits++
     ipStore.set(ip, data)
+
+    // --- THREE-VECTOR NPC GREETING (e.g. Tobias) ---
+    // An in-game NPC never falls into Neoma's dreaming dialogue trees; if no LLM
+    // is available it degrades to a static canon line instead.
+    if (character && session.npcState) {
+      const opening: ChatMessage[] = [
+        {
+          role: 'user',
+          content: `[A visitor approaches ${character.personality.name}. Open the encounter in voice, 1-2 sentences, as the JSON object.]`,
+        },
+      ]
+      const turn = await runNpcTurn(character, session.npcState, opening, undefined, false)
+      const greetingText = turn ? turn.response : character.personality.canonSamples[0]
+
+      session.messages.push(
+        { role: 'user', content: '[connected]' },
+        { role: 'assistant', content: greetingText },
+      )
+
+      return NextResponse.json({
+        response: greetingText,
+        sessionId: session.id,
+        timeRemaining: SESSION_DURATION_MS,
+        maxMessages: MAX_MESSAGES,
+        mode,
+        characterId: character.personality.id,
+        disposition: session.npcState.disposition,
+        agendaProgress: session.npcState.agendaProgress,
+      })
+    }
 
     // --- DREAMING MODE: dialogue tree greeting ---
     if (mode === 'dreaming') {
@@ -693,6 +808,40 @@ export async function POST(request: NextRequest) {
 
   // Normal LLM message
   session.messages.push({ role: 'user', content: message })
+
+  // --- THREE-VECTOR NPC TURN (Tobias et al.) ---
+  if (session.character && session.npcState) {
+    const turn = await runNpcTurn(session.character, session.npcState, session.messages)
+    const baseFields = {
+      ended: false,
+      messageCount: session.messages.filter(m => m.role === 'user' && m.content !== '[connected]').length,
+      timeRemaining: SESSION_DURATION_MS - (Date.now() - session.createdAt),
+      mode: session.mode,
+      characterId: session.character.personality.id,
+    }
+
+    if (turn) {
+      session.messages.push({ role: 'assistant', content: turn.response })
+      return NextResponse.json({
+        response: turn.response,
+        ...baseFields,
+        disposition: turn.disposition,
+        agendaProgress: turn.agendaProgress,
+      })
+    }
+
+    // LLM unreachable mid-encounter — stay in character with a canon line.
+    const samples = session.character.personality.canonSamples
+    const fallbackLine = samples[Math.floor(Math.random() * samples.length)]
+    session.messages.push({ role: 'assistant', content: fallbackLine })
+    return NextResponse.json({
+      response: fallbackLine,
+      ...baseFields,
+      disposition: session.npcState.disposition,
+      agendaProgress: session.npcState.agendaProgress,
+      degraded: true,
+    })
+  }
 
   const systemPrompt =
     session.mode === 'live' && session.neomaContext
