@@ -17,6 +17,7 @@ import {
   type CharacterDefinition,
   type NpcRuntimeState,
 } from '../data/characters'
+import { fetchNpcLore } from '../data/npcLoreRag'
 
 // ===================== CONFIG =====================
 
@@ -329,7 +330,13 @@ async function runNpcTurn(
   // The greeting turn must not move disposition — the visitor hasn't acted yet.
   mutateState = true,
 ): Promise<NpcTurnResult | null> {
-  const systemPrompt = buildCharacterPrompt(char, state, liveContextBlock)
+  // Approximate "memory lane" lore enrichment. Flag-gated: returns '' (no-op) until
+  // the RAG sidecar is live AND Grok-approved, so this is inert by default.
+  const lastUser = [...conversation].reverse().find(m => m.role === 'user')
+  const lore = await fetchNpcLore(char.personality.id, lastUser?.content ?? '')
+  const contextBlock = [liveContextBlock, lore].filter(Boolean).join('\n') || undefined
+
+  const systemPrompt = buildCharacterPrompt(char, state, contextBlock)
   const raw = await getLLMResponse(conversation, systemPrompt)
   if (!raw) return null
 
