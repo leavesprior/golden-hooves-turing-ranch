@@ -37,8 +37,7 @@ export function ClueGameUnlock({
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const state = CrossGameStorage.load()
-      const hasMilestone = state?.milestones.some(m => m.id === 'clue_game_unlocked') ?? false
+      const hasMilestone = CrossGameStorage.hasMilestone('clue_game_unlocked')
       // Also check legacy key for backwards compat
       const legacy = localStorage.getItem('bobr_clue_game_unlocked') === 'true'
       if (hasMilestone || legacy) setUnlocked(true)
