@@ -1,9 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import {
   Location,
-  locations,
   getLocationsForDifficulty,
   calculateRewardTier,
   EARLY_DISCOUNT_MARKER,
@@ -65,6 +64,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [playerName, setPlayerName] = useState('')
   const [availableLocations, setAvailableLocations] = useState<Location[]>([])
   const [mounted, setMounted] = useState(false)
+  // NEW-09: server-issued per-session marker token. Echoed on every marker after
+  // the first so the server can prove this client legitimately started the session.
+  const markerTokenRef = useRef<Record<string, string>>({})
 
   // Load saved session on mount
   useEffect(() => {
@@ -114,6 +116,58 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (name) setPlayerName(name)
   }
 
+  const requestEarlyDiscount = (sessionId: string) => {
+    fetch('/api/issue-bobr-early', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data?.ok) return
+        setSession(prev =>
+          prev
+            ? {
+                ...prev,
+                earlyDiscountCode: data.code,
+                earlyDiscountIssuedAt: new Date(data.grantedAt),
+              }
+            : prev,
+        )
+      })
+      .catch(err => {
+        console.error('issue-bobr-early failed:', err)
+      })
+  }
+
+  const recordServerMarker = (activeSession: GameSession, markerSlug: string) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    // Echo the server-issued token (set on the first marker) on subsequent markers.
+    const token = markerTokenRef.current[activeSession.id]
+    if (token) headers['X-Marker-Token'] = token
+    fetch('/api/record-bobr-marker', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        sessionId: activeSession.id,
+        markerSlug,
+        difficulty: activeSession.difficulty,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data?.ok) return
+        // Capture the token minted by the server on the first marker.
+        if (data.sessionToken) markerTokenRef.current[activeSession.id] = data.sessionToken
+        if (data.markerCount >= EARLY_DISCOUNT_MARKER && !activeSession.earlyDiscountCode) {
+          requestEarlyDiscount(activeSession.id)
+        }
+      })
+      .catch(err => {
+        console.error('record-bobr-marker failed:', err)
+      })
+  }
+
   const discoverLocation = (slug: string): { success: boolean; points: number; isComplete: boolean; earlyUnlocked: boolean } => {
     if (!session) return { success: false, points: 0, isComplete: false, earlyUnlocked: false }
 
@@ -150,8 +204,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       discoveredLocations: newDiscovered,
       score: session.score + points,
       completedAt: isComplete ? new Date() : undefined,
-      // earlyDiscountCode + earlyDiscountIssuedAt populated by the issue-code effect
+      // earlyDiscountCode + earlyDiscountIssuedAt are populated after server progress verifies the threshold
     })
+
+    recordServerMarker(session, slug)
 
     if (isComplete) {
       setGameState('complete')
@@ -159,45 +215,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     return { success: true, points, isComplete, earlyUnlocked: shouldIssueEarly }
   }
-
-  // P-1: when discoveredLocations crosses the marker threshold, fetch a code
-  // from the server. Server is the only minter, with crypto.randomBytes + DB row.
-  useEffect(() => {
-    if (!session) return
-    if (session.earlyDiscountCode) return
-    if (session.discoveredLocations.length < EARLY_DISCOUNT_MARKER) return
-
-    let cancelled = false
-    fetch('/api/issue-bobr-early', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: session.id,
-        markerCount: session.discoveredLocations.length,
-      }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled || !data?.ok) return
-        setSession(prev =>
-          prev
-            ? {
-                ...prev,
-                earlyDiscountCode: data.code,
-                earlyDiscountIssuedAt: new Date(data.grantedAt),
-              }
-            : prev,
-        )
-      })
-      .catch(err => {
-        // P-1 v1: log + skip. Banner won't render until code arrives. A retry
-        // path can be added in a follow-up if telemetry shows real failures.
-        console.error('issue-bobr-early failed:', err)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [session?.id, session?.discoveredLocations.length, session?.earlyDiscountCode])
 
   const useHint = (): string | null => {
     if (!session) return null
