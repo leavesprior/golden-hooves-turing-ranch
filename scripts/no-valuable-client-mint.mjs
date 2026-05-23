@@ -1,5 +1,19 @@
 #!/usr/bin/env node
 
+/**
+ * Reward mint guard.
+ *
+ * Blocks client-reachable value minting patterns:
+ * - Math.random() near monetary reward/code tokens
+ * - direct BOBR/TOBIAS/EARLY_DISCOUNT interpolated template literals
+ * - indirected template prefixes such as `${prefix}${hash}` when prefix is
+ *   assigned from a monetary-token-bearing string elsewhere in the file
+ *
+ * Also blocks crypto.randomUUID() within the same monetary-token proximity
+ * window unless the line has a // safe-mint: opt-out or the file is one of the
+ * audited non-client exceptions in lib/discountCodesDb.ts or lib/cloudSave.ts.
+ */
+
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -7,10 +21,16 @@ const root = process.cwd()
 const srcDir = path.join(root, 'src')
 const sourceFilePattern = /\.(?:ts|tsx)$/
 const randomPattern = /Math\s*\.\s*random\s*\(\s*\)/
+const cryptoUuidPattern = /crypto\s*\.\s*randomUUID\s*\(\s*\)/
 const safeMintPattern = /\/\/\s*safe-mint:/
 const monetaryTokenPattern = /\b(?:discount|reward|coupon|code)\b|BOBR|TOBIAS|EARLY_DISCOUNT/i
+const monetaryStringAssignmentPattern = /\b(?:discount|reward|coupon|code)\b/i
+const monetaryCodeTokenAssignmentPattern = /BOBR|TOBIAS|EARLY_DISCOUNT/
 const interpolatedMintTemplatePattern = /`(?:BOBR-EARLY-|BOBR-|TOBIAS-|EARLY_DISCOUNT_)[^`]*\$\{[^`]*`/g
+const stringAssignmentPattern = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(["'`])([^"'`]*?)\2/g
+const indirectedTemplatePattern = /`[^`]*\$\{\s*([A-Za-z_$][\w$]*)\s*\}[^`]*\$\{\s*([A-Za-z_$][\w$]*)\s*\}[^`]*`/g
 const serverOnlyImportPattern = /^\s*import\s+(?:.*\s+from\s+)?['"](?:server-only|(?:node:)?(?:fs|fs\/promises)|better-sqlite3)['"]/m
+const cryptoUuidAllowedPathPattern = /^src\/lib\/(?:discountCodesDb|cloudSave)\.ts$/
 const contextRadius = 8
 
 function walk(dir) {
@@ -71,43 +91,100 @@ function isClientReachableSource(file, text) {
   return !serverOnlyImportPattern.test(text)
 }
 
+function lineForIndex(text, index) {
+  return text.slice(0, index).split('\n').length
+}
+
+function hasMonetaryContext(searchableLines, index) {
+  const start = Math.max(0, index - contextRadius)
+  const end = Math.min(searchableLines.length, index + contextRadius + 1)
+  const context = searchableLines.slice(start, end).join('\n')
+  return monetaryTokenPattern.test(context)
+}
+
+function findMonetaryStringVariables(searchableText) {
+  const variables = new Set()
+
+  for (const match of searchableText.matchAll(stringAssignmentPattern)) {
+    const [, variable, , value] = match
+    if (monetaryStringAssignmentPattern.test(value) || monetaryCodeTokenAssignmentPattern.test(value)) {
+      variables.add(variable)
+    }
+  }
+
+  return variables
+}
+
 const findings = []
 
 for (const file of walk(srcDir)) {
   const text = fs.readFileSync(file, 'utf8')
-  if (!isClientReachableSource(file, text)) continue
+  const relativePath = path.relative(root, file).split(path.sep).join('/')
+  const clientReachable = isClientReachableSource(file, text)
 
   const lines = text.split(/\r?\n/)
   const searchableLines = stripComments(lines)
   const searchableText = searchableLines.join('\n')
 
-  searchableLines.forEach((line, index) => {
-    if (!randomPattern.test(line)) return
-    if (safeMintPattern.test(lines[index])) return
+  if (clientReachable) {
+    searchableLines.forEach((line, index) => {
+      if (!randomPattern.test(line)) return
+      if (safeMintPattern.test(lines[index])) return
 
-    const start = Math.max(0, index - contextRadius)
-    const end = Math.min(searchableLines.length, index + contextRadius + 1)
-    const context = searchableLines.slice(start, end).join('\n')
+      if (hasMonetaryContext(searchableLines, index)) {
+        findings.push({
+          file: relativePath,
+          line: index + 1,
+          rule: 'random-proximity',
+          source: lines[index].trim(),
+        })
+      }
+    })
 
-    if (monetaryTokenPattern.test(context)) {
+    for (const match of searchableText.matchAll(interpolatedMintTemplatePattern)) {
+      const line = lineForIndex(searchableText, match.index)
+      if (safeMintPattern.test(lines[line - 1])) continue
+
       findings.push({
-        file: path.relative(root, file),
-        line: index + 1,
-        rule: 'random-proximity',
-        source: lines[index].trim(),
+        file: relativePath,
+        line,
+        rule: 'interpolated-template',
+        source: lines[line - 1].trim(),
       })
     }
-  })
 
-  for (const match of searchableText.matchAll(interpolatedMintTemplatePattern)) {
-    const line = searchableText.slice(0, match.index).split('\n').length
-    if (safeMintPattern.test(lines[line - 1])) continue
+    const monetaryStringVariables = findMonetaryStringVariables(searchableText)
+    for (const match of searchableText.matchAll(indirectedTemplatePattern)) {
+      const [, firstVariable, secondVariable] = match
+      if (!monetaryStringVariables.has(firstVariable) && !monetaryStringVariables.has(secondVariable)) {
+        continue
+      }
 
-    findings.push({
-      file: path.relative(root, file),
-      line,
-      rule: 'interpolated-template',
-      source: lines[line - 1].trim(),
+      const line = lineForIndex(searchableText, match.index)
+      if (safeMintPattern.test(lines[line - 1])) continue
+
+      findings.push({
+        file: relativePath,
+        line,
+        rule: 'indirected-template-prefix',
+        source: lines[line - 1].trim(),
+      })
+    }
+  }
+
+  if (!cryptoUuidAllowedPathPattern.test(relativePath)) {
+    searchableLines.forEach((line, index) => {
+      if (!cryptoUuidPattern.test(line)) return
+      if (safeMintPattern.test(lines[index])) return
+
+      if (hasMonetaryContext(searchableLines, index)) {
+        findings.push({
+          file: relativePath,
+          line: index + 1,
+          rule: 'crypto-randomuuid-proximity',
+          source: lines[index].trim(),
+        })
+      }
     })
   }
 }
@@ -119,6 +196,9 @@ if (findings.length > 0) {
   )
   console.error(
     'Interpolated template literals that start with BOBR-EARLY-, BOBR-, TOBIAS-, or EARLY_DISCOUNT_ are also blocked.',
+  )
+  console.error(
+    'Indirected template prefixes assigned from monetary strings, and crypto.randomUUID() near monetary tokens, are blocked too.',
   )
   console.error('Move minting server-side, or add // safe-mint: <reason> on the flagged line for non-monetary randomness.')
   console.error('')
