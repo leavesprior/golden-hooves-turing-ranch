@@ -87,6 +87,19 @@ function getDb(): Database.Database {
       );
       CREATE INDEX IF NOT EXISTS idx_bobr_marker_progress_session
         ON bobr_marker_progress (session_id);
+
+      -- NEW-09: server-side session ledger. A marker session is created on the
+      -- FIRST marker and pinned to the difficulty + the server clock at creation.
+      -- The HMAC session_token is issued by the server (never accepted from the
+      -- client on creation), so a forged client sessionId cannot arrive
+      -- pre-loaded with progress — it must start at marker 1 with a "now" clock.
+      CREATE TABLE IF NOT EXISTS bobr_marker_session (
+        session_id    TEXT PRIMARY KEY,
+        difficulty    TEXT NOT NULL,
+        session_token TEXT NOT NULL,
+        created_at    TEXT NOT NULL,
+        last_marker_at TEXT NOT NULL
+      );
     `);
   }
   return _db;
@@ -176,6 +189,56 @@ export function dbRecordMarkerProgress(params: RecordMarkerProgressParams): Reco
 
   const markerCount = dbGetMarkerProgressCount(params.sessionId);
   return { markerCount, marker };
+}
+
+export interface MarkerSession {
+  session_id: string;
+  difficulty: string;
+  session_token: string;
+  created_at: string;
+  last_marker_at: string;
+}
+
+export function dbGetMarkerSession(sessionId: string): MarkerSession | null {
+  const row = getDb()
+    .prepare('SELECT * FROM bobr_marker_session WHERE session_id = ?')
+    .get(sessionId) as MarkerSession | undefined;
+  return row ?? null;
+}
+
+/**
+ * Create the server-side marker session on first contact. Idempotent: if the
+ * session already exists it is returned unchanged (so a replayed first marker
+ * cannot reset the clock). The session_token is computed server-side by the
+ * caller and stored here.
+ */
+export function dbCreateMarkerSession(params: {
+  sessionId: string;
+  difficulty: string;
+  sessionToken: string;
+}): MarkerSession {
+  const db = getDb();
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT OR IGNORE INTO bobr_marker_session
+      (session_id, difficulty, session_token, created_at, last_marker_at)
+    VALUES
+      (@session_id, @difficulty, @session_token, @created_at, @last_marker_at)
+  `).run({
+    session_id: params.sessionId,
+    difficulty: params.difficulty,
+    session_token: params.sessionToken,
+    created_at: now,
+    last_marker_at: now,
+  });
+  return dbGetMarkerSession(params.sessionId)!;
+}
+
+/** Stamp the last-marker time so the timing floor is enforced server-side. */
+export function dbTouchMarkerSession(sessionId: string): void {
+  getDb()
+    .prepare('UPDATE bobr_marker_session SET last_marker_at = ? WHERE session_id = ?')
+    .run(new Date().toISOString(), sessionId);
 }
 
 export function dbGetMarkerProgressCount(sessionId: string): number {

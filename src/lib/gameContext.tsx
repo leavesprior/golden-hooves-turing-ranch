@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import {
   Location,
   getLocationsForDifficulty,
@@ -64,6 +64,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [playerName, setPlayerName] = useState('')
   const [availableLocations, setAvailableLocations] = useState<Location[]>([])
   const [mounted, setMounted] = useState(false)
+  // NEW-09: server-issued per-session marker token. Echoed on every marker after
+  // the first so the server can prove this client legitimately started the session.
+  const markerTokenRef = useRef<Record<string, string>>({})
 
   // Load saved session on mount
   useEffect(() => {
@@ -138,9 +141,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }
 
   const recordServerMarker = (activeSession: GameSession, markerSlug: string) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    // Echo the server-issued token (set on the first marker) on subsequent markers.
+    const token = markerTokenRef.current[activeSession.id]
+    if (token) headers['X-Marker-Token'] = token
     fetch('/api/record-bobr-marker', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         sessionId: activeSession.id,
         markerSlug,
@@ -150,6 +157,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       .then(r => r.json())
       .then(data => {
         if (!data?.ok) return
+        // Capture the token minted by the server on the first marker.
+        if (data.sessionToken) markerTokenRef.current[activeSession.id] = data.sessionToken
         if (data.markerCount >= EARLY_DISCOUNT_MARKER && !activeSession.earlyDiscountCode) {
           requestEarlyDiscount(activeSession.id)
         }
