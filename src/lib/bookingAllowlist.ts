@@ -35,20 +35,28 @@ export interface BookingVerificationSession {
   expires_at: string
 }
 
-export const BOOKING_ALLOWLIST: BookingAllowlistEntry[] = [
-  {
-    code: 'BOBR-20260101-TEST',
-    platform: 'bobr_direct',
-  },
-  {
-    code: 'HMTEST1234',
-    platform: 'hipcamp',
-  },
-  {
-    code: 'HA-TEST1234',
-    platform: 'hostaway',
-  },
-]
+// NEW-10: ships EMPTY for production. The three seed codes
+// (BOBR-20260101-TEST / HMTEST1234 / HA-TEST1234) were dev fixtures — anyone
+// could verify a booking with them and unlock booking-gated content for free.
+// Populate with real confirmed bookings via the owner/admin path, or set the
+// BOOKING_ALLOWLIST_JSON env var (parsed below) for non-prod testing without
+// baking codes into the bundle.
+function loadSeedAllowlist(): BookingAllowlistEntry[] {
+  const raw = process.env.BOOKING_ALLOWLIST_JSON
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (e): e is BookingAllowlistEntry =>
+        e && typeof e.code === 'string' && typeof e.platform === 'string',
+    )
+  } catch {
+    return []
+  }
+}
+
+export const BOOKING_ALLOWLIST: BookingAllowlistEntry[] = loadSeedAllowlist()
 
 export function findAllowlistedBooking(code: string, platform: BookingPlatform): BookingAllowlistEntry | null {
   if (platform === 'unknown') return null
