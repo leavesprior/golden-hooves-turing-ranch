@@ -1,96 +1,96 @@
 /**
- * BOBR Booking Verification - Client-side MVP
+ * BOBR Booking Verification
  *
- * Pattern-matches booking confirmation codes to gate access
- * to the Prologue game. Client-side only (proportionate security
- * for a game gate, not a payment system).
+ * Client-side format checks are only for fast UX feedback. Final
+ * verification is server-side through /api/verify-booking, which checks
+ * a host-managed allow-list before unlocking the Prologue game.
  *
  * Supported formats:
  * - BOBR: BOBR-YYYYMMDD-XXXX (ranch direct booking)
- * - Airbnb: HM followed by alphanumeric (e.g., HMABCD1234)
- * - VRBO: HA- followed by alphanumeric (e.g., HA-ABC1234)
+ * - Hipcamp: HM followed by alphanumeric (e.g., HMABCD1234)
+ * - Hostaway: HA- followed by alphanumeric (e.g., HA-ABC1234)
  */
 
-export const BOOKING_STORAGE_KEY = 'bobr_booking_verified'
+import {
+  detectBookingPlatform,
+  getSupportedBookingFormats,
+  normalizeBookingCode,
+} from './bookingCodeFormat'
+import type { BookingPlatform } from './bookingCodeFormat'
 
-export type BookingPlatform = 'bobr_direct' | 'airbnb' | 'vrbo' | 'unknown'
+export const BOOKING_STORAGE_KEY = 'bobr_booking_verified'
 
 export interface BookingVerification {
   verified: boolean
   platform: BookingPlatform
   code: string
   verifiedAt: string
+  expiresAt?: string
 }
 
-// Patterns for each platform
-const PATTERNS: { platform: BookingPlatform; regex: RegExp; label: string }[] = [
-  {
-    platform: 'bobr_direct',
-    regex: /^BOBR-\d{8}-[A-Z0-9]{4}$/i,
-    label: 'Back of Beyond Ranch (BOBR-YYYYMMDD-XXXX)',
-  },
-  {
-    platform: 'airbnb',
-    regex: /^HM[A-Z0-9]{6,12}$/i,
-    label: 'Airbnb (HM...)',
-  },
-  {
-    platform: 'vrbo',
-    regex: /^HA-[A-Z0-9]{4,12}$/i,
-    label: 'VRBO (HA-...)',
-  },
-]
+export interface BookingVerificationResult {
+  valid: boolean
+  platform: BookingPlatform
+  expiresAt?: string
+  reason?: 'format' | 'not_verified' | 'rate_limited' | 'network'
+}
 
 /**
  * Verify a booking confirmation code.
- * Returns the detected platform or null if invalid.
+ * Returns the detected platform and server verification result.
  */
-export function verifyBookingCode(code: string): { valid: boolean; platform: BookingPlatform } {
-  const trimmed = code.trim().toUpperCase()
+export async function verifyBookingCode(code: string): Promise<BookingVerificationResult> {
+  const trimmed = normalizeBookingCode(code)
+  const platform = detectBookingPlatform(trimmed)
 
-  for (const pattern of PATTERNS) {
-    if (pattern.regex.test(trimmed)) {
-      return { valid: true, platform: pattern.platform }
-    }
+  if (platform === 'unknown') {
+    return { valid: false, platform, reason: 'format' }
   }
 
-  return { valid: false, platform: 'unknown' }
+  try {
+    const response = await fetch('/api/verify-booking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: trimmed, platform }),
+    })
+
+    if (response.status === 429) {
+      return { valid: false, platform, reason: 'rate_limited' }
+    }
+
+    const data = await response.json() as { verified?: boolean; expiresAt?: string }
+    return {
+      valid: data.verified === true,
+      platform,
+      expiresAt: data.expiresAt,
+      reason: data.verified === true ? undefined : 'not_verified',
+    }
+  } catch {
+    return { valid: false, platform, reason: 'network' }
+  }
 }
 
 /**
  * Save verified booking to localStorage
  */
-export function saveBookingVerification(code: string, platform: BookingPlatform): void {
+export function saveBookingVerification(code: string, platform: BookingPlatform, expiresAt?: string): void {
   try {
     if (typeof window === 'undefined') return
+    const normalized = normalizeBookingCode(code)
     const verification: BookingVerification = {
       verified: true,
       platform,
-      code: code.substring(0, 4) + '****', // Store partial for privacy
+      code: normalized.substring(0, 4) + '****', // Store partial for privacy
       verifiedAt: new Date().toISOString(),
+      expiresAt,
     }
     localStorage.setItem(BOOKING_STORAGE_KEY, JSON.stringify(verification))
   } catch {}
 }
 
 /**
- * Check if booking has been previously verified
- */
-export function isBookingVerified(): boolean {
-  try {
-    if (typeof window === 'undefined') return false
-    const data = localStorage.getItem(BOOKING_STORAGE_KEY)
-    if (!data) return false
-    const verification = JSON.parse(data) as BookingVerification
-    return verification.verified === true
-  } catch {
-    return false
-  }
-}
-
-/**
  * Get supported format descriptions for UI display
  */
 export function getSupportedFormats(): string[] {
-  return PATTERNS.map(p => p.label)
+  return getSupportedBookingFormats()
 }

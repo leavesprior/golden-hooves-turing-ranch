@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react'
 import {
   verifyBookingCode,
   saveBookingVerification,
-  isBookingVerified,
   getSupportedFormats,
 } from '@/lib/bookingVerification'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
@@ -15,34 +14,61 @@ interface BookingGateProps {
 }
 
 export function BookingGate({ onUnlocked, onClose }: BookingGateProps) {
-  const { recordMilestone, hasMilestone } = useCrossGame()
+  const { recordMilestone } = useCrossGame()
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [dialogueStep, setDialogueStep] = useState(0)
   const [verified, setVerified] = useState(false)
   const [showInput, setShowInput] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
 
-  // Check if already verified
+  // Check the server-issued HttpOnly verification session, not localStorage.
   useEffect(() => {
-    if (isBookingVerified() || hasMilestone('booking_verified')) {
-      setVerified(true)
+    let cancelled = false
+    fetch('/api/verify-booking')
+      .then(response => response.json())
+      .then(data => {
+        if (!cancelled && data?.verified === true) {
+          setVerified(true)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
     }
-  }, [hasMilestone])
+  }, [])
 
-  const handleVerify = () => {
-    const result = verifyBookingCode(code)
+  const handleVerify = async () => {
+    if (isVerifying) return
+
+    setIsVerifying(true)
+    setError('')
+
+    const result = await verifyBookingCode(code)
+    setIsVerifying(false)
+
     if (result.valid) {
-      saveBookingVerification(code, result.platform)
-      recordMilestone('booking_verified', 'prologue', { platform: result.platform })
+      saveBookingVerification(code, result.platform, result.expiresAt)
+      recordMilestone('booking_verified', 'prologue', {
+        platform: result.platform,
+        expiresAt: result.expiresAt,
+      })
       setVerified(true)
       setError('')
     } else {
-      setError('That code doesn\'t match any known format. Check your confirmation email.')
+      const message = result.reason === 'format'
+        ? 'That code does not match any known format. Check your confirmation email.'
+        : result.reason === 'rate_limited'
+          ? 'Too many verification attempts. Wait a minute and try again.'
+          : result.reason === 'network'
+            ? 'Verification could not reach the server. Check your connection and try again.'
+            : 'That code matches a format, but it is not on the verified booking list.'
+      setError(message)
     }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleVerify()
+    if (e.key === 'Enter') void handleVerify()
   }
 
   // If already verified, just call the callback
@@ -168,14 +194,15 @@ export function BookingGate({ onUnlocked, onClose }: BookingGateProps) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={handleVerify}
-                    disabled={!code.trim()}
+                    onClick={() => void handleVerify()}
+                    disabled={!code.trim() || isVerifying}
                     className="flex-1 font-pixel text-[10px] text-purple-100 bg-purple-700 border-2 border-purple-500 px-4 py-2 hover:bg-purple-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >
-                    VERIFY
+                    {isVerifying ? 'VERIFYING...' : 'VERIFY'}
                   </button>
                   <button
                     onClick={() => { setShowInput(false); setError('') }}
+                    disabled={isVerifying}
                     className="font-pixel text-[9px] text-purple-400 border border-purple-800 px-3 py-2 hover:text-purple-200"
                   >
                     BACK
