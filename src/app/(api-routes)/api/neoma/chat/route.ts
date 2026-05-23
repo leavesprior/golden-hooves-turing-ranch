@@ -13,11 +13,11 @@ import {
   buildCharacterPrompt,
   parseStructuredReply,
   applyDispositionChange,
-  scrubForbiddenPhrases,
   type CharacterDefinition,
   type NpcRuntimeState,
 } from '../data/characters'
 import { fetchNpcLore } from '../data/npcLoreRag'
+import { judgeVoice, rewriteOutLeaks, effectiveForbidden } from '../data/voiceJudge'
 
 // ===================== CONFIG =====================
 
@@ -340,8 +340,41 @@ async function runNpcTurn(
   const raw = await getLLMResponse(conversation, systemPrompt)
   if (!raw) return null
 
-  const parsed = parseStructuredReply(raw)
-  const cleaned = scrubForbiddenPhrases(parsed.response, char.personality.forbiddenPhrases)
+  let parsed = parseStructuredReply(raw)
+
+  // ---- PHRASE-LEVEL VOICE JUDGE ----
+  // Only the prospector register (Tobias) gets the cowboy-stereotype floor;
+  // Ben Coon's folksy voice is canon, so he keeps just his own + the meta-leak set.
+  const isProspector = /prospector/i.test(char.personality.role + ' ' + char.personality.voiceRegister)
+  const forbidden = effectiveForbidden(char.personality, isProspector)
+
+  let verdict = judgeVoice(parsed.response, forbidden)
+  if (!verdict.clean) {
+    // Preferred fix: ask the model for ONE fresh in-voice line. A regenerated
+    // turn reads better than a surgically-cut one, so try it before rewriting.
+    const retryPrompt =
+      systemPrompt +
+      `\n\nYOUR PREVIOUS REPLY USED FORBIDDEN PHRASING (${verdict.leaks.join(', ')}). ` +
+      'That is NOT your voice. Rewrite the SAME reply in your true measured register, ' +
+      'keeping the same meaning and the same JSON shape. Do not use any forbidden phrase.'
+    const retryRaw = await getLLMResponse(conversation, retryPrompt)
+    if (retryRaw) {
+      const retryParsed = parseStructuredReply(retryRaw)
+      const retryVerdict = judgeVoice(retryParsed.response, forbidden)
+      if (retryVerdict.clean) {
+        // Keep the retry's prose but the ORIGINAL turn's vectors — disposition/
+        // agenda are about the player's action, not the phrasing.
+        parsed = { ...retryParsed, disposition_change: parsed.disposition_change, agenda_progress: parsed.agenda_progress }
+        verdict = retryVerdict
+      }
+    }
+  }
+
+  // Belt-and-suspenders: if a leak survived regeneration (or the LLM was
+  // unreachable for the retry), scrub it out so the player never sees it.
+  const finalText = verdict.clean
+    ? parsed.response
+    : rewriteOutLeaks(parsed.response, forbidden) || parsed.response
 
   // Advance the Disposition + Agenda vectors from the structured signals.
   if (mutateState) {
@@ -350,7 +383,7 @@ async function runNpcTurn(
   }
 
   return {
-    response: cleaned || parsed.response,
+    response: finalText,
     disposition: state.disposition,
     agendaProgress: state.agendaProgress,
   }
