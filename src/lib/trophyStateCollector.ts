@@ -151,7 +151,7 @@ export function getPlayerIdentifier(): { name: string; id: string } {
   // Generate a stable ID from the player name + a fingerprint from game state
   let id = localStorage.getItem('bobr_player_id')
   if (!id) {
-    id = `player_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    id = `player_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` // safe-mint: local player identifier, not a reward code
     localStorage.setItem('bobr_player_id', id)
   }
 

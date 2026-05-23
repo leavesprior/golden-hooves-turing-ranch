@@ -9,7 +9,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint:reward-guard": "node scripts/no-valuable-client-mint.mjs",
+    "lint": "npm run lint:reward-guard && eslint"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",

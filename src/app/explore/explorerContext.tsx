@@ -735,7 +735,7 @@ export function ExplorerProvider({
 
   // Gamification helpers
   const getRandomTobiasTip = useCallback(() => {
-    return TOBIAS_TIPS[Math.floor(Math.random() * TOBIAS_TIPS.length)]
+    return TOBIAS_TIPS[Math.floor(Math.random() * TOBIAS_TIPS.length)] // safe-mint: random display tip only, no reward value or code
   }, [])
 
   const checkStreak = useCallback(() => {
