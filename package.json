@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint:reward-guard": "node scripts/no-valuable-client-mint.mjs",
-    "lint": "npm run lint:reward-guard && eslint"
+    "lint": "npm run lint:reward-guard && eslint",
+    "test:grants": "TSX_TSCONFIG_PATH=tsconfig.test.json BOBR_GRANT_SIGNING_SECRET=test-only-grant-secret-at-least-32-characters-long tsx --test src/lib/server/grantForgery.test.ts"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",
@@ -31,6 +32,7 @@
     "eslint-config-next": "16.0.10",
     "qrcode": "^1.5.4",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

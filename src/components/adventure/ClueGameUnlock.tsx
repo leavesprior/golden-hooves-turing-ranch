@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import type { AlignmentPosition } from '@/lib/karmaStorage'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
+import { assertMilestoneGrantVerified } from '@/lib/grantTokens'
 import { ClueSceneV2 } from '@/components/clue/ClueSceneV2'
 
 interface ClueGameUnlockProps {
@@ -31,6 +32,8 @@ export function ClueGameUnlock({
 }: ClueGameUnlockProps) {
   const [unlocked, setUnlocked] = useState(false)
   const [dialogueStep, setDialogueStep] = useState(0)
+  const [unlockPending, setUnlockPending] = useState(false)
+  const [unlockDenied, setUnlockDenied] = useState(false)
 
   const isWorthy = karmaAlignment ? WORTHY_ALIGNMENTS.includes(karmaAlignment) : false
   const hasCompletedGame = chaptersCompleted >= 5
@@ -44,12 +47,36 @@ export function ClueGameUnlock({
     }
   }, [])
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
+    // GAP-1 FIX: this is a VALUE-BEARING unlock (it opens the in-person
+    // treasure-hunt path). It must NOT grant off client state alone. We require
+    // a SERVER-verified, signed grant first: `assertMilestoneGrantVerified`
+    // asks `/api/grant` to issue a grant (the server refuses with 403 unless its
+    // own event log proves eligibility — GAP-2) and then re-verifies the token's
+    // HMAC via `/api/grant/verify`. Only on a server YES do we write the unlock.
+    if (unlockPending) return
+    setUnlockPending(true)
+    setUnlockDenied(false)
+
+    const verified = await assertMilestoneGrantVerified({
+      milestoneId: 'clue_game_unlocked',
+      source: 'clue_game',
+    })
+
+    if (!verified) {
+      // Server declined to sign/verify — do NOT unlock anything of value.
+      setUnlockPending(false)
+      setUnlockDenied(true)
+      return
+    }
+
     CrossGameStorage.recordMilestone('clue_game_unlocked', 'clue_game')
-    // Also write the legacy key so /clue-game (which only reads this) actually unlocks.
+    // Write the legacy key so /clue-game (which only reads this) actually
+    // unlocks — but ONLY after the server-verified grant above.
     if (typeof window !== 'undefined') {
       localStorage.setItem('bobr_clue_game_unlocked', 'true')
     }
+    setUnlockPending(false)
     setUnlocked(true)
   }
 
@@ -133,10 +160,18 @@ export function ClueGameUnlock({
           {isLastStep && isWorthy && !unlocked && (
             <button
               onClick={handleUnlock}
-              className="w-full font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] px-4 py-3 hover:bg-[var(--pixel-gold-mid)] transition-colors"
+              disabled={unlockPending}
+              className="w-full font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] px-4 py-3 hover:bg-[var(--pixel-gold-mid)] transition-colors disabled:opacity-60"
             >
-              {'🔑'} ACCEPT CYNTHIA'S QUEST
+              {unlockPending ? '… VERIFYING WITH CYNTHIA' : `${'🔑'} ACCEPT CYNTHIA'S QUEST`}
             </button>
+          )}
+
+          {isLastStep && isWorthy && !unlocked && unlockDenied && (
+            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] text-center mt-1">
+              Cynthia studies you a moment longer. &quot;Come back when you&apos;ve
+              walked the trail in earnest, traveler.&quot;
+            </p>
           )}
 
           {isLastStep && unlocked && (

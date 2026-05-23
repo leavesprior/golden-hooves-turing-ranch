@@ -8,6 +8,7 @@ import {
   signGrant,
   type GrantPayload,
 } from '@/lib/server/grantSigning';
+import { verifyMilestoneEligibility } from '@/lib/server/grantEligibility';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -81,6 +82,26 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const reason = err instanceof Error ? err.message : 'invalid_payload';
     return rejectGrant(type, reason, body.payload);
+  }
+
+  // GAP-2 FIX: before we sign, the server must independently confirm the player
+  // EARNED the milestone, from the server-side event log (the NEW-09 marker
+  // trail). A signature over an unverified claim is just a notarized lie — prior
+  // to this gate any client could POST a milestoneId + arbitrary sessionId and
+  // receive a validly-signed grant. The allow-list / non-empty-sessionId checks
+  // above are necessary but NOT sufficient.
+  if (type === 'milestone') {
+    const milestoneId = grantPayload.milestoneId;
+    const sessionId = typeof grantPayload.sessionId === 'string' ? grantPayload.sessionId : '';
+    const verdict = verifyMilestoneEligibility({
+      milestoneId: milestoneId as never,
+      sessionId,
+      difficulty: typeof grantPayload.difficulty === 'string' ? grantPayload.difficulty : undefined,
+    });
+    if (!verdict.eligible) {
+      // 403: the request is well-formed but the player has not earned this.
+      return rejectGrant(type, verdict.reason, body.payload, 403);
+    }
   }
 
   let ttlSeconds: number;

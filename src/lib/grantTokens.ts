@@ -64,6 +64,19 @@ export function removeMilestoneGrantToken(milestoneId: MilestoneId): void {
   window.dispatchEvent(new StorageEvent('storage', { key, newValue: null }));
 }
 
+/**
+ * GAP-1 NOTE — `decodeGrantPayload` and `hasUsableMilestoneGrant` are NOT
+ * authoritative. They only base64url-decode the payload and read
+ * exp/milestoneId; they NEVER verify the HMAC. A forger can hand-craft a
+ * JWT-shaped blob that passes these checks. They are safe ONLY for cosmetic /
+ * navigation hints (e.g. rendering the unlocked styling optimistically).
+ *
+ * Any VALUE-BEARING decision (granting the treasure-hunt unlock, minting a
+ * discount, anything a player would pay to skip) MUST call
+ * `assertMilestoneGrantVerified()` / `verifyMilestoneGrantToken()`, which round-
+ * trip to `/api/grant/verify`, where the server re-checks the HMAC with
+ * `crypto.timingSafeEqual`. Never gate value on the unsigned decode.
+ */
 export function decodeGrantPayload(token: string): ClientGrantPayload | null {
   const parts = token.split('.');
   if (parts.length !== 3 || !parts[1]) return null;
@@ -83,6 +96,10 @@ export function decodeGrantPayload(token: string): ClientGrantPayload | null {
   }
 }
 
+/**
+ * NON-AUTHORITATIVE (see GAP-1 note above). Cosmetic / navigation hint only —
+ * this reads an UNVERIFIED decode and must never gate value.
+ */
 export function hasUsableMilestoneGrant(milestoneId: MilestoneId, nowMs = Date.now()): boolean {
   const token = getMilestoneGrantToken(milestoneId);
   if (!token) return false;
@@ -138,4 +155,31 @@ export async function verifyMilestoneGrantToken(milestoneId: MilestoneId): Promi
   }
 
   return true;
+}
+
+/**
+ * GAP-1 FIX — the AUTHORITATIVE gate for value-bearing milestone unlocks.
+ *
+ * Returns true only when the SERVER confirms a real, signed, eligible grant for
+ * this milestone:
+ *   1. If no locally-stored grant exists, attempt to issue one — `/api/grant`
+ *      will refuse (403) unless the server's own event log proves eligibility
+ *      (GAP-2). So issuance itself is an eligibility check.
+ *   2. Then re-verify the stored token against `/api/grant/verify`, where the
+ *      HMAC is checked with `crypto.timingSafeEqual`. A forged/unsigned blob
+ *      fails here and is purged from localStorage.
+ *
+ * Call this — never `hasUsableMilestoneGrant` — before granting anything of
+ * value. The unsigned client decode is only ever a cosmetic hint.
+ */
+export async function assertMilestoneGrantVerified(
+  params: IssueMilestoneGrantParams,
+): Promise<boolean> {
+  if (!getMilestoneGrantToken(params.milestoneId)) {
+    // No token yet — try to obtain one. The server signs only if it can prove
+    // eligibility from its event log; otherwise this returns null and we deny.
+    const issued = await issueMilestoneGrant(params);
+    if (!issued) return false;
+  }
+  return verifyMilestoneGrantToken(params.milestoneId);
 }

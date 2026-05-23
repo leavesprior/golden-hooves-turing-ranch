@@ -102,7 +102,7 @@ function normalizePayload(payload: GrantPayload): Required<Pick<GrantPayload, 't
     payload: payload.payload,
     iat,
     exp,
-    jti: payload.jti ?? crypto.randomUUID(),
+    jti: payload.jti ?? crypto.randomUUID(), // safe-mint: jti is a non-monetary grant identifier, not a reward/discount code; server-only.
     aud: payload.aud ?? `bobr-grant:${payload.type}`,
   };
 }
