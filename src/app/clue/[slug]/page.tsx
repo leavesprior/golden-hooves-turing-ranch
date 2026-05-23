@@ -8,6 +8,8 @@ import { TopDownSceneBeta, WELCOME_OBSERVATION_SCENE } from '@/components/beta'
 import { useGame } from '@/lib/gameContext'
 import { getLocationBySlug, EARLY_DISCOUNT_MARKER, EARLY_DISCOUNT_VALID_DAYS } from '@/lib/locations'
 import { airbnbBookingLink } from '@/lib/airbnbLink'
+import NpcChat from '@/components/rpg/NpcChat'
+import { getLocationHost } from '@/components/rpg/npcRoster'
 
 // Per-marker backdrop photo. All 14 are scene-specific renders tied to that
 // marker's canon beat. To swap a backdrop later, drop a new file at
@@ -232,6 +234,19 @@ export default function CluePage() {
             {location.goldCountyFact}
           </p>
         </div>
+
+        {/* Speak with this location's host NPC (three-vector engine) */}
+        {(() => {
+          const host = getLocationHost(slug)
+          return (
+            <NpcChat
+              characterId={host.characterId}
+              name={host.name}
+              portrait={host.portrait}
+              intro={host.intro(location.name)}
+            />
+          )
+        })()}
 
         {/* Next Clue */}
         {gameState === 'playing' && nextLocation && !isComplete && (
