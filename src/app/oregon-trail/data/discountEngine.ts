@@ -1,5 +1,9 @@
 /**
  * BOBR Discount Engine - Enhanced with Unified Tiers & Occupation Multiplier
+ * Server-side reissue required before re-enabling.
+ *
+ * Client code may still calculate tier progress for display, but it must not
+ * issue or validate monetary reward codes.
  *
  * Tier System (per plan):
  *   Bronze:   3 clues            -> 8% base  (max 12% w/ multiplier)
@@ -7,8 +11,7 @@
  *   Gold:     7 clues + 2 cases  -> 16% base (max 22% w/ multiplier)
  *   Platinum: 10 clues + all cases + outlaw caught -> 20% base (max 27% w/ multiplier)
  *
- * Code format: TOBIAS-{TIER}{DISCOUNT}-{TIMESTAMP}-{SIGNATURE}
- * Example: TOBIAS-G16-1705708800-A3F2 (Gold tier, 16% base)
+ * Former code format: TOBIAS-{TIER}{DISCOUNT}-{TIMESTAMP}-{SIGNATURE}
  */
 
 // Updated discount tiers matching the plan
@@ -180,22 +183,7 @@ export const OCCUPATION_DISCOUNT_MULTIPLIERS: Record<OccupationType, OccupationD
   }
 }
 
-// Client-side signature key (real validation happens server-side)
-const CLIENT_SECRET = 'bobr-gold-country-2026'
-
-/**
- * Simple hash function for browser (sufficient for coupon codes)
- * Real validation happens on the server with proper HMAC
- */
-function simpleHash(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash // Convert to 32bit integer
-  }
-  return Math.abs(hash).toString(16).toUpperCase().slice(0, 4).padStart(4, '0')
-}
+const SERVER_REISSUE_REQUIRED = 'Server-side reissue required before re-enabling.'
 
 export interface GeneratedCode {
   code: string
@@ -274,7 +262,8 @@ export function checkWelcomeEligibility(
 }
 
 /**
- * Generate a discount code based on player progress
+ * Generate a discount code based on player progress.
+ * Quarantined: monetary code issuance must happen server-side.
  */
 export function generateDiscountCode(
   cluesCollected: number,
@@ -282,32 +271,11 @@ export function generateDiscountCode(
   outlawCaught: boolean = false,
   caseId: string = 'default'
 ): GeneratedCode | null {
-  const tier = getQualifyingTier(cluesCollected, casesSolved, outlawCaught)
-  if (!tier) return null
-
-  const tierInfo = DISCOUNT_TIERS[tier]
-  const timestamp = Math.floor(Date.now() / 1000)
-  const expiresAt = timestamp + (tierInfo.validDays * 24 * 60 * 60)
-
-  // Create signature payload
-  const payload = `${tierInfo.prefix}${tierInfo.discount.toString().padStart(2, '0')}-${timestamp}`
-  const signature = simpleHash(payload + CLIENT_SECRET + caseId)
-
-  // Use TOBIAS format (plan spec) for online codes
-  const code = `TOBIAS-${tierInfo.prefix}${tierInfo.discount.toString().padStart(2, '0')}-${timestamp}-${signature}`
-
-  return {
-    code,
-    tier,
-    discount: tierInfo.discount,
-    validDays: tierInfo.validDays,
-    expiresAt: new Date(expiresAt * 1000).toISOString(),
-    cluesRequired: tierInfo.minClues,
-    cluesCollected,
-    casesSolved,
-    outlawCaught,
-    generatedAt: new Date().toISOString()
-  }
+  void cluesCollected
+  void casesSolved
+  void outlawCaught
+  void caseId
+  return null
 }
 
 /**
@@ -349,32 +317,16 @@ export function parseDiscountCode(code: string): ParsedCode {
 }
 
 /**
- * Validate a discount code (basic client-side check)
- * Note: Full validation should happen server-side
+ * Validate a discount code.
+ * Quarantined: client-side validation is never authoritative.
  */
 export function validateDiscountCode(code: string, caseId: string = 'default'): ParsedCode {
-  const parsed = parseDiscountCode(code)
-  if (!parsed.valid) {
-    return parsed
-  }
-
-  if (parsed.isExpired) {
-    return { ...parsed, valid: false, error: 'Code has expired' }
-  }
-
-  // Verify signature (client-side, real validation is server-side)
-  const tierInfo = DISCOUNT_TIERS[parsed.tier!]
-  const payload = `${tierInfo.prefix}${parsed.discount!.toString().padStart(2, '0')}-${parsed.timestamp}`
-  const expectedSignature = simpleHash(payload + CLIENT_SECRET + caseId)
-
-  if (parsed.signature !== expectedSignature) {
-    console.warn('Signature validation should be done server-side')
-  }
-
+  void code
+  void caseId
   return {
-    ...parsed,
-    valid: true,
-    message: `${parsed.discount}% off your stay at Back of Beyond Ranch!`
+    valid: false,
+    error: SERVER_REISSUE_REQUIRED,
+    message: 'Reward codes must be issued and validated by the server.'
   }
 }
 
@@ -419,7 +371,8 @@ export function calculateOccupationDiscount(
 }
 
 /**
- * Generate discount code with karma AND occupation adjustments
+ * Generate discount code with karma AND occupation adjustments.
+ * Quarantined: monetary code issuance must happen server-side.
  */
 export function generateKarmaDiscountCode(
   cluesCollected: number,
@@ -429,35 +382,13 @@ export function generateKarmaDiscountCode(
   outlawCaught: boolean = false,
   occupation: OccupationType = 'banker'
 ): KarmaAdjustedCode | null {
-  const baseCode = generateDiscountCode(cluesCollected, casesSolved, outlawCaught, caseId)
-  if (!baseCode) return null
-
-  // Apply karma multiplier first
-  const karmaAdjustment = calculateKarmaAdjustedDiscount(baseCode.discount, karmaPosition)
-
-  // Apply occupation multiplier on top
-  const occupationInfo = OCCUPATION_DISCOUNT_MULTIPLIERS[occupation]
-  const withOccupation = Math.round(karmaAdjustment.adjustedDiscount * occupationInfo.discountMultiplier)
-
-  // Cap at tier max discount
-  const tierInfo = DISCOUNT_TIERS[baseCode.tier]
-  const finalDiscount = Math.min(tierInfo.maxDiscount, withOccupation)
-
-  const occupationMessage = occupationInfo.discountMultiplier > 1.0
-    ? `${occupationInfo.flavorText} (${occupationInfo.discountMultiplier}x)`
-    : null
-
-  return {
-    ...baseCode,
-    baseDiscount: baseCode.discount,
-    karmaMultiplier: KARMA_MULTIPLIERS[karmaPosition],
-    occupationMultiplier: occupationInfo.discountMultiplier,
-    occupationName: occupation,
-    finalDiscount,
-    karmaPosition,
-    karmaMessage: karmaAdjustment.message,
-    occupationMessage
-  }
+  void cluesCollected
+  void karmaPosition
+  void caseId
+  void casesSolved
+  void outlawCaught
+  void occupation
+  return null
 }
 
 /**
@@ -610,31 +541,15 @@ export const EASTER_EGG_CODES: EasterEggCode[] = [
 
 /**
  * Validate an Easter egg code.
- * Returns the discount if valid, null if not.
+ * Quarantined: static codes also require server-side reissue.
  */
 export function validateEasterEggCode(
   code: string,
   playerProgress?: { badges?: string[]; clues?: number; goodKarma?: number }
 ): EasterEggCode | null {
-  const upperCode = code.toUpperCase().trim()
-  const found = EASTER_EGG_CODES.find(c => c.code === upperCode)
-  if (!found) return null
-
-  // Check game progress requirements
-  if (found.requiresGameProgress && playerProgress) {
-    const req = found.requiresGameProgress
-    if (req.specificBadge && !playerProgress.badges?.includes(req.specificBadge)) {
-      return null
-    }
-    if (req.minClues && (playerProgress.clues || 0) < req.minClues) {
-      return null
-    }
-    if (req.minKarmaGood && (playerProgress.goodKarma || 0) < req.minKarmaGood) {
-      return null
-    }
-  }
-
-  return found
+  void code
+  void playerProgress
+  return null
 }
 
 // ============================================================================
