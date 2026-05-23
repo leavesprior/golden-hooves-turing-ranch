@@ -6,7 +6,6 @@ import {
   locations,
   getLocationsForDifficulty,
   calculateRewardTier,
-  generateEarlyDiscountCode,
   EARLY_DISCOUNT_MARKER,
   EARLY_DISCOUNT_PERCENT,
   EARLY_DISCOUNT_VALID_DAYS,
@@ -138,24 +137,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const newDiscovered = [...session.discoveredLocations, slug]
     const isComplete = newDiscovered.length >= availableLocations.length
 
-    // Early-bird discount fires the first time the player crosses the marker threshold.
-    // Issued only once per session — preserved through completion so the rewards page can show both.
+    // Early-bird discount: as of P-1 (server-mint), the actual BOBR-EARLY code is
+    // fetched from /api/issue-bobr-early by the useEffect below. Here we only
+    // record that the threshold was crossed and let the async fetch populate the
+    // code field. This closes the live forgery vuln where Math.random() in the
+    // browser allowed a devtools user to mint arbitrary codes.
     const shouldIssueEarly =
       newDiscovered.length >= EARLY_DISCOUNT_MARKER && !session.earlyDiscountCode
-    const earlyDiscountCode = shouldIssueEarly
-      ? generateEarlyDiscountCode()
-      : session.earlyDiscountCode
-    const earlyDiscountIssuedAt = shouldIssueEarly
-      ? new Date()
-      : session.earlyDiscountIssuedAt
 
     setSession({
       ...session,
       discoveredLocations: newDiscovered,
       score: session.score + points,
       completedAt: isComplete ? new Date() : undefined,
-      earlyDiscountCode,
-      earlyDiscountIssuedAt,
+      // earlyDiscountCode + earlyDiscountIssuedAt populated by the issue-code effect
     })
 
     if (isComplete) {
@@ -164,6 +159,45 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     return { success: true, points, isComplete, earlyUnlocked: shouldIssueEarly }
   }
+
+  // P-1: when discoveredLocations crosses the marker threshold, fetch a code
+  // from the server. Server is the only minter, with crypto.randomBytes + DB row.
+  useEffect(() => {
+    if (!session) return
+    if (session.earlyDiscountCode) return
+    if (session.discoveredLocations.length < EARLY_DISCOUNT_MARKER) return
+
+    let cancelled = false
+    fetch('/api/issue-bobr-early', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: session.id,
+        markerCount: session.discoveredLocations.length,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled || !data?.ok) return
+        setSession(prev =>
+          prev
+            ? {
+                ...prev,
+                earlyDiscountCode: data.code,
+                earlyDiscountIssuedAt: new Date(data.grantedAt),
+              }
+            : prev,
+        )
+      })
+      .catch(err => {
+        // P-1 v1: log + skip. Banner won't render until code arrives. A retry
+        // path can be added in a follow-up if telemetry shows real failures.
+        console.error('issue-bobr-early failed:', err)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [session?.id, session?.discoveredLocations.length, session?.earlyDiscountCode])
 
   const useHint = (): string | null => {
     if (!session) return null

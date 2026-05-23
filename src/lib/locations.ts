@@ -266,16 +266,13 @@ export const EARLY_DISCOUNT_MARKER = 4
 export const EARLY_DISCOUNT_PERCENT = 5
 export const EARLY_DISCOUNT_VALID_DAYS = 30
 
-export function generateEarlyDiscountCode(): string {
-  // Alphabet excludes ambiguous chars (0/O, 1/I/L) so guests can't misread
-  // the code when typing it into an email to redeem.
-  const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
-  let suffix = ''
-  for (let i = 0; i < 6; i++) {
-    suffix += alphabet[Math.floor(Math.random() * alphabet.length)]
-  }
-  return `BOBR-EARLY-${suffix}`
-}
+// Code minting moved server-side as of P-1 (feat/p1-server-mint-bobr-early).
+// Math.random() in the browser was forgeable from devtools — see audit
+// 2026-05-04 + diagnostic_results/grok_post_automation_paths_exhausted_20260504.
+// The new mint path: client POSTs to /api/issue-bobr-early when marker threshold
+// crosses; server uses crypto.randomBytes + writes the code to a SQLite table
+// (src/lib/discountCodesDb.ts). Redemption validates against the table at
+// /api/redeem-bobr-early.
 
 // Calculate reward tier based on completion
 export function calculateRewardTier(
