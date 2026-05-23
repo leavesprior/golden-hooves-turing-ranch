@@ -2729,25 +2729,9 @@ export function RPGProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const getDiscountCode = useCallback(() => {
-    if (!session) return null
-
-    const completedCount = Object.values(session.chapters).filter(c => c.completed).length
-    const perfectScore = session.hintsUsed === 0 && completedCount === 5
-    const allEndings = false // Would track multiple playthroughs
-
-    let percent = 0
-    if (completedCount >= 1) percent = 5
-    if (completedCount >= 3) percent = 10
-    if (completedCount >= 5) percent = 15
-    if (perfectScore) percent = 20
-    if (allEndings) percent = 25
-
-    if (percent === 0) return null
-
-    const code = `TOBIAS-${percent}-${session.id.slice(-6).toUpperCase()}`
-    return { code, percent }
-  }, [session])
+  const getDiscountCode = useCallback<() => { code: string; percent: number } | null>(() => {
+    return null
+  }, [])
 
   if (!mounted) return null
 

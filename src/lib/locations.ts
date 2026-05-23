@@ -267,7 +267,7 @@ export const EARLY_DISCOUNT_PERCENT = 5
 export const EARLY_DISCOUNT_VALID_DAYS = 30
 
 // Code minting moved server-side as of P-1 (feat/p1-server-mint-bobr-early).
-// Math.random() in the browser was forgeable from devtools — see audit
+// Browser RNG in client code was forgeable from devtools — see audit
 // 2026-05-04 + diagnostic_results/grok_post_automation_paths_exhausted_20260504.
 // The new mint path: client POSTs to /api/issue-bobr-early when marker threshold
 // crosses; server uses crypto.randomBytes + writes the code to a SQLite table
@@ -279,7 +279,7 @@ export function calculateRewardTier(
   locationsFound: number,
   difficulty: 'easy' | 'medium' | 'hard',
   hintsUsed: number
-): { tier: string; discount: number; code: string } {
+): { tier: string; discount: number; code: string | null; serverMintRequired: true } {
   const baseDiscount = 7
   let bonusDiscount = 0
   let tier = 'bronze'
@@ -302,8 +302,6 @@ export function calculateRewardTier(
   const totalDiscount = Math.max(10, baseDiscount + bonusDiscount - hintsUsed)
   const finalDiscount = Math.min(totalDiscount, 27)
 
-  // Generate code
-  const code = `BOBR-${tier.toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-
-  return { tier, discount: finalDiscount, code }
+  // Completion reward codes require server-side minting before they can be redeemed.
+  return { tier, discount: finalDiscount, code: null, serverMintRequired: true }
 }
