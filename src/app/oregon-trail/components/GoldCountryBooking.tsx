@@ -3,13 +3,13 @@
 /**
  * Gold Country Booking Component
  *
- * When players arrive at Gold Country, offer them the chance to book
- * a real stay at Back of Beyond Ranch with a unique discount code.
+ * When players arrive at Gold Country, offer them the chance to request
+ * a host-verified reward for a real stay at Back of Beyond Ranch.
  *
  * This creates a bridge between the game experience and real-world booking.
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 
 interface GoldCountryBookingProps {
   playerName: string
@@ -18,7 +18,7 @@ interface GoldCountryBookingProps {
   outlawsCaught: number
   daysOnTrail: number
   onClose?: () => void
-  onBookingIntent?: (code: string) => void
+  onBookingIntent?: () => void
   graphicsTier?: string
 }
 
@@ -61,22 +61,6 @@ const DISCOUNT_TIERS: DiscountTier[] = [
   }
 ]
 
-// Generate a unique discount code based on player stats
-function generateDiscountCode(
-  playerName: string,
-  karmaScore: number,
-  outlawsCaught: number
-): string {
-  const date = new Date()
-  const dateCode = `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}`
-  const nameCode = playerName.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X')
-  const karmaCode = Math.floor(karmaScore / 10).toString(16).toUpperCase().padStart(2, '0')
-  const outlawCode = outlawsCaught.toString().padStart(2, '0')
-  const random = Math.random().toString(36).substring(2, 5).toUpperCase()
-
-  return `BOBR-${nameCode}${karmaCode}-${outlawCode}${random}-${dateCode}`
-}
-
 // Determine discount tier based on player achievements
 function getDiscountTier(karmaScore: number, outlawsCaught: number): DiscountTier {
   for (const tier of DISCOUNT_TIERS) {
@@ -97,44 +81,19 @@ export default function GoldCountryBooking({
   onBookingIntent,
   graphicsTier = 'retro_4bit'
 }: GoldCountryBookingProps) {
-  const [discountCode, setDiscountCode] = useState('')
-  const [copied, setCopied] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
 
   const discountTier = getDiscountTier(karmaScore, outlawsCaught)
 
-  useEffect(() => {
-    // Generate code on mount
-    setDiscountCode(generateDiscountCode(playerName, karmaScore, outlawsCaught))
-  }, [playerName, karmaScore, outlawsCaught])
-
-  const handleCopyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(discountCode)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea')
-      textArea.value = discountCode
-      document.body.appendChild(textArea)
-      textArea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textArea)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
   const handleBookNow = () => {
     if (onBookingIntent) {
-      onBookingIntent(discountCode)
+      onBookingIntent()
     }
-    // Copy discount code to clipboard so user can paste it in Airbnb message
+    const verificationMessage = `Hi! I played the Golden Frog Trail game as ${playerName || 'a trail survivor'} and reached ${discountTier.tierName} (${discountTier.discountPercent}% reward tier). Please verify my game reward for a Back of Beyond Ranch booking.`
+
+    // Copy a host-verification request so the user can paste it in the Airbnb message.
     try {
-      navigator.clipboard.writeText(
-        `Hi! I played the Golden Frog Trail game and earned discount code: ${discountCode} (${discountTier.discountPercent}% off - ${discountTier.tierName}). I'd love to book a stay!`
-      )
+      navigator.clipboard.writeText(verificationMessage)
     } catch { /* clipboard may fail on some browsers */ }
     // Open Airbnb listing for Back of Beyond Ranch
     window.open(
@@ -231,31 +190,19 @@ export default function GoldCountryBooking({
           )}
         </div>
 
-        {/* Discount Code */}
+        {/* Host Verification */}
         <div className="p-4">
           <p className="text-yellow-400 text-sm text-center mb-2">
-            Your Personal Discount Code:
+            Your Reward Is Ready for Host Verification
           </p>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={discountCode}
-              readOnly
-              className="flex-1 bg-black/50 border-2 border-yellow-600 text-yellow-300 font-mono text-lg p-3 text-center"
-            />
-            <button
-              onClick={handleCopyCode}
-              className={`px-4 py-3 font-bold transition-all ${
-                copied
-                  ? 'bg-green-600 text-white'
-                  : 'bg-yellow-600 hover:bg-yellow-500 text-black'
-              }`}
-            >
-              {copied ? '✓ Copied!' : 'Copy'}
-            </button>
+          <div className="bg-black/50 border-2 border-yellow-600 text-yellow-300 p-3 text-center">
+            <p className="font-bold text-sm">Host verification required before any booking code is issued.</p>
+            <p className="text-yellow-500 text-xs mt-2">
+              Mention your trail name, reward tier, karma, and outlaws caught when booking.
+            </p>
           </div>
           <p className="text-yellow-600 text-xs text-center mt-2">
-            Mention this code when booking for your discount
+            The host will verify eligible game rewards before applying booking value.
           </p>
         </div>
 
@@ -265,10 +212,10 @@ export default function GoldCountryBooking({
             onClick={handleBookNow}
             className="w-full bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-500 hover:from-yellow-400 hover:via-yellow-300 hover:to-yellow-400 text-black font-bold py-4 text-lg transition-all"
           >
-            Save {discountTier.discountPercent}% at Back of Beyond Ranch
+            Request {discountTier.discountPercent}% Host Verification
           </button>
           <p className="text-yellow-600 text-xs text-center">
-            Your discount code will be copied to clipboard
+            A host-verification booking request will be copied to clipboard
           </p>
 
           <button
@@ -285,7 +232,7 @@ export default function GoldCountryBooking({
             🎮 Thank you for playing Golden Hooves!
           </p>
           <p className="text-yellow-700 text-xs mt-1">
-            Discount valid for 30 days • Real booking, real adventure
+            Reward verification required • Real booking, real adventure
           </p>
         </div>
       </div>
