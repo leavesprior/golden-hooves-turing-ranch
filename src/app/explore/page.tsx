@@ -1062,6 +1062,11 @@ function TownDrawer({
           </div>
         </div>
 
+        {/* Scrollable body — town story, clue notice, mystery + deduction, and
+            the attractions list ALL live in one scroll container so nothing
+            (especially the deduction answer options) can be clipped below the
+            fold on short viewports. */}
+        <div className="flex-1 overflow-y-auto">
         {/* Town Story */}
         <div className="px-4 py-3 bg-slate-800/50">
           <p className="text-slate-300 text-xs leading-relaxed">{town.description}</p>
@@ -1206,8 +1211,8 @@ function TownDrawer({
           </div>
         )}
 
-        {/* Attractions List */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {/* Attractions List (now inside the shared scroll body above) */}
+        <div className="px-4 py-4 space-y-3">
           {allAttractions.map((attraction, i) => {
             const visited = isAttractionVisited(attraction.id)
             const expanded = expandedAttraction === attraction.id
@@ -1348,6 +1353,7 @@ function TownDrawer({
               })}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

@@ -226,7 +226,7 @@ export function ResearchStation({
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4">
-      <div className="bg-gray-900 border-2 border-cyan-600 rounded-lg w-full max-w-lg overflow-hidden">
+      <div className="bg-gray-900 border-2 border-cyan-600 rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-cyan-900/60 p-4 border-b border-cyan-700">
           <div className="flex items-center gap-3">
