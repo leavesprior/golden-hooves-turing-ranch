@@ -1,0 +1,160 @@
+{
+  "generatedAt": "2026-05-15T04:11:26.644Z",
+  "routeBase": "http://localhost:3099",
+  "results": [
+    {
+      "url": "http://localhost:3099/clue/welcome?visual=topdown",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1
+      },
+      "screenshotName": "welcome-topdown-desktop-1440x900.jpg",
+      "hasTopDown": true,
+      "hasStandardClue": false,
+      "hasRewardText": false,
+      "prodStorageBefore": {
+        "bobr_game_session": "{\"id\":\"phase0-control\",\"difficulty\":\"easy\",\"startedAt\":\"2026-05-14T12:00:00.000Z\",\"discoveredLocations\":[],\"hintsUsed\":0,\"score\":0,\"playerName\":\"Phase 0 Storage Guard\"}"
+      },
+      "prodStorageAfter": {
+        "bobr_game_session": "{\"id\":\"phase0-control\",\"difficulty\":\"easy\",\"startedAt\":\"2026-05-14T12:00:00.000Z\",\"discoveredLocations\":[],\"hintsUsed\":0,\"score\":0,\"playerName\":\"Phase 0 Storage Guard\"}"
+      },
+      "prodStorageChanged": false,
+      "consoleErrors": [
+        {
+          "type": "error",
+          "text": "[engine] 0.438s JSHandle@error",
+          "args": [
+            "[engine] 0.438s",
+            {
+              "name": "NotFound"
+            }
+          ]
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "url": "http://localhost:3099/clue/welcome?visual=topdown",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "isMobile": true,
+        "deviceScaleFactor": 2
+      },
+      "screenshotName": "welcome-topdown-mobile-375x812.jpg",
+      "hasTopDown": true,
+      "hasStandardClue": false,
+      "hasRewardText": false,
+      "prodStorageBefore": {
+        "bobr_game_session": "{\"id\":\"phase0-control\",\"difficulty\":\"easy\",\"startedAt\":\"2026-05-14T12:00:00.000Z\",\"discoveredLocations\":[],\"hintsUsed\":0,\"score\":0,\"playerName\":\"Phase 0 Storage Guard\"}"
+      },
+      "prodStorageAfter": {
+        "bobr_game_session": "{\"id\":\"phase0-control\",\"difficulty\":\"easy\",\"startedAt\":\"2026-05-14T12:00:00.000Z\",\"discoveredLocations\":[],\"hintsUsed\":0,\"score\":0,\"playerName\":\"Phase 0 Storage Guard\"}"
+      },
+      "prodStorageChanged": false,
+      "consoleErrors": [
+        {
+          "type": "error",
+          "text": "[engine] 0.376s JSHandle@error",
+          "args": [
+            "[engine] 0.376s",
+            {
+              "name": "NotFound"
+            }
+          ]
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "url": "http://localhost:3099/clue/welcome",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "deviceScaleFactor": 1
+      },
+      "screenshotName": "welcome-normal-desktop-1440x900.jpg",
+      "hasTopDown": false,
+      "hasStandardClue": true,
+      "hasRewardText": false,
+      "prodStorageBefore": {
+        "bobr_game_session": "{\"id\":\"phase0-control\",\"difficulty\":\"easy\",\"startedAt\":\"2026-05-14T12:00:00.000Z\",\"discoveredLocations\":[],\"hintsUsed\":0,\"score\":0,\"playerName\":\"Phase 0 Storage Guard\"}"
+      },
+      "prodStorageAfter": {
+        "bobr_cross_game_progression": "{\"version\":\"1.0.0\",\"milestones\":[],\"characterQualities\":{\"investigation\":50,\"survival\":50,\"social\":50,\"combat\":50,\"resilience\":50,\"fortune\":50},\"timeEchoes\":{\"norse_runestone\":false,\"cahokian_mound_earth\":false,\"chumash_star_chart\":false,\"incan_quipu_1849\":false,\"aztec_codex_prospector\":false,\"guide_ranch_comment\":false,\"number_42\":false},\"reputation\":null,\"bounties\":[],\"karmaPool\":{\"good\":0,\"neutral\":0,\"bad\":0,\"totalEarned\":0,\"lastSource\":null,\"lastSyncTimestamp\":\"2026-05-15T04:11:22.106Z\"},\"karmaTransfers\":[],\"spiritualAwareness\":{\"sitesVisited\":[],\"level\":0,\"buffs\":[]},\"mapDiscoveries\":[],\"historicalDepth\":0,\"eventLog\":[],\"lastSyncTimestamp\":\"2026-05-15T04:11:22.109Z\"}",
+        "bobr_unified_karma": "{\"version\":\"1.0.0\",\"alignment\":{\"lawfulChaotic\":0,\"goodEvil\":0},\"history\":[],\"houseRulesCompleted\":false,\"houseRulesScore\":0,\"hintsUsedTotal\":0,\"casesCompletedWithoutHints\":0,\"lastSyncTimestamp\":\"2026-05-15T04:11:22.104Z\"}",
+        "bobr_game_session": "{\"id\":\"phase0-control\",\"difficulty\":\"easy\",\"startedAt\":\"2026-05-14T12:00:00.000Z\",\"discoveredLocations\":[\"welcome\"],\"hintsUsed\":0,\"score\":110,\"playerName\":\"Phase 0 Storage Guard\"}"
+      },
+      "prodStorageChanged": true,
+      "consoleErrors": [
+        {
+          "type": "error",
+          "text": "[engine] 0.309s JSHandle@error",
+          "args": [
+            "[engine] 0.309s",
+            {
+              "name": "NotFound"
+            }
+          ]
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "args": []
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "args": []
+        }
+      ],
+      "pageErrors": []
+    },
+    {
+      "url": "http://localhost:3099/clue/welcome",
+      "viewport": {
+        "width": 375,
+        "height": 812,
+        "isMobile": true,
+        "deviceScaleFactor": 2
+      },
+      "screenshotName": "welcome-normal-mobile-375x812.jpg",
+      "hasTopDown": false,
+      "hasStandardClue": true,
+      "hasRewardText": false,
+      "prodStorageBefore": {
+        "bobr_game_session": "{\"id\":\"phase0-control\",\"difficulty\":\"easy\",\"startedAt\":\"2026-05-14T12:00:00.000Z\",\"discoveredLocations\":[],\"hintsUsed\":0,\"score\":0,\"playerName\":\"Phase 0 Storage Guard\"}"
+      },
+      "prodStorageAfter": {
+        "bobr_cross_game_progression": "{\"version\":\"1.0.0\",\"milestones\":[],\"characterQualities\":{\"investigation\":50,\"survival\":50,\"social\":50,\"combat\":50,\"resilience\":50,\"fortune\":50},\"timeEchoes\":{\"norse_runestone\":false,\"cahokian_mound_earth\":false,\"chumash_star_chart\":false,\"incan_quipu_1849\":false,\"aztec_codex_prospector\":false,\"guide_ranch_comment\":false,\"number_42\":false},\"reputation\":null,\"bounties\":[],\"karmaPool\":{\"good\":0,\"neutral\":0,\"bad\":0,\"totalEarned\":0,\"lastSource\":null,\"lastSyncTimestamp\":\"2026-05-15T04:11:25.797Z\"},\"karmaTransfers\":[],\"spiritualAwareness\":{\"sitesVisited\":[],\"level\":0,\"buffs\":[]},\"mapDiscoveries\":[],\"historicalDepth\":0,\"eventLog\":[],\"lastSyncTimestamp\":\"2026-05-15T04:11:25.799Z\"}",
+        "bobr_unified_karma": "{\"version\":\"1.0.0\",\"alignment\":{\"lawfulChaotic\":0,\"goodEvil\":0},\"history\":[],\"houseRulesCompleted\":false,\"houseRulesScore\":0,\"hintsUsedTotal\":0,\"casesCompletedWithoutHints\":0,\"lastSyncTimestamp\":\"2026-05-15T04:11:25.793Z\"}",
+        "bobr_game_session": "{\"id\":\"phase0-control\",\"difficulty\":\"easy\",\"startedAt\":\"2026-05-14T12:00:00.000Z\",\"discoveredLocations\":[\"welcome\"],\"hintsUsed\":0,\"score\":110,\"playerName\":\"Phase 0 Storage Guard\"}"
+      },
+      "prodStorageChanged": true,
+      "consoleErrors": [
+        {
+          "type": "error",
+          "text": "[engine] 0.385s JSHandle@error",
+          "args": [
+            "[engine] 0.385s",
+            {
+              "name": "NotFound"
+            }
+          ]
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "args": []
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "args": []
+        }
+      ],
+      "pageErrors": []
+    }
+  ]
+}

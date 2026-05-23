@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useParams, useSearchParams } from 'next/navigation'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { ClueSceneV2 } from '@/components/clue/ClueSceneV2'
+import { TopDownSceneBeta, WELCOME_OBSERVATION_SCENE } from '@/components/beta'
 import { useGame } from '@/lib/gameContext'
-import { getLocationBySlug, locations, EARLY_DISCOUNT_MARKER, EARLY_DISCOUNT_VALID_DAYS } from '@/lib/locations'
+import { getLocationBySlug, EARLY_DISCOUNT_MARKER, EARLY_DISCOUNT_VALID_DAYS } from '@/lib/locations'
 import { airbnbBookingLink } from '@/lib/airbnbLink'
 
 // Per-marker backdrop photo. All 14 are scene-specific renders tied to that
@@ -31,9 +31,10 @@ const BACKDROP_BY_SLUG: Record<string, string> = {
 
 export default function CluePage() {
   const params = useParams()
-  const router = useRouter()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
   const location = getLocationBySlug(slug)
+  const isTopDownBeta = slug === 'welcome' && searchParams.get('visual') === 'topdown'
 
   const { gameState, session, discoverLocation, availableLocations, startGame, getEarlyReward } = useGame()
 
@@ -48,6 +49,7 @@ export default function CluePage() {
 
   // Handle discovery when page loads (QR scan)
   useEffect(() => {
+    if (isTopDownBeta) return
     if (location && gameState === 'playing' && !alreadyDiscovered) {
       // Check if this location is part of current game
       const isInGame = availableLocations.some(loc => loc.slug === slug)
@@ -70,7 +72,7 @@ export default function CluePage() {
         }
       }
     }
-  }, [location, gameState, alreadyDiscovered, slug])
+  }, [location, gameState, alreadyDiscovered, slug, isTopDownBeta, availableLocations, discoverLocation])
 
   if (!location) {
     return (
@@ -91,8 +93,18 @@ export default function CluePage() {
     )
   }
 
+  if (isTopDownBeta) {
+    return (
+      <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
+        <PixelNavigation />
+        <main className="mx-auto max-w-6xl px-3 py-4 sm:px-4 sm:py-6">
+          <TopDownSceneBeta {...WELCOME_OBSERVATION_SCENE} />
+        </main>
+      </div>
+    )
+  }
+
   // Get next clue
-  const currentIndex = locations.findIndex(loc => loc.slug === slug)
   const nextLocation = availableLocations.find(
     loc => !session?.discoveredLocations.includes(loc.slug) && loc.slug !== slug
   )

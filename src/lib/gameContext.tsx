@@ -9,6 +9,7 @@ import {
   EARLY_DISCOUNT_PERCENT,
   EARLY_DISCOUNT_VALID_DAYS,
 } from './locations'
+import { isTopDownBetaRoute } from './topDownBetaRoute'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 export type GameState = 'menu' | 'playing' | 'complete'
@@ -92,6 +93,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // Save session on change
   useEffect(() => {
+    if (isTopDownBetaRoute()) return
     if (mounted && session) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         ...session,
