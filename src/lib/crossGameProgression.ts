@@ -10,8 +10,22 @@
  * localStorage key: bobr_cross_game_progression
  */
 
+import {
+  hasUsableMilestoneGrant,
+  issueMilestoneGrant,
+} from './grantTokens'
+
 export const CROSS_GAME_STORAGE_KEY = 'bobr_cross_game_progression'
-export const CROSS_GAME_VERSION = '1.0.0'
+// Bumped 1.1.0 -> 1.2.0: the 7-day legacy localStorage amnesty (G3) is REMOVED.
+// A raw pre-existing/forged localStorage milestone is no longer honored; a
+// milestone counts only with a server-issued signed grant (or while one is
+// actively being issued). See `reconcileMilestoneGrants` below.
+export const CROSS_GAME_VERSION = '1.2.0'
+export const PENDING_MILESTONE_GRANT_MS = 5 * 60 * 1000
+// Marker stamped once after the no-amnesty migration so we don't re-run the
+// server reconciliation pass on every load. This is purely a "have we tried
+// reconciling yet" flag — it grants nothing on its own.
+export const RECONCILE_MARKER_KEY = 'legacyReconciledAt'
 
 // ============================================
 // GAME IDS
@@ -72,6 +86,46 @@ export type MilestoneId =
   | 'karma_good_alignment'
   | 'karma_lawful_good'
   | 'karma_total_1000'
+
+export const MILESTONE_IDS: readonly MilestoneId[] = [
+  'reached_west_point',
+  'completed_journey_west',
+  'completed_gold_country',
+  'captured_black_bart',
+  'adventure_chapter_1',
+  'adventure_chapter_2',
+  'adventure_chapter_3',
+  'adventure_chapter_4',
+  'adventure_chapter_5',
+  'clue_game_unlocked',
+  'prologue_norseman_complete',
+  'prologue_native_complete',
+  'prologue_califia_complete',
+  'prologue_incan_complete',
+  'prologue_convergence_complete',
+  'booking_verified',
+  'first_donation',
+  'treat_all_animals',
+  'momento_collector',
+  'complete_momentos',
+  'explorer_first_mystery_solved',
+  'explorer_all_mysteries_solved',
+  'explorer_legendary_level',
+  'explorer_spiritual_awareness',
+  'explorer_twain_scholar',
+  'explorer_califia_seeker',
+  'explorer_miwok_historian',
+  'explorer_ranch_pioneer',
+  'karma_good_alignment',
+  'karma_lawful_good',
+  'karma_total_1000',
+]
+
+const MILESTONE_ID_SET = new Set<string>(MILESTONE_IDS)
+
+export function isMilestoneId(value: unknown): value is MilestoneId {
+  return typeof value === 'string' && MILESTONE_ID_SET.has(value)
+}
 
 export interface Milestone {
   id: MilestoneId
@@ -461,6 +515,9 @@ export interface CrossGameState {
   historicalDepth: number  // 0-100, tracks how much history player has discovered
   eventLog: WorldEvent[]   // Immutable cross-game event history
   lastSyncTimestamp: string
+  // G3: stamped once after the no-amnesty migration so the one-time server
+  // reconciliation pass does not re-run on every load. Grants nothing itself.
+  legacyReconciledAt?: string
 }
 
 export const DEFAULT_CROSS_GAME_STATE: CrossGameState = {
@@ -495,6 +552,83 @@ function hasMilestone(milestones: Milestone[], id: MilestoneId): boolean {
   return milestones.some(m => m.id === id)
 }
 
+function getMetadataString(milestone: Milestone, key: string): string | null {
+  const value = milestone.metadata?.[key]
+  return typeof value === 'string' ? value : null
+}
+
+function isFutureIso(value: string | null, nowMs: number): boolean {
+  if (!value) return false
+  const time = Date.parse(value)
+  return Number.isFinite(time) && time > nowMs
+}
+
+function isPendingGrant(milestone: Milestone, nowMs: number): boolean {
+  if (milestone.metadata?.grantStatus !== 'pending') return false
+  return isFutureIso(getMetadataString(milestone, 'pendingGrantExpiresAt'), nowMs)
+}
+
+/**
+ * G3 FIX — there is NO client-trusted legacy amnesty. A milestone is grant-
+ * eligible ONLY when:
+ *   - a usable (non-expired) signed grant token exists in localStorage
+ *     (`hasUsableMilestoneGrant` — an optimistic navigation hint; value-bearing
+ *     unlocks still re-verify the HMAC server-side via
+ *     `assertMilestoneGrantVerified`), OR
+ *   - a grant is actively being issued right now (`isPendingGrant`, a short
+ *     5-minute window covering the in-flight POST to `/api/grant`).
+ *
+ * A raw pre-existing / hand-forged localStorage milestone with neither a signed
+ * grant nor an in-flight issuance is NOT honored. The only path back to honored
+ * status is `reconcileMilestoneGrants`, which re-derives eligibility from the
+ * SERVER event log and issues a fresh signed grant only if truly earned.
+ */
+function isGrantEligibleMilestone(milestone: Milestone, nowMs = Date.now()): boolean {
+  return (
+    hasUsableMilestoneGrant(milestone.id, nowMs)
+    || isPendingGrant(milestone, nowMs)
+  )
+}
+
+export function getGrantEligibleMilestones(milestones: Milestone[], nowMs = Date.now()): Milestone[] {
+  return milestones.filter(milestone => isGrantEligibleMilestone(milestone, nowMs))
+}
+
+/**
+ * Milestones that exist in localStorage but are NOT currently grant-eligible
+ * (no signed grant, not in-flight). These are the candidates for one-time
+ * server-side reconciliation. A forged milestone surfaces here and stays here
+ * unless the server proves it was earned.
+ */
+function getUnreconciledMilestones(milestones: Milestone[], nowMs = Date.now()): Milestone[] {
+  return milestones.filter(m => !isGrantEligibleMilestone(m, nowMs))
+}
+
+function markMilestoneGrantPending(milestone: Milestone, nowMs = Date.now()): Milestone {
+  return {
+    ...milestone,
+    metadata: {
+      ...milestone.metadata,
+      grantStatus: 'pending',
+      pendingGrantStartedAt: new Date(nowMs).toISOString(),
+      pendingGrantExpiresAt: new Date(nowMs + PENDING_MILESTONE_GRANT_MS).toISOString(),
+    },
+  }
+}
+
+function markMilestoneGrantIssued(milestone: Milestone, token: string, nowMs = Date.now()): Milestone {
+  return {
+    ...milestone,
+    metadata: {
+      ...milestone.metadata,
+      grantStatus: 'signed',
+      grantIssuedAt: new Date(nowMs).toISOString(),
+      grantTokenPreview: token.slice(0, 16),
+      pendingGrantExpiresAt: undefined,
+    },
+  }
+}
+
 export function evaluateUnlockCondition(
   condition: UnlockCondition,
   milestones: Milestone[]
@@ -516,7 +650,7 @@ export function evaluateUnlockCondition(
 export function isGameUnlocked(gameId: GameId, milestones: Milestone[]): boolean {
   const config = GAME_UNLOCK_CONFIGS.find(c => c.gameId === gameId)
   if (!config) return true // Unknown games are accessible by default
-  return evaluateUnlockCondition(config.condition, milestones)
+  return evaluateUnlockCondition(config.condition, getGrantEligibleMilestones(milestones))
 }
 
 // ============================================
@@ -534,7 +668,13 @@ export const CrossGameStorage = {
       return { ...DEFAULT_CROSS_GAME_STATE }
     }
     if (existing.version !== CROSS_GAME_VERSION) {
-      return this.migrate(existing)
+      const migrated = this.migrate(existing)
+      // G3: first post-deploy use after the amnesty removal. Re-derive
+      // eligibility from the SERVER for any milestone that no longer counts
+      // (i.e. has no signed grant). Truly-earned milestones get a fresh signed
+      // grant; forged ones get nothing. Fire-and-forget — never blocks UI.
+      this.reconcileMilestoneGrants()
+      return migrated
     }
     return existing
   },
@@ -546,7 +686,14 @@ export const CrossGameStorage = {
     try {
       if (typeof window === 'undefined') return null
       const data = localStorage.getItem(CROSS_GAME_STORAGE_KEY)
-      return data ? JSON.parse(data) : null
+      if (!data) return null
+
+      const parsed = JSON.parse(data) as CrossGameState
+      // G3: no amnesty normalization on read. Any legacy `legacyAmnesty*`
+      // metadata left over from a pre-1.2.0 client is inert — `isGrantEligible
+      // Milestone` no longer reads it. Server reconciliation (one-time, fired
+      // by `init`/`reconcileMilestoneGrants`) is what restores honored status.
+      return parsed
     } catch (e) {
       console.error('Failed to load cross-game state:', e)
       return null
@@ -583,19 +730,25 @@ export const CrossGameStorage = {
     const state = this.load() || { ...DEFAULT_CROSS_GAME_STATE }
 
     // Don't duplicate milestones
-    if (state.milestones.some(m => m.id === milestoneId)) {
+    const existingIndex = state.milestones.findIndex(m => m.id === milestoneId)
+    if (existingIndex >= 0 && isGrantEligibleMilestone(state.milestones[existingIndex])) {
       return state
     }
 
-    const milestone: Milestone = {
+    const milestone = markMilestoneGrantPending({
       id: milestoneId,
       source,
       timestamp: new Date().toISOString(),
       metadata,
-    }
+    })
 
-    state.milestones.push(milestone)
+    if (existingIndex >= 0) {
+      state.milestones[existingIndex] = milestone
+    } else {
+      state.milestones.push(milestone)
+    }
     this.save(state)
+    this.issueGrantForMilestone(milestoneId, source, metadata)
     return state
   },
 
@@ -608,12 +761,100 @@ export const CrossGameStorage = {
   },
 
   /**
+   * Check if a milestone has a signed grant, active legacy amnesty, or pending grant.
+   */
+  hasMilestone(milestoneId: MilestoneId): boolean {
+    const state = this.load() || DEFAULT_CROSS_GAME_STATE
+    return getGrantEligibleMilestones(state.milestones).some(m => m.id === milestoneId)
+  },
+
+  /**
+   * Issue and cache a signed grant for a milestone without blocking the current UI.
+   */
+  issueGrantForMilestone(
+    milestoneId: MilestoneId,
+    source: GameId,
+    metadata?: Record<string, unknown>
+  ): void {
+    void issueMilestoneGrant({ milestoneId, source, metadata })
+      .then(token => {
+        const state = this.load()
+        if (!state) return
+        const index = state.milestones.findIndex(m => m.id === milestoneId)
+        if (index < 0) return
+        if (!token) {
+          // Server DENIED (e.g. 403 — not earned / unverifiable). Clear any
+          // pending status so the milestone is not honored during the 5-min
+          // window. A forged milestone ends here: un-honored, no grant.
+          if (state.milestones[index].metadata?.grantStatus === 'pending') {
+            const { ...metadata } = state.milestones[index].metadata ?? {}
+            delete (metadata as Record<string, unknown>).grantStatus
+            delete (metadata as Record<string, unknown>).pendingGrantStartedAt
+            delete (metadata as Record<string, unknown>).pendingGrantExpiresAt
+            state.milestones[index] = { ...state.milestones[index], metadata }
+            this.save(state)
+          }
+          return
+        }
+        state.milestones[index] = markMilestoneGrantIssued(state.milestones[index], token)
+        this.save(state)
+      })
+      .catch(err => {
+        console.error('Failed to issue milestone grant:', err)
+      })
+  },
+
+  /**
+   * G3 — one-time server-side reconciliation after the legacy-amnesty removal.
+   *
+   * For every milestone in localStorage that is NOT currently grant-eligible
+   * (no signed grant, not in-flight), ask the SERVER to re-derive eligibility
+   * and, only if the server's own event log proves it was earned, issue a fresh
+   * signed grant. `/api/grant` returns 403 for any milestone the server cannot
+   * independently confirm (GAP-2), so a raw/forged localStorage milestone gets
+   * NO grant and stays un-honored. There is no client-trusted window.
+   *
+   * Idempotent and cheap: stamps `RECONCILE_MARKER_KEY` once so it doesn't
+   * re-run on every load. Fire-and-forget; safe to call from `init`.
+   */
+  reconcileMilestoneGrants(nowMs = Date.now()): void {
+    if (typeof window === 'undefined') return
+    const state = this.load()
+    if (!state) return
+    if (state.legacyReconciledAt) return
+
+    const candidates = getUnreconciledMilestones(state.milestones, nowMs)
+
+    // Stamp the marker immediately so concurrent loads don't re-fire the pass.
+    state.legacyReconciledAt = new Date(nowMs).toISOString()
+
+    // Mark each candidate pending (covers the in-flight issuance window) and
+    // strip any stale legacy-amnesty metadata so nothing can be honored off it.
+    state.milestones = state.milestones.map(m => {
+      if (!candidates.some(c => c.id === m.id)) return m
+      const { ...metadata } = m.metadata ?? {}
+      delete (metadata as Record<string, unknown>).legacyAmnestyExpiresAt
+      delete (metadata as Record<string, unknown>).legacyAmnestyStartedAt
+      return markMilestoneGrantPending({ ...m, metadata }, nowMs)
+    })
+    this.save(state)
+
+    // Attempt server issuance for each candidate. The server proves eligibility
+    // from its event log; unearned/forged milestones are denied (403 -> null).
+    for (const milestone of candidates) {
+      this.issueGrantForMilestone(milestone.id, milestone.source, milestone.metadata)
+    }
+  },
+
+  /**
    * Get all newly unlocked games after a milestone is recorded
    */
   getNewlyUnlockedGames(previousMilestones: Milestone[], currentMilestones: Milestone[]): GameUnlockConfig[] {
+    const previousEligible = getGrantEligibleMilestones(previousMilestones)
+    const currentEligible = getGrantEligibleMilestones(currentMilestones)
     return GAME_UNLOCK_CONFIGS.filter(config => {
-      const wasLocked = !evaluateUnlockCondition(config.condition, previousMilestones)
-      const isNowUnlocked = evaluateUnlockCondition(config.condition, currentMilestones)
+      const wasLocked = !evaluateUnlockCondition(config.condition, previousEligible)
+      const isNowUnlocked = evaluateUnlockCondition(config.condition, currentEligible)
       return wasLocked && isNowUnlocked
     })
   },
