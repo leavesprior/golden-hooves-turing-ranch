@@ -11,7 +11,7 @@
     "start": "next start",
     "lint:reward-guard": "node scripts/no-valuable-client-mint.mjs",
     "lint": "npm run lint:reward-guard && eslint",
-    "test:grants": "TSX_TSCONFIG_PATH=tsconfig.test.json BOBR_GRANT_SIGNING_SECRET=test-only-grant-secret-at-least-32-characters-long tsx --test src/lib/server/grantForgery.test.ts"
+    "test:grants": "TSX_TSCONFIG_PATH=tsconfig.test.json BOBR_GRANT_SIGNING_SECRET=test-only-grant-secret-at-least-32-characters-long tsx --test src/lib/server/grantForgery.test.ts src/lib/crossGameReconciliation.test.ts"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",

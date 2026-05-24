@@ -90,7 +90,19 @@ post-merge soak can track failure rates and retry storms.
 ## Milestone Migration Notes
 
 Milestone grants are stored by the client under
-`bobr_grant_milestone_${milestoneId}`. Legacy `bobr_cross_game_progression`
-milestones that predate signed grants receive a 7-day amnesty marker on first
-read. After that window, unlock checks stop counting the raw milestone unless a
-signed grant token exists.
+`bobr_grant_milestone_${milestoneId}`.
+
+### G3 — server-side reconciliation, no client amnesty
+
+There is **no** client-trusted legacy amnesty window. A `bobr_cross_game_
+progression` milestone is honored **only** when a usable signed grant token
+exists (or one is actively being issued). A raw, pre-existing, or hand-forged
+localStorage milestone is **not** honored on its own.
+
+On the first post-deploy load after the amnesty removal (state version bump to
+`1.2.0`), `CrossGameStorage.init()` fires a one-time `reconcileMilestoneGrants()`
+pass: for every milestone lacking a grant it asks `/api/grant` to re-derive
+eligibility from the **server** event log. The server signs only milestones it
+can independently confirm were earned (GAP-2); everything else is denied (403),
+the milestone's pending status is cleared, and it stays un-honored. This closes
+the legacy-localStorage forgery class completely — no 7-day (or any) window.
