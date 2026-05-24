@@ -10,11 +10,13 @@
     "build": "next build",
     "start": "next start",
     "lint:reward-guard": "node scripts/no-valuable-client-mint.mjs",
+    "test:auth-kdf": "node --import tsx --test tests/auth-kdf.spec.ts",
     "lint": "npm run lint:reward-guard && eslint"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "better-sqlite3": "^12.8.0",
+    "hash-wasm": "^4.12.0",
     "html2canvas": "^1.4.1",
     "next": "^16.1.6",
     "pixi.js": "^8.16.0",
@@ -31,6 +33,7 @@
     "eslint-config-next": "16.0.10",
     "qrcode": "^1.5.4",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
