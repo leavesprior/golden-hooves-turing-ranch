@@ -100,9 +100,18 @@ function loadAdventureState(): AdventureState | null {
   }
 }
 
-function saveAdventureState(state: AdventureState) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(SAVE_KEY, JSON.stringify(state))
+function saveAdventureState(state: AdventureState): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state))
+    return true
+  } catch (e) {
+    // Swallow — never let a save failure abort a React state update (would
+    // freeze the UI), and never let it bubble out of handleSave (would skip
+    // the user-facing toast). Log so the failure isn't silent in devtools.
+    console.error('[adventure] saveAdventureState failed:', e)
+    return false
+  }
 }
 
 function createNewAdventureState(): AdventureState {
@@ -702,25 +711,30 @@ function AdventureContent() {
   }, [repState.reputations])
 
   // === TRAVEL ===
-  const handleTravelTo = useCallback((locationId: string) => {
+  // _resuming=true skips the encounter rolls — set by handleEncounterResolved /
+  // handleConfrontationEnd so "Continue" after a resolved encounter doesn't
+  // immediately roll a new one (which read as a stuck button to the player).
+  const handleTravelTo = useCallback((locationId: string, _resuming: boolean = false) => {
     if (!adventureState) return
 
-    // Check for travel encounter first
-    const encounter = rollTravelEncounter()
-    if (encounter) {
-      setTravelDestination(locationId)
-      setTravelEncounter(encounter)
-      narratorComment('Hmm, the road between here and there is never as simple as a map suggests.', 'observation')
-      return
-    }
+    if (!_resuming) {
+      // Check for travel encounter first
+      const encounter = rollTravelEncounter()
+      if (encounter) {
+        setTravelDestination(locationId)
+        setTravelEncounter(encounter)
+        narratorComment('Hmm, the road between here and there is never as simple as a map suggests.', 'observation')
+        return
+      }
 
-    // Check for confrontation encounter
-    const enemy = rollConfrontation(adventureState.chapter, adventureState.unlockedSkillNodes)
-    if (enemy) {
-      setTravelDestination(locationId)
-      setActiveConfrontation(enemy)
-      narratorComment(enemy.description, 'observation')
-      return
+      // Check for confrontation encounter
+      const enemy = rollConfrontation(adventureState.chapter, adventureState.unlockedSkillNodes)
+      if (enemy) {
+        setTravelDestination(locationId)
+        setActiveConfrontation(enemy)
+        narratorComment(enemy.description, 'observation')
+        return
+      }
     }
 
     // Direct travel — discover and arrive
@@ -764,7 +778,7 @@ function AdventureContent() {
 
   // Resolve travel encounter
   const handleEncounterResolved = useCallback((success: boolean, allyBonus?: { xp: number; gold: number; description: string }) => {
-    if (!travelEncounter || !travelDestination) return
+    if (!travelEncounter) return
 
     addExperience(travelEncounter.xpReward)
     if (success && travelEncounter.karmaReward) {
@@ -778,11 +792,16 @@ function AdventureContent() {
       if (allyBonus.description) narratorComment(allyBonus.description, 'observation')
     }
 
-    // Continue to destination
+    // Always clear the encounter overlay first
     setTravelEncounter(null)
-    const destId = travelDestination
-    setTravelDestination(null)
-    handleTravelTo(destId)
+    // Only continue travel if a destination was set (map-click path). Random
+    // encounters triggered by free-roam exploration have no destination — the
+    // player just stays where they are.
+    if (travelDestination) {
+      const destId = travelDestination
+      setTravelDestination(null)
+      handleTravelTo(destId, true)
+    }
   }, [travelEncounter, travelDestination, addExperience, earnNeutral, narratorComment, handleTravelTo])
 
   // Resolve confrontation encounter
@@ -822,12 +841,12 @@ function AdventureContent() {
       CrossGameStorage.logEvent('rpg_adventure', 'npc_befriended', `Talked down ${activeConfrontation.name}`)
     }
 
-    // Continue travel to destination
+    // Continue travel to destination — resuming, do NOT re-roll a new encounter
     setActiveConfrontation(null)
     if (travelDestination) {
       const destId = travelDestination
       setTravelDestination(null)
-      handleTravelTo(destId)
+      handleTravelTo(destId, true)
     }
   }, [activeConfrontation, adventureState, travelDestination, addExperience, earnNeutral, spendNeutral, modifyReputation, updateState, narratorComment, handleTravelTo])
 
@@ -1039,8 +1058,14 @@ function AdventureContent() {
 
   // === SAVE ===
   const handleSave = useCallback(() => {
-    if (adventureState) saveAdventureState(adventureState)
-    narratorComment('Progress saved. Not that it matters in the grand scheme of things.', 'sarcasm')
+    if (!adventureState) return
+    const ok = saveAdventureState(adventureState)
+    narratorComment(
+      ok
+        ? 'Progress saved. Not that it matters in the grand scheme of things.'
+        : 'Save failed — your browser storage may be full or blocked. Try a cloud save.',
+      ok ? 'sarcasm' : 'observation'
+    )
   }, [adventureState, narratorComment])
 
   // === CLOUD SAVE/LOAD ===
