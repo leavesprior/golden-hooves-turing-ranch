@@ -16,6 +16,9 @@ interface ChapterMapProps {
   factionReps: Record<FactionId, number>
   onTravelTo: (locationId: string) => void
   onVisitLocation: (locationId: string) => void
+  /** Optional: surface a short message to the player when a click can't
+   *  progress. Without this, silent rejects read as "the game is broken." */
+  onClickHint?: (message: string) => void
 }
 
 const ATMOSPHERE_COLORS: Record<string, string> = {
@@ -67,6 +70,7 @@ export function ChapterMap({
   factionReps,
   onTravelTo,
   onVisitLocation,
+  onClickHint,
 }: ChapterMapProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -103,8 +107,20 @@ export function ChapterMap({
       const access = canAccessLocation(loc, factionReps)
       if (access.accessible) {
         setSelectedId(loc.id)
+        return
       }
+      onClickHint?.(access.reason
+        ? `${loc.name} is closed off — ${access.reason}.`
+        : `${loc.name} won't let you in just now.`)
+      return
     }
+    // Click was not on current, not on a reachable destination — explain why
+    // so the player doesn't read silence as "the game is broken."
+    if (!discoveredSet.has(loc.id)) {
+      onClickHint?.(`That trail hasn't been mapped yet. Scout it from somewhere closer.`)
+      return
+    }
+    onClickHint?.(`${loc.name} is too far. Travel to a connected location first.`)
   }
 
   const handleTravel = () => {

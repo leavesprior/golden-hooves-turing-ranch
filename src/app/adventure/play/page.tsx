@@ -1307,6 +1307,7 @@ function AdventureContent() {
                     factionReps={factionReps}
                     onTravelTo={handleTravelTo}
                     onVisitLocation={handleVisitLocation}
+                    onClickHint={(msg) => narratorComment(msg, 'observation')}
                   />
                 )}
               </div>
