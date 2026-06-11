@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { mintBookingCode } from './bookingCodes';
 
 /**
  * Direct-Booking data store (Phase 0 foundations).
@@ -41,6 +42,7 @@ export interface Inquiry {
   guests: number | null;
   message: string | null;
   status: string;            // new | responded | converted | closed
+  confirmation_code: string | null;  // BOOK-XXXXXX; minted at create-time
 }
 
 export interface Booking {
@@ -56,9 +58,11 @@ export interface Booking {
   nights: number;
   quote_total: number;
   deposit_amount: number;
-  deposit_method: string | null;  // qr | stripe | null
+  deposit_method: string | null;     // qr | stripe | null
   status: string;            // requested | deposit_pending | confirmed | cancelled
   source: string;            // direct | game | ...
+  confirmation_code: string | null;  // BOOK-XXXXXX; copied from inquiry or minted
+  host_verified_at: string | null;   // ISO ts when host flipped to confirmed
 }
 
 export interface Subscriber {
@@ -103,36 +107,41 @@ function getDb(): Database.Database {
         ON availability (start_date, end_date);
 
       CREATE TABLE IF NOT EXISTS inquiries (
-        id         TEXT PRIMARY KEY,
-        created_at TEXT NOT NULL,
-        name       TEXT NOT NULL,
-        email      TEXT NOT NULL,
-        phone      TEXT,
-        check_in   TEXT,
-        check_out  TEXT,
-        guests     INTEGER,
-        message    TEXT,
-        status     TEXT NOT NULL DEFAULT 'new'
+        id                TEXT PRIMARY KEY,
+        created_at        TEXT NOT NULL,
+        name              TEXT NOT NULL,
+        email             TEXT NOT NULL,
+        phone             TEXT,
+        check_in          TEXT,
+        check_out         TEXT,
+        guests            INTEGER,
+        message           TEXT,
+        status            TEXT NOT NULL DEFAULT 'new',
+        confirmation_code TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_inquiries_status
         ON inquiries (status, created_at);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_inquiries_conf_code
+        ON inquiries (confirmation_code) WHERE confirmation_code IS NOT NULL;
 
       CREATE TABLE IF NOT EXISTS bookings (
-        id             TEXT PRIMARY KEY,
-        created_at     TEXT NOT NULL,
-        inquiry_id     TEXT,
-        name           TEXT NOT NULL,
-        email          TEXT NOT NULL,
-        phone          TEXT,
-        check_in       TEXT NOT NULL,
-        check_out      TEXT NOT NULL,
-        guests         INTEGER NOT NULL,
-        nights         INTEGER NOT NULL,
-        quote_total    REAL NOT NULL DEFAULT 0,
-        deposit_amount REAL NOT NULL DEFAULT 0,
-        deposit_method TEXT,
-        status         TEXT NOT NULL DEFAULT 'requested',
-        source         TEXT NOT NULL DEFAULT 'direct'
+        id                TEXT PRIMARY KEY,
+        created_at        TEXT NOT NULL,
+        inquiry_id        TEXT,
+        name              TEXT NOT NULL,
+        email             TEXT NOT NULL,
+        phone             TEXT,
+        check_in          TEXT NOT NULL,
+        check_out         TEXT NOT NULL,
+        guests            INTEGER NOT NULL,
+        nights            INTEGER NOT NULL,
+        quote_total       REAL NOT NULL DEFAULT 0,
+        deposit_amount    REAL NOT NULL DEFAULT 0,
+        deposit_method    TEXT,
+        status            TEXT NOT NULL DEFAULT 'requested',
+        source            TEXT NOT NULL DEFAULT 'direct',
+        confirmation_code TEXT,
+        host_verified_at  TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_bookings_dates
         ON bookings (check_in, check_out);
@@ -148,6 +157,16 @@ function getDb(): Database.Database {
         unsubscribed_at TEXT
       );
     `);
+
+    // Defensive migrations — for DBs created before Phase 2 added these columns.
+    // ALTER throws if the column already exists; swallow that.
+    for (const stmt of [
+      'ALTER TABLE inquiries ADD COLUMN confirmation_code TEXT',
+      'ALTER TABLE bookings ADD COLUMN confirmation_code TEXT',
+      'ALTER TABLE bookings ADD COLUMN host_verified_at TEXT',
+    ]) {
+      try { _db.exec(stmt); } catch { /* column already exists */ }
+    }
   }
   return _db;
 }
@@ -227,27 +246,44 @@ export function dbGetSyncMeta(): SyncMeta[] {
 /* ------------------------------- inquiries ------------------------------ */
 
 export function dbCreateInquiry(
-  input: Omit<Inquiry, 'id' | 'created_at' | 'status'> & { status?: string },
+  input: Omit<Inquiry, 'id' | 'created_at' | 'status' | 'confirmation_code'> & {
+    status?: string;
+    confirmation_code?: string | null;
+  },
 ): Inquiry {
-  const row: Inquiry = {
-    id: crypto.randomUUID(),
-    created_at: new Date().toISOString(),
-    status: input.status ?? 'new',
-    name: input.name,
-    email: input.email,
-    phone: input.phone ?? null,
-    check_in: input.check_in ?? null,
-    check_out: input.check_out ?? null,
-    guests: input.guests ?? null,
-    message: input.message ?? null,
-  };
-  getDb().prepare(`
-    INSERT INTO inquiries
-      (id, created_at, name, email, phone, check_in, check_out, guests, message, status)
-    VALUES
-      (@id, @created_at, @name, @email, @phone, @check_in, @check_out, @guests, @message, @status)
-  `).run(row);
-  return row;
+  const db = getDb();
+  // Loop on UNIQUE collision — astronomically rare in 31^6 space, but cheap.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const row: Inquiry = {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      status: input.status ?? 'new',
+      name: input.name,
+      email: input.email,
+      phone: input.phone ?? null,
+      check_in: input.check_in ?? null,
+      check_out: input.check_out ?? null,
+      guests: input.guests ?? null,
+      message: input.message ?? null,
+      confirmation_code: input.confirmation_code ?? mintBookingCode(),
+    };
+    try {
+      db.prepare(`
+        INSERT INTO inquiries
+          (id, created_at, name, email, phone, check_in, check_out, guests,
+           message, status, confirmation_code)
+        VALUES
+          (@id, @created_at, @name, @email, @phone, @check_in, @check_out, @guests,
+           @message, @status, @confirmation_code)
+      `).run(row);
+      return row;
+    } catch (err) {
+      const msg = (err as Error).message ?? '';
+      if (msg.includes('UNIQUE') && attempt < 4) continue;
+      throw err;
+    }
+  }
+  throw new Error('dbCreateInquiry: failed to allocate unique confirmation code');
 }
 
 export function dbGetInquiries(status?: string): Inquiry[] {
@@ -259,12 +295,20 @@ export function dbGetInquiries(status?: string): Inquiry[] {
   return db.prepare('SELECT * FROM inquiries ORDER BY created_at DESC').all() as Inquiry[];
 }
 
+export function dbGetInquiryByCode(code: string): Inquiry | null {
+  const row = getDb()
+    .prepare('SELECT * FROM inquiries WHERE confirmation_code = ?')
+    .get(code) as Inquiry | undefined;
+  return row ?? null;
+}
+
 /* -------------------------------- bookings ------------------------------ */
 
 export function dbCreateBooking(
-  input: Omit<Booking, 'id' | 'created_at' | 'status' | 'nights'> & {
+  input: Omit<Booking, 'id' | 'created_at' | 'status' | 'nights' | 'confirmation_code' | 'host_verified_at'> & {
     status?: string;
     nights?: number;
+    confirmation_code?: string | null;
   },
 ): Booking {
   const nights = input.nights ?? nightsBetween(input.check_in, input.check_out);
@@ -284,14 +328,18 @@ export function dbCreateBooking(
     deposit_method: input.deposit_method ?? null,
     status: input.status ?? 'requested',
     source: input.source ?? 'direct',
+    confirmation_code: input.confirmation_code ?? null,
+    host_verified_at: null,
   };
   getDb().prepare(`
     INSERT INTO bookings
       (id, created_at, inquiry_id, name, email, phone, check_in, check_out,
-       guests, nights, quote_total, deposit_amount, deposit_method, status, source)
+       guests, nights, quote_total, deposit_amount, deposit_method, status, source,
+       confirmation_code, host_verified_at)
     VALUES
       (@id, @created_at, @inquiry_id, @name, @email, @phone, @check_in, @check_out,
-       @guests, @nights, @quote_total, @deposit_amount, @deposit_method, @status, @source)
+       @guests, @nights, @quote_total, @deposit_amount, @deposit_method, @status, @source,
+       @confirmation_code, @host_verified_at)
   `).run(row);
   return row;
 }
@@ -303,6 +351,54 @@ export function dbGetBookings(status?: string): Booking[] {
       .all(status) as Booking[];
   }
   return db.prepare('SELECT * FROM bookings ORDER BY created_at DESC').all() as Booking[];
+}
+
+export function dbGetBookingById(id: string): Booking | null {
+  const row = getDb()
+    .prepare('SELECT * FROM bookings WHERE id = ?')
+    .get(id) as Booking | undefined;
+  return row ?? null;
+}
+
+/** Flip a booking to confirmed + insert a manual block onto availability.
+ *  Transactional so a partial state (confirmed without block, or vice versa)
+ *  never persists. Returns the updated booking, or null if booking_id unknown. */
+export function dbHostVerifyBooking(bookingId: string): Booking | null {
+  const db = getDb();
+  const verifyAt = new Date().toISOString();
+  const tx = db.transaction(() => {
+    const booking = db
+      .prepare('SELECT * FROM bookings WHERE id = ?')
+      .get(bookingId) as Booking | undefined;
+    if (!booking) return null;
+
+    db.prepare(`
+      UPDATE bookings
+         SET status = 'confirmed', host_verified_at = ?
+       WHERE id = ?
+    `).run(verifyAt, bookingId);
+
+    // Stamp a manual availability block so the calendar instantly reflects.
+    db.prepare(`
+      INSERT OR REPLACE INTO availability
+        (source, uid, start_date, end_date, summary, synced_at)
+      VALUES
+        ('manual', ?, ?, ?, ?, ?)
+    `).run(
+      `booking:${bookingId}`,
+      booking.check_in,
+      booking.check_out,
+      `Direct booking — ${booking.name}`,
+      verifyAt,
+    );
+
+    return {
+      ...booking,
+      status: 'confirmed',
+      host_verified_at: verifyAt,
+    } as Booking;
+  });
+  return tx();
 }
 
 /* ------------------------------ subscribers ----------------------------- */
