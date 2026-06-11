@@ -40,6 +40,13 @@ function CharacterCreationContent() {
     setStep('review')
   }, [])
 
+  // Mirror in-progress selections so picks survive the picker unmounting
+  // on any back-nav (step 3 BACK, Review's CHANGE PICKS) — P1-9.
+  const handlePicksChange = useCallback((ids: string[], mods: Partial<SaddleStats>) => {
+    setSelectedPicks(ids)
+    setPickMods(mods)
+  }, [])
+
   const handleCreateCharacter = useCallback(() => {
     if (!selectedBackground || !characterName) return
     // Build the SAME final stats the review screen shows (base 8 + background + picks)
@@ -218,6 +225,8 @@ function CharacterCreationContent() {
               Every advantage has a price. There is no perfect build.
             </p>
             <ZeroSumPicker
+              initialSelectedIds={selectedPicks}
+              onSelectionChange={handlePicksChange}
               onConfirm={handleConfirmPicks}
               onBack={() => setStep('background')}
             />

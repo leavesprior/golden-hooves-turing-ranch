@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
 
 // S.A.D.D.L.E. Stats (replacing basic party system)
 export interface SaddleStats {
@@ -295,6 +295,18 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     } catch {}
     return initialState
   })
+
+  // Persist the character whenever it changes — previously only
+  // createCharacter/loadCharacter wrote, so XP/stat changes and level-ups were
+  // memory-only and reverted on reload. Write lives here (not in the updaters —
+  // pure-updater discipline) and stores the same Character shape under the same
+  // canonical key, so existing readers are unaffected.
+  useEffect(() => {
+    if (!state.character) return
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.character))
+    } catch {}
+  }, [state.character])
 
   // Create a new character
   const createCharacter = useCallback((name: string, background: CharacterBackground, statsOverride?: SaddleStats, traits: string[] = []) => {

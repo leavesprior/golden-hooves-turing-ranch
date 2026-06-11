@@ -322,7 +322,7 @@ export const CHAPTER_1_LOCATIONS: ChapterLocation[] = [
     x: 85, y: 60,
     icon: '\uD83C\uDFD5\uFE0F',
     atmosphere: 'ancient',
-    connectedTo: ['ch1_platte_bridge'],
+    connectedTo: ['ch1_platte_bridge', 'ch1_sacramento_waterfront'],
     travelDanger: 'moderate',
     requiredReputation: { faction: 'natives', level: -25 }, // Not hated
     services: [
@@ -531,7 +531,7 @@ export const CHAPTER_2_LOCATIONS: ChapterLocation[] = [
     x: 50, y: 35,
     icon: '\uD83C\uDFD8\uFE0F',
     atmosphere: 'historic',
-    connectedTo: ['ch2_st_george', 'ch2_masonic_lodge', 'ch2_cobblestone', 'ch2_miners_camp', 'ch2_hangtown', 'ch2_drytown'],
+    connectedTo: ['ch2_st_george', 'ch2_masonic_lodge', 'ch2_cobblestone', 'ch2_miners_camp', 'ch2_hangtown', 'ch2_drytown', 'ch2_rough_and_ready', 'ch2_chinese_camp'],
     travelDanger: 'safe',
     discoveredByDefault: true,
     services: [
@@ -1418,7 +1418,7 @@ export const CHAPTER_4_LOCATIONS: ChapterLocation[] = [
     x: 50, y: 40,
     icon: '\uD83C\uDFE0',
     atmosphere: 'hopeful',
-    connectedTo: ['ch4_lumber_mill', 'ch4_creek', 'ch4_neighbor', 'ch4_jackson', 'ch4_murrieta_camp', 'ch4_black_bart_road'],
+    connectedTo: ['ch4_lumber_mill', 'ch4_creek', 'ch4_neighbor', 'ch4_jackson', 'ch4_murrieta_camp', 'ch4_black_bart_road', 'ch4_rattlesnake_dick_hideout'],
     travelDanger: 'safe',
     discoveredByDefault: true,
     services: [],
@@ -1613,7 +1613,7 @@ export const CHAPTER_4_LOCATIONS: ChapterLocation[] = [
     x: 40, y: 20,
     icon: '\uD83D\uDCDC',
     atmosphere: 'legendary',
-    connectedTo: ['ch4_ranch_site', 'ch4_jackson'],
+    connectedTo: ['ch4_ranch_site', 'ch4_jackson', 'ch4_rattlesnake_dick_hideout'],
     travelDanger: 'moderate',
     services: [],
     npcs: [

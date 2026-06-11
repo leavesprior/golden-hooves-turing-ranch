@@ -22,6 +22,7 @@ import { LocationView } from '@/components/adventure/LocationView'
 import { CampManagement } from '@/components/adventure/CampManagement'
 import { SkillTree } from '@/components/adventure/SkillTree'
 import AdventureRewardTracker from '@/components/adventure/AdventureRewardTracker'
+import { ClueGameUnlock } from '@/components/adventure/ClueGameUnlock'
 
 // Lazy-load PixiJS exploration map (SSR-safe)
 import dynamic from 'next/dynamic'
@@ -385,6 +386,7 @@ function StatsSidebar({
   level,
   xp,
   chapter,
+  karma,
   onOpenSkillTree,
   onSaveGame,
   onCloudSave,
@@ -397,6 +399,7 @@ function StatsSidebar({
   level: number
   xp: number
   chapter: number
+  karma: number
   onOpenSkillTree: () => void
   onSaveGame: () => void
   onCloudSave: () => void
@@ -461,6 +464,10 @@ function StatsSidebar({
           <div className="flex justify-between">
             <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">Chapter</span>
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">{chapter}/5</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">Karma</span>
+            <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">{'🌮'} {karma}</span>
           </div>
         </div>
       </PixelCard>
@@ -645,7 +652,7 @@ function ReputationDisplay() {
 function AdventureContent() {
   const router = useRouter()
   const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter, modifyStat } = useCharacter()
-  const { balance, earnNeutral, spendNeutral } = useKarmaWallet()
+  const { balance, earnNeutral, spendNeutral, initializeWallet, isInitialized: walletInitialized, getKarmaAlignment } = useKarmaWallet()
   const { state: repState, modifyReputation, getReputationLevel, getReputation } = useReputation()
   const { comment: narratorComment } = useNarrator()
 
@@ -657,6 +664,7 @@ function AdventureContent() {
   const [activeConfrontation, setActiveConfrontation] = useState<ConfrontationEnemy | null>(null)
   const [explorationMode, setExplorationMode] = useState(true)
   const [pixiFailed, setPixiFailed] = useState(false)
+  const [showClueGameUnlock, setShowClueGameUnlock] = useState(false)
 
   // Track page view on mount
   useEffect(() => {
@@ -675,6 +683,23 @@ function AdventureContent() {
       trackGameStart('adventure')
     }
   }, [])
+
+  // Initialize the karma wallet for the adventure path. Oregon Trail initializes
+  // via its New/Continue menu, but the adventure never called initializeWallet —
+  // walletMode stayed null, so the wallet's persistence effect (gated on
+  // isInitialized && walletMode) never wrote and the balance reset to 400 on
+  // every reload while purchases persisted. If a stored wallet exists the
+  // provider hydrates it on mount (which engages persistence); otherwise start
+  // a new wallet exactly once here.
+  const walletInitRef = useRef(false)
+  useEffect(() => {
+    if (walletInitRef.current || walletInitialized) return
+    walletInitRef.current = true
+    // Same canonical key the wallet provider reads/writes (see karmaWalletContext)
+    if (!localStorage.getItem('oregon_trail_karma_wallet')) {
+      initializeWallet('new')
+    }
+  }, [walletInitialized, initializeWallet])
 
   // Latest-value refs so the persistence effects below don't re-subscribe (and
   // tear down/recreate timers) on every single state change during combat.
@@ -1051,15 +1076,17 @@ function AdventureContent() {
     }
 
     if (adventureState.chapter >= 5) {
-      // Game complete
+      // Game complete — meet Cynthia. The finish-game → Cynthia → QR-hunt chain
+      // runs through ClueGameUnlock (full-screen takeover below); its LEAVE INN
+      // button routes to /game, replacing the old immediate redirect.
       narratorComment('And so the story ends. Or does it? Check the ranch for the real treasure.', 'fourth_wall')
-      router.push('/game')
+      setShowClueGameUnlock(true)
       return
     }
     // Show camp management
     setShowCamp(true)
     updateState({ phase: 'camp' })
-  }, [adventureState, updateState, narratorComment, router])
+  }, [adventureState, updateState, narratorComment])
 
   // === CAMP RESULT ===
   const handleCampResult = useCallback((result: ActivityResult) => {
@@ -1419,6 +1446,7 @@ function AdventureContent() {
               level={charState.character?.level ?? 1}
               xp={adventureState.totalXP}
               chapter={adventureState.chapter}
+              karma={balance.neutral}
               onOpenSkillTree={() => setShowSkillTree(true)}
               onSaveGame={handleSave}
               onCloudSave={handleCloudSave}
@@ -1514,6 +1542,21 @@ function AdventureContent() {
             (adventureState.phase === 'at_location' ? 'discovery' : 'idle') as DialogueContext
           }
         />
+      )}
+
+      {/* Cynthia Ending — chapter 5 complete. Full-screen takeover above all
+          other HUD layers (reward tracker modal is z-[100]). */}
+      {showClueGameUnlock && (
+        <div className="fixed inset-0 z-[110] bg-[var(--pixel-bg-dark)] overflow-y-auto p-4 flex items-center justify-center">
+          <div className="w-full max-w-5xl">
+            <ClueGameUnlock
+              karmaAlignment={getKarmaAlignment()}
+              chaptersCompleted={5}
+              playerName={charState.character?.name ?? 'Traveler'}
+              onClose={() => router.push('/game')}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

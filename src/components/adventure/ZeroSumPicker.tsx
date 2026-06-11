@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   ADVANTAGES,
   FLAWS,
@@ -16,6 +16,10 @@ import type { SaddleStats, StatName } from '@/app/oregon-trail/characterContext'
 interface ZeroSumPickerProps {
   onConfirm: (selectedIds: string[], totalMods: Partial<SaddleStats>) => void
   onBack: () => void
+  /** Restores prior selections when the picker re-mounts (back-nav / CHANGE PICKS). */
+  initialSelectedIds?: string[]
+  /** Reports every selection change so the parent can preserve picks across unmounts. */
+  onSelectionChange?: (selectedIds: string[], totalMods: Partial<SaddleStats>) => void
 }
 
 const CATEGORY_LABELS: Record<Advantage['category'], { label: string; color: string }> = {
@@ -35,14 +39,20 @@ const STAT_DISPLAY: Record<StatName, { abbr: string; color: string }> = {
   Expertise: { abbr: 'EXP', color: '#fb923c' },
 }
 
-export function ZeroSumPicker({ onConfirm, onBack }: ZeroSumPickerProps) {
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
+export function ZeroSumPicker({ onConfirm, onBack, initialSelectedIds, onSelectionChange }: ZeroSumPickerProps) {
+  const [selectedIds, setSelectedIds] = useState<string[]>(initialSelectedIds ?? [])
   const [showCategory, setShowCategory] = useState<'advantages' | 'flaws'>('advantages')
 
   const picksCost = useMemo(() => calculatePicksCost(selectedIds), [selectedIds])
   const picksRemaining = STARTING_PICKS - picksCost
   const statMods = useMemo(() => calculateStatModifiers(selectedIds), [selectedIds])
   const compatibility = useMemo(() => arePicksCompatible(selectedIds), [selectedIds])
+
+  // Keep the parent in sync so selections survive this component unmounting
+  // (step back-nav and Review's CHANGE PICKS both unmount the picker — P1-9).
+  useEffect(() => {
+    onSelectionChange?.(selectedIds, statMods)
+  }, [selectedIds, statMods, onSelectionChange])
 
   const togglePick = (id: string) => {
     if (selectedIds.includes(id)) {

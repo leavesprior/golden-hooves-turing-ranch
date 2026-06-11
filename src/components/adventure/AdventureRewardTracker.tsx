@@ -39,6 +39,11 @@ const EXTENDED_TIERS: Record<ExtendedTier, ExtendedTierInfo> = {
   platinum: { ...DISCOUNT_TIERS.platinum, badge: '\uD83D\uDC8E' },
 }
 
+// The full panel (320px wide) covers half a 390px viewport including the
+// \u2190 MAP button (P1-1 mobile half) \u2014 so it collapses to a small chip.
+const COLLAPSE_STORAGE_KEY = 'bobr_reward_tracker_collapsed'
+const SMALL_SCREEN_PX = 768
+
 export default function AdventureRewardTracker({
   locationsVisited,
   totalLocations,
@@ -52,6 +57,27 @@ export default function AdventureRewardTracker({
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
   const [hasCheckedWelcome, setHasCheckedWelcome] = useState(false)
+  // Start collapsed (safe for SSR + small screens); resolved on mount below.
+  const [collapsed, setCollapsed] = useState(true)
+
+  // Resolve collapse state on mount: the user's saved choice wins; otherwise
+  // default collapsed on small screens, expanded on desktop.
+  useEffect(() => {
+    const stored = localStorage.getItem(COLLAPSE_STORAGE_KEY)
+    if (stored !== null) {
+      setCollapsed(stored === '1')
+    } else {
+      setCollapsed(window.innerWidth < SMALL_SCREEN_PX)
+    }
+  }, [])
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed(prev => {
+      const next = !prev
+      localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? '1' : '0')
+      return next
+    })
+  }, [])
 
   const mysteryClues = getCorrectClueCount()
   const casesSolved = mysteryState.casesSolved.length
@@ -80,16 +106,25 @@ export default function AdventureRewardTracker({
     }
   }, [welcomeEligible, hasCheckedWelcome])
 
+  // Dismissing the auto-shown celebration also re-collapses the tracker on
+  // small screens (unless the user has explicitly chosen to keep it open).
+  const dismissWelcomeModal = useCallback(() => {
+    setShowWelcomeModal(false)
+    if (localStorage.getItem(COLLAPSE_STORAGE_KEY) === null && window.innerWidth < SMALL_SCREEN_PX) {
+      setCollapsed(true)
+    }
+  }, [])
+
   // The celebration modal auto-fires over whatever is open (P1-1) — it must
   // never trap the player. Escape dismisses it while open.
   useEffect(() => {
     if (!showWelcomeModal) return
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowWelcomeModal(false)
+      if (e.key === 'Escape') dismissWelcomeModal()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [showWelcomeModal])
+  }, [showWelcomeModal, dismissWelcomeModal])
 
   // Progress to next tier
   const getProgressInfo = useCallback(() => {
@@ -148,15 +183,39 @@ export default function AdventureRewardTracker({
 
   return (
     <>
+      {collapsed ? (
+        /* Collapsed: a small chip that stays out of the way (mobile-safe) */
+        <button
+          onClick={toggleCollapsed}
+          aria-label="Expand reward tracker"
+          className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] px-3 py-2 font-[var(--font-pixel)] shadow-lg hover:border-[var(--pixel-gold-mid)] transition-colors"
+        >
+          <span className="text-[14px]">
+            {currentTier ? EXTENDED_TIERS[currentTier].badge : '🏆'}
+          </span>
+          <span className="text-[10px] text-[var(--pixel-gold-light)] font-bold">
+            {Math.floor(progress.percent)}%
+          </span>
+        </button>
+      ) : (
       <div className="fixed top-4 right-4 w-80 bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] p-4 font-[var(--font-pixel)] shadow-lg z-50">
         {/* Header */}
         <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-[var(--pixel-ui-border)]">
           <h3 className="text-[12px] text-[var(--pixel-gold-light)] uppercase tracking-wider">
             Reward Tracker
           </h3>
-          <span className="text-[10px] text-[var(--pixel-ui-text)]">
-            {playTimeMinutes} min
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-[var(--pixel-ui-text)]">
+              {playTimeMinutes} min
+            </span>
+            <button
+              onClick={toggleCollapsed}
+              aria-label="Collapse reward tracker"
+              className="text-[12px] leading-none text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] px-1 border border-[var(--pixel-ui-border)]"
+            >
+              {'−'}
+            </button>
+          </div>
         </div>
 
         {/* Current Tier */}
@@ -245,12 +304,13 @@ export default function AdventureRewardTracker({
           </div>
         )}
       </div>
+      )}
 
       {/* Welcome Modal */}
       {showWelcomeModal && (
         <div
           className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] font-[var(--font-pixel)]"
-          onClick={() => setShowWelcomeModal(false)}
+          onClick={dismissWelcomeModal}
         >
           <div
             role="dialog"
@@ -292,7 +352,7 @@ export default function AdventureRewardTracker({
             </p>
 
             <button
-              onClick={() => setShowWelcomeModal(false)}
+              onClick={dismissWelcomeModal}
               className="w-full p-2 bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-ui-border)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] text-[11px] uppercase transition-colors"
             >
               Continue Playing
