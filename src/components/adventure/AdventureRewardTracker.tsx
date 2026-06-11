@@ -168,8 +168,8 @@ export default function AdventureRewardTracker({
         {/* Progress to Next Tier */}
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[8px] text-[var(--pixel-ui-text)] uppercase">Next Tier</span>
-            <span className="text-[8px] text-[var(--pixel-gold-mid)]">{Math.floor(progress.percent)}%</span>
+            <span className="text-[11px] text-[var(--pixel-ui-text)] uppercase">Next Tier</span>
+            <span className="text-[11px] text-[var(--pixel-gold-mid)]">{Math.floor(progress.percent)}%</span>
           </div>
           <div className="w-full h-4 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] relative overflow-hidden">
             <div
@@ -177,12 +177,12 @@ export default function AdventureRewardTracker({
               style={{ width: `${progress.percent}%` }}
             />
           </div>
-          <div className="text-[8px] text-[var(--pixel-ui-text)] mt-1">{progress.message}</div>
+          <div className="text-[11px] text-[var(--pixel-ui-text)] mt-1">{progress.message}</div>
         </div>
 
         {/* Karma Alignment */}
         <div className="mb-3 p-2 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)]">
-          <div className="text-[8px] text-[var(--pixel-ui-text)] uppercase mb-1">Karma Alignment</div>
+          <div className="text-[11px] text-[var(--pixel-ui-text)] uppercase mb-1">Karma Alignment</div>
           <div className="flex justify-between items-center">
             <span className="text-[10px] text-[var(--pixel-forest-light)]">{alignmentName}</span>
             <span className="text-[10px] text-[var(--pixel-gold-light)] font-bold">{karmaMultiplier.toFixed(1)}x</span>
@@ -199,7 +199,7 @@ export default function AdventureRewardTracker({
               <span className="text-[14px]">{'\uD83D\uDD0D'}</span>
               <span className="text-[10px] uppercase font-bold">Search The Listing</span>
             </div>
-            <div className="text-[7px] mt-1 opacity-80">
+            <div className="text-[10px] mt-1 opacity-80">
               The answer might be hidden in the cabin listing...
             </div>
           </button>
@@ -220,14 +220,14 @@ export default function AdventureRewardTracker({
         {/* Reward Verification */}
         {currentTier && (
           <div className="border-t-2 border-[var(--pixel-ui-border)] pt-3">
-            <div className="text-[8px] text-[var(--pixel-ui-text)] uppercase mb-2">
+            <div className="text-[11px] text-[var(--pixel-ui-text)] uppercase mb-2">
               Reward Verification
             </div>
             <div className="p-2 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)]">
-              <div className="text-[8px] text-[var(--pixel-gold-light)] uppercase">
+              <div className="text-[11px] text-[var(--pixel-gold-light)] uppercase">
                 {EXTENDED_TIERS[currentTier].displayName} earned
               </div>
-              <div className="text-[7px] text-[var(--pixel-ui-text)] mt-1 leading-relaxed">
+              <div className="text-[10px] text-[var(--pixel-ui-text)] mt-1 leading-relaxed">
                 Booking rewards now require host verification. No client discount codes are issued from this tracker.
               </div>
             </div>
@@ -250,8 +250,8 @@ export default function AdventureRewardTracker({
             </div>
 
             <div className="mb-4 p-3 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-mid)]">
-              <div className="text-[8px] text-[var(--pixel-ui-text)] uppercase mb-2 text-center">Host Verification Required</div>
-              <p className="text-[8px] text-[var(--pixel-gold-light)] text-center leading-relaxed">
+              <div className="text-[11px] text-[var(--pixel-ui-text)] uppercase mb-2 text-center">Host Verification Required</div>
+              <p className="text-[11px] text-[var(--pixel-gold-light)] text-center leading-relaxed">
                 Your Welcome tier is tracked here, but booking discounts must be verified by the host before a code is issued.
               </p>
             </div>
@@ -265,7 +265,7 @@ export default function AdventureRewardTracker({
               Book Now
             </a>
 
-            <p className="text-[8px] text-[var(--pixel-ui-text)] text-center mb-4">
+            <p className="text-[11px] text-[var(--pixel-ui-text)] text-center mb-4">
               Keep playing to unlock bigger discounts!
               <br />
               Next tier: <span className="text-[var(--pixel-gold-light)]">Bronze Deputy (8%)</span>
@@ -273,7 +273,7 @@ export default function AdventureRewardTracker({
 
             <button
               onClick={() => setShowWelcomeModal(false)}
-              className="w-full p-2 bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-ui-border)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] text-[8px] uppercase transition-colors"
+              className="w-full p-2 bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-ui-border)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] text-[11px] uppercase transition-colors"
             >
               Continue Playing
             </button>

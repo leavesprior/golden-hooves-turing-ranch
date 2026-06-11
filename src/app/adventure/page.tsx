@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { useRPG, TRAITS, type TraitId, type AttributeName, type RPGSession } from '@/lib/rpgContext'
 import {
@@ -103,7 +104,7 @@ function StatRollRow({
         <span className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-gold-light)]">
           {info.abbr}
         </span>
-        <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">
+        <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-ui-text)]">
           {info.desc}
         </p>
       </div>
@@ -149,7 +150,7 @@ function MandelbrotVisual({ c, iterations }: { c: { re: number; im: number }; it
         }}
       />
       <div className="absolute bottom-1 left-1 right-1 text-center">
-        <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+        <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
           z = z² + ({c.re.toFixed(2)} + {c.im.toFixed(2)}i)
         </span>
       </div>
@@ -161,6 +162,7 @@ export default function AdventurePage() {
   const { session, startNewGame, loadGame, resetGame, getDiscountCode } = useRPG()
 
   // Character creation state
+  const router = useRouter()
   const [creationStep, setCreationStep] = useState<CreationStep>('name')
   const [nameInput, setNameInput] = useState('')
   const [showNewGame, setShowNewGame] = useState(false)
@@ -587,7 +589,10 @@ export default function AdventurePage() {
                 Continue Adventure
               </PixelButton>
             )}
-            <PixelButton onClick={() => setShowNewGame(true)} variant="green" size="md">
+            {/* Route straight to the canonical S.A.D.D.L.E. creation flow.
+                The old inline D&D creator below is superseded — sending players
+                here prevents building a character twice (B1). */}
+            <PixelButton onClick={() => router.push('/adventure/character-creation')} variant="green" size="md">
               New Adventure
             </PixelButton>
 
@@ -602,7 +607,7 @@ export default function AdventurePage() {
                     {karmaAlignment.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                   </span>
                 </p>
-                <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-forest-light)] mt-1">
+                <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)] mt-1">
                   Starting attribute bonuses will be applied
                 </p>
               </div>
@@ -693,7 +698,7 @@ export default function AdventurePage() {
                           <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
                             Classic D&D style: 4d6, drop lowest
                           </p>
-                          <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-forest-light)] mt-1">
+                          <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-forest-light)] mt-1">
                             Higher highs, lower lows • {MAX_REROLLS} rerolls allowed
                           </p>
                         </div>
@@ -714,7 +719,7 @@ export default function AdventurePage() {
                           <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
                             Mandelbrot-seeded balanced stats
                           </p>
-                          <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-sky-light)] mt-1">
+                          <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-sky-light)] mt-1">
                             z = z² + C • Balanced distribution (8-16)
                           </p>
                         </div>
@@ -870,7 +875,7 @@ export default function AdventurePage() {
                               </p>
                             </div>
                             {trait.prerequisite && (
-                              <span className={`font-[var(--font-pixel)] text-[8px] ${available ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
+                              <span className={`font-[var(--font-pixel)] text-[11px] ${available ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
                                 {ATTRIBUTE_INFO[trait.prerequisite.attribute].abbr} {trait.prerequisite.min}+
                               </span>
                             )}
@@ -980,11 +985,11 @@ export default function AdventurePage() {
                   const mod = Math.floor((val - 10) / 2)
                   return (
                     <div key={attr} className="bg-[var(--pixel-bg-mid)] border border-[var(--pixel-ui-border)] p-1">
-                      <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-gold-light)]">
+                      <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-gold-light)]">
                         {ATTRIBUTE_INFO[attr].abbr}
                       </p>
                       <p className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)]">{val}</p>
-                      <p className={`font-[var(--font-pixel)] text-[8px] ${mod >= 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
+                      <p className={`font-[var(--font-pixel)] text-[11px] ${mod >= 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
                         {mod >= 0 ? '+' : ''}{mod}
                       </p>
                     </div>
@@ -995,19 +1000,19 @@ export default function AdventurePage() {
               {/* Legacy Stats */}
               <div className="grid grid-cols-4 gap-2 text-center border-t border-[var(--pixel-ui-border)] pt-3">
                 <div>
-                  <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">Wisdom</p>
+                  <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-ui-text)]">Wisdom</p>
                   <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">{session.stats.wisdom}</p>
                 </div>
                 <div>
-                  <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">Trust</p>
+                  <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-ui-text)]">Trust</p>
                   <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-forest-light)]">{session.stats.trust}</p>
                 </div>
                 <div>
-                  <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">Luck</p>
+                  <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-ui-text)]">Luck</p>
                   <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-sky-light)]">{session.stats.luck}</p>
                 </div>
                 <div>
-                  <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">Gold</p>
+                  <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-ui-text)]">Gold</p>
                   <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-mid)]">{session.stats.gold}</p>
                 </div>
               </div>

@@ -140,7 +140,7 @@ export function ChapterMap({
         <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
           CHAPTER {chapter} MAP
         </span>
-        <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">
+        <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">
           {discoveredLocationIds.length} / {allLocations.length} discovered
         </span>
       </div>
@@ -300,12 +300,12 @@ export function ChapterMap({
                 <h3 className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
                   {selectedLoc.icon} {selectedLoc.name}
                 </h3>
-                <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70">
+                <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-70">
                   {selectedLoc.description}
                 </p>
               </div>
               {selectedLoc.travelDanger !== 'safe' && (
-                <span className={`font-[var(--font-pixel)] text-[8px] px-2 py-0.5 border ${
+                <span className={`font-[var(--font-pixel)] text-[11px] px-2 py-0.5 border ${
                   selectedLoc.travelDanger === 'dangerous'
                     ? 'text-[var(--pixel-fire-red)] border-[var(--pixel-fire-red)]'
                     : 'text-[var(--pixel-fire-orange)] border-[var(--pixel-fire-orange)]'
@@ -317,14 +317,14 @@ export function ChapterMap({
             {selectedLoc.services.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {selectedLoc.services.map(s => (
-                  <span key={s.type} className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-forest-light)] px-1 border border-[var(--pixel-forest-dark)]">
+                  <span key={s.type} className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)] px-1 border border-[var(--pixel-forest-dark)]">
                     {s.name}
                   </span>
                 ))}
               </div>
             )}
             {selectedLoc.npcs.length > 0 && (
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
                 {selectedLoc.npcs.length} NPC{selectedLoc.npcs.length > 1 ? 's' : ''} present
               </p>
             )}
@@ -340,7 +340,7 @@ export function ChapterMap({
             <h3 className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
               {hoveredLoc.icon} {hoveredLoc.name}
             </h3>
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50">
               {hoveredLoc.id === currentLocationId ? 'You are here. Click to explore.' : 'Click to select destination.'}
             </p>
           </div>
@@ -349,7 +349,7 @@ export function ChapterMap({
             <h3 className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
               {currentLoc?.icon} {currentLoc?.name ?? 'Unknown'}
             </h3>
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50">
               Click a location to travel. Click your current location to explore it.
             </p>
           </div>
@@ -357,7 +357,7 @@ export function ChapterMap({
 
         {/* Historical fact */}
         {(selectedLoc ?? currentLoc)?.historicalFact && (
-          <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-earth-light)] mt-2 italic opacity-70">
+          <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-earth-light)] mt-2 italic opacity-70">
             "{(selectedLoc ?? currentLoc)!.historicalFact}"
           </p>
         )}

@@ -30,14 +30,14 @@ export default function AdventureError({
             </p>
 
             <div className="bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] p-3 mt-4">
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-fire-orange)] mb-2">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-fire-orange)] mb-2">
                 Error detail (for the wrangler):
               </p>
               <p className="font-[var(--font-mono,monospace)] text-[10px] text-[var(--pixel-ui-text)] break-words">
                 {message}
               </p>
               {digest ? (
-                <p className="font-[var(--font-mono,monospace)] text-[9px] text-[var(--pixel-forest-light)] mt-2 opacity-70">
+                <p className="font-[var(--font-mono,monospace)] text-[12px] text-[var(--pixel-forest-light)] mt-2 opacity-70">
                   ref: {digest}
                 </p>
               ) : null}

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { trackPageView, trackGameStart } from '@/lib/eventTracker'
 import { OregonTrailProvider, useOregonTrail } from './oregonTrailContext'
 import { ShareLegacy } from '@/components/ui/ShareLegacy'
@@ -22,7 +22,7 @@ import { ChapterIntro, CHAPTERS } from './components/ChapterIntro'
 
 // Authentication & Save/Load System
 import { AuthSavePanel } from '@/components/game/AuthSavePanel'
-import { useSaveLoad } from '@/lib/saveLoadContext'
+import { useSaveLoad, getSaveGameType } from '@/lib/saveLoadContext'
 
 // Golden Hooves Enhancements
 import { GameErrorBoundary } from './components/GameErrorBoundary'
@@ -138,6 +138,14 @@ function OregonTrailGame() {
   const [continueError, setContinueError] = useState(false)
   const { saves, loadGame } = useSaveLoad()
 
+  // C2 fix: the save-slot store is shared across all games. Only consider
+  // saves that belong to THIS game (explicit gameType, or inferred for legacy
+  // slots) so "Continue Game" can never load an Adventure save.
+  const trailSaves = useMemo(
+    () => saves.filter(s => getSaveGameType(s) === 'oregon-trail'),
+    [saves]
+  )
+
   // Track page view on mount
   useEffect(() => {
     trackPageView('/oregon-trail')
@@ -209,8 +217,8 @@ function OregonTrailGame() {
     } else {
       AudioManager.playPlaylist()
     }
-    // Try slot-based saves first (authenticated users)
-    const sorted = [...saves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    // Try slot-based saves first (authenticated users) — Oregon Trail slots only (C2)
+    const sorted = [...trailSaves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     if (sorted.length > 0) {
       const result = await loadGame(sorted[0].id)
       if (result.success) return
@@ -234,7 +242,7 @@ function OregonTrailGame() {
     console.warn('[Continue] No valid save found from auth slots or local storage')
     setContinueError(true)
     setTimeout(() => setContinueError(false), 3000)
-  }, [audioInitialized, saves, loadGame, loadState])
+  }, [audioInitialized, trailSaves, loadGame, loadState])
 
   // Playlist auto-cycles tracks via AudioManager - no manual switching needed
 
@@ -246,7 +254,7 @@ function OregonTrailGame() {
       return (
         <TitleScreen
           onStart={handleGameStart}
-          hasSaves={saves.length > 0 || hasLocalSave}
+          hasSaves={trailSaves.length > 0 || hasLocalSave}
           onContinue={handleContinue}
           continueError={continueError}
         />
@@ -365,7 +373,7 @@ function OregonTrailGame() {
     <>
       {renderPhaseContent()}
       <SaveLoadIntegration />
-      {showSavePanel && <AuthSavePanel />}
+      {showSavePanel && <AuthSavePanel gameType="oregon-trail" />}
       <ShareLegacy />
     </>
   )

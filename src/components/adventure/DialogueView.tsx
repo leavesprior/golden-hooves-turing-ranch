@@ -171,7 +171,7 @@ function DiceRollDisplay({ finalRoll, modifier, total, dc, stat, success, onDone
       </div>
 
       {/* Label */}
-      <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-60">
+      <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-60">
         {phase === 'rolling' ? 'Rolling D20...' : `D20 ${'\u2192'} ${finalRoll}`}
       </p>
 
@@ -262,7 +262,7 @@ function EffectsToast({ effects }: EffectsToastProps) {
   return (
     <div className="mt-2 p-2 bg-black/50 border border-[var(--pixel-ui-border)] animate-[fadeIn_300ms_ease-out]">
       {lines.map((line, i) => (
-        <p key={i} className={`font-[var(--font-pixel)] text-[9px] ${line.color}`}>
+        <p key={i} className={`font-[var(--font-pixel)] text-[12px] ${line.color}`}>
           {line.text}
         </p>
       ))}
@@ -457,7 +457,7 @@ export function DialogueView({
         </p>
         <button
           onClick={onClose}
-          className="mt-2 font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] underline"
+          className="mt-2 font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] underline"
         >
           Leave conversation
         </button>
@@ -477,13 +477,13 @@ export function DialogueView({
           <h3 className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] truncate">
             {npcName}
           </h3>
-          <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-60">
+          <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-60">
             {npcRole}
           </p>
         </div>
         <button
           onClick={onClose}
-          className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-60 hover:opacity-100 hover:text-[var(--pixel-fire-red)] px-2 py-1 border border-[var(--pixel-ui-border)] hover:border-[var(--pixel-fire-red)] transition-all shrink-0"
+          className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-60 hover:opacity-100 hover:text-[var(--pixel-fire-red)] px-2 py-1 border border-[var(--pixel-ui-border)] hover:border-[var(--pixel-fire-red)] transition-all shrink-0"
         >
           {'\u2717'} LEAVE
         </button>
@@ -496,7 +496,7 @@ export function DialogueView({
       >
         {/* Speaker label (if different from NPC name, e.g. narrator or another character) */}
         {speaker !== npcName && (
-          <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] opacity-70 mb-1">
+          <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] opacity-70 mb-1">
             [{speaker}]
           </p>
         )}
@@ -507,7 +507,7 @@ export function DialogueView({
           )}
         </p>
         {!typewriterDone && (
-          <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-30 mt-2">
+          <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-30 mt-2">
             Click to skip
           </p>
         )}
@@ -568,7 +568,7 @@ export function DialogueView({
               >
                 <div className="flex items-start gap-2">
                   {/* Option number */}
-                  <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] opacity-60 shrink-0 mt-[1px]">
+                  <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] opacity-60 shrink-0 mt-[1px]">
                     {idx + 1}.
                   </span>
                   <div className="flex-1 min-w-0">
@@ -583,7 +583,7 @@ export function DialogueView({
                       {displayText}
                     </span>
                     {isLowShrewdness && option.lowShrewdnessText && !locked && (
-                      <span className="font-[var(--font-pixel)] text-[7px] text-yellow-600 ml-1">[dim-witted]</span>
+                      <span className="font-[var(--font-pixel)] text-[10px] text-yellow-600 ml-1">[dim-witted]</span>
                     )}
 
                     {/* Tags row */}
@@ -592,7 +592,7 @@ export function DialogueView({
                       {karmaTags.map(tag => (
                         <span
                           key={tag}
-                          className={`font-[var(--font-pixel)] text-[8px] px-1 border ${KARMA_TAG_COLORS[tag] ?? 'text-[var(--pixel-ui-text)] border-[var(--pixel-ui-border)]'}`}
+                          className={`font-[var(--font-pixel)] text-[11px] px-1 border ${KARMA_TAG_COLORS[tag] ?? 'text-[var(--pixel-ui-text)] border-[var(--pixel-ui-border)]'}`}
                         >
                           [{tag}]
                         </span>
@@ -600,7 +600,7 @@ export function DialogueView({
 
                       {/* Stat requirement tag */}
                       {hasReq && option.requirement && (
-                        <span className={`font-[var(--font-pixel)] text-[8px] px-1 border ${
+                        <span className={`font-[var(--font-pixel)] text-[11px] px-1 border ${
                           locked
                             ? 'text-[var(--pixel-fire-red)] border-red-800'
                             : 'text-[var(--pixel-gold-light)] border-[var(--pixel-gold-dark)]'
@@ -611,7 +611,7 @@ export function DialogueView({
 
                       {/* Visited indicator */}
                       {option.nextNodeId && visitedNodeIds.has(option.nextNodeId) && (
-                        <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-30 px-1">
+                        <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-30 px-1">
                           (visited)
                         </span>
                       )}

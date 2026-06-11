@@ -26,7 +26,7 @@ interface ExplorationMapProps {
   currentLocationId: string
   playerIcon?: string
   onArrive: (locationId: string) => void
-  onEncounter?: () => void
+  onEncounter?: () => boolean
   width?: number
   height?: number
 }
@@ -322,10 +322,14 @@ export function ExplorationMap({
               player.distanceSinceCheck = 0
               const chance = ENCOUNTER_BASE_CHANCE + (dist > 10 ? 0.1 : 0)
               if (Math.random() < chance) {
-                player.walking = false
-                flashTimer = 0.3
-                flashOverlay.alpha = 0.5
-                onEncounter()
+                // Only halt the walk if an encounter actually begins. onEncounter()
+                // returns false when the roll produced nothing — keep walking so the
+                // player isn't stranded mid-map and travel completes.
+                if (onEncounter()) {
+                  player.walking = false
+                  flashTimer = 0.3
+                  flashOverlay.alpha = 0.5
+                }
               }
             }
 
@@ -523,7 +527,7 @@ export function ExplorationMap({
       )}
       {/* WASD hint */}
       {mapReady && (
-        <div className="absolute bottom-2 left-2 font-[var(--font-pixel)] text-amber-600/60 text-[8px] bg-black/60 px-2 py-1 rounded">
+        <div className="absolute bottom-2 left-2 font-[var(--font-pixel)] text-amber-600/60 text-[11px] bg-black/60 px-2 py-1 rounded">
           WASD/Arrows to walk {'\u2022'} Click location to travel
         </div>
       )}

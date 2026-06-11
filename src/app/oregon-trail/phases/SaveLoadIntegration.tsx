@@ -10,9 +10,15 @@ import { useSaveLoad } from '@/lib/saveLoadContext'
 export function SaveLoadIntegration() {
   const { state, loadState } = useOregonTrail()
   const { user } = useAuth()
-  const { setGameDataCollector, setGameDataLoader, setMetadataCollector, enableAutoSave } = useSaveLoad()
+  const { setGameDataCollector, setGameDataLoader, setMetadataCollector, setActiveGameType, enableAutoSave } = useSaveLoad()
   const { balance, alignment, getAlignmentDisplayName, loadKarmaState } = useKarmaWallet()
   const { state: mysteryState, loadMysteryState } = useMystery()
+
+  // Declare ownership: every slot saved while Oregon Trail is mounted is
+  // stamped 'oregon-trail' so other games' title screens never load it (C2).
+  React.useEffect(() => {
+    setActiveGameType('oregon-trail')
+  }, [setActiveGameType])
 
   // Set up save data collector — skip during title/chapter_intro phases
   React.useEffect(() => {

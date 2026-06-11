@@ -139,7 +139,7 @@ export function ZeroSumPicker({ onConfirm, onBack }: ZeroSumPickerProps) {
       {!compatibility.valid && (
         <div className="bg-[var(--pixel-fire-red)]/20 border-2 border-[var(--pixel-fire-red)] p-2">
           {compatibility.conflicts.map((c, i) => (
-            <p key={i} className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-fire-orange)]">
+            <p key={i} className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-fire-orange)]">
               {c}
             </p>
           ))}
@@ -177,13 +177,13 @@ export function ZeroSumPicker({ onConfirm, onBack }: ZeroSumPickerProps) {
                       {pick.name}
                     </span>
                     <span
-                      className="font-[var(--font-pixel)] text-[9px] px-1 border"
+                      className="font-[var(--font-pixel)] text-[12px] px-1 border"
                       style={{ color: CATEGORY_LABELS[pick.category].color, borderColor: CATEGORY_LABELS[pick.category].color }}
                     >
                       {CATEGORY_LABELS[pick.category].label}
                     </span>
                   </div>
-                  <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 mb-1">
+                  <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70 mb-1">
                     {pick.description}
                   </p>
                   {/* Stat effects */}
@@ -191,7 +191,7 @@ export function ZeroSumPicker({ onConfirm, onBack }: ZeroSumPickerProps) {
                     {(Object.entries(pick.statModifiers) as [StatName, number][]).map(([stat, val]) => (
                       <span
                         key={stat}
-                        className="font-[var(--font-pixel)] text-[8px] px-1"
+                        className="font-[var(--font-pixel)] text-[11px] px-1"
                         style={{ color: STAT_DISPLAY[stat].color }}
                       >
                         {STAT_DISPLAY[stat].abbr} {val > 0 ? '+' : ''}{val}
@@ -199,7 +199,7 @@ export function ZeroSumPicker({ onConfirm, onBack }: ZeroSumPickerProps) {
                     ))}
                   </div>
                   {pick.specialAbility && (
-                    <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-forest-light)] mt-1">
+                    <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)] mt-1">
                       Special: {pick.specialAbility}
                     </p>
                   )}
@@ -214,6 +214,15 @@ export function ZeroSumPicker({ onConfirm, onBack }: ZeroSumPickerProps) {
           )
         })}
       </div>
+
+      {/* Unspent-picks warning — picks left on the table are lost forever (B4) */}
+      {picksRemaining > 0 && compatibility.valid && (
+        <div className="bg-[var(--pixel-gold-dark)]/20 border-2 border-[var(--pixel-gold-mid)] px-3 py-2">
+          <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
+            {'⚠'} {picksRemaining} pick{picksRemaining > 1 ? 's' : ''} unspent — these are lost when you confirm. Spend them for a stronger character.
+          </p>
+        </div>
+      )}
 
       {/* Action Buttons — sticky so they're always visible */}
       <div className="flex gap-3 sticky bottom-0 bg-[var(--pixel-bg-dark)] pt-3 pb-1 -mx-1 px-1 border-t border-[var(--pixel-ui-border)]/30">

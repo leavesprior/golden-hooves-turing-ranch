@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { trackPageView, trackGameStart } from '@/lib/eventTracker'
@@ -47,6 +47,7 @@ import {
 import { getSkillTreeBonuses } from '@/app/adventure/data/skillTree'
 import type { ActivityResult } from '@/app/adventure/data/campActivities'
 import { rollConfrontation, type ConfrontationEnemy } from '@/app/adventure/data/confrontationEnemies'
+import { getPickById } from '@/app/adventure/data/advantages'
 import { ConfrontationView, type ConfrontationResult } from '@/components/adventure/ConfrontationView'
 import { type RecruitedAlly, updateAllyDurations, getAllyStatBonuses, rollAllyAbility } from '@/app/adventure/data/enemyRecruitment'
 import { CompanionBar } from '@/components/adventure/CompanionBar'
@@ -73,6 +74,7 @@ interface AdventureState {
   confrontationsWon: number
   confrontationsLost: number
   recruitedAllies: RecruitedAlly[]
+  startingAbilitiesApplied?: boolean  // one-time guard for pick-based starting effects
 }
 
 const SAVE_KEY = 'bobr_adventure_state'
@@ -218,13 +220,13 @@ function TravelEncounterOverlay({
         <h3 className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-fire-orange)] mb-2 text-center">
           {encounter.name}
         </h3>
-        <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] mb-4 text-center">
+        <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-4 text-center">
           {encounter.description}
         </p>
 
         {!resolved ? (
           <div className="text-center">
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] mb-3 opacity-60">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] mb-3 opacity-60">
               {encounter.stat} check — DC {encounter.difficulty}
               (Your {encounter.stat}: {playerStats[encounter.stat] ?? 0})
             </p>
@@ -240,7 +242,7 @@ function TravelEncounterOverlay({
             {/* Ally ability trigger notification */}
             {allyTrigger?.triggered && (
               <div className="mb-3 p-2 bg-purple-900/50 border border-purple-500 rounded">
-                <p className="font-[var(--font-pixel)] text-[9px] text-purple-300">
+                <p className="font-[var(--font-pixel)] text-[12px] text-purple-300">
                   {'\u2728'} {allyTrigger.description}
                 </p>
               </div>
@@ -250,11 +252,11 @@ function TravelEncounterOverlay({
             }`}>
               {success ? 'SUCCESS!' : 'FAILED'}
             </p>
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] mb-2">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-2">
               {success ? encounter.successText : encounter.failureText}
             </p>
             {encounter.xpReward > 0 && (
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)]">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
                 +{encounter.xpReward} XP
               </p>
             )}
@@ -331,7 +333,7 @@ function PassphraseModal({
           </div>
         ) : (
           <>
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] mb-3">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-3">
               {mode === 'save'
                 ? 'Enter a Trail Passphrase to encrypt your save. Remember it — there is no recovery.'
                 : 'Enter your Trail Passphrase to decrypt your cloud save.'}
@@ -354,7 +356,7 @@ function PassphraseModal({
               />
             )}
             {needsConfirm && passphrase && confirm && passphrase !== confirm && (
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-fire-orange)] mb-2">Passphrases don&apos;t match</p>
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-fire-orange)] mb-2">Passphrases don&apos;t match</p>
             )}
             <div className="flex gap-2 mt-3">
               <button
@@ -403,6 +405,16 @@ function StatsSidebar({
   recruitedAllies: RecruitedAlly[]
   onDismissAlly: (enemyName: string) => void
 }) {
+  // Surface the abilities the player chose at creation — previously stored but
+  // never shown in play, so build choices felt like they vanished.
+  const [abilities, setAbilities] = useState<{ name: string; ability: string }[]>([])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('bobr_adventure_picks')
+      if (raw) setAbilities(JSON.parse(raw).specialAbilities ?? [])
+    } catch {}
+  }, [])
+
   return (
     <div className="space-y-3">
       {/* Character Stats */}
@@ -412,7 +424,7 @@ function StatsSidebar({
             <div key={stat} className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <span className="text-xs">{STAT_DISPLAY[stat].icon}</span>
-                <span className="font-[var(--font-pixel)] text-[9px]" style={{ color: STAT_DISPLAY[stat].color }}>
+                <span className="font-[var(--font-pixel)] text-[12px]" style={{ color: STAT_DISPLAY[stat].color }}>
                   {stat.slice(0, 3).toUpperCase()}
                 </span>
               </div>
@@ -439,19 +451,33 @@ function StatsSidebar({
       <PixelCard title="Progress">
         <div className="space-y-2">
           <div className="flex justify-between">
-            <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">Level</span>
+            <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">Level</span>
             <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">{level}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">XP</span>
+            <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">XP</span>
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">{xp}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">Chapter</span>
+            <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">Chapter</span>
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">{chapter}/5</span>
           </div>
         </div>
       </PixelCard>
+
+      {/* Chosen Abilities — your build choices, now visible in play */}
+      {abilities.length > 0 && (
+        <PixelCard title="ABILITIES">
+          <div className="space-y-2">
+            {abilities.map(a => (
+              <div key={a.name} className="p-2 bg-[var(--pixel-bg-dark)] border border-[var(--pixel-gold-mid)]/40">
+                <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">{a.name}</p>
+                <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-70">{a.ability}</p>
+              </div>
+            ))}
+          </div>
+        </PixelCard>
+      )}
 
       {/* Recruited Allies */}
       {recruitedAllies.length > 0 && (
@@ -462,13 +488,13 @@ function StatsSidebar({
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm">{ally.icon}</span>
-                    <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)]">
+                    <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
                       {ally.enemyName}
                     </span>
                   </div>
                   <button
                     onClick={() => onDismissAlly(ally.enemyName)}
-                    className="text-[8px] text-red-400 hover:text-red-300 font-[var(--font-pixel)]"
+                    className="text-[11px] text-red-400 hover:text-red-300 font-[var(--font-pixel)]"
                     title="Dismiss ally"
                   >
                     {'\u2715'}
@@ -476,23 +502,23 @@ function StatsSidebar({
                 </div>
                 <div className="flex items-center gap-1 mb-1">
                   <span className="text-xs">{STAT_DISPLAY[ally.bonusStat]?.icon ?? ''}</span>
-                  <span className="font-[var(--font-pixel)] text-[8px]" style={{ color: STAT_DISPLAY[ally.bonusStat]?.color ?? '#ccc' }}>
+                  <span className="font-[var(--font-pixel)] text-[11px]" style={{ color: STAT_DISPLAY[ally.bonusStat]?.color ?? '#ccc' }}>
                     +{ally.bonusAmount} {ally.bonusStat}
                   </span>
                 </div>
-                <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-70 mb-1">
+                <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-70 mb-1">
                   {ally.passiveEffect}
                 </p>
                 {ally.specialAbility && (
                   <div className="flex items-center gap-1">
-                    <span className="text-[8px]">{'\u2728'}</span>
-                    <span className="font-[var(--font-pixel)] text-[7px] text-purple-300">
+                    <span className="text-[11px]">{'\u2728'}</span>
+                    <span className="font-[var(--font-pixel)] text-[10px] text-purple-300">
                       {ally.specialAbility.name}
                     </span>
                   </div>
                 )}
                 <div className="mt-1 flex justify-between items-center">
-                  <span className="font-[var(--font-pixel)] text-[7px] text-amber-400">
+                  <span className="font-[var(--font-pixel)] text-[10px] text-amber-400">
                     {ally.chaptersRemaining === 0 ? 'Permanent' : `${ally.chaptersRemaining} ch. left`}
                   </span>
                   <div className="flex gap-0.5">
@@ -563,15 +589,15 @@ function NarratorToast() {
           : 'bg-[var(--pixel-bg-mid)]/90 border-[var(--pixel-gold-mid)]/50'
       }`}>
         <div className="flex items-start gap-2">
-          <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] shrink-0">
+          <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] shrink-0">
             NARRATOR:
           </span>
-          <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] italic">
+          <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] italic">
             "{comment.text}"
           </p>
         </div>
         {comment.isLie && (
-          <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-fire-orange)] mt-1 opacity-50">
+          <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-fire-orange)] mt-1 opacity-50">
             (The narrator seems... unreliable)
           </p>
         )}
@@ -593,7 +619,7 @@ function ReputationDisplay() {
         const level = getReputationLevel(factionId)
         return (
           <div key={factionId} className="flex items-center gap-1">
-            <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-60">
+            <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-60">
               {factionId.slice(0, 4).toUpperCase()}
             </span>
             <div className="w-10 h-1.5 bg-[var(--pixel-bg-dark)] border border-[var(--pixel-ui-border)]">
@@ -650,19 +676,47 @@ function AdventureContent() {
     }
   }, [])
 
-  // Auto-save periodically (enriched with character info for leaderboard/trophy)
+  // Latest-value refs so the persistence effects below don't re-subscribe (and
+  // tear down/recreate timers) on every single state change during combat.
+  // Updated in effects (not during render — writing refs in render is impure).
+  const stateRef = useRef(adventureState)
+  const charRef = useRef(charState.character)
+  useEffect(() => { stateRef.current = adventureState }, [adventureState])
+  useEffect(() => { charRef.current = charState.character }, [charState.character])
+
+  // Debounced persistence: replaces the old in-reducer synchronous save. Every
+  // state change schedules one write 500ms after activity settles, so a burst
+  // of combat updates collapses to a single localStorage write instead of one
+  // blocking write per update (the source of the "very delayed" lag).
   useEffect(() => {
     if (!adventureState) return
+    const t = setTimeout(() => saveAdventureState(adventureState), 500)
+    return () => clearTimeout(t)
+  }, [adventureState])
+
+  // Clock tick for play-time display. Keeps render pure (no Date.now() in JSX);
+  // the minute counter advances off this state, not a render-time clock read.
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 30000)
+    return () => clearInterval(t)
+  }, [])
+
+  // Periodic enriched autosave backstop (leaderboard/trophy fields). Reads from
+  // refs and is created ONCE — it no longer churns a timer on every render.
+  useEffect(() => {
     const interval = setInterval(() => {
-      const enriched = { ...adventureState } as AdventureState & { level?: number; playerName?: string }
-      if (charState.character) {
-        enriched.level = charState.character.level ?? 1
-        enriched.playerName = charState.character.name ?? 'Unknown'
+      const s = stateRef.current
+      if (!s) return
+      const enriched = { ...s } as AdventureState & { level?: number; playerName?: string }
+      if (charRef.current) {
+        enriched.level = charRef.current.level ?? 1
+        enriched.playerName = charRef.current.name ?? 'Unknown'
       }
       saveAdventureState(enriched as AdventureState)
     }, 30000)
     return () => clearInterval(interval)
-  }, [adventureState, charState.character])
+  }, [])
 
   // Redirect if no character (delay to let CharacterProvider hydrate from localStorage)
   useEffect(() => {
@@ -680,13 +734,36 @@ function AdventureContent() {
   }, [adventureState, charState.character, router])
 
   const updateState = useCallback((updates: Partial<AdventureState>) => {
-    setAdventureState(prev => {
-      if (!prev) return prev
-      const next = { ...prev, ...updates }
-      saveAdventureState(next)
-      return next
-    })
+    // Pure reducer — no side effects. Persistence is handled by the debounced
+    // effect above (was a synchronous full-state write here on every change).
+    setAdventureState(prev => (prev ? { ...prev, ...updates } : prev))
   }, [])
+
+  // Apply one-time "Start with +X reputation" abilities from the player's picks.
+  // Guarded by startingAbilitiesApplied so it fires exactly once per game (not on
+  // every reload) — the chosen abilities now actually change the world (B3 follow-through).
+  useEffect(() => {
+    if (!adventureState || adventureState.startingAbilitiesApplied) return
+    try {
+      const raw = localStorage.getItem('bobr_adventure_picks')
+      const picks: string[] = raw ? (JSON.parse(raw).picks ?? []) : []
+      for (const id of picks) {
+        const pick = getPickById(id)
+        if (pick?.startingReputation) {
+          modifyReputation(pick.startingReputation.faction, pick.startingReputation.amount, `Trait: ${pick.name}`)
+        }
+      }
+    } catch {}
+    updateState({ startingAbilitiesApplied: true })
+  }, [adventureState, modifyReputation, updateState])
+
+  // quick_learner ability: double XP earned from skill checks (NPC skill checks
+  // and clue puzzles) — read once from the player's picks.
+  const hasQuickLearner = useMemo(() => {
+    try { return ((JSON.parse(localStorage.getItem('bobr_adventure_picks') || '{}').picks) ?? []).includes('quick_learner') }
+    catch { return false }
+  }, [])
+  const skillCheckXP = useCallback((amount: number) => (hasQuickLearner ? amount * 2 : amount), [hasQuickLearner])
 
   // Get player stats safely (includes recruited ally bonuses)
   const playerStats = useMemo((): Record<StatName, number> => {
@@ -872,7 +949,7 @@ function AdventureContent() {
     if (npc.skillCheckStat && npc.skillCheckDC) {
       const result = rollSkillCheck(npc.skillCheckStat, npc.skillCheckDC)
       if (result.success) {
-        addExperience(15)
+        addExperience(skillCheckXP(15))
         narratorComment(
           `${npc.name} seems to warm up to you. Information flows freely.`,
           'observation'
@@ -882,7 +959,7 @@ function AdventureContent() {
           modifyReputation(npc.faction, 3, `Talked with ${npc.name}`)
         }
       } else {
-        addExperience(5)
+        addExperience(skillCheckXP(5))
         narratorComment(
           `${npc.name} eyes you warily. Perhaps a different approach would work better.`,
           'observation'
@@ -895,7 +972,7 @@ function AdventureContent() {
         modifyReputation(npc.faction, 2, `Conversation with ${npc.name}`)
       }
     }
-  }, [rollSkillCheck, addExperience, narratorComment, modifyReputation])
+  }, [rollSkillCheck, addExperience, narratorComment, modifyReputation, skillCheckXP])
 
   // === SKILL CHECK WRAPPER ===
   const handleSkillCheck = useCallback((stat: StatName, difficulty: number) => {
@@ -916,33 +993,31 @@ function AdventureContent() {
 
   // === XP ===
   const handleAddXP = useCallback((amount: number) => {
-    addExperience(amount)
+    // Clue XP flows through here — apply the quick_learner skill-check multiplier
+    // once and use the gained amount for both character XP and adventure totals.
+    const gained = skillCheckXP(amount)
+    addExperience(gained)
     setAdventureState(prev => {
       if (!prev) return prev
-      const newTotalXP = prev.totalXP + amount
+      const newTotalXP = prev.totalXP + gained
       // Award 1 skill point every 100 XP
       const oldLevel = Math.floor(prev.totalXP / 100)
       const newLevel = Math.floor(newTotalXP / 100)
       const skillPointsEarned = newLevel - oldLevel
-      const next = {
+      // Pure updater — persistence handled by the debounced save effect.
+      return {
         ...prev,
         totalXP: newTotalXP,
         skillPoints: prev.skillPoints + skillPointsEarned,
       }
-      saveAdventureState(next)
-      return next
     })
-  }, [addExperience])
+  }, [addExperience, skillCheckXP])
 
   // === CLUE ANSWERED ===
   const handleClueAnswered = useCallback((_clue: import('@/app/adventure/data/chapterLocations').DiscoveryClue, correct: boolean) => {
     if (correct) {
-      setAdventureState(prev => {
-        if (!prev) return prev
-        const next = { ...prev, cluesAnswered: prev.cluesAnswered + 1 }
-        saveAdventureState(next)
-        return next
-      })
+      // Pure updater — persistence handled by the debounced save effect.
+      setAdventureState(prev => (prev ? { ...prev, cluesAnswered: prev.cluesAnswered + 1 } : prev))
       narratorComment('Knowledge is its own reward. Well, that and the XP.', 'fourth_wall')
     }
   }, [narratorComment])
@@ -1195,7 +1270,7 @@ function AdventureContent() {
                 {adventureState.recruitedAllies.map(ally => (
                   <span key={ally.enemyName} className="text-sm">{ally.icon}</span>
                 ))}
-                <span className="font-[var(--font-pixel)] text-[8px] text-purple-300">
+                <span className="font-[var(--font-pixel)] text-[11px] text-purple-300">
                   {adventureState.recruitedAllies.length}/2
                 </span>
               </div>
@@ -1203,7 +1278,7 @@ function AdventureContent() {
             {canCompleteChapter && adventureState.phase === 'exploring' && (
               <button
                 onClick={handleCompleteChapter}
-                className="font-[var(--font-pixel)] text-[9px] bg-[var(--pixel-gold-dark)] border border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] px-3 py-1 hover:bg-[var(--pixel-gold-mid)] animate-pulse"
+                className="font-[var(--font-pixel)] text-[12px] bg-[var(--pixel-gold-dark)] border border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] px-3 py-1 hover:bg-[var(--pixel-gold-mid)] animate-pulse"
               >
                 COMPLETE CHAPTER {'\u25B6'}
               </button>
@@ -1223,7 +1298,7 @@ function AdventureContent() {
                 <div className="flex items-center gap-2 mb-2">
                   <button
                     onClick={() => setExplorationMode(false)}
-                    className={`font-[var(--font-pixel)] text-[9px] px-3 py-1 border transition-all ${
+                    className={`font-[var(--font-pixel)] text-[12px] px-3 py-1 border transition-all ${
                       !explorationMode
                         ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
                         : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]'
@@ -1233,7 +1308,7 @@ function AdventureContent() {
                   </button>
                   <button
                     onClick={() => setExplorationMode(true)}
-                    className={`font-[var(--font-pixel)] text-[9px] px-3 py-1 border transition-all ${
+                    className={`font-[var(--font-pixel)] text-[12px] px-3 py-1 border transition-all ${
                       explorationMode
                         ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
                         : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]'
@@ -1264,13 +1339,16 @@ function AdventureContent() {
                       if (encounter) {
                         setTravelEncounter(encounter)
                         narratorComment('Hmm, the road between here and there is never as simple as a map suggests.', 'observation')
-                      } else {
-                        const enemy = rollConfrontation(adventureState.chapter, adventureState.unlockedSkillNodes)
-                        if (enemy) {
-                          setActiveConfrontation(enemy)
-                          narratorComment(enemy.description, 'observation')
-                        }
+                        return true
                       }
+                      const enemy = rollConfrontation(adventureState.chapter, adventureState.unlockedSkillNodes)
+                      if (enemy) {
+                        setActiveConfrontation(enemy)
+                        narratorComment(enemy.description, 'observation')
+                        return true
+                      }
+                      // Nothing materialized — let the player keep walking to arrival.
+                      return false
                     }}
                     height={500}
                   />
@@ -1294,7 +1372,9 @@ function AdventureContent() {
                       const encounter = rollTravelEncounter()
                       if (encounter) {
                         setTravelEncounter(encounter)
+                        return true
                       }
+                      return false
                     }}
                     height={500}
                   />
@@ -1357,7 +1437,7 @@ function AdventureContent() {
           locationsVisited={adventureState.visitedLocationIds.length}
           totalLocations={getChapterLocations(adventureState.chapter).length}
           chapter={adventureState.chapter}
-          playTimeMinutes={Math.floor((Date.now() - adventureState.playStartTime) / 60000)}
+          playTimeMinutes={Math.floor((nowMs - adventureState.playStartTime) / 60000)}
           cluesAnswered={adventureState.cluesAnswered}
           onUseHint={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
         />

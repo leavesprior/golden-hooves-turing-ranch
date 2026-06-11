@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import {
   useRPG,
@@ -22,6 +23,7 @@ const TIER_INFO: Record<GraphicsTier, { name: string; color: string; icon: strin
   modern_32bit: { name: '32-bit Modern', color: '#ff8844', icon: '🌟', desc: 'Full palette, dynamic effects' },
 }
 import { chapters } from '@/lib/chapters'
+import { getPickById } from '@/app/adventure/data/advantages'
 
 // Attribute display info
 const ATTRIBUTE_INFO: Record<AttributeName, { name: string; abbr: string; desc: string; color: string }> = {
@@ -34,7 +36,17 @@ const ATTRIBUTE_INFO: Record<AttributeName, { name: string; abbr: string; desc: 
 }
 
 export default function CharacterSheetPage() {
-  const { session, getSkillBonus, getAttributeModifier, graphicsTier, getChaptersCompleted } = useRPG()
+  const { session, loadGame, getSkillBonus, getAttributeModifier, graphicsTier, getChaptersCompleted } = useRPG()
+
+  // B-ROUTE-02 fix: RPGProvider does NOT auto-hydrate `session` from
+  // localStorage — only an explicit loadGame() call restores it. On direct
+  // entry to /adventure/character (fresh page load), session is null even
+  // though a saved game exists, so the page wrongly showed "No Character
+  // Found". Hydrate once; loadGame() is idempotent (safe under Strict Mode
+  // double-invoke) and a no-op when no save exists.
+  useEffect(() => {
+    if (!session) loadGame()
+  }, [session, loadGame])
 
   if (!session) {
     return (
@@ -81,7 +93,7 @@ export default function CharacterSheetPage() {
               </p>
               {character.traits.length > 0 && (
                 <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-forest-light)] mt-1">
-                  {character.traits.map(t => TRAITS[t]?.name).join(', ')}
+                  {character.traits.map(t => TRAITS[t]?.name ?? getPickById(t)?.name ?? t).join(', ')}
                 </p>
               )}
             </div>
@@ -97,7 +109,7 @@ export default function CharacterSheetPage() {
 
           {/* XP Progress Bar */}
           <div className="mt-4">
-            <div className="flex justify-between text-[8px] sm:text-[10px] font-[var(--font-pixel)] text-[var(--pixel-ui-text)] mb-1">
+            <div className="flex justify-between text-[11px] sm:text-[12px] font-[var(--font-pixel)] text-[var(--pixel-ui-text)] mb-1">
               <span>XP: {currentXP}</span>
               <span>Next Level: {nextLevelXP}</span>
             </div>
@@ -106,7 +118,7 @@ export default function CharacterSheetPage() {
                 className="h-full bg-gradient-to-r from-[var(--pixel-gold-mid)] to-[var(--pixel-gold-light)] transition-all"
                 style={{ width: `${xpProgress}%` }}
               />
-              <span className="absolute inset-0 flex items-center justify-center font-[var(--font-pixel)] text-[8px] text-[var(--pixel-bg-dark)]">
+              <span className="absolute inset-0 flex items-center justify-center font-[var(--font-pixel)] text-[11px] text-[var(--pixel-bg-dark)]">
                 {Math.floor(xpProgress)}%
               </span>
             </div>
@@ -121,7 +133,7 @@ export default function CharacterSheetPage() {
                   <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px]" style={{ color: TIER_INFO[graphicsTier].color }}>
                     {TIER_INFO[graphicsTier].name}
                   </p>
-                  <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">
+                  <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-ui-text)]">
                     {TIER_INFO[graphicsTier].desc}
                   </p>
                 </div>
@@ -170,7 +182,7 @@ export default function CharacterSheetPage() {
                         <p className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-gold-light)]">
                           {info.name}
                         </p>
-                        <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)]">
+                        <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-ui-text)]">
                           {info.desc}
                         </p>
                         <p className={`font-[var(--font-pixel)] text-[10px] ${mod >= 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
@@ -196,19 +208,19 @@ export default function CharacterSheetPage() {
             <PixelCard title="Prospector Stats">
               <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="bg-[var(--pixel-bg-mid)] border border-[var(--pixel-ui-border)] p-2">
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">Wisdom</p>
+                  <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">Wisdom</p>
                   <p className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)]">{stats.wisdom}</p>
                 </div>
                 <div className="bg-[var(--pixel-bg-mid)] border border-[var(--pixel-ui-border)] p-2">
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">Trust</p>
+                  <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">Trust</p>
                   <p className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-forest-light)]">{stats.trust}</p>
                 </div>
                 <div className="bg-[var(--pixel-bg-mid)] border border-[var(--pixel-ui-border)] p-2">
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">Luck</p>
+                  <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">Luck</p>
                   <p className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-sky-light)]">{stats.luck}</p>
                 </div>
                 <div className="bg-[var(--pixel-bg-mid)] border border-[var(--pixel-ui-border)] p-2">
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">Gold</p>
+                  <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">Gold</p>
                   <p className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-mid)]">{stats.gold}</p>
                 </div>
               </div>
@@ -264,7 +276,7 @@ export default function CharacterSheetPage() {
                         <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
                           {SKILL_DISPLAY_NAMES[skill]}
                         </p>
-                        <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-border)]">
+                        <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-border)]">
                           ({ATTRIBUTE_INFO[attr].abbr})
                         </p>
                       </div>
@@ -273,7 +285,7 @@ export default function CharacterSheetPage() {
                           {bonus >= 0 ? '+' : ''}{bonus}
                         </p>
                         {ranks > 0 && (
-                          <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-mid)]">
+                          <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-mid)]">
                             {ranks} ranks
                           </p>
                         )}
@@ -307,7 +319,7 @@ export default function CharacterSheetPage() {
                         <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
                           {item.name}
                         </p>
-                        <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+                        <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
                           {item.description}
                         </p>
                       </div>
@@ -326,14 +338,20 @@ export default function CharacterSheetPage() {
               <PixelCard title="Traits & Feats">
                 <div className="space-y-2">
                   {character.traits.map((traitId) => {
+                    // Trait IDs may come from the legacy TRAITS table or, for the
+                    // S.A.D.D.L.E. flow, the advantage/pick table — resolve from
+                    // either and never crash on an unknown id (B3).
                     const trait = TRAITS[traitId]
+                    const pick = trait ? undefined : getPickById(traitId)
+                    const name = trait?.name ?? pick?.name ?? traitId
+                    const description = trait?.description ?? pick?.specialAbility ?? pick?.description ?? ''
                     return (
                       <div key={traitId} className="p-2 bg-[var(--pixel-gold-dark)] border border-[var(--pixel-gold-mid)]">
                         <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
-                          {trait.name}
+                          {name}
                         </p>
-                        <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
-                          {trait.description}
+                        <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
+                          {description}
                         </p>
                       </div>
                     )
@@ -345,7 +363,7 @@ export default function CharacterSheetPage() {
                         <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-forest-light)]">
                           {feat.name}
                         </p>
-                        <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+                        <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
                           {feat.description}
                         </p>
                       </div>
@@ -389,12 +407,12 @@ export default function CharacterSheetPage() {
                       <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
                         Ch.{chapter.id}: {chapter.title}
                       </p>
-                      <span className={`font-[var(--font-pixel)] text-[8px] ${progress.completed ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-ui-text)]'}`}>
+                      <span className={`font-[var(--font-pixel)] text-[11px] ${progress.completed ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-ui-text)]'}`}>
                         {progress.completed ? 'Complete' : chapter.id <= session.currentChapter ? 'In Progress' : 'Locked'}
                       </span>
                     </div>
                     {chapterObjectives.length > 0 && (
-                      <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] mt-1">
+                      <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] mt-1">
                         {chapterObjectives.length} objective{chapterObjectives.length > 1 ? 's' : ''} complete
                       </p>
                     )}

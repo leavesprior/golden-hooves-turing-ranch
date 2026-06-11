@@ -145,7 +145,7 @@ export function ClueGameUnlock({
               <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
                 {'✅'} QUEST UNLOCKED
               </p>
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] mt-2">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] mt-2">
                 Visit Back of Beyond Ranch in person to begin the treasure hunt.
               </p>
             </div>
@@ -153,7 +153,7 @@ export function ClueGameUnlock({
 
           <button
             onClick={onClose}
-            className="w-full font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] border border-[var(--pixel-ui-border)] px-4 py-2 hover:text-[var(--pixel-gold-light)]"
+            className="w-full font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] border border-[var(--pixel-ui-border)] px-4 py-2 hover:text-[var(--pixel-gold-light)]"
           >
             {'←'} LEAVE INN
           </button>

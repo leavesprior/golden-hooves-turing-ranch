@@ -1,4 +1,5 @@
 import type { SaddleStats, StatName, CharacterBackground } from '@/app/oregon-trail/characterContext'
+import type { FactionId } from '@/app/oregon-trail/reputationContext'
 
 // MOO2-inspired zero-sum pick system
 // Players get 12 picks. Advantages cost picks. Flaws grant picks.
@@ -11,6 +12,9 @@ export interface Advantage {
   cost: number // Positive = costs picks, negative = grants picks (flaw)
   statModifiers: Partial<SaddleStats>
   specialAbility?: string
+  // Concrete one-time effect applied when the adventure begins. Lets the
+  // "Start with +X reputation" abilities actually fire instead of being flavor.
+  startingReputation?: { faction: FactionId; amount: number }
   incompatibleWith?: string[] // IDs of advantages this can't combine with
   requiresBackground?: CharacterBackground[]
   category: 'physical' | 'mental' | 'social' | 'supernatural' | 'flaw'
@@ -131,6 +135,7 @@ export const ADVANTAGES: Advantage[] = [
     cost: 2,
     statModifiers: { Diplomacy: 2 },
     specialAbility: 'Start with +15 Settler reputation',
+    startingReputation: { faction: 'settlers', amount: 15 },
     category: 'social',
   },
   {
@@ -140,6 +145,7 @@ export const ADVANTAGES: Advantage[] = [
     cost: 2,
     statModifiers: { Diplomacy: 1, Shrewdness: 1 },
     specialAbility: 'Start with +15 Pinkerton reputation',
+    startingReputation: { faction: 'pinkerton', amount: 15 },
     requiresBackground: ['pinkerton_veteran', 'army_officer'],
     category: 'social',
   },
@@ -249,6 +255,7 @@ export const FLAWS: Advantage[] = [
     cost: -2,
     statModifiers: {},
     specialAbility: 'Start with -20 Pinkerton reputation',
+    startingReputation: { faction: 'pinkerton', amount: -20 },
     requiresBackground: ['outlaw_reformed', 'gambler'],
     category: 'flaw',
   },
