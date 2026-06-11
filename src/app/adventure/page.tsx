@@ -195,7 +195,15 @@ export default function AdventurePage() {
     }
   }, [])
 
-  const hasSavedGame = typeof window !== 'undefined' && localStorage.getItem('bobr_rpg_session')
+  // The canonical save lives at `bobr_ot_character` (character) +
+  // `bobr_adventure_state` (game state); `bobr_rpg_session` is the legacy key,
+  // kept as a fallback. Reading only the legacy key hid the "Continue
+  // Adventure" button after every save (P1-4).
+  const hasSavedGame = typeof window !== 'undefined' && Boolean(
+    localStorage.getItem('bobr_ot_character') ||
+    localStorage.getItem('bobr_adventure_state') ||
+    localStorage.getItem('bobr_rpg_session')
+  )
   // Client discount-code minting is quarantined; this returns null until server-issued codes exist.
   const discount = getDiscountCode()
   const rewardPercent = discount?.percent ?? getRewardTierPercent(session)
@@ -289,6 +297,12 @@ export default function AdventurePage() {
   }, [nameInput, finalStats, creationMethod, rerollsUsed, selectedTrait, startNewGame, applyKarmaBonuses])
 
   const handleContinue = () => {
+    // Canonical saves have no legacy RPG session for loadGame() to restore —
+    // resume them directly in the play route instead of a silent no-op.
+    if (typeof window !== 'undefined' && !localStorage.getItem('bobr_rpg_session')) {
+      router.push('/adventure/play')
+      return
+    }
     loadGame()
   }
 

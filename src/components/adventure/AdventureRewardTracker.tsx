@@ -80,6 +80,17 @@ export default function AdventureRewardTracker({
     }
   }, [welcomeEligible, hasCheckedWelcome])
 
+  // The celebration modal auto-fires over whatever is open (P1-1) — it must
+  // never trap the player. Escape dismisses it while open.
+  useEffect(() => {
+    if (!showWelcomeModal) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowWelcomeModal(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showWelcomeModal])
+
   // Progress to next tier
   const getProgressInfo = useCallback(() => {
     if (!currentTier) {
@@ -237,8 +248,17 @@ export default function AdventureRewardTracker({
 
       {/* Welcome Modal */}
       {showWelcomeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] font-[var(--font-pixel)]">
-          <div className="bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-gold-light)] p-6 max-w-md w-full mx-4 shadow-2xl">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] font-[var(--font-pixel)]"
+          onClick={() => setShowWelcomeModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Welcome tier reward"
+            className="bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-gold-light)] p-6 max-w-md w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="text-center mb-4">
               <div className="text-[24px] mb-2">{'\uD83E\uDD20'}</div>
               <h2 className="text-[16px] text-[var(--pixel-gold-light)] uppercase tracking-wider mb-2">

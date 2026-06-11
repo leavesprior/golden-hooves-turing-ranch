@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+import type { Character as OTCharacter } from '@/app/oregon-trail/characterContext'
 import {
   useRPG,
   TRAITS,
@@ -47,6 +48,89 @@ export default function CharacterSheetPage() {
   useEffect(() => {
     if (!session) loadGame()
   }, [session, loadGame])
+
+  // P1-4 fix: the S.A.D.D.L.E. adventure flow stores its canonical character
+  // at `bobr_ot_character` (written by CharacterProvider) — never at the
+  // legacy `bobr_rpg_session` that useRPG hydrates from. Read it as a
+  // fallback so a live character renders instead of "No Character Found".
+  const [otCharacter, setOtCharacter] = useState<OTCharacter | null>(null)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bobr_ot_character')
+      if (saved) {
+        const parsed = JSON.parse(saved) as OTCharacter
+        if (parsed?.name && parsed?.stats) setOtCharacter(parsed)
+      }
+    } catch {}
+  }, [])
+
+  if (!session && otCharacter) {
+    return (
+      <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
+        <PixelNavigation />
+
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          {/* Header with Name & Level */}
+          <div className="bg-gradient-to-r from-[var(--pixel-gold-dark)] to-[var(--pixel-earth-dark)] border-4 border-[var(--pixel-gold-mid)] p-4 mb-6">
+            <h1 className="font-[var(--font-pixel)] text-[16px] sm:text-[20px] text-[var(--pixel-gold-light)]">
+              {otCharacter.name}
+            </h1>
+            <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
+              {otCharacter.background.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} • Level {otCharacter.level ?? 1}
+            </p>
+            <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] mt-1">
+              XP: <span className="text-[var(--pixel-gold-light)]">{otCharacter.experience ?? 0}</span>
+              {otCharacter.experienceToNextLevel ? ` / ${otCharacter.experienceToNextLevel}` : ''}
+            </p>
+          </div>
+
+          {/* S.A.D.D.L.E. Stats */}
+          <PixelCard title="S.A.D.D.L.E. Stats">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {Object.entries(otCharacter.stats).map(([stat, val]) => (
+                <div key={stat} className="bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] p-3 text-center">
+                  <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">{stat}</p>
+                  <p className="font-[var(--font-pixel)] text-[16px] text-[var(--pixel-ui-text)]">{val}</p>
+                </div>
+              ))}
+            </div>
+          </PixelCard>
+
+          {/* Traits */}
+          {(otCharacter.traits?.length ?? 0) > 0 && (
+            <div className="mt-6">
+              <PixelCard title="Traits">
+                <div className="space-y-2">
+                  {otCharacter.traits.map((traitId) => {
+                    const pick = getPickById(traitId)
+                    return (
+                      <div key={traitId} className="p-2 bg-[var(--pixel-gold-dark)] border border-[var(--pixel-gold-mid)]">
+                        <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
+                          {pick?.name ?? traitId}
+                        </p>
+                        {(pick?.specialAbility ?? pick?.description) && (
+                          <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
+                            {pick?.specialAbility ?? pick?.description}
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </PixelCard>
+            </div>
+          )}
+
+          {/* Back Button */}
+          <div className="mt-8 text-center">
+            <PixelButton href="/adventure/play" variant="blue" size="md">
+              Back to Adventure
+            </PixelButton>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!session) {
     return (

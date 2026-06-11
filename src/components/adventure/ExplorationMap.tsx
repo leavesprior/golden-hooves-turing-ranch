@@ -496,6 +496,12 @@ export function ExplorationMap({
   // ── Keyboard input ──
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // Don't capture keys when the user is typing in a form field (mirrors
+      // the /game guard) — preventDefault here was swallowing WASD/arrows in
+      // focused inputs (e.g. the Cloud Save passphrase).
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key)) {
         e.preventDefault()
         keysRef.current.add(e.key)

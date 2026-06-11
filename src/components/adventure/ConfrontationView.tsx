@@ -61,7 +61,6 @@ export function ConfrontationView({
   const [playerHP, setPlayerHP] = useState(initialPlayerHealth)
   const [enemyHP, setEnemyHP] = useState(enemy.health)
   const [phase, setPhase] = useState<Phase>('player_turn')
-  const [isDefending, setIsDefending] = useState(false)
   const [log, setLog] = useState<TurnLog[]>([
     { text: `${enemy.icon} ${enemy.name} blocks your path!`, type: 'system' },
   ])
@@ -76,7 +75,27 @@ export function ConfrontationView({
   // without this, onEnd runs twice — double XP and a race that left the player
   // stranded mid-travel instead of arriving at the destination.
   const endedRef = useRef(false)
-  useEffect(() => { endedRef.current = false }, [enemy])
+
+  // Synchronous combat-state mirrors. State reads inside callbacks are
+  // captured per render and go stale under rapid clicks / scheduled turns:
+  // - processingRef gates handleAction the instant an action starts (the
+  //   `phase` state guard alone let 6 fast ATTACK clicks queue 6 attacks);
+  //   it clears when the enemy turn hands the round back to the player.
+  // - enemyHPRef/playerHPRef carry the live HP so damage applied via
+  //   functional updates matches the value used for end-of-combat checks
+  //   (captured HP caused lost updates: 18 dmg logged → 2 applied).
+  const processingRef = useRef(false)
+  const enemyHPRef = useRef(enemy.health)
+  const playerHPRef = useRef(initialPlayerHealth)
+  // Render mirror of processingRef (refs must not be read during render) —
+  // drives the buttons' disabled state.
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  useEffect(() => {
+    endedRef.current = false
+    processingRef.current = false
+    setIsProcessing(false)
+  }, [enemy])
 
   const addLog = useCallback((entry: TurnLog) => {
     setLog(prev => [...prev, entry])
@@ -149,23 +168,28 @@ export function ConfrontationView({
     endConfrontation('talked')
   }, [addLog, endConfrontation])
 
-  const enemyTurn = useCallback(() => {
+  // `defending` is passed as a parameter (not read from state) because this
+  // callback runs from a setTimeout scheduled in a closure where the defend
+  // flag would still read false — +4 AC and damage-halving never applied.
+  const enemyTurn = useCallback((defending: boolean = false) => {
     setPhase('enemy_turn')
 
     setTimeout(() => {
       const roll = rollD20()
       const enemyMod = getStatMod('Agility', enemy.stats)
-      const playerDefense = 10 + getStatMod('Agility', playerStats) + (isDefending ? 4 : 0)
+      const playerDefense = 10 + getStatMod('Agility', playerStats) + (defending ? 4 : 0)
       const attackTotal = roll + enemyMod
 
       if (attackTotal >= playerDefense) {
         // Enemy hits
         const baseDamage = Math.max(1, Math.floor(Math.random() * 6) + 1 + getStatMod('Durability', enemy.stats))
-        const actualDamage = isDefending ? Math.max(1, Math.floor(baseDamage / 2)) : baseDamage
+        const actualDamage = defending ? Math.max(1, Math.floor(baseDamage / 2)) : baseDamage
 
-        // Pure update — compute newHP from current state, side effects below.
-        const newPlayerHP = Math.max(0, playerHP - actualDamage)
-        setPlayerHP(newPlayerHP)
+        // Functional update keeps the updater pure; side effects below use
+        // the ref-computed value (captured playerHP could be stale).
+        const newPlayerHP = Math.max(0, playerHPRef.current - actualDamage)
+        playerHPRef.current = newPlayerHP
+        setPlayerHP(prev => Math.max(0, prev - actualDamage))
         setTotalDamage(prev => prev + actualDamage)
         setPlayerShake(true)
         setTimeout(() => setPlayerShake(false), 300)
@@ -174,7 +198,7 @@ export function ConfrontationView({
           setTimeout(() => endConfrontation('defeat'), 1000)
         } else {
           addLog({
-            text: `${enemy.name} ${isDefending ? 'breaks through your guard for' : 'hits you for'} ${actualDamage} damage! [${roll}+${enemyMod} vs AC ${playerDefense}]`,
+            text: `${enemy.name} ${defending ? 'breaks through your guard for' : 'hits you for'} ${actualDamage} damage! [${roll}+${enemyMod} vs AC ${playerDefense}]`,
             type: 'enemy',
           })
         }
@@ -185,13 +209,18 @@ export function ConfrontationView({
         })
       }
 
-      setIsDefending(false)
+      processingRef.current = false
+      setIsProcessing(false)
       setPhase('player_turn')
     }, 800)
-  }, [enemy, playerStats, isDefending, playerHP, addLog, endConfrontation])
+  }, [enemy, playerStats, addLog, endConfrontation])
 
   const handleAction = useCallback((action: Action) => {
-    if (phase !== 'player_turn') return
+    // processingRef is checked/set synchronously — the `phase` guard alone
+    // reads a stale phase under rapid clicks and queued one attack per click.
+    if (phase !== 'player_turn' || processingRef.current) return
+    processingRef.current = true
+    setIsProcessing(true)
     setPhase('resolving')
 
     switch (action) {
@@ -207,10 +236,12 @@ export function ConfrontationView({
           const damage = roll === 20 ? baseDamage * 2 : Math.max(1, baseDamage)
           const crit = roll === 20 ? ' CRITICAL HIT!' : ''
 
-          // Pure update — compute newHP from current state, side effects below.
-          // (Updater bodies must be pure; Strict Mode runs them twice.)
-          const newEnemyHP = Math.max(0, enemyHP - damage)
-          setEnemyHP(newEnemyHP)
+          // Functional update keeps the updater pure (Strict Mode runs them
+          // twice); side effects below use the ref-computed value, since the
+          // captured enemyHP can be stale (lost-update bug under fast turns).
+          const newEnemyHP = Math.max(0, enemyHPRef.current - damage)
+          enemyHPRef.current = newEnemyHP
+          setEnemyHP(prev => Math.max(0, prev - damage))
           setXpEarned(prev => prev + 5)
           setEnemyShake(true)
           setTimeout(() => setEnemyShake(false), 300)
@@ -237,10 +268,9 @@ export function ConfrontationView({
 
       case 'defend': {
         playSFX('click')
-        setIsDefending(true)
         addLog({ text: 'You raise your guard. (+4 AC this round)', type: 'player' })
         setXpEarned(prev => prev + 2)
-        setTimeout(() => enemyTurn(), 500)
+        setTimeout(() => enemyTurn(true), 500)
         break
       }
 
@@ -286,7 +316,7 @@ export function ConfrontationView({
         break
       }
     }
-  }, [phase, playerStats, enemy, enemyHP, onSkillCheck, talkAttempts, addLog, enemyTurn, endConfrontation])
+  }, [phase, playerStats, enemy, onSkillCheck, talkAttempts, addLog, enemyTurn, endConfrontation])
 
   const hpPercent = (hp: number, max: number) => Math.max(0, Math.round((hp / max) * 100))
   const hpColor = (percent: number) =>
@@ -363,7 +393,8 @@ export function ConfrontationView({
         <div className="p-3 grid grid-cols-2 gap-2">
           <button
             onClick={() => handleAction('attack')}
-            className="p-2 bg-red-950/30 border-2 border-[var(--pixel-fire-red)] hover:bg-red-900/40 transition-all text-left"
+            disabled={isProcessing}
+            className="p-2 bg-red-950/30 border-2 border-[var(--pixel-fire-red)] hover:bg-red-900/40 transition-all text-left disabled:opacity-50"
           >
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-fire-red)]">
               {'\u2694\uFE0F'} ATTACK
@@ -375,7 +406,8 @@ export function ConfrontationView({
 
           <button
             onClick={() => handleAction('defend')}
-            className="p-2 bg-blue-950/30 border-2 border-[var(--pixel-sky-light)] hover:bg-blue-900/40 transition-all text-left"
+            disabled={isProcessing}
+            className="p-2 bg-blue-950/30 border-2 border-[var(--pixel-sky-light)] hover:bg-blue-900/40 transition-all text-left disabled:opacity-50"
           >
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-sky-light)]">
               {'\uD83D\uDEE1\uFE0F'} DEFEND
@@ -387,7 +419,8 @@ export function ConfrontationView({
 
           <button
             onClick={() => handleAction('flee')}
-            className="p-2 bg-yellow-950/30 border-2 border-[var(--pixel-gold-mid)] hover:bg-yellow-900/40 transition-all text-left"
+            disabled={isProcessing}
+            className="p-2 bg-yellow-950/30 border-2 border-[var(--pixel-gold-mid)] hover:bg-yellow-900/40 transition-all text-left disabled:opacity-50"
           >
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-mid)]">
               {'\uD83C\uDFC3'} FLEE
@@ -399,7 +432,8 @@ export function ConfrontationView({
 
           <button
             onClick={() => handleAction('talk')}
-            className="p-2 bg-green-950/30 border-2 border-[var(--pixel-forest-light)] hover:bg-green-900/40 transition-all text-left"
+            disabled={isProcessing}
+            className="p-2 bg-green-950/30 border-2 border-[var(--pixel-forest-light)] hover:bg-green-900/40 transition-all text-left disabled:opacity-50"
           >
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-forest-light)]">
               {'\uD83D\uDDE3\uFE0F'} TALK

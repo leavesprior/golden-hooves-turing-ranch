@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import {
   CAMP_ACTIVITIES,
   CAMP_DAYS,
@@ -37,14 +37,19 @@ export function CampManagement({
   const [dayLog, setDayLog] = useState<DayLog[]>([])
   const [activeResult, setActiveResult] = useState<{ activity: CampActivity; result: ActivityResult; success: boolean } | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  // Synchronous guard: `isProcessing` state is stale under rapid clicks (one
+  // click per frame slipped through → N× rewards and negative days). The ref
+  // flips the moment an activity starts, before React re-renders.
+  const processingRef = useRef(false)
 
   const daysPassed = CAMP_DAYS - daysRemaining
 
   const handleActivity = useCallback((activity: CampActivity) => {
-    if (isProcessing) return
+    if (processingRef.current || isProcessing) return
     const check = canPerformActivity(activity, daysRemaining, playerStats)
     if (!check.canDo) return
 
+    processingRef.current = true
     setIsProcessing(true)
 
     // Simulate activity with delay for feel
@@ -63,8 +68,10 @@ export function CampManagement({
       }
 
       setDayLog(prev => [...prev, logEntry])
-      setDaysRemaining(prev => prev - activity.daysCost)
+      // Clamp: days can never go negative, even if a stray activity lands late.
+      setDaysRemaining(prev => Math.max(0, prev - activity.daysCost))
       setActiveResult({ activity, result, success: skillResult.success })
+      processingRef.current = false
       setIsProcessing(false)
     }, 800)
   }, [daysRemaining, playerStats, daysPassed, isProcessing, onSkillCheck, onApplyResult])
