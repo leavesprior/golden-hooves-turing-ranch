@@ -3,7 +3,11 @@ import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') || ''
-  const isLocalhost = host.startsWith('localhost') || host.startsWith('127.0.0.1')
+  // LAN_CANARY=1 marks a plain-HTTP LAN canary (next start on the LAN): HSTS +
+  // upgrade-insecure-requests would force subresources onto a nonexistent https
+  // origin and blank the site. Never set in real production (HTTPS edge).
+  const isLanCanary = process.env.LAN_CANARY === '1'
+  const isLocalhost = isLanCanary || host.startsWith('localhost') || host.startsWith('127.0.0.1')
 
   // Note: HTTPS redirect is handled by Railway's edge proxy.
   // Doing it here breaks Railway's internal healthcheck (HTTP with x-forwarded-proto: http).
