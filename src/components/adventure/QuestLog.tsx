@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 export type QuestStatus = 'available' | 'active' | 'completed' | 'failed'
 
@@ -53,6 +53,15 @@ const STATUS_COLORS: Record<QuestStatus, string> = {
 export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: QuestLogProps) {
   const [tab, setTab] = useState<TabFilter>('active')
   const [expandedId, setExpandedId] = useState<string | null>(activeQuestId ?? null)
+
+  // Escape always closes the journal — no soft-lock.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   const filtered = quests.filter(q => {
     if (tab === 'active') return q.status === 'active' || q.status === 'available'

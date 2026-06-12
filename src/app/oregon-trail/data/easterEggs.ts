@@ -400,7 +400,7 @@ export const EASTER_EGGS: EasterEgg[] = [
     title: 'The Celebrated Jumping Frog',
     description: 'You found Daniel Webster\'s descendant - a frog that can truly jump!',
     trigger: [{ type: 'location', locationId: 'angels_camp' }, { type: 'karma_alignment', alignment: 'good' }],
-    hint: 'The pond behind Ross\'s Saloon is home to remarkable frogs...',
+    hint: 'The pond behind the Angels Hotel is home to remarkable frogs...',
     rarity: 'rare',
     reward: {
       type: 'item',
@@ -508,7 +508,7 @@ export const EASTER_EGGS: EasterEgg[] = [
     title: "Twain's Pocket Watch",
     description: 'A battered pocket watch with "S.L.C." scratched on the back. It runs backwards, gains 15 minutes a day, and the narrator insists it\'s priceless.',
     trigger: [{ type: 'location', locationId: 'angels_camp' }, { type: 'stat_threshold', stat: 'investigation', value: 3, comparison: 'gte' }],
-    hint: 'Check the lost-and-found box at Ross\'s Saloon. It\'s been there since \'65.',
+    hint: 'Check the lost-and-found box at the Angels Hotel. It\'s been there since \'65.',
     rarity: 'rare',
     reward: {
       type: 'item',

@@ -46,6 +46,21 @@ const ATMOSPHERE_COLORS: Record<string, string> = {
   wild: '#22c55e',
 }
 
+/** Short label for always-visible map markers. Truncates long names to
+ *  leading word(s) + ellipsis so labels stay legible at the 100-unit
+ *  viewBox scale (esp. 390px mobile) without colliding. */
+function shortLabel(name: string): string {
+  const clean = name.replace(/\(.*?\)/g, '').trim()
+  if (clean.length <= 14) return clean
+  const words = clean.split(/\s+/)
+  let label = words[0]
+  for (let i = 1; i < words.length; i++) {
+    if (`${label} ${words[i]}`.length > 13) break
+    label = `${label} ${words[i]}`
+  }
+  return `${label.replace(/[,—-]+$/, '')}…`
+}
+
 function canAccessLocation(
   loc: ChapterLocation,
   factionReps: Record<FactionId, number>,
@@ -252,8 +267,25 @@ export function ChapterMap({
                   {!access.accessible ? '\uD83D\uDD12' : loc.icon}
                 </text>
 
-                {/* Name label */}
-                {(isHovered || isCurrent || isSelected) && (
+                {/* Always-visible short name (deduction + touch support —
+                    names must not be hover-only) */}
+                <text
+                  x={Math.min(90, Math.max(10, loc.x))}
+                  y={loc.y + (isCurrent ? 6.4 : 5.4)}
+                  textAnchor="middle"
+                  fontSize={2.2}
+                  fill={isCurrent ? '#fff' : color}
+                  stroke="#0a0a14"
+                  strokeWidth={0.5}
+                  style={{ paintOrder: 'stroke' }}
+                  opacity={!access.accessible ? 0.6 : 0.95}
+                  className="font-[var(--font-pixel)] pointer-events-none select-none"
+                >
+                  {shortLabel(loc.name)}
+                </text>
+
+                {/* Full-name tooltip label (hover / selection) */}
+                {(isHovered || isSelected) && (
                   <g>
                     <rect
                       x={loc.x - 12} y={loc.y - 7}
@@ -355,11 +387,16 @@ export function ChapterMap({
           </div>
         )}
 
-        {/* Historical fact */}
+        {/* Historical fact — styled to match the LocationView plaque */}
         {(selectedLoc ?? currentLoc)?.historicalFact && (
-          <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-earth-light)] mt-2 italic opacity-70">
-            "{(selectedLoc ?? currentLoc)!.historicalFact}"
-          </p>
+          <div className="mt-2 p-2 bg-[var(--pixel-gold-dark)]/15 border border-[var(--pixel-gold-dark)]/60 border-l-4 border-l-[var(--pixel-gold-mid)]">
+            <span className="font-[var(--font-pixel)] text-[10px] tracking-wider text-[var(--pixel-gold-light)]">
+              {'📜'} HISTORICAL RECORD
+            </span>
+            <p className="font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-earth-light)] mt-1">
+              {(selectedLoc ?? currentLoc)!.historicalFact}
+            </p>
+          </div>
         )}
       </div>
     </div>

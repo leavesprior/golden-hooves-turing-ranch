@@ -919,6 +919,7 @@ function TownDrawer({
     isMysteryClueFound,
     isMysteryDeductionUnlocked,
     isMysterySolved,
+    updateChallengeProgress,
   } = useExplorer()
 
   const [selectedCategory, setSelectedCategory] = useState<AttractionCategory | 'all'>('all')
@@ -926,6 +927,10 @@ function TownDrawer({
   const [clueNotification, setClueNotification] = useState<{ text: string; discoveryText: string } | null>(null)
   const [showDeduction, setShowDeduction] = useState(false)
   const [deductionResult, setDeductionResult] = useState<{ correct: boolean; response: string } | null>(null)
+  // Synchronous re-entry guard for secret unlocks: progressRef in the
+  // context updates post-render, so a rapid double-click could otherwise
+  // fire side effects (challenge progress) twice before state settles.
+  const unlockingSecretsRef = useRef<Set<string>>(new Set())
 
   // Reset deduction state when town changes
   useEffect(() => {
@@ -941,15 +946,18 @@ function TownDrawer({
     ? town.attractions
     : town.attractions.filter(a => a.category === selectedCategory)
 
-  // Filter secrets by unlock status and level
-  const availableSecrets = town.secretAttractions.filter(s => {
-    if (isSecretUnlocked(s.id)) return true
-    // Check if player meets unlock requirements
-    if (s.secretUnlock?.includes('Level 3') && currentLevel.level >= 3) return true
-    if (s.secretUnlock?.includes('Level 4') && currentLevel.level >= 4) return true
-    // Check other unlock conditions...
+  // All secrets render (locked ones show their requirement text so the
+  // Secret Hunter challenge is discoverable); level-gated secrets become
+  // clickable once the level requirement is met (UC-2 fix).
+  const visibleSecrets = town.secretAttractions
+
+  const canUnlockSecret = (s: Attraction): boolean => {
+    if (s.secretUnlock?.includes('Level 3')) return currentLevel.level >= 3
+    if (s.secretUnlock?.includes('Level 4')) return currentLevel.level >= 4
+    // Non-level conditions (visit combos, mystery trails) are not
+    // auto-checked yet — those cards stay locked with requirement text.
     return false
-  })
+  }
 
   const mystery = getMysteryForTown(town.id)
   const mysteryProgress = mystery ? getMysteryProgress(mystery.id) : null
@@ -972,6 +980,18 @@ function TownDrawer({
       }
     }
     setExpandedAttraction(expandedAttraction === attraction.id ? null : attraction.id)
+  }
+
+  const handleUnlockSecret = (secret: Attraction) => {
+    if (isSecretUnlocked(secret.id) || unlockingSecretsRef.current.has(secret.id)) return
+    unlockingSecretsRef.current.add(secret.id)
+    // unlockSecret is idempotent in the context (pure updater guards on
+    // prev.unlockedSecrets); it applies 2x XP + journal entry once.
+    const result = unlockSecret(secret.id)
+    if (result.attraction) {
+      // Count toward the Secret Hunter challenge (discover 5 secrets)
+      updateChallengeProgress('find_5_secrets')
+    }
   }
 
   const handleDeduction = (optionId: string) => {
@@ -1321,29 +1341,49 @@ function TownDrawer({
           })}
 
           {/* Secret Attractions */}
-          {availableSecrets.length > 0 && (
+          {visibleSecrets.length > 0 && (
             <div className="mt-6">
               <h3 className="font-[var(--font-pixel)] text-purple-300 text-sm mb-3 flex items-center gap-2">
                 🔮 Secret Locations
               </h3>
-              {availableSecrets.map(secret => {
+              {visibleSecrets.map(secret => {
                 const unlocked = isSecretUnlocked(secret.id)
+                const unlockable = !unlocked && canUnlockSecret(secret)
                 return (
                   <div
                     key={secret.id}
-                    className={`border-2 rounded-lg p-3 ${
-                      unlocked ? 'border-purple-500 bg-purple-900/30' : 'border-slate-600 bg-slate-800/30'
+                    data-secret-id={secret.id}
+                    onClick={unlockable ? () => handleUnlockSecret(secret) : undefined}
+                    onKeyDown={unlockable ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleUnlockSecret(secret)
+                      }
+                    } : undefined}
+                    role={unlockable ? 'button' : undefined}
+                    tabIndex={unlockable ? 0 : undefined}
+                    className={`border-2 rounded-lg p-3 mb-2 ${
+                      unlocked
+                        ? 'border-purple-500 bg-purple-900/30'
+                        : unlockable
+                          ? 'border-purple-400 bg-purple-900/20 cursor-pointer hover:bg-purple-800/40 hover:border-purple-300 transition-colors'
+                          : 'border-slate-600 bg-slate-800/30'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{unlocked ? secret.icon : '❓'}</span>
+                      <span className="text-2xl">{unlocked ? secret.icon : unlockable ? '✨' : '❓'}</span>
                       <div>
                         <h4 className="text-purple-200 text-sm">{unlocked ? secret.name : '???'}</h4>
                         {!unlocked && (
-                          <p className="text-purple-400 text-[10px]">Unlock: {secret.secretUnlock}</p>
+                          <p className={`text-[10px] ${unlockable ? 'text-purple-200' : 'text-purple-400'}`}>
+                            {unlockable
+                              ? `${secret.secretUnlock} ✓ — tap to reveal!`
+                                : `Unlock: ${secret.secretUnlock}`}
+                          </p>
                         )}
                       </div>
-                      <span className="ml-auto text-amber-400 text-xs">+{secret.xp} XP</span>
+                      {/* Secrets award double XP on unlock (see unlockSecret) */}
+                      <span className="ml-auto text-amber-400 text-xs whitespace-nowrap">+{secret.xp * 2} XP</span>
                     </div>
                     {unlocked && (
                       <p className="text-purple-300 text-xs mt-2">{secret.description}</p>

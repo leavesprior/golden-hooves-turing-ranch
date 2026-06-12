@@ -1845,8 +1845,8 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
   },
   {
     id: 'angels_saloon',
-    name: 'Ross\'s Saloon',
-    description: 'The bar where Twain heard the jumping frog story. Dark corners hold secrets.',
+    name: 'Angels Hotel Barroom',
+    description: 'The stone barroom where Twain heard the jumping frog story — the hotel still stands today. Dark corners hold secrets.',
     location: 'angels_camp',
     icon: '🍺',
     searchDifficulty: 5,

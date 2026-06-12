@@ -84,7 +84,7 @@ export const DISCOVERABLE_TRAITS: DiscoverableTrait[] = [
     id: 'frog_whisperer',
     name: 'Frog Whisperer',
     description:
-      'At the frog pond behind Ross\'s Saloon in Angels Camp, you felt an uncanny kinship ' +
+      'At the frog pond behind the Angels Hotel in Angels Camp, you felt an uncanny kinship ' +
       'with the croaking chorus. The celebrated jumping frogs of Calaveras County recognize ' +
       'you as one of their own -- and the rest of the animal kingdom seems to agree.',
     hintText: 'Something croaks in appreciation near a famous pond...',

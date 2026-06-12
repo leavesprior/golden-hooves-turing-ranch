@@ -2,37 +2,16 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import type { StatName } from '@/app/oregon-trail/characterContext'
+// Types come from the authored dialogue data (dialogues.ts) — this component
+// was originally written against a drifted local schema; it now renders the
+// real content shape (DialogueEffect: reputation.delta, flag, questProgress,
+// unlockLocation; DialogueRequirement: optional stat/dc).
+import type { DialogueNode, DialogueOption, DialogueEffect } from '@/app/adventure/data/dialogues'
+import { getQuestById } from '@/app/adventure/data/quests'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-export interface DialogueNode {
-  id: string
-  text: string
-  speaker?: string
-  options: DialogueOption[]
-}
-
-export interface DialogueOption {
-  text: string
-  nextNodeId?: string
-  requirement?: { stat: StatName; dc: number }
-  effects?: {
-    karma?: { lawful?: number; good?: number }
-    xp?: number
-    reputation?: { faction: string; amount: number }
-    gold?: number
-    questStart?: string
-    questAdvance?: string
-    setFlag?: string
-  }
-  failNodeId?: string
-  lockedText?: string
-  // Low-stat variant text — shown when player's Shrewdness is <= 3
-  // Inspired by Fallout's low-INT dialogue: funnier, blunter, but still functional
-  lowShrewdnessText?: string
-}
 
 interface DialogueViewProps {
   npcName: string
@@ -42,7 +21,7 @@ interface DialogueViewProps {
   startNodeId?: string
   playerStats: Record<StatName, number>
   onClose: () => void
-  onEffect: (effects: DialogueOption['effects']) => void
+  onEffect: (effects: DialogueEffect) => void
   onSkillCheck: (stat: StatName, dc: number) => { success: boolean; roll: number; modifier: number; total: number }
   onGameStateChanged?: () => void
 }
@@ -82,7 +61,10 @@ function saveConversationHistory(history: Record<string, string[]>) {
   } catch { /* quota exceeded — silently ignore */ }
 }
 
-function getKarmaTags(effects: DialogueOption['effects']): string[] {
+function getKarmaTags(option: DialogueOption): string[] {
+  // Authored data may carry an explicit karmaTag on the option itself
+  if (option.karmaTag) return [option.karmaTag.toUpperCase()]
+  const effects = option.effects
   if (!effects?.karma) return []
   const tags: string[] = []
   const { lawful, good } = effects.karma
@@ -211,7 +193,7 @@ function DiceRollDisplay({ finalRoll, modifier, total, dc, stat, success, onDone
 // ---------------------------------------------------------------------------
 
 interface EffectsToastProps {
-  effects: DialogueOption['effects']
+  effects: DialogueEffect
 }
 
 function EffectsToast({ effects }: EffectsToastProps) {
@@ -246,15 +228,20 @@ function EffectsToast({ effects }: EffectsToastProps) {
   if (effects.reputation) {
     const r = effects.reputation
     lines.push({
-      text: `${r.amount > 0 ? '+' : ''}${r.amount} ${r.faction} rep`,
-      color: r.amount > 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]',
+      text: `${r.delta > 0 ? '+' : ''}${r.delta} ${r.faction} rep`,
+      color: r.delta > 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]',
     })
   }
   if (effects.questStart) {
-    lines.push({ text: `Quest started: ${effects.questStart}`, color: 'text-[var(--pixel-gold-light)]' })
+    const quest = getQuestById(effects.questStart)
+    lines.push({ text: `Quest started: ${quest?.title ?? effects.questStart}`, color: 'text-[var(--pixel-gold-light)]' })
   }
-  if (effects.questAdvance) {
-    lines.push({ text: `Quest advanced: ${effects.questAdvance}`, color: 'text-[var(--pixel-gold-light)]' })
+  if (effects.questProgress) {
+    const quest = getQuestById(effects.questProgress.questId)
+    lines.push({ text: `Journal updated: ${quest?.title ?? effects.questProgress.questId}`, color: 'text-[var(--pixel-gold-light)]' })
+  }
+  if (effects.unlockLocation) {
+    lines.push({ text: 'A new location is marked on your map', color: 'text-[var(--pixel-sky-light)]' })
   }
 
   if (lines.length === 0) return null
@@ -344,8 +331,20 @@ export function DialogueView({
     result: { success: boolean; roll: number; modifier: number; total: number } | null
     option: DialogueOption | null
   }>({ rolling: false, result: null, option: null })
-  const [pendingEffects, setPendingEffects] = useState<DialogueOption['effects'] | null>(null)
+  const [pendingEffects, setPendingEffects] = useState<DialogueEffect | null>(null)
   const [visitedNodeIds, setVisitedNodeIds] = useState<Set<string>>(() => new Set([firstNodeId]))
+  // Guards a rapid double-click on an option from applying effects twice.
+  // Reset whenever the conversation advances to a new node.
+  const advancingRef = useRef(false)
+
+  // Escape always leaves the conversation — no soft-lock.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   // Persist conversation history
   useEffect(() => {
@@ -381,6 +380,7 @@ export function DialogueView({
 
   // Navigate to a node
   const goToNode = useCallback((nodeId: string) => {
+    advancingRef.current = false
     setRollState({ rolling: false, result: null, option: null })
     setPendingEffects(null)
     setCurrentNodeId(nodeId)
@@ -389,56 +389,61 @@ export function DialogueView({
 
   // Choose an option
   const handleOption = useCallback((option: DialogueOption) => {
-    // Apply effects
-    if (option.effects) {
-      onEffect(option.effects)
-      setPendingEffects(option.effects)
-      onGameStateChanged?.()
-    }
+    // Rapid double-click guard — one option per node, effects applied once.
+    if (advancingRef.current) return
+    advancingRef.current = true
 
-    // If stat-gated, perform the skill check
-    if (option.requirement) {
-      const { stat, dc } = option.requirement
-      const result = onSkillCheck(stat, dc)
+    // If stat-gated, perform the skill check FIRST — effects on a gated option
+    // are the reward for passing it, so they apply in handleRollDone on success.
+    if (option.requirement?.stat && option.requirement.dc) {
+      const result = onSkillCheck(option.requirement.stat, option.requirement.dc)
       setRollState({ rolling: true, result, option })
       return
+    }
+
+    // Ungated option — apply effects immediately
+    if (option.effects) {
+      onEffect(option.effects)
+      onGameStateChanged?.()
     }
 
     // Simple navigation
     if (option.nextNodeId) {
       goToNode(option.nextNodeId)
+      // Set AFTER goToNode (which clears it) so the consequence toast is
+      // visible on the node the choice led to. React batches these — the
+      // final value wins.
+      if (option.effects) setPendingEffects(option.effects)
     } else {
       // End of dialogue
       onClose()
     }
-  }, [onEffect, onSkillCheck, goToNode, onClose])
+  }, [onEffect, onSkillCheck, goToNode, onClose, onGameStateChanged])
 
   // After the dice animation resolves
   const handleRollDone = useCallback(() => {
     const { result, option } = rollState
     if (!result || !option) return
 
-    if (result.success && option.nextNodeId) {
+    // Gated option's effects apply only on success
+    if (result.success && option.effects) {
+      onEffect(option.effects)
+      onGameStateChanged?.()
+    }
+
+    if (option.nextNodeId) {
+      // The authored data has no separate failure node — on failure the same
+      // next node carries the conversation (its text reads naturally either way).
       goToNode(option.nextNodeId)
-    } else if (!result.success && option.failNodeId) {
-      goToNode(option.failNodeId)
-    } else if (!result.success && option.nextNodeId) {
-      // Fallback: if no failNode, still go to nextNode (the node text can handle it)
-      goToNode(option.nextNodeId)
+      if (result.success && option.effects) setPendingEffects(option.effects)
     } else {
       // Dead end — close
       onClose()
     }
-  }, [rollState, goToNode, onClose])
-
-  // Can the player attempt a stat-gated option? They can always *attempt* it
-  // (the roll decides) but we gray it out if their stat is very low (below DC - 10)
-  const canAttempt = (req: { stat: StatName; dc: number }) => {
-    return playerStats[req.stat] !== undefined
-  }
+  }, [rollState, goToNode, onClose, onEffect, onGameStateChanged])
 
   const isLocked = (option: DialogueOption) => {
-    if (!option.requirement) return false
+    if (!option.requirement?.stat || !option.requirement.dc) return false
     // Locked if stat + max roll (20) can't possibly reach DC
     // Using the same modifier formula as the game: modifier = stat value
     const statVal = playerStats[option.requirement.stat] ?? 0
@@ -521,7 +526,7 @@ export function DialogueView({
       )}
 
       {/* ---- Dice Roll Overlay ---- */}
-      {rollState.rolling && rollState.result && rollState.option?.requirement && (
+      {rollState.rolling && rollState.result && rollState.option?.requirement?.stat && rollState.option.requirement.dc !== undefined && (
         <div className="px-4 pb-2 border-t border-[var(--pixel-ui-border)]/30">
           <DiceRollDisplay
             finalRoll={rollState.result.roll}
@@ -540,19 +545,17 @@ export function DialogueView({
         <div className="p-3 border-t-2 border-[var(--pixel-ui-border)] space-y-1">
           {currentNode.options.map((option, idx) => {
             const locked = isLocked(option)
-            const karmaTags = getKarmaTags(option.effects)
-            const hasReq = !!option.requirement
+            const karmaTags = getKarmaTags(option)
+            const hasReq = !!(option.requirement?.stat && option.requirement.dc !== undefined)
             // Low-Shrewdness dialogue variant (Fallout low-INT inspired)
             const isLowShrewdness = (playerStats.Shrewdness ?? 5) <= 3
-            const displayText = locked && option.lockedText
-              ? option.lockedText
-              : (isLowShrewdness && option.lowShrewdnessText)
-                ? option.lowShrewdnessText
-                : option.text
+            const displayText = (isLowShrewdness && option.lowShrewdnessText)
+              ? option.lowShrewdnessText
+              : option.text
 
             return (
               <button
-                key={idx}
+                key={option.id ?? idx}
                 onClick={() => {
                   if (locked) return
                   handleOption(option)
@@ -599,7 +602,7 @@ export function DialogueView({
                       ))}
 
                       {/* Stat requirement tag */}
-                      {hasReq && option.requirement && (
+                      {hasReq && option.requirement?.stat && (
                         <span className={`font-[var(--font-pixel)] text-[11px] px-1 border ${
                           locked
                             ? 'text-[var(--pixel-fire-red)] border-red-800'

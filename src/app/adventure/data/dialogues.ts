@@ -989,7 +989,9 @@ const ch2_slim_perkins: Dialogue = {
           effects: {
             xp: 20,
             flag: 'slim_confession',
-            questProgress: { questId: 'ch2_missing_miner', objectiveId: 'find_clue' },
+            // objectiveId remapped from dangling 'find_clue' → real objective
+            // (detective path: 'Track footprints from the cemetery')
+            questProgress: { questId: 'ch2_missing_miner', objectiveId: 'ch2_mm_det_4' },
           },
         },
       ],
@@ -1995,7 +1997,8 @@ const ch4_big_jim: Dialogue = {
 
 const ch4_walt_henderson: Dialogue = {
   id: 'ch4_walt_henderson',
-  npcId: 'ch4_mill_owner',
+  // npcId renamed from 'ch4_mill_owner' — the NPC in chapterLocations.ts is 'ch4_miller'
+  npcId: 'ch4_miller',
   npcName: 'Walt Henderson',
   chapter: 4,
   title: 'The Mill Owner',
@@ -2129,7 +2132,9 @@ const ch4_walt_henderson: Dialogue = {
           effects: {
             xp: 20,
             flag: 'clemson_water_connection',
-            questProgress: { questId: 'ch4_water_rights', objectiveId: 'find_source' },
+            // objectiveId remapped from dangling 'find_source' → real objective
+            // (negotiate path: 'Discover the dam was built by a mining company')
+            questProgress: { questId: 'ch4_water_rights', objectiveId: 'ch4_wr_neg_2' },
           },
         },
       ],
@@ -2276,7 +2281,10 @@ const ch4_samuel_clemson: Dialogue = {
             karma: { lawful: 3, good: 2 },
             reputation: { faction: 'settlers', delta: 15 },
             flag: 'clemson_reported',
-            questProgress: { questId: 'ch4_land_fraud', objectiveId: 'expose_clemson' },
+            // objectiveId remapped from dangling 'expose_clemson' → real objective
+            // (legal path: 'Present the evidence to Judge Whitfield' — the confession
+            // is the evidence that closes the legal case)
+            questProgress: { questId: 'ch4_land_fraud', objectiveId: 'ch4_lf_leg_5' },
           },
           karmaTag: 'lawful',
         },
@@ -2362,7 +2370,8 @@ const ch5_barn_spirit: Dialogue = {
           effects: {
             xp: 20,
             flag: 'barn_map_piece',
-            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'barn_piece' },
+            // objectiveId remapped from dangling 'barn_piece' → real objective ch5_tl_2
+            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'ch5_tl_2' },
           },
         },
       ],
@@ -2444,7 +2453,8 @@ const ch5_orchard_memory: Dialogue = {
           effects: {
             xp: 20,
             flag: 'orchard_map_piece',
-            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'orchard_piece' },
+            // objectiveId remapped from dangling 'orchard_piece' → real objective ch5_tl_3
+            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'ch5_tl_3' },
           },
         },
       ],
@@ -2528,7 +2538,8 @@ const ch5_mine_voice: Dialogue = {
           effects: {
             xp: 20,
             flag: 'mine_map_piece',
-            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'mine_piece' },
+            // objectiveId remapped from dangling 'mine_piece' → real objective ch5_tl_5
+            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'ch5_tl_5' },
           },
         },
       ],
@@ -2544,7 +2555,8 @@ const ch5_mine_voice: Dialogue = {
           effects: {
             xp: 30,
             flag: 'mine_map_piece_and_passage',
-            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'mine_piece' },
+            // objectiveId remapped from dangling 'mine_piece' → real objective ch5_tl_5
+            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'ch5_tl_5' },
             unlockLocation: 'ch5_hidden_chamber',
           },
         },
@@ -2603,7 +2615,8 @@ const ch5_lookout_vision: Dialogue = {
           effects: {
             xp: 20,
             flag: 'lookout_map_piece',
-            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'lookout_piece' },
+            // objectiveId remapped from dangling 'lookout_piece' → real objective ch5_tl_4
+            questProgress: { questId: 'ch5_tobias_legacy', objectiveId: 'ch5_tl_4' },
           },
         },
       ],

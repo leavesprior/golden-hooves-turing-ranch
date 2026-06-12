@@ -502,7 +502,7 @@ export const GOLD_COUNTRY_LOCATIONS: MapLocation[] = [
       currentPopulation: 3800,
       historicalNote: 'Where Mark Twain heard the story that became "The Celebrated Jumping Frog of Calaveras County."',
       easterEggs: [
-        'Ross\'s Saloon is where Twain heard the frog story',
+        'The Angels Hotel barroom is where Twain heard the frog story — the stone building still stands',
         'A bartender named Ben Coon still tells the tale',
         'The Angels Hotel register has Twain\'s signature',
         'Carson Hill nearby yielded the largest gold nugget in California (195 lbs)',

@@ -256,9 +256,14 @@ export function LocationView({
           </button>
         </div>
         {location.historicalFact && (
-          <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-earth-light)] mt-2 italic opacity-60">
-            &quot;{location.historicalFact}&quot;
-          </p>
+          <div className="mt-3 p-3 bg-[var(--pixel-gold-dark)]/15 border-2 border-[var(--pixel-gold-dark)]/60 border-l-4 border-l-[var(--pixel-gold-mid)]">
+            <span className="font-[var(--font-pixel)] text-[10px] tracking-wider text-[var(--pixel-gold-light)]">
+              {'📜'} HISTORICAL RECORD
+            </span>
+            <p className="font-[var(--font-pixel)] text-[12px] leading-relaxed text-[var(--pixel-earth-light)] mt-1.5">
+              {location.historicalFact}
+            </p>
+          </div>
         )}
       </div>
 
