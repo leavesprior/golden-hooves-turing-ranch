@@ -123,7 +123,14 @@ export function CrossGameProgressionProvider({ children }: CrossGameProgressionP
       if (e.key === CROSS_GAME_STORAGE_KEY && e.newValue) {
         try {
           const newState = JSON.parse(e.newValue) as CrossGameState
-          setState(newState)
+          // Same-tab saves dispatch this event SYNCHRONOUSLY from
+          // CrossGameStorage.save(). Defer the setState to a microtask so
+          // that even if some caller saves during another component's render,
+          // this provider's update lands after that render instead of
+          // crashing with "Cannot update a component while rendering a
+          // different component". Behavior is otherwise identical — the
+          // state still updates immediately after the current task.
+          queueMicrotask(() => setState(newState))
         } catch (err) {
           console.error('Failed to parse cross-game sync:', err)
         }
