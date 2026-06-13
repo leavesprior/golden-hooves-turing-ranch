@@ -12,6 +12,17 @@
 //   Rule 2 — clues come from named, diegetic witnesses.
 //   Rule 3 — difficulty = obscurity (easy vs hard phrasing of one target).
 //   Rule 4 — wrong picks cost a day, never the trail; always recoverable.
+//
+// v2 ACCELERATION — the loop now TIGHTENS as it closes:
+//   Beat 1 WARMING TRAIL — the witness card shows how far ahead Vane is
+//          (days → hours), and the map paints his shrinking lead. The final
+//          arrival reads as CORNERING him.
+//   Beat 2 NEAR-MISS DISTRACTORS — each wrong town is COLD (wasted day, no
+//          tell) or a NEAR-MISS (wasted day, but a Wanted-Poster trait teased).
+//          Always recoverable.
+//   Beat 3 COSTED HARDER CLUE — pressing for the obscure clue costs a HALF-DAY
+//          (days hold .5). The easy clue is free; obscurity is a gamble.
+//          Recovery clues after a wrong pick stay free.
 // ============================================================================
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
@@ -19,7 +30,9 @@ import {
   CHASE,
   TOWNS,
   VANE,
+  VANE_MARKS,
   STARTING_DAYS,
+  PRESS_COST,
   SESSION_KEY,
   type WantedTrait,
 } from './chaseData'
@@ -30,10 +43,10 @@ type Phase = 'clue' | 'feedback' | 'won' | 'lost'
 
 interface ChaseState {
   hopIndex: number // which hop of CHASE we're resolving (0..3)
-  days: number
+  days: number // may hold .5 (Beat 3 — pressing costs a half-day)
   routeIds: string[] // confirmed towns reached, in order
   traits: WantedTrait[]
-  revealedHard: boolean // has the player pressed the witness harder this hop?
+  revealedHard: boolean // has the player paid to press harder this hop?
   /** When set, we're showing redirect text after a wrong pick. */
   redirect: { witnessName: string; witnessRole: string; line: string } | null
 }
@@ -55,9 +68,14 @@ function initialState(): ChaseState {
 // in the same slot — rotate by hop index. Pure (no Math.random in render).
 function candidatesFor(hopIndex: number): string[] {
   const hop = CHASE[hopIndex]
-  const ids = [hop.toId, hop.distractors[0], hop.distractors[1]]
+  const ids = [hop.toId, hop.distractors[0].townId, hop.distractors[1].townId]
   const shift = hopIndex % 3
   return [...ids.slice(shift), ...ids.slice(0, shift)]
+}
+
+// Format days so .5 renders cleanly (6, 5.5, 5 ...). Pure helper.
+function fmtDays(d: number): string {
+  return Number.isInteger(d) ? String(d) : d.toFixed(1)
 }
 
 export default function ChaseDemoPage() {
@@ -103,6 +121,11 @@ export default function ChaseDemoPage() {
     [hasActiveHop, state.hopIndex],
   )
 
+  // Beat 1 — the warming trail: how far ahead Vane is, and his shrinking mark.
+  const lead = hop.lead
+  const vaneMark = VANE_MARKS[Math.min(state.hopIndex, VANE_MARKS.length - 1)]
+  const isFinalHop = state.hopIndex === CHASE.length - 1
+
   const witnessLine = useMemo(() => {
     if (state.redirect) return state.redirect.line
     return state.revealedHard ? hop.hardClue : hop.easyClue
@@ -113,9 +136,25 @@ export default function ChaseDemoPage() {
 
   // --- actions --------------------------------------------------------------
 
+  // Beat 3 — pressing the witness costs a half-day. Free during recovery (a
+  // redirect already gave the easy clue, so there's nothing to press). Charged
+  // only once per hop (revealedHard guards a double-charge). Pure updater; the
+  // lose-on-overpress transition is decided from the post-decrement value.
   const pressHarder = useCallback(() => {
-    setState((s) => (s.redirect ? s : { ...s, revealedHard: true }))
-  }, [])
+    if (phase !== 'clue') return
+    if (state.redirect || state.revealedHard) return
+    const remaining = state.days - PRESS_COST
+    if (remaining <= 0) {
+      setState((s) => ({ ...s, days: 0 }))
+      setPhase('lost')
+      return
+    }
+    setState((s) =>
+      s.redirect || s.revealedHard
+        ? s
+        : { ...s, days: s.days - PRESS_COST, revealedHard: true },
+    )
+  }, [phase, state.redirect, state.revealedHard, state.days])
 
   const pick = useCallback(
     (townId: string) => {
@@ -127,7 +166,10 @@ export default function ChaseDemoPage() {
         setState((s) => {
           const nextHop = s.hopIndex + 1
           const nextRoute = [...s.routeIds, townId]
-          const nextTraits = [...s.traits, hop.trait]
+          const alreadyHas = s.traits.some(
+            (t) => t.label === hop.trait.label && t.value === hop.trait.value,
+          )
+          const nextTraits = alreadyHas ? s.traits : [...s.traits, hop.trait]
           return {
             ...s,
             hopIndex: nextHop,
@@ -137,37 +179,52 @@ export default function ChaseDemoPage() {
             redirect: null,
           }
         })
-        const isFinal = state.hopIndex >= CHASE.length - 1
-        if (isFinal) {
+        if (isFinalHop) {
           setPhase('won')
         } else {
           setHotMessage(
-            `The trail's hot — Vane came through ${TOWNS[townId].name} a day ago. ` +
+            `The trail's hot — Vane came through ${TOWNS[townId].name}, ${lead.label.toLowerCase()}. ` +
               `A witness adds to the warrant: ${hop.trait.label} — ${hop.trait.value}.`,
           )
           setPhase('feedback')
         }
       } else {
-        // WRONG — lose a day, trail cools, fresh witness redirects (Rule 4).
+        // WRONG — find which distractor was picked (cold vs near-miss, Beat 2).
+        const distractor =
+          hop.distractors.find((d) => d.townId === townId) ?? hop.distractors[0]
         const remaining = state.days - 1
         if (remaining <= 0) {
           setState((s) => ({ ...s, days: 0 }))
           setPhase('lost')
-        } else {
-          setState((s) => ({
+          return
+        }
+        // A near-miss banks its teased trait early (only if genuinely new).
+        setState((s) => {
+          let nextTraits = s.traits
+          if (distractor.kind === 'near-miss' && distractor.tease) {
+            const tease = distractor.tease
+            const has = s.traits.some(
+              (t) => t.label === tease.label && t.value === tease.value,
+            )
+            if (!has) nextTraits = [...s.traits, tease]
+          }
+          return {
             ...s,
             days: remaining,
+            traits: nextTraits,
+            // Recovery clue is free: drop any paid hard-clue state on redirect.
+            revealedHard: false,
             redirect: {
-              witnessName: hop.redirect.witness.name,
-              witnessRole: hop.redirect.witness.role,
-              line: hop.redirect.line,
+              witnessName: distractor.witness.name,
+              witnessRole: distractor.witness.role,
+              line: distractor.line,
             },
-          }))
-          setPhase('clue')
-        }
+          }
+        })
+        setPhase('clue')
       }
     },
-    [phase, hop, state.hopIndex, state.days],
+    [phase, hop, isFinalHop, lead.label, state.days],
   )
 
   const continueAfterCorrect = useCallback(() => {
@@ -185,6 +242,14 @@ export default function ChaseDemoPage() {
       /* non-fatal */
     }
   }, [])
+
+  // Is the active redirect a near-miss (warm) vs cold? Drives the redirect copy.
+  const redirectIsNearMiss = useMemo(() => {
+    if (!state.redirect) return false
+    return hop.distractors.some(
+      (d) => d.kind === 'near-miss' && d.witness.name === state.redirect!.witnessName,
+    )
+  }, [state.redirect, hop])
 
   // --- render ---------------------------------------------------------------
 
@@ -219,7 +284,7 @@ export default function ChaseDemoPage() {
               }
               data-testid="days-left"
             >
-              {state.days}
+              {fmtDays(state.days)}
             </span>
           </span>
           <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
@@ -237,7 +302,22 @@ export default function ChaseDemoPage() {
         {/* main grid: chase column + poster sidebar */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
           <div className="space-y-4">
-            <ChaseMap routeIds={state.routeIds} currentId={currentId} />
+            <ChaseMap
+              routeIds={state.routeIds}
+              currentId={currentId}
+              vaneMark={
+                phase === 'won'
+                  ? VANE_MARKS[VANE_MARKS.length - 1]
+                  : hasActiveHop
+                    ? vaneMark
+                    : null
+              }
+              leadLabel={
+                phase === 'won' ? 'HOURS AHEAD' : hasActiveHop ? lead.label : null
+              }
+              proximity={hasActiveHop ? lead.proximity : 1}
+              cornered={phase === 'won'}
+            />
 
             {/* WON */}
             {phase === 'won' && (
@@ -249,9 +329,10 @@ export default function ChaseDemoPage() {
                   YOU&apos;VE CORNERED VANE!
                 </p>
                 <p className="mt-3 font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)]">
-                  At {TOWNS[currentId].name}, the road agent tips his hat, sets down his
-                  dime novel, and surrenders without a fight — with{' '}
-                  <span className="text-[var(--pixel-gold-light)]">{state.days}</span> day
+                  He was only <span className="text-[var(--pixel-fire-orange)]">hours ahead</span> —
+                  and you closed the gap. At {TOWNS[currentId].name}, the road agent tips his hat,
+                  sets down his dime novel, and surrenders without a fight — with{' '}
+                  <span className="text-[var(--pixel-gold-light)]">{fmtDays(state.days)}</span> day
                   {state.days === 1 ? '' : 's'} to spare. The warrant is complete.
                 </p>
                 <button
@@ -308,11 +389,38 @@ export default function ChaseDemoPage() {
             {/* CLUE + candidate picker */}
             {phase === 'clue' && (
               <>
+                {/* Beat 1 — warming-trail lead readout */}
+                <div
+                  className={`flex items-center justify-between border-2 px-3 py-2 ${
+                    isFinalHop
+                      ? 'border-[var(--pixel-fire-orange)] bg-[var(--pixel-fire-orange)]/15'
+                      : 'border-[var(--pixel-gold-dark)]/60 bg-black/30'
+                  }`}
+                  data-testid="lead-readout"
+                >
+                  <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]/70">
+                    THE TRAIL
+                  </span>
+                  <span
+                    className={`font-[var(--font-pixel)] text-[11px] ${
+                      isFinalHop
+                        ? 'text-[var(--pixel-fire-orange)]'
+                        : 'text-[var(--pixel-gold-light)]'
+                    }`}
+                    data-testid="lead-label"
+                  >
+                    VANE IS {lead.label}
+                    {isFinalHop ? ' — CORNER HIM' : ''}
+                  </span>
+                </div>
+
                 {/* witness card */}
                 <div
                   className={`border-2 p-4 ${
                     state.redirect
-                      ? 'border-[var(--pixel-fire-orange)]/70 bg-[var(--pixel-fire-orange)]/10'
+                      ? redirectIsNearMiss
+                        ? 'border-[var(--pixel-gold-mid)]/80 bg-[var(--pixel-gold-dark)]/15'
+                        : 'border-[var(--pixel-fire-orange)]/70 bg-[var(--pixel-fire-orange)]/10'
                       : 'border-[var(--pixel-gold-dark)] bg-black/40'
                   }`}
                   data-testid="witness-card"
@@ -332,21 +440,46 @@ export default function ChaseDemoPage() {
                     &ldquo;{witnessLine}&rdquo;
                   </p>
 
-                  {state.redirect && (
-                    <p className="mt-2 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-fire-orange)]">
-                      No sign of him here. You&apos;ve lost a day — the trail&apos;s gone cold,
-                      but this witness points the way.
+                  {/* Beat 1 — fresh-trail flavor on the primary witness clue */}
+                  {!state.redirect && (
+                    <p
+                      className="mt-2 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)]/55"
+                      data-testid="lead-flavor"
+                    >
+                      {lead.flavor}
                     </p>
                   )}
 
+                  {/* Beat 2 — distinct near-miss vs cold redirect copy */}
+                  {state.redirect && (
+                    <p
+                      className={`mt-2 font-[var(--font-pixel)] text-[10px] leading-relaxed ${
+                        redirectIsNearMiss
+                          ? 'text-[var(--pixel-gold-light)]'
+                          : 'text-[var(--pixel-fire-orange)]'
+                      }`}
+                      data-testid="redirect-note"
+                    >
+                      {redirectIsNearMiss
+                        ? "A near-miss — you cost yourself a day, but you caught his scent. Check the poster."
+                        : "Cold trail. You've wasted a day here — but this witness points the way."}
+                    </p>
+                  )}
+
+                  {/* Beat 3 — pressing harder costs a half-day (free in recovery) */}
                   {!state.redirect && !state.revealedHard && (
                     <button
                       onClick={pressHarder}
                       data-testid="press-harder"
                       className="mt-3 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]/70 underline transition-colors hover:text-[var(--pixel-gold-light)]"
                     >
-                      Press {witnessName.split(' ')[0]} for a sharper detail...
+                      Press {witnessName.split(' ')[0]} for a sharper detail... (costs ½ day)
                     </button>
+                  )}
+                  {!state.redirect && state.revealedHard && (
+                    <p className="mt-3 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]/50 italic">
+                      You leaned on {witnessName.split(' ')[0]} — half a day spent for the sharper word.
+                    </p>
                   )}
                 </div>
 

@@ -2,6 +2,12 @@
 
 // ChaseMap — a simple SVG map of the Gold Country towns with the chase route
 // drawn as a glowing line that extends with each correct hop.
+//
+// v2 (Beat 1 — the warming trail): a "VANE?" mark is painted ahead of the
+// player along the road, and a dashed GAP line runs from where you stand to
+// where he is. As the chase tightens (proximity → 1) the mark sits closer and
+// the gap shortens; on the final hop it pulses to read as cornering.
+//
 // PROTOTYPE component — not used by the live game.
 
 import React from 'react'
@@ -12,9 +18,24 @@ interface ChaseMapProps {
   routeIds: string[]
   /** The town the player is currently standing in. */
   currentId: string
+  /** Where Vane's mark is painted this hop (null when the chase is resolved). */
+  vaneMark: { x: number; y: number } | null
+  /** Short lead readout, e.g. "A DAY AHEAD" (null when resolved). */
+  leadLabel: string | null
+  /** 0..1 closeness — drives the gap dash + glow intensity. */
+  proximity: number
+  /** When true, Vane is caught — paint the mark as captured. */
+  cornered?: boolean
 }
 
-export function ChaseMap({ routeIds, currentId }: ChaseMapProps) {
+export function ChaseMap({
+  routeIds,
+  currentId,
+  vaneMark,
+  leadLabel,
+  proximity,
+  cornered,
+}: ChaseMapProps) {
   // Build the polyline points from the confirmed route.
   const routePoints = routeIds
     .map((id) => {
@@ -23,6 +44,12 @@ export function ChaseMap({ routeIds, currentId }: ChaseMapProps) {
     })
     .filter(Boolean)
     .join(' ')
+
+  const here = TOWNS[currentId]
+  // The closer the chase (higher proximity), the tighter the gap dash and the
+  // brighter Vane's mark — a purely-derived visual of the warming trail.
+  const gapDash = (2.4 - proximity * 1.6).toFixed(2) // ~2.4 cold -> ~0.8 hot
+  const markGlow = 0.3 + proximity * 0.6 // dim when far, bright when close
 
   return (
     <div className="relative w-full overflow-hidden border-2 border-[var(--pixel-ui-border)] bg-gradient-to-b from-[#2a2418] via-[#1a1c2c] to-black">
@@ -44,6 +71,10 @@ export function ChaseMap({ routeIds, currentId }: ChaseMapProps) {
             <stop offset="0%" stopColor="#f4d76b" stopOpacity="0.9" />
             <stop offset="100%" stopColor="#f4d76b" stopOpacity="0" />
           </radialGradient>
+          <radialGradient id="vaneGlow">
+            <stop offset="0%" stopColor="#e2563b" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#e2563b" stopOpacity="0" />
+          </radialGradient>
         </defs>
 
         {/* faint terrain wash — ridgelines hinting at the Sierra */}
@@ -64,6 +95,21 @@ export function ChaseMap({ routeIds, currentId }: ChaseMapProps) {
             strokeLinecap="round"
             strokeDasharray="2 1.4"
             filter="url(#trailGlow)"
+          />
+        )}
+
+        {/* Beat 1 — the shrinking GAP between you and Vane */}
+        {vaneMark && here && (
+          <line
+            x1={here.x}
+            y1={here.y}
+            x2={vaneMark.x}
+            y2={vaneMark.y}
+            stroke="#e2563b"
+            strokeWidth="0.6"
+            strokeLinecap="round"
+            strokeDasharray={`${gapDash} ${gapDash}`}
+            opacity={cornered ? 0.25 : 0.7}
           />
         )}
 
@@ -97,7 +143,48 @@ export function ChaseMap({ routeIds, currentId }: ChaseMapProps) {
             </g>
           )
         })}
+
+        {/* Beat 1 — Vane's mark, painted ahead of you, glowing brighter as you close */}
+        {vaneMark && (
+          <g data-testid="vane-mark">
+            <circle
+              cx={vaneMark.x}
+              cy={vaneMark.y}
+              r={cornered ? 5 : 3 + proximity * 1.5}
+              fill="url(#vaneGlow)"
+              opacity={cornered ? 1 : markGlow}
+            />
+            <circle
+              cx={vaneMark.x}
+              cy={vaneMark.y}
+              r="1.1"
+              fill={cornered ? '#f4d76b' : '#e2563b'}
+              stroke="#1a1c2c"
+              strokeWidth="0.3"
+            />
+            <text
+              x={vaneMark.x}
+              y={vaneMark.y + 3.4}
+              textAnchor="middle"
+              fontSize="2.2"
+              fontFamily="var(--font-pixel), monospace"
+              fill={cornered ? '#f4d76b' : '#e2563b'}
+            >
+              {cornered ? 'VANE!' : leadLabel ? 'VANE?' : ''}
+            </text>
+          </g>
+        )}
       </svg>
+
+      {/* Beat 1 — corner readout of the lead, overlaid on the map */}
+      {leadLabel && (
+        <p
+          className="absolute left-2 top-1 font-[var(--font-pixel)] text-[10px] text-[#e2563b]/90"
+          data-testid="map-lead"
+        >
+          {cornered ? 'CORNERED' : `LEAD: ${leadLabel}`}
+        </p>
+      )}
 
       <p className="absolute bottom-1 right-2 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]/40">
         GOLD COUNTRY
