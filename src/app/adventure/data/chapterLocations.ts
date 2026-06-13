@@ -2092,7 +2092,9 @@ export const CHAPTER_5_LOCATIONS: ChapterLocation[] = [
     services: [
       { type: 'stable', name: 'Ranch Stable', description: 'Pegasus and the other horses' },
     ],
-    npcs: [],
+    npcs: [
+      { id: 'ch5_barn_ghost', name: "Memory of Tobias's Horse", role: 'Memory', witnessType: 'settler', dialogueHint: 'The barn stands empty, yet a soft whinny drifts from the dark. Tobias never sold that horse. Some bonds outlast the body.' },
+    ],
     clueIds: ['ch5_treasure_hunt'],
     historicalFact: 'Gold Country barns are architectural survivors. Built from local timber before the sawmills standardized lumber, each is unique — a record of the tree species, the builder\'s skill, and the era\'s tools. Many Gold Rush barns used square nails, which date them to before 1890. The transition from square to wire nails is one way historians date Gold Country structures.',
     discoveryClues: [
@@ -2120,7 +2122,9 @@ export const CHAPTER_5_LOCATIONS: ChapterLocation[] = [
     connectedTo: ['ch5_ranch_house', 'ch5_lookout'],
     travelDanger: 'safe',
     services: [],
-    npcs: [],
+    npcs: [
+      { id: 'ch5_orchard_tree', name: 'The Ancient Apple Tree', role: 'Landmark', witnessType: 'settler', dialogueHint: 'The oldest tree in the orchard has a hollow in its trunk, hidden under decades of bark. Tobias planted it the year he stopped mining.' },
+    ],
     clueIds: ['ch5_treasure_hunt'],
     historicalFact: 'Agriculture replaced mining as Gold Country\'s economic engine by the 1860s. The same fertile soil and abundant water that concentrated gold deposits also grew exceptional fruit, wine grapes, and timber. Calaveras and Amador counties became known for their orchards and vineyards. Many of the old fruit trees planted by former miners still survive — living monuments to the men who stayed when the gold left.',
     discoveryClues: [
@@ -2159,7 +2163,9 @@ export const CHAPTER_5_LOCATIONS: ChapterLocation[] = [
     connectedTo: ['ch5_ranch_house', 'ch5_hidden_chamber'],
     travelDanger: 'dangerous',
     services: [],
-    npcs: [],
+    npcs: [
+      { id: 'ch5_mine_echo', name: 'Echoes in the Mine', role: 'Presence', witnessType: 'miner', dialogueHint: 'From deep within the shored-up dark, a voice that is almost words. The mine remembers who dug it, and why he finally walked away.' },
+    ],
     clueIds: ['ch5_treasure_hunt'],
     historicalFact: 'Thousands of abandoned mines dot Gold Country, many of them unmarked and extremely dangerous. The California Department of Conservation estimates over 47,000 abandoned mines statewide. Cave-ins, bad air (carbon monoxide and low oxygen), and flooded shafts kill trespassers every year. Some mines are hundreds of feet deep with vertical shafts — a single misstep means death. The gold that remains in these mines is real but inaccessible without modern equipment and significant capital. Every generation produces someone who believes they can profitably rework an old claim. Most are wrong.',
     discoveryClues: [
@@ -2187,7 +2193,9 @@ export const CHAPTER_5_LOCATIONS: ChapterLocation[] = [
     connectedTo: ['ch5_ranch_house', 'ch5_orchard'],
     travelDanger: 'moderate',
     services: [],
-    npcs: [],
+    npcs: [
+      { id: 'ch5_lookout', name: 'The Panoramic View', role: 'Vista', witnessType: 'settler', dialogueHint: 'From Eagle Point the whole ranch lies open below — barn, orchard, mine. From up here the pattern Tobias left is plain, if you have the eye for it.' },
+    ],
     clueIds: ['ch5_treasure_hunt'],
     historicalFact: 'The Sierra Nevada foothills of Gold Country are among the most beautiful landscapes in California. Mark Twain wrote: "Nothing helps scenery like ham and eggs." But even Twain admitted the Sierra views were unmatched. The Gold Rush stripped these hills of timber and scarred them with hydraulic mining, but the land recovered — slowly, stubbornly, the way the West heals everything. Today, Gold Country is a patchwork of vineyards, orchards, ranches, and forests that have reclaimed the old mining scars. The communities that survived the bust — Angels Camp, Murphys, Jackson, Volcano — did so because people chose to stay for the land, not the gold.',
     discoveryClues: [
@@ -2216,7 +2224,9 @@ export const CHAPTER_5_LOCATIONS: ChapterLocation[] = [
     travelDanger: 'dangerous',
     requiredReputation: { faction: 'settlers', level: 25 }, // Need community trust
     services: [],
-    npcs: [],
+    npcs: [
+      { id: 'ch5_chamber', name: 'The Hidden Chamber', role: 'Mystery', witnessType: 'settler', dialogueHint: 'Carved from living rock, lit by crystal that catches your lantern. Inscriptions wait on the walls — the last thing Tobias meant for someone worthy to read.' },
+    ],
     clueIds: ['ch5_treasure_hunt'],
     historicalFact: 'Many Gold Rush miners did find significant gold deposits and chose not to work them — sometimes out of exhaustion, sometimes out of wisdom, sometimes because the claim was too dangerous or too remote. Undiscovered veins certainly exist throughout Gold Country. In 2013, a California couple found $10 million in Gold Rush-era gold coins buried on their property — the "Saddle Ridge Hoard," announced to the world in 2014. It proved that Gold Country still holds secrets from the 1850s, waiting for someone with the right combination of luck and persistence.',
     discoveryClues: [

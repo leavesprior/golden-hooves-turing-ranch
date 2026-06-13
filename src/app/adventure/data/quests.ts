@@ -607,7 +607,7 @@ const CH2_QUEST_CLAIM_JUMPER: Quest = {
   description:
     'Slim Perkins sidles up to you at the Miner\'s Camp with a proposition. He knows of an abandoned claim ' +
     'up near the cemetery — rich with gold but "tied up in paperwork." For a 50/50 split, he\'ll show you where it is. ' +
-    'The catch? The claim belongs to the missing Zeke Thorn. And Slim knows it.',
+    'The catch? The claim belongs to the missing Cornelius Finch. And Slim knows it.',
   giver: 'ch2_claim_jumper', // Slim Perkins
   giverLocation: 'ch2_miners_camp',
   paths: [
