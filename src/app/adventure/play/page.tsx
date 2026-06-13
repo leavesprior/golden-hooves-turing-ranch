@@ -1073,27 +1073,87 @@ function AdventureContent() {
     }
   }, [questPrereqMet, activateQuest])
 
+  // Synchronous mirror of the persisted reward-claim keys (a subset of
+  // dialogueFlags — entries prefixed `reward_claimed:`). Mirrors the
+  // questStatesRef discipline: updated SYNCHRONOUSLY the instant a node is
+  // paid out so a rapid double-click / Strict-Mode double-invoke in the same
+  // tick can never double-pay, before the (async) setState has committed.
+  const claimedRewardsRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    claimedRewardsRef.current = new Set(
+      (adventureState?.dialogueFlags ?? []).filter(f => f.startsWith('reward_claimed:')),
+    )
+  }, [adventureState?.dialogueFlags])
+
+  // Stable per-grant claim key for an option's effects. The effects object is
+  // passed by reference straight from the authored data module, so we locate
+  // the owning option in the open tree by referential identity and key off
+  // (npcId : optionId) — both stable across re-walks and save/load. If no
+  // option matches (defensive — shouldn't happen for authored trees), fall
+  // back to a deterministic signature of the numeric grants so re-walking the
+  // same node still dedupes rather than silently re-paying.
+  const rewardClaimKey = useCallback((effects: DialogueEffect): string => {
+    const npcId = activeDialogue?.npc.id ?? 'unknown_npc'
+    let optionId: string | undefined
+    for (const node of activeDialogue?.dialogue.nodes ?? []) {
+      const opt = node.options.find(o => o.effects === effects)
+      if (opt) { optionId = `${node.id}:${opt.id}`; break }
+    }
+    if (optionId) return `reward_claimed:${npcId}:${optionId}`
+    const sig = `${effects.xp ?? 0}|${effects.gold ?? 0}|${effects.karma?.lawful ?? 0}|${effects.karma?.good ?? 0}`
+    return `reward_claimed:${npcId}:sig:${sig}`
+  }, [activeDialogue])
+
   // Apply an authored dialogue option's effects through the EXISTING handlers
   // — no new state paths, no side effects inside setState updaters.
+  //
+  // Reward-farming guard: the NUMERIC grants (xp / gold / karma) pay out AT
+  // MOST ONCE per (npcId, node:option) per playthrough. Flag/reputation/quest/
+  // unlock effects are NOT guarded here — they already set-dedupe (flags) or
+  // dedupe in the quest engine, and they gate progression so re-firing them is
+  // harmless. Re-walking a tree still reads + navigates; it just won't re-pay.
   const applyDialogueEffects = useCallback((effects: DialogueEffect) => {
     if (!effects) return
-    if (effects.xp) handleAddXP(effects.xp)
-    if (effects.gold) {
-      if (effects.gold > 0) earnNeutral(effects.gold, 'Dialogue')
-      else if (balance.neutral > 0) spendNeutral(Math.min(balance.neutral, -effects.gold), 'Dialogue')
+
+    const hasNumericGrant = !!(effects.xp || (effects.gold && effects.gold > 0) || effects.karma?.lawful || (effects.karma?.good && effects.karma.good > 0))
+    const claimKey = hasNumericGrant ? rewardClaimKey(effects) : ''
+    // Already claimed (sync ref catches same-tick repeats before the async
+    // setState commits; the persisted dialogueFlags catches re-walks + reloads).
+    const alreadyClaimed = hasNumericGrant && claimedRewardsRef.current.has(claimKey)
+
+    if (hasNumericGrant && !alreadyClaimed) {
+      // Mark claimed synchronously FIRST — idempotent under Strict Mode's
+      // double-invoke and immune to a second rapid call in the same tick.
+      claimedRewardsRef.current.add(claimKey)
+      if (effects.xp) handleAddXP(effects.xp)
+      if (effects.gold && effects.gold > 0) earnNeutral(effects.gold, 'Dialogue')
+      if (effects.karma?.lawful) modifyReputation('pinkerton', effects.karma.lawful, 'Dialogue choice')
+      if (effects.karma?.good && effects.karma.good > 0) earnNeutral(effects.karma.good, 'Dialogue karma')
     }
-    if (effects.karma?.lawful) modifyReputation('pinkerton', effects.karma.lawful, 'Dialogue choice')
-    if (effects.karma?.good && effects.karma.good > 0) earnNeutral(effects.karma.good, 'Dialogue karma')
+
+    // Spending gold (negative) is a player-initiated cost, not a farmable
+    // grant — leave it ungated so re-walking a "pay the toll" node can charge
+    // again (matches the player's intent, and it can't be exploited for gain).
+    if (effects.gold && effects.gold < 0 && balance.neutral > 0) {
+      spendNeutral(Math.min(balance.neutral, -effects.gold), 'Dialogue')
+    }
+
     if (effects.reputation) modifyReputation(effects.reputation.faction, effects.reputation.delta, 'Dialogue')
     if (effects.questStart) activateQuest(effects.questStart)
     if (effects.questProgress) fireQuestObjective(effects.questProgress.questId, effects.questProgress.objectiveId)
-    if (effects.flag || effects.unlockLocation) {
+    // Persist the claim key into dialogueFlags (set-deduped, survives save/load)
+    // in the SAME pure functional update as flag/unlock effects — no side
+    // effects inside the updater.
+    const claimToPersist = hasNumericGrant && !alreadyClaimed ? claimKey : null
+    if (effects.flag || effects.unlockLocation || claimToPersist) {
       const flag = effects.flag
       const loc = effects.unlockLocation
       setAdventureState(prev => {
         if (!prev) return prev
-        const flags = flag && !(prev.dialogueFlags ?? []).includes(flag)
-          ? [...(prev.dialogueFlags ?? []), flag]
+        // Build the additions set (flag + claim key), deduped against existing.
+        const toAdd = [flag, claimToPersist].filter((f): f is string => !!f && !(prev.dialogueFlags ?? []).includes(f))
+        const flags = toAdd.length > 0
+          ? [...(prev.dialogueFlags ?? []), ...toAdd]
           : (prev.dialogueFlags ?? [])
         const discovered = loc && !prev.discoveredLocationIds.includes(loc)
           ? [...prev.discoveredLocationIds, loc]
@@ -1102,7 +1162,7 @@ function AdventureContent() {
       })
       if (loc) narratorComment('A new location has been marked on your map.', 'observation')
     }
-  }, [handleAddXP, earnNeutral, spendNeutral, balance.neutral, modifyReputation, activateQuest, fireQuestObjective, narratorComment])
+  }, [handleAddXP, earnNeutral, spendNeutral, balance.neutral, modifyReputation, activateQuest, fireQuestObjective, narratorComment, rewardClaimKey])
 
   // === TRAVEL ===
   // _resuming=true skips the encounter rolls — set by handleEncounterResolved /
