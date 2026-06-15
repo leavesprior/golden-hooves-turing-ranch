@@ -71,7 +71,10 @@ export default function WhereInTimePage() {
   // the journey thread knows this era is done. Best-effort; fires once.
   useEffect(() => {
     if (phase !== 'won') return
-    try { CrossGameStorage.logEvent('rpg_adventure', 'mystery_solved', 'Where in Time: cornered Cyrus Vane outside time') } catch { /* non-fatal */ }
+    try {
+      CrossGameStorage.recordMilestone('time_chase_complete', 'rpg_adventure')
+      CrossGameStorage.logEvent('rpg_adventure', 'mystery_solved', 'Where in Time: cornered Cyrus Vane outside time')
+    } catch { /* non-fatal */ }
   }, [phase])
 
   const hop = CHASE[state.hopIndex] ?? CHASE[CHASE.length - 1]

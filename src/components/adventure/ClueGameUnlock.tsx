@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import type { AlignmentPosition } from '@/lib/karmaStorage'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
 import { ClueSceneV2 } from '@/components/clue/ClueSceneV2'
@@ -148,6 +149,12 @@ export function ClueGameUnlock({
               <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] mt-2">
                 Visit Back of Beyond Ranch in person to begin the treasure hunt.
               </p>
+              <Link
+                href="/ranch-treasure-hunt"
+                className="mt-3 inline-block font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] px-4 py-2 hover:bg-[var(--pixel-gold-mid)] transition-colors"
+              >
+                The trail leads home — to the ranch ▶
+              </Link>
             </div>
           )}
 

@@ -487,6 +487,12 @@ export function SettlementVictory({ onPlayAgain, discountCode, occupation }: Set
           >
             Back to Hub
           </Link>
+          <Link
+            href="/adventure"
+            className="px-8 py-4 bg-indigo-700 hover:bg-indigo-600 text-indigo-100 font-pixel text-lg rounded border-4 border-indigo-500 transition-colors"
+          >
+            Continue to the Manor (present day) ▶
+          </Link>
         </div>
 
         {/* Ending Tier Legend */}

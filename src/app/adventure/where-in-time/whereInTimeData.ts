@@ -25,7 +25,7 @@ export const ERAS: Record<string, Era> = {
   era_1849: { id: 'era_1849', name: 'The Gold Rush', year: '1849',
     descriptor: "Kit Carson's trading post in the pines; gravel-bar miners; scales a clever man can shave.", art: 'west_point' },
   era_forester: { id: 'era_forester', name: "The Forester's Trail", year: 'the 1960s',
-    descriptor: 'A registered forester drags a surveyor’s chain through the manzanita; a boy walks ahead cutting the sight-lines with a machete, learning every pine by its Latin name.', art: 'big_trees' },
+    descriptor: 'A registered forester drags a surveyor’s chain through the manzanita; a boy walks ahead cutting the sight-lines with a machete, learning every pine by its Latin name.', art: 'forester_trail' },
   era_1982: { id: 'era_1982', name: 'The Ranch Begins', year: '1982',
     descriptor: 'Thirteen acres bought off a subdivided thousand-acre ranch — raw land, no power, no water — where a man files the county’s first passive-solar permit.', art: 'bobr_cabin' },
   era_present: { id: 'era_present', name: 'Back of Beyond', year: 'the present',

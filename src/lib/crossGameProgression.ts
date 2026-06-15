@@ -52,6 +52,8 @@ export type MilestoneId =
   | 'prologue_califia_complete'
   | 'prologue_incan_complete'
   | 'prologue_convergence_complete'
+  // Where in Time (time-chase) milestone
+  | 'time_chase_complete'
   // Booking verification
   | 'booking_verified'
   // Karma Marketplace milestones
