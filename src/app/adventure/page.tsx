@@ -610,6 +610,22 @@ export default function AdventurePage() {
               New Adventure
             </PixelButton>
 
+            {/* THE TARE'S TRAIL — playable now, no character needed (discovery fix) */}
+            <div className="border-2 border-[var(--pixel-fire-orange)] bg-gradient-to-b from-[var(--pixel-fire-orange)]/15 to-transparent p-3 text-center">
+              <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-fire-orange)]">
+                🐎 The Tare&apos;s Trail
+              </p>
+              <p className="font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)] mt-2">
+                A Carmen-Sandiego chase — corner Cyrus Vane across the Mother Lode,
+                then see him to justice. Play now; no character needed.
+              </p>
+              <div className="mt-3 flex justify-center">
+                <PixelButton href="/adventure/chase-demo" variant="gold" size="sm">
+                  Take Up the Trail
+                </PixelButton>
+              </div>
+            </div>
+
             {/* Karma carry-forward badge */}
             {karmaImported && karmaAlignment && (
               <div className="bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-mid)] p-3 text-center">
@@ -989,6 +1005,28 @@ export default function AdventurePage() {
                   </div>
                 )
               })}
+            </div>
+
+            {/* THE TARE'S TRAIL — Carmen-Sandiego deduction side-quest */}
+            <div className="mb-6 border-2 border-[var(--pixel-fire-orange)] bg-gradient-to-b from-[var(--pixel-fire-orange)]/15 to-transparent p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-fire-orange)]">
+                    🐎 The Tare&apos;s Trail
+                  </h3>
+                  <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] mt-2 max-w-md">
+                    A road agent is loose in the Mother Lode. Read each witness, follow the
+                    clue to the next town&apos;s attribute — never its name — and corner
+                    Cyrus Vane &ldquo;the Tare&rdquo; before the six days run out.
+                  </p>
+                </div>
+                <span className="text-2xl">🔎</span>
+              </div>
+              <div className="mt-4">
+                <PixelButton href="/adventure/chase-demo" variant="gold" size="sm">
+                  Take Up the Trail
+                </PixelButton>
+              </div>
             </div>
 
             {/* D&D Attributes */}

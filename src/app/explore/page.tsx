@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 import { trackPageView, trackMysteryAttempt } from '@/lib/eventTracker'
 import {
   ExplorerProvider,
@@ -1081,6 +1082,9 @@ function TownDrawer({
             ))}
           </div>
         </div>
+
+        {/* 64-bit period backdrop of the real place */}
+        <PlaceBackdrop id={town.id} className="h-32 border-b-2 border-amber-600/30" />
 
         {/* Scrollable body — town story, clue notice, mystery + deduction, and
             the attractions list ALL live in one scroll container so nothing

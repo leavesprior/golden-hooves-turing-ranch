@@ -1,11 +1,13 @@
 'use client'
 
 // ============================================================================
-// THE CHASE: where did Vane go? — Carmen-Sandiego-style deduction prototype.
+// THE TARE'S TRAIL: where did Cyrus Vane go? — a Carmen-Sandiego deduction chase.
 //
-// SELF-CONTAINED PROOF — NOT part of the live game. New files only, own route,
-// not linked from any existing page. State lives in React + sessionStorage,
-// never touching bobr_adventure_state or the live save system.
+// A self-contained side-quest, now surfaced from the live /adventure hub. Its own
+// route + own state in React + sessionStorage, never touching bobr_adventure_state
+// or the live save system. The chase ends in a RECKONING (the court at San Andreas)
+// where the player decides Vane's fate — narrative-only; any real karma/reward must
+// be SERVER-minted with a signed grant (no client-mint).
 //
 // This route makes docs/ADVENTURE_CLUE_REDESIGN_CARMEN_SANDIEGO.md §2 playable:
 //   Rule 1 — clues point at the NEXT town's attribute, never its name.
@@ -34,12 +36,18 @@ import {
   STARTING_DAYS,
   PRESS_COST,
   SESSION_KEY,
+  STORY_INTRO,
   type WantedTrait,
 } from './chaseData'
 import { ChaseMap } from './ChaseMap'
 import { WantedPoster } from './WantedPoster'
+import { readCarriedBoon, recordVerdict } from './chaseLedger'
+import { ChaseArt, VerdictEmblem, WitnessSprite } from './ChaseArt'
 
-type Phase = 'clue' | 'feedback' | 'won' | 'lost'
+type Phase = 'clue' | 'feedback' | 'won' | 'lost' | 'reckoning' | 'verdict'
+
+/** What the player decides becomes of the Tare once he is cornered. */
+type VerdictKind = 'gallows' | 'prison' | 'mercy'
 
 interface ChaseState {
   hopIndex: number // which hop of CHASE we're resolving (0..3)
@@ -49,9 +57,35 @@ interface ChaseState {
   revealedHard: boolean // has the player paid to press harder this hop?
   /** When set, we're showing redirect text after a wrong pick. */
   redirect: { witnessName: string; witnessRole: string; line: string } | null
+  /** The fate the player chose for Vane at the reckoning (null until sentenced). */
+  verdict: VerdictKind | null
+  /** Free witness presses carried in from other games (continuity boon). */
+  freePresses: number
 }
 
 const TOTAL_TRAITS = CHASE.length
+
+// The three endings of the reckoning. Narrative-only: NO karma/reward is minted
+// on the client here. If the mercy path should ever grant real good-karma
+// reputation or a booking reward, that must be SERVER-minted with a signed grant
+// (the no-client-mint rule the trust-audit skill guards) — never written here.
+const VERDICTS: Record<VerdictKind, { title: string; body: string }> = {
+  gallows: {
+    title: 'THE GALLOWS',
+    body:
+      'At dawn, behind the San Andreas courthouse, the Tare meets the rope. He tips his hat one last time and sets down his dime novel for good. The four counties he wronged send no flowers — justice, hard and final.',
+  },
+  prison: {
+    title: 'THE TERRITORIAL PRISON',
+    body:
+      "The judge sends Cyrus Vane down the river to San Quentin — years of hard labor, every salted claim entered in the ledger against him. He'll see no road but the prison yard for a long while, and the gold he counterfeited is counted back to its owners.",
+  },
+  mercy: {
+    title: 'MERCY & RESTITUTION',
+    body:
+      'You ask the court for mercy. Vane signs over every counterfeit grant, returns what gold remains, and takes his sentence quietly — alive, and bound to make the wronged whole. Word travels the Mother Lode: the one who caught the Tare chose to let him live. Kindness, witnessed, has a way of coming back to you.',
+  },
+}
 
 function initialState(): ChaseState {
   return {
@@ -61,6 +95,8 @@ function initialState(): ChaseState {
     traits: [],
     revealedHard: false,
     redirect: null,
+    verdict: null,
+    freePresses: 0,
   }
 }
 
@@ -83,6 +119,10 @@ export default function ChaseDemoPage() {
   const [phase, setPhase] = useState<Phase>('clue')
   // Feedback text after a correct pick.
   const [hotMessage, setHotMessage] = useState<string | null>(null)
+  // Gate persistence until init has run — otherwise the save effect can write the
+  // default state (freePresses:0) before the carried-boon read commits, and a
+  // StrictMode double-invoke would then restore that 0 over the boon.
+  const [inited, setInited] = useState(false)
 
   // --- session persistence (never touches the live save) --------------------
   useEffect(() => {
@@ -95,20 +135,30 @@ export default function ChaseDemoPage() {
           setState(saved.state)
           if (saved.phase) setPhase(saved.phase)
         }
+        setInited(true)
+        return // restored an in-progress chase; carried boon already baked in
       }
     } catch {
       /* ignore corrupt session blob */
     }
+    // Fresh chase — read carried assets from the cross-game ledger ONCE (read-only).
+    // What you earned in other games (Shrewdness/Diplomacy, a good name) travels in
+    // as free witness presses. Never throws — readCarriedBoon is fully defensive.
+    const boon = readCarriedBoon()
+    if (boon.freePresses > 0) {
+      setState((s) => ({ ...s, freePresses: boon.freePresses }))
+    }
+    setInited(true)
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !inited) return
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({ state, phase }))
     } catch {
       /* sessionStorage may be unavailable — non-fatal for a prototype */
     }
-  }, [state, phase])
+  }, [state, phase, inited])
 
   // hop may be undefined once the final hop is resolved (hopIndex === CHASE.length).
   // All hop-derived values are only read while phase === 'clue', but compute them
@@ -125,6 +175,8 @@ export default function ChaseDemoPage() {
   const lead = hop.lead
   const vaneMark = VANE_MARKS[Math.min(state.hopIndex, VANE_MARKS.length - 1)]
   const isFinalHop = state.hopIndex === CHASE.length - 1
+  // Terminal "Vane is caught" phases — the map stays cornered, poster complete.
+  const captured = phase === 'won' || phase === 'reckoning' || phase === 'verdict'
 
   const witnessLine = useMemo(() => {
     if (state.redirect) return state.redirect.line
@@ -143,6 +195,15 @@ export default function ChaseDemoPage() {
   const pressHarder = useCallback(() => {
     if (phase !== 'clue') return
     if (state.redirect || state.revealedHard) return
+    // A carried boon (sharp eye / silver tongue / good name) spends no day.
+    if (state.freePresses > 0) {
+      setState((s) =>
+        s.redirect || s.revealedHard
+          ? s
+          : { ...s, revealedHard: true, freePresses: s.freePresses - 1 },
+      )
+      return
+    }
     const remaining = state.days - PRESS_COST
     if (remaining <= 0) {
       setState((s) => ({ ...s, days: 0 }))
@@ -154,7 +215,7 @@ export default function ChaseDemoPage() {
         ? s
         : { ...s, days: s.days - PRESS_COST, revealedHard: true },
     )
-  }, [phase, state.redirect, state.revealedHard, state.days])
+  }, [phase, state.redirect, state.revealedHard, state.days, state.freePresses])
 
   const pick = useCallback(
     (townId: string) => {
@@ -232,15 +293,39 @@ export default function ChaseDemoPage() {
     setPhase('clue')
   }, [])
 
+  // After cornering Vane, take him to the circuit court at San Andreas — the
+  // chase resolves in a reckoning, not another chase. Pure phase transition.
+  const bringToCourt = useCallback(() => {
+    if (phase !== 'won') return
+    setPhase('reckoning')
+  }, [phase])
+
+  // The player decides the Tare's fate: the gallows, the prison, or mercy +
+  // restitution. Narrative-only (see VERDICTS) — nothing is minted client-side.
+  const passSentence = useCallback(
+    (kind: VerdictKind) => {
+      if (phase !== 'reckoning') return
+      setState((s) => (s.verdict ? s : { ...s, verdict: kind }))
+      // CONTRIBUTE to the shared ledger — one intentional write at the verdict.
+      // Mercy nudges Good karma; best-effort (never throws). Fires once: phase
+      // moves to 'verdict' below, so a repeat call returns at the guard above.
+      recordVerdict(kind)
+      setPhase('verdict')
+    },
+    [phase],
+  )
+
   const retry = useCallback(() => {
-    setState(initialState())
-    setPhase('clue')
-    setHotMessage(null)
     try {
       sessionStorage.removeItem(SESSION_KEY)
     } catch {
       /* non-fatal */
     }
+    // Re-read the carried boon so a replay keeps its continuity advantage.
+    const boon = readCarriedBoon()
+    setState({ ...initialState(), freePresses: boon.freePresses })
+    setPhase('clue')
+    setHotMessage(null)
   }, [])
 
   // Is the active redirect a near-miss (warm) vs cold? Drives the redirect copy.
@@ -255,20 +340,20 @@ export default function ChaseDemoPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#1a1c2c] via-[#0f0f1b] to-black px-3 py-4 sm:px-6">
-      {/* PROTOTYPE banner */}
+      {/* Side-quest banner */}
       <div className="mx-auto mb-4 max-w-5xl border-2 border-dashed border-[var(--pixel-fire-orange)]/70 bg-[var(--pixel-fire-orange)]/10 px-3 py-2">
         <p className="font-[var(--font-pixel)] text-[10px] sm:text-[11px] leading-relaxed text-[var(--pixel-fire-orange)]">
-          PROTOTYPE — not in the live game. A self-contained proof of the Carmen-Sandiego deduction chase.
+          A SIDE-QUEST set in the real Mother Lode — read each witness, follow each town&apos;s true history, and corner Cyrus Vane before the trail goes cold.
         </p>
       </div>
 
       <div className="mx-auto max-w-5xl">
         <header className="mb-4 text-center">
           <h1 className="font-[var(--font-pixel)] text-[15px] leading-relaxed text-[var(--pixel-gold-light)] sm:text-[20px]">
-            THE CHASE
+            THE TARE&apos;S TRAIL
           </h1>
           <p className="mt-2 font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)] sm:text-[12px]">
-            Where did Vane go?
+            Where did Cyrus Vane go?
           </p>
         </header>
 
@@ -302,21 +387,28 @@ export default function ChaseDemoPage() {
         {/* main grid: chase column + poster sidebar */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
           <div className="space-y-4">
+            {/* Town-backdrop slot — the 64-bit period picture of the current town
+                drops in at /chase/town-{id}.png (researched from Street View +
+                history, verified same-place). Renders nothing until it lands. */}
+            <ChaseArt
+              src={`/chase/town-${currentId}.png`}
+              alt={`${TOWNS[currentId].name} — period view`}
+              className="w-full border-2 border-[var(--pixel-gold-dark)] object-cover"
+              fallback={<></>}
+            />
             <ChaseMap
               routeIds={state.routeIds}
               currentId={currentId}
               vaneMark={
-                phase === 'won'
+                captured
                   ? VANE_MARKS[VANE_MARKS.length - 1]
                   : hasActiveHop
                     ? vaneMark
                     : null
               }
-              leadLabel={
-                phase === 'won' ? 'HOURS AHEAD' : hasActiveHop ? lead.label : null
-              }
+              leadLabel={captured ? 'CORNERED' : hasActiveHop ? lead.label : null}
               proximity={hasActiveHop ? lead.proximity : 1}
-              cornered={phase === 'won'}
+              cornered={captured}
             />
 
             {/* WON */}
@@ -335,11 +427,115 @@ export default function ChaseDemoPage() {
                   <span className="text-[var(--pixel-gold-light)]">{fmtDays(state.days)}</span> day
                   {state.days === 1 ? '' : 's'} to spare. The warrant is complete.
                 </p>
+                <p className="mt-3 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)]/70">
+                  But catching the Tare is only half the trail — he must answer for it.
+                </p>
                 <button
-                  onClick={retry}
+                  onClick={bringToCourt}
+                  data-testid="to-court-button"
                   className="mt-4 border-2 border-[var(--pixel-gold-dark)] px-4 py-2 font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] transition-all hover:bg-[var(--pixel-gold-dark)]/20"
                 >
-                  CHASE AGAIN
+                  BRING HIM TO COURT {'▶'}
+                </button>
+              </div>
+            )}
+
+            {/* RECKONING — the court at San Andreas; the player decides his fate */}
+            {phase === 'reckoning' && (
+              <div
+                className="border-2 border-[var(--pixel-gold-mid)] bg-black/40 p-4"
+                data-testid="reckoning-panel"
+              >
+                <p className="font-[var(--font-pixel)] text-[12px] leading-relaxed text-[var(--pixel-gold-light)] sm:text-[14px]">
+                  THE RECKONING — THE COURT AT SAN ANDREAS
+                </p>
+                <p className="mt-3 font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)]">
+                  In the same stone courthouse where a gentleman bandit once faced a judge,
+                  Cyrus Vane stands before the circuit court. The wanted poster — every trait
+                  you wrote into it on the trail — is read into evidence, and the Tare is
+                  convicted of salting claims and passing false assay across four counties.
+                  The judge turns to you, who ran him down, and asks what justice you would see
+                  done.
+                </p>
+                <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <button
+                    onClick={() => passSentence('gallows')}
+                    data-testid="sentence-gallows"
+                    className="flex flex-col border-2 border-[var(--pixel-fire-red)]/70 bg-[var(--pixel-fire-red)]/10 p-3 text-left transition-all hover:bg-[var(--pixel-fire-red)]/20"
+                  >
+                    <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-fire-orange)]">
+                      The Gallows
+                    </span>
+                    <span className="mt-2 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)]/70">
+                      Hang him at dawn. Hard, final frontier justice.
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => passSentence('prison')}
+                    data-testid="sentence-prison"
+                    className="flex flex-col border-2 border-[var(--pixel-ui-border)] bg-black/30 p-3 text-left transition-all hover:border-[var(--pixel-gold-mid)] hover:bg-[var(--pixel-gold-dark)]/15"
+                  >
+                    <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
+                      The Prison
+                    </span>
+                    <span className="mt-2 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)]/70">
+                      Years of hard labor at San Quentin. The law&apos;s measured hand.
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => passSentence('mercy')}
+                    data-testid="sentence-mercy"
+                    className="flex flex-col border-2 border-[var(--pixel-forest-light)]/70 bg-[var(--pixel-forest-dark)]/15 p-3 text-left transition-all hover:bg-[var(--pixel-forest-dark)]/30"
+                  >
+                    <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)]">
+                      Mercy &amp; Restitution
+                    </span>
+                    <span className="mt-2 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)]/70">
+                      Spare his life; make him return the gold and right the wronged.
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* VERDICT — the chosen fate plays out; the trail ends here */}
+            {phase === 'verdict' && state.verdict && (
+              <div
+                className={`border-2 p-4 text-center ${
+                  state.verdict === 'mercy'
+                    ? 'border-[var(--pixel-forest-light)] bg-[var(--pixel-forest-dark)]/25'
+                    : state.verdict === 'gallows'
+                      ? 'border-[var(--pixel-fire-red)] bg-[var(--pixel-fire-red)]/15'
+                      : 'border-[var(--pixel-gold-mid)] bg-black/40'
+                }`}
+                data-testid="verdict-panel"
+                data-verdict={state.verdict}
+              >
+                {/* Storybook register — the narrative beat. Real art at
+                    /chase/verdict-{kind}.png replaces the emblem when it lands. */}
+                <div className="mb-3">
+                  <ChaseArt
+                    src={`/chase/verdict-${state.verdict}.png`}
+                    alt={`The reckoning: ${VERDICTS[state.verdict].title}`}
+                    fallback={<VerdictEmblem kind={state.verdict} />}
+                    className="mx-auto h-28 w-full border-2 border-[var(--pixel-gold-dark)] object-cover sm:h-36"
+                  />
+                </div>
+                <p className="font-[var(--font-pixel)] text-[12px] leading-relaxed text-[var(--pixel-gold-light)] sm:text-[14px]">
+                  {VERDICTS[state.verdict].title}
+                </p>
+                <p className="mt-3 font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)]">
+                  {VERDICTS[state.verdict].body}
+                </p>
+                <p className="mt-3 font-[var(--font-pixel)] text-[9px] leading-relaxed text-[var(--pixel-ui-text)]/50">
+                  This judgment is remembered — it travels with you to the rest of the Trail.
+                </p>
+                <button
+                  onClick={retry}
+                  data-testid="new-trail-button"
+                  className="mt-4 border-2 border-[var(--pixel-gold-dark)] px-4 py-2 font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] transition-all hover:bg-[var(--pixel-gold-dark)]/20"
+                >
+                  TAKE A NEW TRAIL
                 </button>
               </div>
             )}
@@ -389,6 +585,32 @@ export default function ChaseDemoPage() {
             {/* CLUE + candidate picker */}
             {phase === 'clue' && (
               <>
+                {/* Diegetic opening — shown only at the very start, rooted in the real
+                    West Point country (the land that becomes Back of Beyond Ranch). */}
+                {state.routeIds.length === 1 && !state.redirect && (
+                  <div
+                    className="border-2 border-[var(--pixel-gold-dark)] bg-black/30 p-3"
+                    data-testid="story-intro"
+                  >
+                    <p className="font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)]/80">
+                      {STORY_INTRO}
+                    </p>
+                  </div>
+                )}
+
+                {/* Continuity — carried boon earned in other games (read once at start) */}
+                {state.freePresses > 0 && (
+                  <div
+                    className="border-2 border-[var(--pixel-forest-light)]/50 bg-[var(--pixel-forest-dark)]/15 px-3 py-2"
+                    data-testid="carried-boon"
+                  >
+                    <span className="font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-forest-light)]">
+                      CARRIED BOON — what you earned elsewhere travels with you:{' '}
+                      {state.freePresses} free witness press{state.freePresses === 1 ? '' : 'es'}.
+                    </span>
+                  </div>
+                )}
+
                 {/* Beat 1 — warming-trail lead readout */}
                 <div
                   className={`flex items-center justify-between border-2 px-3 py-2 ${
@@ -425,20 +647,26 @@ export default function ChaseDemoPage() {
                   }`}
                   data-testid="witness-card"
                 >
-                  <div className="mb-2 flex items-baseline justify-between gap-2">
-                    <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
-                      {state.redirect ? 'A NEW WITNESS' : 'WITNESS'}: {witnessName}
-                    </span>
-                    <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]/60">
-                      {witnessRole}
-                    </span>
+                  {/* JRPG dialogue composition — old-style pixel NPC + the witness's words */}
+                  <div className="flex gap-3">
+                    <WitnessSprite npcKey={witnessName.toLowerCase().split(' ')[0]} />
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-2 flex items-baseline justify-between gap-2">
+                        <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
+                          {state.redirect ? 'A NEW WITNESS' : 'WITNESS'}: {witnessName}
+                        </span>
+                        <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]/60">
+                          {witnessRole}
+                        </span>
+                      </div>
+                      <p
+                        className="font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)] sm:text-[12px]"
+                        data-testid="clue-text"
+                      >
+                        &ldquo;{witnessLine}&rdquo;
+                      </p>
+                    </div>
                   </div>
-                  <p
-                    className="font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)] sm:text-[12px]"
-                    data-testid="clue-text"
-                  >
-                    &ldquo;{witnessLine}&rdquo;
-                  </p>
 
                   {/* Beat 1 — fresh-trail flavor on the primary witness clue */}
                   {!state.redirect && (
@@ -473,7 +701,9 @@ export default function ChaseDemoPage() {
                       data-testid="press-harder"
                       className="mt-3 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]/70 underline transition-colors hover:text-[var(--pixel-gold-light)]"
                     >
-                      Press {witnessName.split(' ')[0]} for a sharper detail... (costs ½ day)
+                      {state.freePresses > 0
+                        ? `Press ${witnessName.split(' ')[0]} for a sharper detail... (free — ${state.freePresses} boon${state.freePresses === 1 ? '' : 's'} left)`
+                        : `Press ${witnessName.split(' ')[0]} for a sharper detail... (costs ½ day)`}
                     </button>
                   )}
                   {!state.redirect && state.revealedHard && (
@@ -519,7 +749,7 @@ export default function ChaseDemoPage() {
             <WantedPoster
               traits={state.traits}
               totalTraits={TOTAL_TRAITS}
-              complete={phase === 'won'}
+              complete={captured}
             />
             <p className="mt-3 px-1 font-[var(--font-pixel)] text-[9px] leading-relaxed text-[var(--pixel-ui-text)]/40">
               {VANE.charge}. Real Gold Country towns; clues describe each town&apos;s true

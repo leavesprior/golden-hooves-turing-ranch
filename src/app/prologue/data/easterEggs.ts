@@ -15,7 +15,7 @@ export interface TimeEchoData {
 
 export const TIME_ECHOES: TimeEchoData[] = [
   {
-    id: 'norse_runestone_beneath_mine',
+    id: 'norse_runestone',
     title: 'The Runestone Below',
     description:
       'Erik carves a runestone deep within a cave system in the Great Lakes region, recording his journey south from Vinland. He places it where he believes no one will disturb it — at the base of a mineral-rich quartz vein that catches the torchlight like frozen fire.',
@@ -99,7 +99,7 @@ export const TIME_ECHOES: TimeEchoData[] = [
   },
 
   {
-    id: 'the_number_42',
+    id: 'number_42',
     title: 'The Answer',
     description:
       'The number 42 appears with suspicious frequency across all four character paths, embedded in the fabric of the game world like a cosmic watermark. It is never explained. It is never acknowledged by any character. It simply IS.',

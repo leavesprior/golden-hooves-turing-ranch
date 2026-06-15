@@ -157,7 +157,7 @@ export function buildDashboardState(): DashboardState {
 
   const games: GameSummary[] = [
     buildGameSummary('prospectors_tale', "A Prospector's Tale", '🤠', state),
-    buildGameSummary('gold_country_adventure', 'Gold Country Adventure', '⚔️', state),
+    buildGameSummary('rpg_adventure', 'Gold Country Adventure', '⚔️', state),
     buildGameSummary('gold_country_explorer', 'Gold Country Explorer', '🗺️', state),
   ]
 
@@ -217,7 +217,7 @@ function buildGameSummary(gameId: string, gameName: string, emoji: string, state
 function getDefaultGameSummaries(): GameSummary[] {
   return [
     { gameId: 'prospectors_tale', gameName: "A Prospector's Tale", emoji: '🤠', isStarted: false, karma: { good: 0, neutral: 0, bad: 0 }, milestones: [] },
-    { gameId: 'gold_country_adventure', gameName: 'Gold Country Adventure', emoji: '⚔️', isStarted: false, karma: { good: 0, neutral: 0, bad: 0 }, milestones: [] },
+    { gameId: 'rpg_adventure', gameName: 'Gold Country Adventure', emoji: '⚔️', isStarted: false, karma: { good: 0, neutral: 0, bad: 0 }, milestones: [] },
     { gameId: 'gold_country_explorer', gameName: 'Gold Country Explorer', emoji: '🗺️', isStarted: false, karma: { good: 0, neutral: 0, bad: 0 }, milestones: [] },
   ]
 }

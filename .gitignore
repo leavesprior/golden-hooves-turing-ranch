@@ -45,3 +45,4 @@ next-env.d.ts
 # local development but never committed.
 public/rpg/sounds/parov/
 public/rpg/sounds/western/
+.next.old.stuck-root-files-*/

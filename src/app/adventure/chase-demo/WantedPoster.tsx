@@ -6,6 +6,7 @@
 
 import React from 'react'
 import { VANE, type WantedTrait } from './chaseData'
+import { ChaseArt } from './ChaseArt'
 
 interface WantedPosterProps {
   traits: WantedTrait[]
@@ -35,19 +36,29 @@ export function WantedPoster({ traits, totalTraits, complete }: WantedPosterProp
         {complete ? 'IN CUSTODY' : 'DEAD OR ALIVE'}
       </p>
 
-      {/* Portrait placeholder — a simple pixel silhouette in parchment ink */}
-      <div className="mx-auto my-3 flex h-24 w-24 items-center justify-center border-2 border-[var(--pixel-earth-dark)] bg-[#d8c7a2]">
-        <svg viewBox="0 0 24 24" className="h-20 w-20" aria-hidden>
-          {/* hat */}
-          <rect x="5" y="3" width="14" height="2" fill="#3b2a1f" />
-          <rect x="7" y="1" width="10" height="3" fill="#3b2a1f" />
-          {/* head + shoulders */}
-          <rect x="8" y="6" width="8" height="7" fill="#5c3d2e" />
-          <rect x="6" y="13" width="12" height="8" fill="#3b2a1f" />
-          {/* eyes */}
-          <rect x="9" y="8" width="2" height="2" fill="#e9dcc0" />
-          <rect x="13" y="8" width="2" height="2" fill="#e9dcc0" />
-        </svg>
+      {/* Portrait slot — real pixel portrait at /chase/vane-poster.png when it
+          lands; until then a simple pixel silhouette in parchment ink. */}
+      <div className="mx-auto my-3 h-24 w-24 overflow-hidden border-2 border-[var(--pixel-earth-dark)] bg-[#d8c7a2]">
+        <ChaseArt
+          src="/chase/vane-poster.png"
+          alt={VANE.name}
+          className="h-full w-full object-cover"
+          fallback={
+            <div className="flex h-full w-full items-center justify-center">
+              <svg viewBox="0 0 24 24" className="h-20 w-20" aria-hidden>
+                {/* hat */}
+                <rect x="5" y="3" width="14" height="2" fill="#3b2a1f" />
+                <rect x="7" y="1" width="10" height="3" fill="#3b2a1f" />
+                {/* head + shoulders */}
+                <rect x="8" y="6" width="8" height="7" fill="#5c3d2e" />
+                <rect x="6" y="13" width="12" height="8" fill="#3b2a1f" />
+                {/* eyes */}
+                <rect x="9" y="8" width="2" height="2" fill="#e9dcc0" />
+                <rect x="13" y="8" width="2" height="2" fill="#e9dcc0" />
+              </svg>
+            </div>
+          }
+        />
       </div>
 
       <p className="text-center font-[var(--font-pixel)] text-[11px] sm:text-[12px] leading-relaxed text-[#3b2a1f]">

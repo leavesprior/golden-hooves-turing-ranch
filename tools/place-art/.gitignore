@@ -1,0 +1,7 @@
+candidates/
+refs/
+out/
+_grids/
+*.raw.png
+selected_montage.png
+selected/

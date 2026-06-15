@@ -9,6 +9,7 @@ import {
   type DiscoveryClue,
 } from '@/app/adventure/data/chapterLocations'
 import type { StatName, SkillCheckResult } from '@/app/oregon-trail/characterContext'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 import { playSFX } from '@/app/oregon-trail/lib/audioManager'
 import { DOSMessage } from '@/components/ui/DOSMessage'
 
@@ -266,6 +267,9 @@ export function LocationView({
           </div>
         )}
       </div>
+
+      {/* 64-bit period backdrop of the real place */}
+      <PlaceBackdrop id={location.id} className="h-44 border-y-2 border-[var(--pixel-ui-border)]/40" />
 
       {/* Main Actions */}
       {view === 'main' && (

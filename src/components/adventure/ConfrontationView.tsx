@@ -232,8 +232,8 @@ export function ConfrontationView({
         const attackTotal = roll + playerMod
 
         if (roll === 20 || attackTotal >= enemyAC) {
-          const baseDamage = Math.floor(Math.random() * 8) + 1 + getStatMod('Durability', playerStats)
-          const damage = roll === 20 ? baseDamage * 2 : Math.max(1, baseDamage)
+          const baseDamage = Math.max(1, Math.floor(Math.random() * 8) + 1 + getStatMod('Durability', playerStats))
+          const damage = roll === 20 ? baseDamage * 2 : baseDamage
           const crit = roll === 20 ? ' CRITICAL HIT!' : ''
 
           // Functional update keeps the updater pure (Strict Mode runs them

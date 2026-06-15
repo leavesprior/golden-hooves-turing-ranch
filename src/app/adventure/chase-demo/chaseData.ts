@@ -1,5 +1,5 @@
-// THE CHASE: where did Vane go? — Carmen-Sandiego-style deduction prototype.
-// Self-contained PROOF — NOT wired into the live game. New files only.
+// THE TARE'S TRAIL: where did Cyrus Vane go? — Carmen-Sandiego deduction chase.
+// Self-contained chase MODE — now surfaced from the live /adventure hub.
 // This data file encodes the 4-rule clue grammar from
 // docs/ADVENTURE_CLUE_REDESIGN_CARMEN_SANDIEGO.md §2 as a playable chain.
 //
@@ -326,11 +326,29 @@ export const CHASE: ClueHop[] = [
 // Vane's standing description for the top of the Wanted Poster (traits below
 // fill in as the chase advances).
 export const VANE = {
-  name: 'THE ROAD AGENT "VANE"',
-  charge: 'Robbery of the Sonora stage — no shots fired, all hats returned',
+  name: 'CYRUS VANE — "THE TARE"',
+  charge:
+    'Salting worthless claims with borrowed dust and passing false assay from Sandy Gulch to the Mother Lode — cheating the families trying to make honest ground of this country. Also robbery of the Sonora stage — no shots fired, all hats returned.',
   baseDescription:
-    'A soft-spoken gentleman of the road. Polite to a fault. Afraid of horses, so he works on foot. Wanted across four counties.',
+    'The tare sown among the wheat — a counterfeit who passes for honest until the harvest. A soft-spoken gentleman of the road, polite to a fault. Afraid of horses, so he works on foot. Wanted across four counties.',
 }
+
+// Diegetic opening — roots the chase in the REAL West Point country (the land that
+// would, generations on, become Back of Beyond Ranch). Every place named here is
+// real and sourced: West Point was named by Kit Carson as his trading-post terminus
+// before the gold (CA Historical Landmark #268); Sandy Gulch was the 1849 strike
+// two miles off; "salting" a claim and false assay were real frauds of the era.
+// Ranch heritage (Leif's call 2026-06-14, from the land records): the documented
+// large ranch family on this land was the HARRIS RANCH (Harris/Crosby barn) — not
+// the later "Stanley Road" name — and homes here were raised from LOCALLY MILLED
+// timber (the West Point milling tradition; the book's on-site '83 oak-milling).
+export const STORY_INTRO =
+  "West Point — the Mokelumne high country, Kit Carson's old trading post before the gold. " +
+  'The Harris place and the homesteads around it are honest ranching country now, their cabins ' +
+  'raised from timber milled right here on the land. But a road agent called the Tare has been ' +
+  'salting worthless claims with borrowed dust and passing false assay from Sandy Gulch to the ' +
+  'Mother Lode, cheating the families working to hold this ground. The circuit marshal hands you ' +
+  'the warrant: run him down before the trail goes cold.'
 
 export const STARTING_DAYS = 6
 
