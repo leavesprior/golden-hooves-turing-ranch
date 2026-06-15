@@ -7,12 +7,14 @@
 // the live save. See docs/WHERE_IN_TIME_DESIGN_20260615.md.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import {
   ERAS, CHASE, VANE, RECKONING, GUIDE_INTRO,
   STARTING_CAUSALITY, OBSERVE_COST, SESSION_KEY,
   type TimeTrait,
 } from './whereInTimeData'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
 
 type Phase = 'clue' | 'feedback' | 'won' | 'lost'
 
@@ -64,6 +66,13 @@ export default function WhereInTimePage() {
     if (typeof window === 'undefined' || !inited) return
     try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ state, phase })) } catch { /* non-fatal */ }
   }, [state, phase, inited])
+
+  // Binding: when cornered, log the time-chase completion to the shared ledger so
+  // the journey thread knows this era is done. Best-effort; fires once.
+  useEffect(() => {
+    if (phase !== 'won') return
+    try { CrossGameStorage.logEvent('rpg_adventure', 'mystery_solved', 'Where in Time: cornered Cyrus Vane outside time') } catch { /* non-fatal */ }
+  }, [phase])
 
   const hop = CHASE[state.hopIndex] ?? CHASE[CHASE.length - 1]
   const hasActive = state.hopIndex < CHASE.length
@@ -149,7 +158,11 @@ export default function WhereInTimePage() {
               <div className="border-2 border-[var(--pixel-forest-light)] bg-[var(--pixel-forest-dark)]/25 p-4" data-testid="won-panel">
                 <p className="font-[var(--font-pixel)] text-[13px] leading-relaxed text-[var(--pixel-forest-light)] sm:text-[15px]">YOU CORNERED VANE — OUTSIDE TIME</p>
                 <p className="mt-3 font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)]">{RECKONING}</p>
-                <button onClick={retry} className="mt-4 border-2 border-[var(--pixel-gold-dark)] px-4 py-2 font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] transition-all hover:bg-[var(--pixel-gold-dark)]/20">CHASE AGAIN</button>
+                <p className="mt-3 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)]/70">The trail of forgeries ends where the honest story begins — at the bottom of the years, in 1849, with a wagon pointed west.</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link href="/oregon-trail" data-testid="to-journey" className="border-2 border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]/20 px-4 py-2 font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] transition-all hover:bg-[var(--pixel-gold-dark)]/40">BEGIN THE JOURNEY — 1849 {'▶'}</Link>
+                  <button onClick={retry} className="border-2 border-[var(--pixel-gold-dark)] px-4 py-2 font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] transition-all hover:bg-[var(--pixel-gold-dark)]/20">CHASE AGAIN</button>
+                </div>
               </div>
             )}
 

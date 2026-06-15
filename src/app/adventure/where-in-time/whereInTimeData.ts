@@ -1,9 +1,15 @@
-// WHERE IN TIME IS CYRUS VANE? — a Carmen-Sandiego chase across TIME, on the one
-// piece of land (West Point -> Back of Beyond Ranch) through its eras. The quarry
-// is the same crime in every era's costume; the clue is a period-attribute of a
-// TIME, not a place. The Guide narrates with Douglas-Adams temporal vertigo.
-// Self-contained prototype (see docs/WHERE_IN_TIME_DESIGN_20260615.md). NEW route,
-// own state, never touches the live save. MAJOR loop redesign -> Grok-before deploy.
+// WHERE IN TIME IS CYRUS VANE? — a Carmen-Sandiego chase across the ERAS of one
+// piece of land (the West Point country that becomes Back of Beyond Ranch). The
+// quarry is the same crime in every era's costume; the clue is a period-attribute
+// of a TIME, not a place. The Guide narrates with Douglas-Adams temporal vertigo.
+//
+// FAMILY ERAS = CANDIDATE CANON (Leif per-item approval; real people; never auto-
+// canon). Grounded ONLY in the shareable, land-and-craft history from Greg Pryor's
+// memoir "Blood, Sweat, and Soil" — the forester lineage and the hand-built ranch.
+// NO private/personal/painful family material is used (per the 2026-06-15 fact-sheet
+// guardrails). Corrected 2026-06-15: the forester is Greg's FATHER (~1960s Cal Fire),
+// not "1883"; the land's named prior owner is NOT in the memoir.
+// Self-contained prototype. MAJOR loop redesign -> Grok-before deploy.
 
 export interface Era {
   id: string
@@ -18,10 +24,10 @@ export interface Era {
 export const ERAS: Record<string, Era> = {
   era_1849: { id: 'era_1849', name: 'The Gold Rush', year: '1849',
     descriptor: "Kit Carson's trading post in the pines; gravel-bar miners; scales a clever man can shave.", art: 'west_point' },
-  era_1883: { id: 'era_1883', name: "The Forester's Age", year: '1883',
-    descriptor: 'A new forester walks the ridges; black oak is milled on the land for sills that will wait thirty years to be set.', art: 'sandy_gulch' },
+  era_forester: { id: 'era_forester', name: "The Forester's Trail", year: 'the 1960s',
+    descriptor: 'A registered forester drags a surveyor’s chain through the manzanita; a boy walks ahead cutting the sight-lines with a machete, learning every pine by its Latin name.', art: 'big_trees' },
   era_1982: { id: 'era_1982', name: 'The Ranch Begins', year: '1982',
-    descriptor: 'Thirteen acres bought off a subdivided thousand-acre ranch; the first passive-solar permit the county ever stamped.', art: 'bobr_cabin' },
+    descriptor: 'Thirteen acres bought off a subdivided thousand-acre ranch — raw land, no power, no water — where a man files the county’s first passive-solar permit.', art: 'bobr_cabin' },
   era_present: { id: 'era_present', name: 'Back of Beyond', year: 'the present',
     descriptor: 'Sixty acres, a hot tub, codes on the fence posts a phone can read, a post-rider who never finished his round.', art: 'welcome_gate' },
   era_future: { id: 'era_future', name: 'The Not-Yet', year: '—',
@@ -41,35 +47,29 @@ export interface TimeTrait { label: string; value: string }
 export interface TimeHop {
   fromEra: string
   toEra: string
-  /** A time-local who watched Vane step out of this era. */
   witness: TimeWitness
-  /** Free clue — points at a period-attribute of the next era, never its year. */
   guideEasy: string
-  /** The harder, sharper read — "observing collapses the timeline," costs causality. */
   guideHard: string
-  /** What Vane forged in the next era — fills the Wanted Poster as you close in. */
   trait: TimeTrait
-  /** Two wrong-time candidates for the 3-era picker. */
   distractors: [string, string]
-  /** The Guide's Adams-style temporal-vertigo line on correct arrival. */
   paradox: string
 }
 
 export const CHASE: TimeHop[] = [
   {
-    fromEra: 'era_1849', toEra: 'era_1883',
+    fromEra: 'era_1849', toEra: 'era_forester',
     witness: { name: 'Eb Crandall', role: 'trading-post clerk' },
-    guideEasy: "He's gone up the years to when a new forester first walks these ridges — a man who'll fell oak and mill it on the land, then stack the boards to dry thirty years before he sets them as window sills.",
-    guideHard: "Follow him to the season they undergrounded nothing yet, when the only fire line on the whole mountain was the one a forester cut by hand.",
-    trait: { label: 'FORGERY', value: 'Files a timber claim on oak that isn’t cut yet' },
+    guideEasy: "He's gone up the years to a registered forester's season — when a man drags a surveyor's chain through the manzanita and a boy ahead of him cuts the sight-lines, naming every pine in Latin.",
+    guideHard: "Follow him to the decade they first sent task forces to learn why the power lines kept starting fires — and one forester on the ridge already knew the answer.",
+    trait: { label: 'FORGERY', value: 'Files false timber surveys on a forester’s stamp' },
     distractors: ['era_dreamtime', 'era_1906'],
-    paradox: 'You arrive in 1883. The Guide insists you have been here before. You have not. The Guide is, as ever, narrating while facing the wrong direction.',
+    paradox: 'You arrive in the forester’s day. The Guide insists you have been here before. You have not. It is, as ever, narrating while facing the wrong direction.',
   },
   {
-    fromEra: 'era_1883', toEra: 'era_1982',
-    witness: { name: 'a forester on the ridge', role: 'timber cruiser' },
-    guideEasy: "He's slipped to the year a family buys thirteen acres off a thousand-acre ranch, raw land with no power and no water, and the county stamps its first passive-solar permit.",
-    guideHard: "Go to when they bury half a mile of power line by hand, because a man foresaw the wildfire forty years too early to be thanked for it.",
+    fromEra: 'era_forester', toEra: 'era_1982',
+    witness: { name: 'the permit clerk', role: 'Calaveras County desk' },
+    guideEasy: "He's slipped to the year a family buys thirteen acres off a subdivided thousand-acre ranch — raw land, no power, no water — and files the first passive-solar permit the county ever stamped.",
+    guideHard: "Go to when a man buries a half-mile of power line by hand, forty years before anyone thanks him, because eight years of fighting wildfire taught him exactly where they start.",
     trait: { label: 'FORGERY', value: 'Cashes solar rebates on panels never bolted down' },
     distractors: ['era_1906', 'era_2049'],
     paradox: 'Nineteen eighty-two. A ranch pup trots past casting the shadow of a full-grown wolf. Either the narrator has been drinking or the dog has; the records are unclear and possibly forged.',
@@ -97,21 +97,21 @@ export const CHASE: TimeHop[] = [
 export const VANE = {
   name: 'CYRUS VANE — "THE TARE"',
   charge:
-    'The same fraud in every age’s clothes: shaved scales in ’49, salted timber in ’83, phantom solar in ’82, counterfeit karma in the now — and, at the last, the forgery of presence itself.',
+    'The same fraud in every age’s clothes: shaved scales in ’49, false timber surveys in the forester’s day, phantom solar at the founding, counterfeit karma in the now — and, at the last, the forgery of presence itself.',
   baseDescription:
-    'The tare sown among the wheat (Matthew 13): a counterfeit who passes for honest until the harvest. Wears each century like a coat. Afraid of horses, then of automobiles, then of nothing at all — because by the end he claims to have been everywhere and was nowhere.',
+    'The tare sown among the wheat (Matthew 13): a counterfeit who passes for honest until the harvest. Wears each century like a coat. Claims, in the end, to have been everywhere — and was honestly nowhere.',
 }
 
-// The reckoning, once Vane is cornered outside time.
+// The reckoning, once Vane is cornered outside time. Grounded in the real, shareable
+// craft of the land (oak sills, the buried power line, the counted frog).
 export const RECKONING =
-  'You corner Cyrus Vane in the not-yet, and the costumes fall off at once. The assayer, the speculator, the rebate-man, the review-forger — one crime wearing five centuries: the forgery of presence, claiming a place he never honestly stood in. ' +
-  'Which is the one thing the land itself cannot do. The oak was really milled. The power line was really buried by hand. The frog is really counted. Presence, honestly kept, is the only thing he could never counterfeit — and the only thing that catches him.'
+  'You corner Cyrus Vane in the not-yet, and the costumes fall off at once. The assayer, the false surveyor, the phantom-solar man, the review-forger — one crime wearing every age: the forgery of presence, claiming a place he never honestly stood in. ' +
+  'Which is the one thing this land cannot do. The black oak was really milled and waited thirty years for its window sills. The power line was really buried by hand. The frog is really counted. Presence, honestly kept, is the only thing he could never counterfeit — and the only thing that catches him.'
 
 export const STARTING_CAUSALITY = 6
 export const OBSERVE_COST = 0.5
 export const SESSION_KEY = 'bobr_where_in_time_state'
 
-// The Guide's opening — Hitchhiker's-Guide register, fourth-wall, a little drunk on time.
 export const GUIDE_INTRO =
   'THE GUIDE TO WHERE IN TIME, abridged: A fraud called Cyrus Vane has learned to slip up and down the years of one small piece of California — the West Point country that becomes Back of Beyond Ranch. He does not steal gold so much as steal BEING-THERE. Your job is to read each era by its true grain and chase him forward through time before causality runs out. ' +
   'Note: this narrator can see every era at once, which is precisely why it cannot reliably tell you what happens next. Observation collapses the timeline. So does drinking. Proceed.'
