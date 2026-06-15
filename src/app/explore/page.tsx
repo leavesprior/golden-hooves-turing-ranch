@@ -1083,8 +1083,10 @@ function TownDrawer({
           </div>
         </div>
 
-        {/* 64-bit period backdrop of the real place */}
-        <PlaceBackdrop id={town.id} className="h-32 border-b-2 border-amber-600/30" />
+        {/* 64-bit period backdrop of the real place (centered band so the scene reads) */}
+        <div className="border-b-2 border-amber-600/30 bg-black/40">
+          <PlaceBackdrop id={town.id} className="mx-auto h-40 max-w-md object-top" />
+        </div>
 
         {/* Scrollable body — town story, clue notice, mystery + deduction, and
             the attractions list ALL live in one scroll container so nothing
