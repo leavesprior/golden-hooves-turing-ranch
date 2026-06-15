@@ -5,3 +5,4 @@ _grids/
 *.raw.png
 selected_montage.png
 selected/
+*.verify.json
