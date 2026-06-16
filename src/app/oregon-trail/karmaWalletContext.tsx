@@ -116,6 +116,24 @@ interface StoredWalletState {
   alignment?: AlignmentAxes // Optional for backwards compatibility
 }
 
+const DEFAULT_BALANCE: KarmaBalance = { good: 0, neutral: STARTING_NEUTRAL_KARMA, bad: 0 }
+
+// A corrupt / legacy / partially-written wallet in localStorage must never hard-crash
+// the game. Consumers read balance.neutral/good/bad directly during render, so an
+// undefined or malformed balance throws "Cannot read properties of undefined" and the
+// whole adventure dies with an unrecoverable error boundary. Coerce anything that
+// isn't a well-formed balance back to a safe default instead.
+function sanitizeBalance(b: unknown): KarmaBalance {
+  if (!b || typeof b !== 'object') return { ...DEFAULT_BALANCE }
+  const r = b as Record<string, unknown>
+  const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
+  return {
+    good: num(r.good, DEFAULT_BALANCE.good),
+    neutral: num(r.neutral, DEFAULT_BALANCE.neutral),
+    bad: num(r.bad, DEFAULT_BALANCE.bad),
+  }
+}
+
 interface KarmaWalletProviderProps {
   children: ReactNode
 }
@@ -152,7 +170,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
         const parsed: StoredWalletState = JSON.parse(stored)
         setState(prev => ({
           ...prev,
-          balance: parsed.balance,
+          balance: sanitizeBalance(parsed.balance),
           walletMode: parsed.walletMode,
           alignment: parsed.alignment || DEFAULT_ALIGNMENT,
           isInitialized: true,
@@ -280,7 +298,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
           const parsed: StoredWalletState = JSON.parse(stored)
           setState(prev => ({
             ...prev,
-            balance: parsed.balance,
+            balance: sanitizeBalance(parsed.balance),
             walletMode: mode,
             isInitialized: true,
             isOnline: false,

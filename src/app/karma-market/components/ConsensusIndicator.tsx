@@ -25,6 +25,18 @@ export function ConsensusIndicator() {
 
   // Check blockchain connectivity on mount and periodically
   useEffect(() => {
+    // The karma ledger node lives at localhost:8131 on a Neoma machine — it is
+    // never reachable from a public visitor's browser. In production, firing this
+    // fetch only produces a guaranteed-failed cross-origin request plus CSP console
+    // noise on every page view (audit L1). Probe only on localhost (dev); otherwise
+    // show the same graceful "offline" the catch path would have produced, without
+    // the doomed request or the 30s polling interval.
+    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    if (!isLocal) {
+      setConsensus({ mode: 'offline', nodesOnline: 0, totalNodes: 3 })
+      return
+    }
+
     const checkConsensus = async () => {
       try {
         const response = await fetch('http://localhost:8131/health', {

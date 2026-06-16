@@ -29,6 +29,9 @@ interface ExplorationMapProps {
   onEncounter?: () => boolean
   width?: number
   height?: number
+  // Fired if PixiJS/WebGL initialization fails (old GPU, no WebGL, low memory).
+  // The parent should switch to the Canvas2D fallback (ExplorationMapCanvas).
+  onError?: (err: unknown) => void
 }
 
 // ============================================
@@ -90,6 +93,7 @@ export function ExplorationMap({
   onEncounter,
   width: propWidth,
   height: propHeight,
+  onError,
 }: ExplorationMapProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<any>(null)
@@ -138,6 +142,7 @@ export function ExplorationMap({
     let app: any = null
 
     ;(async () => {
+     try {
       // Dynamic import — avoids SSR crash
       const PIXI = await import('pixi.js')
       if (destroyedRef.current) return
@@ -480,6 +485,15 @@ export function ExplorationMap({
       })
 
       setMapReady(true)
+     } catch (err) {
+       // WebGL/Pixi failed to initialize (old GPU, no WebGL, low memory, or a
+       // locked-down environment). Previously this rejected silently and left the
+       // player stuck on "Loading exploration map…" forever. Surface it so the
+       // parent flips to the Canvas2D fallback (ExplorationMapCanvas).
+       console.error('ExplorationMap: PixiJS init failed, signaling fallback:', err)
+       pixiLoadedRef.current = false
+       if (!destroyedRef.current) onError?.(err)
+     }
     })()
 
     return () => {

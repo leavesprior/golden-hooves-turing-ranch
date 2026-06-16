@@ -1790,6 +1790,12 @@ function AdventureContent() {
                       // Nothing materialized — let the player keep walking to arrival.
                       return false
                     }}
+                    onError={() => {
+                      // PixiJS/WebGL failed on this device — switch to the Canvas2D
+                      // fallback so the map stays playable instead of stuck loading.
+                      narratorComment('The shimmering map flickers and settles into a simpler form.', 'observation')
+                      setPixiFailed(true)
+                    }}
                     height={500}
                   />
                 ) : explorationMode && pixiFailed ? (
