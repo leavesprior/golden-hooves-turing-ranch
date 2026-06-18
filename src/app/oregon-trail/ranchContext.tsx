@@ -222,7 +222,18 @@ export function RanchProvider({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem(RANCH_STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved)
-        setState(prev => ({ ...prev, ...parsed }))
+        // Deep-merge the per-type records (2026-06-18 fix): a shallow ...parsed
+        // replaces livestock/livestockHealth wholesale, so an OLD save (before the
+        // donkeys/pigs/emus/sheep + soil were added) drops those keys -> undefined
+        // -> NaN in RanchView. Merge onto the defaults so every key always exists.
+        setState(prev => ({
+          ...prev,
+          ...parsed,
+          livestock: { ...prev.livestock, ...(parsed.livestock || {}) },
+          livestockHealth: { ...prev.livestockHealth, ...(parsed.livestockHealth || {}) },
+          soilMetrics: { ...(parsed.soilMetrics || {}) },
+          ownedParcels: Array.isArray(parsed.ownedParcels) ? parsed.ownedParcels : [],
+        }))
       }
     } catch (e) {
       console.error('[RanchContext] Failed to load saved state:', e)
