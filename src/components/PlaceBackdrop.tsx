@@ -10,7 +10,10 @@ import { useState } from 'react'
 
 const PLACE_ART: Record<string, string> = {
   // --- Where in Time eras (custom-generated) ---
-  forester_trail: 'forester_trail',
+  forester_trail: 'forester_trail', welcome_gate: 'welcome_gate',
+  // --- Town-investigation scene art (2026-06-17) ---
+  sandy_gulch: 'sandy_gulch', harris_ranch: 'harris_ranch', vol_st_george: 'vol_st_george',
+  mh_hotel_leger: 'mh_hotel_leger', sa_courthouse: 'sa_courthouse', ace_angels_hotel: 'ace_angels_hotel',
   // --- Gold Country Explorer ---
   volcano: 'volcano', angels_camp: 'angels_camp', west_point: 'west_point',
   mokelumne_hill: 'mokelumne_hill', san_andreas: 'san_andreas', bobr_ranch: 'bobr_cabin',
