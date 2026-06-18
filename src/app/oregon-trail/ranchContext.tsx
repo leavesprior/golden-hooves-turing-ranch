@@ -726,28 +726,28 @@ export function RanchProvider({ children }: { children: ReactNode }) {
 
   // Get ranch value
   const getRanchValue = useCallback(() => {
-    let value = 0
-
-    // Fence value
-    value += FENCE_TIERS[state.fenceTier].neutralKarmaCost
+    // NaN-proofed (2026-06-18): guard every term so a missing config / stale count
+    // can never produce "Value: NaN" in the header.
+    let value = FENCE_TIERS[state.fenceTier]?.neutralKarmaCost ?? 0
 
     // Livestock value
     for (const [type, count] of Object.entries(state.livestock)) {
-      value += LIVESTOCK_TYPES[type as LivestockType].neutralKarmaCost * count
+      value += (LIVESTOCK_TYPES[type as LivestockType]?.neutralKarmaCost ?? 0) * (Number(count) || 0)
     }
 
     // Products value
     for (const [product, amount] of Object.entries(state.products)) {
+      const amt = Number(amount) || 0
       for (const config of Object.values(LIVESTOCK_TYPES)) {
         const prod = config.produces.find(p => p.name === product)
         if (prod) {
-          value += prod.karmaValue * amount
+          value += prod.karmaValue * amt
           break
         }
       }
     }
 
-    return value
+    return Math.round(value)
   }, [state.fenceTier, state.livestock, state.products])
 
   // Get event log
