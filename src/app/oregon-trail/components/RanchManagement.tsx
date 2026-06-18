@@ -480,8 +480,8 @@ function FieldsPanel() {
                   <button onClick={async () => { await assignParcel(p.id, 'fallow'); flash(`${p.name} left fallow.`) }} className="px-2 py-1 rounded text-[11px] bg-slate-700 hover:bg-amber-700 text-amber-100 border border-amber-600/40">🟫 Fallow</button>
                 </>
               )}
-              {a?.use === 'crop' && a.cropType === 'potatoes' && pigs > 0 && (
-                <button onClick={() => flash(releasePigsOnParcel(p.id).message)} title="The trick: pigs eat the potatoes, till the ground and manure it — leaving the soil richer." className="px-2 py-1 rounded text-[11px] bg-pink-800 hover:bg-pink-700 text-pink-50 border border-pink-500">🐷 Loose the pigs</button>
+              {a?.use === 'crop' && a.cropType === 'potatoes' && ready && pigs > 0 && (
+                <button onClick={() => flash(releasePigsOnParcel(p.id).message)} title="The trick: when the potatoes are ripe, pigs eat them, till the ground and manure it — leaving the soil richer (instead of harvesting)." className="px-2 py-1 rounded text-[11px] bg-pink-800 hover:bg-pink-700 text-pink-50 border border-pink-500">🐷 Loose the pigs</button>
               )}
             </div>
             {plantable.length === 0 && !ready && a?.use !== 'crop' && (

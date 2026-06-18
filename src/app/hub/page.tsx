@@ -131,6 +131,7 @@ export default function HubPage() {
             <Link href="/prologue" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">1. The Prologue {'·'} 600–1500</Link>
             <Link href="/adventure/where-in-time" className="font-pixel border-2 border-indigo-400/60 bg-indigo-900/30 px-3 py-1.5 text-indigo-200 hover:bg-indigo-800/40">2. Where in Time? {'·'} the chase</Link>
             <Link href="/oregon-trail" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">3. The Journey {'·'} 1849</Link>
+            <Link href="/investigations" className="font-pixel border-2 border-indigo-400/60 bg-indigo-900/30 px-3 py-1.5 text-indigo-200 hover:bg-indigo-800/40">{'🔍'} The Tare's Trail {'·'} investigate 10 towns</Link>
           </div>
         </div>
 

@@ -922,19 +922,27 @@ export function RanchProvider({ children }: { children: ReactNode }) {
         return { ok: false, message: `Not ready — ${a.harvestDay - state.gameDay} day(s) to harvest.` }
       }
       const config = CROPS[a.cropType]
-      void earnNeutral(config.harvestValue, `Harvested ${config.name} (field)`)
+      // Soil quality now SCALES the yield (2026-06-18): rich ground pays more, spent
+      // ground pays less. 50 soil = 1.0x, 100 = 1.5x, 0 = 0.5x. This is what makes
+      // the whole ecology matter — building soil (fallow/forage/grazing) pays off.
+      const soilQ = state.soilMetrics[parcelId]?.quality ?? ([...STARTER_PARCELS, ...PURCHASABLE_PARCELS].find(p => p.id === parcelId)?.baseSoil ?? 50)
+      const soilFactor = 0.5 + soilQ / 100
+      const value = Math.max(1, Math.round(config.harvestValue * soilFactor))
+      const feed = config.feedConversion > 0 ? Math.max(1, Math.round(config.feedConversion * soilFactor)) : 0
+      const soilNote = soilFactor >= 1.15 ? ' (rich soil bonus)' : soilFactor <= 0.85 ? ' (tired soil — low yield)' : ''
+      void earnNeutral(value, `Harvested ${config.name} (field)`)
       setState(prev => ({
         ...prev,
-        feedStock: config.feedConversion > 0 ? prev.feedStock + config.feedConversion : prev.feedStock,
+        feedStock: feed > 0 ? prev.feedStock + feed : prev.feedStock,
         parcelAssignments: { ...prev.parcelAssignments, [parcelId]: { use: 'fallow' } },
         eventLog: [
           ...prev.eventLog,
-          { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Harvested ${config.emoji} ${config.name}: +${config.harvestValue}🌮${config.feedConversion > 0 ? `, +${config.feedConversion} feed` : ''}`, type: 'sale' as const },
+          { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Harvested ${config.emoji} ${config.name}: +${value}🌮${feed > 0 ? `, +${feed} feed` : ''}${soilNote}`, type: 'sale' as const },
         ],
       }))
-      return { ok: true, message: `Harvested ${config.name}! +${config.harvestValue}🌮${config.feedConversion > 0 ? ` and +${config.feedConversion} feed` : ''}` }
+      return { ok: true, message: `Harvested ${config.name}! +${value}🌮${feed > 0 ? ` and +${feed} feed` : ''}${soilNote}` }
     },
-    [state.parcelAssignments, state.gameDay, earnNeutral],
+    [state.parcelAssignments, state.gameDay, state.soilMetrics, earnNeutral],
   )
 
   // Soil quality for a field (0-100), seeded from its baseSoil if untouched.
@@ -972,6 +980,10 @@ export function RanchProvider({ children }: { children: ReactNode }) {
     if (!a || a.use !== 'crop' || a.cropType !== 'potatoes') {
       return { ok: false, message: 'Loose pigs onto a POTATO field — that is the trick.' }
     }
+    // Only on a RIPE field (matches the real trick + prevents an infinite replant loop).
+    if (a.harvestDay !== undefined && state.gameDay < a.harvestDay) {
+      return { ok: false, message: `Let the potatoes finish first — ${a.harvestDay - state.gameDay} day(s) to ripe, then loose the pigs.` }
+    }
     const boost = Math.min(35, 8 + pigs * 1.2)
     const pork = Math.max(1, Math.round(pigs * 0.4))
     const feedGain = Math.round(pigs * 0.5)
@@ -988,7 +1000,7 @@ export function RanchProvider({ children }: { children: ReactNode }) {
       }
     })
     return { ok: true, message: `The pigs cleared the potatoes, tilled the ground and left it richer (+${Math.round(boost)} soil), and you gained ${pork} pork.` }
-  }, [state.parcelAssignments, state.livestock.pigs, earnNeutral])
+  }, [state.parcelAssignments, state.livestock.pigs, state.gameDay, state.soilMetrics, earnNeutral])
 
   // Reset ranch
   const resetRanch = useCallback(() => {

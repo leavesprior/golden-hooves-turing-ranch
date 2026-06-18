@@ -7,10 +7,15 @@ import { useState } from 'react'
 // to /hub (the "PLAY THE COMPLETE JOURNEY" hub). "Map" → /explore is the Gold
 // Country TOWN explorer (not character travel) — relabel "Explore" so it isn't
 // mistaken for the travel map.
+// 2026-06-18: the unified /map and the 10 town investigations were orphaned (nav
+// pointed at the old /explore and nothing linked /map). Repoint "Map" -> /map (the
+// canonical state→county→local map, which links into /explore for town detail) and
+// add "Cases" -> /investigations (The Tare's Trail case-board). Closes the congruence loop.
 const navItems = [
   { href: '/', label: '🏠 Home' },
   { href: '/hub', label: '🎮 Play' },
-  { href: '/explore', label: '🗺️ Explore' },
+  { href: '/map', label: '🗺️ Map' },
+  { href: '/investigations', label: '🔍 Cases' },
   { href: '/karma-market', label: '🏪 Market' },
   { href: '/rentals', label: '🏨 Stay' },
   { href: '/leaderboard', label: '🏆 Ranks' },
