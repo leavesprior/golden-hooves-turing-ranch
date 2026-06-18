@@ -22,6 +22,7 @@ import {
   getClueForAttraction,
   type TownMystery,
 } from './data/townMysteries'
+import { hasInvestigation } from '@/lib/townInvestigations'
 
 // ============================================
 // TOWN & ATTRACTION DATA
@@ -1029,9 +1030,14 @@ function TownDrawer({
         {/* Header */}
         <div className="px-4 pb-4 border-b border-slate-700">
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <h2 className="font-[var(--font-pixel)] text-amber-200 text-lg">{town.name}</h2>
               <p className="text-amber-500 text-xs italic">{town.tagline}</p>
+              {hasInvestigation(town.id) && (
+                <Link href={`/town/${town.id}`} className="mt-2 inline-block rounded border-2 border-indigo-400/60 bg-indigo-900/40 px-2 py-1 text-[10px] text-indigo-100 transition-colors hover:bg-indigo-800/60">
+                  🔍 Investigate {town.name} — a Where-in-Time case ▸
+                </Link>
+              )}
             </div>
             <button
               onClick={onClose}

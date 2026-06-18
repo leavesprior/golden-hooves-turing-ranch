@@ -65,12 +65,17 @@ def _post(path, obj):
 def _get(path):
     return urllib.request.urlopen(COMFY + path, timeout=600).read()
 
-def pixelize(png_bytes, out_path, small=(160, 120), colors=64):
+def pixelize(png_bytes, out_path, small=(320, 240), colors=96):
+    # Higher-res "Preset A" (2026-06-17, Leif: "more pixels / better quality"):
+    # 320x240 intermediate = 4x the distinct pixels of the old 160x120; 96-color
+    # palette (was 64); BOX averaging (cleaner downscale than BILINEAR); NEAREST
+    # up to 640x480 => 2px blocks. More detail, still crisp pixel art (measured
+    # blockiness ~0.81, far above the 0.40 style-gate floor; palette far under 512).
     from PIL import Image
     img = Image.open(io.BytesIO(png_bytes)).convert("RGB")
-    small_img = img.resize(small, Image.BILINEAR)                  # average down
+    small_img = img.resize(small, Image.BOX)                       # average down
     q = small_img.quantize(colors=colors, method=Image.MEDIANCUT)  # tight palette
-    final = q.convert("RGB").resize((640, 480), Image.NEAREST)     # crisp 4x blocks
+    final = q.convert("RGB").resize((640, 480), Image.NEAREST)     # crisp 2px blocks
     pathlib.Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     final.save(out_path)
 

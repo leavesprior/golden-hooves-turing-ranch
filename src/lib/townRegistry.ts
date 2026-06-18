@@ -55,7 +55,8 @@ export const TOWN_REGISTRY: CanonicalTown[] = [
 
   // --- Calaveras County ---
   { id: 'angels_camp', name: 'Angels Camp', county: 'Calaveras', lat: 38.0684, lng: -120.5394, artId: 'angels_camp',
-    sources: { explore: 'angels_camp', oregon: 'angels_camp', chapter: ['ch3_angels_camp', 'ch3_jumping_frog'] } },
+    // 'angels_camp_expanded' is /explore's expanded-variant id for the same place — aliased so it resolves.
+    sources: { explore: 'angels_camp', oregon: 'angels_camp', chapter: ['ch3_angels_camp', 'ch3_jumping_frog', 'angels_camp_expanded'] } },
   { id: 'murphys', name: 'Murphys', county: 'Calaveras', lat: 38.1377, lng: -120.4613, artId: 'murphys',
     sources: { oregon: 'murphys', chapter: ['ch3_murphys'] } },
   { id: 'san_andreas', name: 'San Andreas', county: 'Calaveras', lat: 38.1960, lng: -120.6807, artId: 'san_andreas',
