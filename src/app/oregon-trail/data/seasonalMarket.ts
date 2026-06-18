@@ -196,6 +196,35 @@ export interface CropPlot {
   harvested: boolean
 }
 
+// ---------------------------------------------------------------------------
+// PARCELS / FIELDS (2026-06-17) — the spatial "castle builder" layer Leif asked
+// for: the homestead has named fields; each is assigned, per season, to a CROP,
+// to LIVESTOCK grazing, or left FALLOW (furlough) to rest the soil. Reuses the
+// CROPS config above for cost / growth / yield via the ranch context.
+// ---------------------------------------------------------------------------
+export interface Parcel {
+  id: string
+  name: string
+  acres: number
+  /** flavor: what the field is best suited to */
+  note: string
+}
+
+export type ParcelUse = 'crop' | 'livestock' | 'fallow'
+
+export interface ParcelAssignment {
+  use: ParcelUse
+  cropType?: CropType
+  plantedDay?: number
+  harvestDay?: number
+}
+
+export const STARTER_PARCELS: Parcel[] = [
+  { id: 'meadow', name: 'The Meadow', acres: 8, note: 'Open and sunny — good grain ground.' },
+  { id: 'creek_field', name: 'Creek Field', acres: 6, note: 'Rich bottom soil down by the water.' },
+  { id: 'south_slope', name: 'South Slope', acres: 5, note: 'Dry and rocky — best grazed or rested.' },
+]
+
 /**
  * Get the effective price multiplier for a category, combining
  * seasonal baseline and any active market event.

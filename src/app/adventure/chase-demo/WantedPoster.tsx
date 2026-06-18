@@ -14,9 +14,23 @@ interface WantedPosterProps {
   totalTraits: number
   /** When true, render the completed (cornered) flourish. */
   complete?: boolean
+  /** Villain on the poster — defaults to Vane for backward compatibility. */
+  villainName?: string
+  villainDescription?: string
+  villainCharge?: string
+  /** Poster portrait path; per-case art lands here when drawn. */
+  posterArt?: string
 }
 
-export function WantedPoster({ traits, totalTraits, complete }: WantedPosterProps) {
+export function WantedPoster({
+  traits,
+  totalTraits,
+  complete,
+  villainName = VANE.name,
+  villainDescription = VANE.baseDescription,
+  villainCharge = VANE.charge,
+  posterArt = '/chase/vane-poster.png',
+}: WantedPosterProps) {
   return (
     <div
       className="relative border-4 border-[var(--pixel-earth-dark)] bg-[#e9dcc0] text-[#3b2a1f] p-3 sm:p-4 shadow-[4px_4px_0_0_rgba(0,0,0,0.45)]"
@@ -40,8 +54,8 @@ export function WantedPoster({ traits, totalTraits, complete }: WantedPosterProp
           lands; until then a simple pixel silhouette in parchment ink. */}
       <div className="mx-auto my-3 h-24 w-24 overflow-hidden border-2 border-[var(--pixel-earth-dark)] bg-[#d8c7a2]">
         <ChaseArt
-          src="/chase/vane-poster.png"
-          alt={VANE.name}
+          src={posterArt}
+          alt={villainName}
           className="h-full w-full object-cover"
           fallback={
             <div className="flex h-full w-full items-center justify-center">
@@ -62,10 +76,10 @@ export function WantedPoster({ traits, totalTraits, complete }: WantedPosterProp
       </div>
 
       <p className="text-center font-[var(--font-pixel)] text-[11px] sm:text-[12px] leading-relaxed text-[#3b2a1f]">
-        {VANE.name}
+        {villainName}
       </p>
       <p className="mt-2 font-[var(--font-pixel)] text-[10px] sm:text-[11px] leading-relaxed text-[#5c3d2e]">
-        {VANE.baseDescription}
+        {villainDescription}
       </p>
 
       <div className="my-3 border-t-2 border-dashed border-[var(--pixel-earth-dark)]/50" />
@@ -98,7 +112,7 @@ export function WantedPoster({ traits, totalTraits, complete }: WantedPosterProp
 
       <div className="my-3 border-t-2 border-dashed border-[var(--pixel-earth-dark)]/50" />
       <p className="font-[var(--font-pixel)] text-[9px] sm:text-[10px] leading-relaxed text-[#5c3d2e]">
-        CHARGE: {VANE.charge}
+        CHARGE: {villainCharge}
       </p>
       <p className="mt-2 text-center font-[var(--font-pixel)] text-[10px] sm:text-[11px] text-[#7a1f10]">
         {traits.length} of {totalTraits} traits confirmed

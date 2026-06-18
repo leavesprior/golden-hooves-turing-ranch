@@ -54,30 +54,65 @@ export function readCarriedBoon(): CarriedBoon {
 }
 
 /**
- * Write ONE verdict event to the shared ledger at the end of the chase. The
- * caller guarantees this fires once (the verdict is set once). Mercy nudges GOOD
- * karma — making the verdict's "kindness, witnessed, comes back to you"
- * mechanically true; the other sentences are lawful/neutral. Best-effort.
+ * The earned reward from a verdict — surfaced to the player on the verdict screen
+ * (Bug fix 2026-06-16: capture used to show NO reward). Karma is the only thing
+ * minted here, and only in EARN-ONLY directions: mercy earns GOOD karma; gallows/
+ * prison earn NEUTRAL "lawman's standing". A real booking discount stays SERVER-
+ * minted (signed grant) — the `bountyNote` tells the player it's recorded, not
+ * client-minted, so capturing can never farm a forgeable reward.
  */
-export function recordVerdict(kind: VerdictKind): void {
+export interface VerdictReward {
+  karmaType: 'good' | 'neutral'
+  karmaAmount: number
+  /** Short label for the karma earned, shown on the verdict panel. */
+  karmaLabel: string
+  /** The server-gated bounty acknowledgment (no value minted client-side). */
+  bountyNote: string
+}
+
+/**
+ * Write ONE verdict event to the shared ledger at the end of the chase and return
+ * the (visible) reward earned. The caller guarantees this fires once (the verdict
+ * is set once). Mercy nudges GOOD karma — making the verdict's "kindness,
+ * witnessed, comes back to you" mechanically true; the other sentences are
+ * lawful/neutral. Best-effort: a ledger error never breaks the chase or the reward.
+ */
+export function recordVerdict(kind: VerdictKind, villainName: string): VerdictReward {
+  const reward: VerdictReward =
+    kind === 'mercy'
+      ? {
+          karmaType: 'good',
+          karmaAmount: 3,
+          karmaLabel: '+3 GOOD KARMA — a good name that travels the Trail',
+          bountyNote:
+            'The bounty for this capture is recorded against your name. Real rewards (an early-booking discount) are issued by the ranch with a signed grant — present your record when you book.',
+        }
+      : {
+          karmaType: 'neutral',
+          karmaAmount: 1,
+          karmaLabel: "+1 LAWMAN'S STANDING — the counties remember who runs them down",
+          bountyNote:
+            'The bounty for this capture is recorded against your name. Real rewards (an early-booking discount) are issued by the ranch with a signed grant — present your record when you book.',
+        }
   try {
     CrossGameStorage.logEvent(
       'rpg_adventure',
       'bounty_completed',
-      `Caught Cyrus Vane "the Tare" — verdict: ${kind}`,
+      `Caught ${villainName} — verdict: ${kind}`,
     )
     if (kind === 'mercy') {
-      CrossGameStorage.logEvent('rpg_adventure', 'generous_sharing', 'Spared the Tare; made the wronged whole')
-      CrossGameStorage.syncKarmaToPool('rpg_adventure', 'good', 3, 'Showed mercy to Cyrus Vane')
+      CrossGameStorage.logEvent('rpg_adventure', 'generous_sharing', `Spared ${villainName}; made the wronged whole`)
+      CrossGameStorage.syncKarmaToPool('rpg_adventure', 'good', 3, `Showed mercy to ${villainName}`)
     } else {
       CrossGameStorage.syncKarmaToPool(
         'rpg_adventure',
         'neutral',
         1,
-        kind === 'gallows' ? 'Hanged the Tare — hard justice' : 'Sent the Tare to prison',
+        kind === 'gallows' ? `Hanged ${villainName} — hard justice` : `Sent ${villainName} to prison`,
       )
     }
   } catch {
     /* ledger write is best-effort; never break the chase */
   }
+  return reward
 }

@@ -34,6 +34,10 @@ import {
   type MarketEvent,
   type CropType,
   type CropPlot,
+  STARTER_PARCELS,
+  type Parcel,
+  type ParcelUse,
+  type ParcelAssignment,
 } from './data/seasonalMarket'
 import { useKarmaWallet } from './karmaWalletContext'
 
@@ -81,6 +85,8 @@ export interface RanchState {
 
   // Crops
   cropPlots: CropPlot[]
+  /** Spatial field layer: parcelId -> its current-season assignment. */
+  parcelAssignments: Record<string, ParcelAssignment>
 
   // Statistics
   totalLivestockRaised: number
@@ -116,6 +122,7 @@ const defaultRanchState: RanchState = {
   marketEventEndDay: 0,
   lastSeasonChecked: null,
   cropPlots: [],
+  parcelAssignments: {},
   totalLivestockRaised: 0,
   totalProductsSold: 0,
   totalKarmaEarned: 0,
@@ -166,6 +173,11 @@ interface RanchContextValue {
   harvestCrops: () => { harvested: number; feedGained: number; karmaGained: number; medicineGained: number }
   getCropPlots: () => CropPlot[]
   getPlantableCrops: () => CropType[]
+  // Parcels / fields (2026-06-17)
+  getParcels: () => Parcel[]
+  getParcelAssignment: (parcelId: string) => ParcelAssignment | undefined
+  assignParcel: (parcelId: string, use: ParcelUse, cropType?: CropType) => Promise<boolean>
+  harvestParcel: (parcelId: string) => { ok: boolean; message: string }
 
   // Information
   getRanchValue: () => number
@@ -804,6 +816,80 @@ export function RanchProvider({ children }: { children: ReactNode }) {
     return (Object.keys(CROPS) as CropType[]).filter(ct => canPlantCrop(ct, season))
   }, [state.gameDay])
 
+  // --- PARCELS / FIELDS (2026-06-17) -----------------------------------------
+  const getParcels = useCallback((): Parcel[] => STARTER_PARCELS, [])
+  const getParcelAssignment = useCallback(
+    (parcelId: string): ParcelAssignment | undefined => state.parcelAssignments[parcelId],
+    [state.parcelAssignments],
+  )
+
+  // Assign a field, for this season, to a crop / livestock grazing / fallow.
+  // Planting a crop charges its plantCost (neutral karma) and reuses CROPS for
+  // growth/harvest timing. Grazing + fallow are free.
+  const assignParcel = useCallback(
+    async (parcelId: string, use: ParcelUse, cropType?: CropType): Promise<boolean> => {
+      if (use === 'crop') {
+        if (!cropType) return false
+        const season = getCurrentSeason(getDayOfYear(state.gameDay))
+        if (!canPlantCrop(cropType, season)) return false
+        const config = CROPS[cropType]
+        if (!canAfford('neutral', config.plantCost)) return false
+        const ok = await spendNeutral(config.plantCost, `Planted ${config.name} (field)`)
+        if (!ok) return false
+        setState(prev => ({
+          ...prev,
+          parcelAssignments: {
+            ...prev.parcelAssignments,
+            [parcelId]: { use: 'crop', cropType, plantedDay: prev.gameDay, harvestDay: prev.gameDay + config.growthDays },
+          },
+          eventLog: [
+            ...prev.eventLog,
+            { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Planted ${config.emoji} ${config.name} in a field`, type: 'purchase' as const },
+          ],
+        }))
+        return true
+      }
+      // livestock grazing or fallow — free
+      setState(prev => ({
+        ...prev,
+        parcelAssignments: { ...prev.parcelAssignments, [parcelId]: { use } },
+        eventLog: [
+          ...prev.eventLog,
+          { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: use === 'livestock' ? 'Set a field to grazing' : 'Left a field fallow to rest the soil', type: 'event' as const },
+        ],
+      }))
+      return true
+    },
+    [state.gameDay, canAfford, spendNeutral],
+  )
+
+  // Harvest a field's ready crop: pays karma + adds feed (mirrors harvestCrops),
+  // then leaves the field fallow.
+  const harvestParcel = useCallback(
+    (parcelId: string): { ok: boolean; message: string } => {
+      const a = state.parcelAssignments[parcelId]
+      if (!a || a.use !== 'crop' || !a.cropType || a.harvestDay === undefined) {
+        return { ok: false, message: 'Nothing to harvest in this field.' }
+      }
+      if (state.gameDay < a.harvestDay) {
+        return { ok: false, message: `Not ready — ${a.harvestDay - state.gameDay} day(s) to harvest.` }
+      }
+      const config = CROPS[a.cropType]
+      void earnNeutral(config.harvestValue, `Harvested ${config.name} (field)`)
+      setState(prev => ({
+        ...prev,
+        feedStock: config.feedConversion > 0 ? prev.feedStock + config.feedConversion : prev.feedStock,
+        parcelAssignments: { ...prev.parcelAssignments, [parcelId]: { use: 'fallow' } },
+        eventLog: [
+          ...prev.eventLog,
+          { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Harvested ${config.emoji} ${config.name}: +${config.harvestValue}🌮${config.feedConversion > 0 ? `, +${config.feedConversion} feed` : ''}`, type: 'sale' as const },
+        ],
+      }))
+      return { ok: true, message: `Harvested ${config.name}! +${config.harvestValue}🌮${config.feedConversion > 0 ? ` and +${config.feedConversion} feed` : ''}` }
+    },
+    [state.parcelAssignments, state.gameDay, earnNeutral],
+  )
+
   // Reset ranch
   const resetRanch = useCallback(() => {
     setState(defaultRanchState)
@@ -841,6 +927,10 @@ export function RanchProvider({ children }: { children: ReactNode }) {
     harvestCrops,
     getCropPlots,
     getPlantableCrops,
+    getParcels,
+    getParcelAssignment,
+    assignParcel,
+    harvestParcel,
     getRanchValue,
     getEventLog,
     saveRanch,

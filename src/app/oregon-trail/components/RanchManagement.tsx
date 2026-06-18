@@ -8,12 +8,13 @@ import { FenceUpgradePanel } from './FenceUpgradePanel'
 import { LivestockPanel } from './LivestockPanel'
 import { SeasonBar } from './SeasonBar'
 import { LIVESTOCK_TYPES, FEED_TYPES, type LivestockType, type FeedType, type FenceConfig } from '../data/ranchConfig'
+import { CROPS } from '../data/seasonalMarket'
 
 interface RanchManagementProps {
   onClose: () => void
 }
 
-type Tab = 'overview' | 'livestock' | 'infrastructure' | 'market'
+type Tab = 'overview' | 'livestock' | 'fields' | 'infrastructure' | 'market'
 
 export function RanchManagement({ onClose }: RanchManagementProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
@@ -41,6 +42,7 @@ export function RanchManagement({ onClose }: RanchManagementProps) {
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '🏠' },
     { id: 'livestock', label: 'Livestock', icon: '🐄' },
+    { id: 'fields', label: 'Fields', icon: '🌱' },
     { id: 'infrastructure', label: 'Build', icon: '🔨' },
     { id: 'market', label: 'Market', icon: '💰' },
   ]
@@ -102,6 +104,10 @@ export function RanchManagement({ onClose }: RanchManagementProps) {
 
           {activeTab === 'livestock' && (
             <LivestockPanel />
+          )}
+
+          {activeTab === 'fields' && (
+            <FieldsPanel />
           )}
 
           {activeTab === 'infrastructure' && (
@@ -393,6 +399,77 @@ function StatCard({
       {subtext && (
         <div className="text-gray-500 text-xs mt-1 truncate">{subtext}</div>
       )}
+    </div>
+  )
+}
+
+// FIELDS PANEL (2026-06-17) — the parcel/season "castle builder" layer. See each
+// field; assign it, this season, to a crop / livestock grazing / fallow; harvest
+// when ready. Reuses the existing crop engine (cost/growth/yield) via the context.
+function FieldsPanel() {
+  const { getParcels, getParcelAssignment, assignParcel, harvestParcel, getPlantableCrops, getCurrentSeason, state } = useRanch()
+  const [msg, setMsg] = useState<string | null>(null)
+  const parcels = getParcels()
+  const plantable = getPlantableCrops()
+  const season = getCurrentSeason()
+  const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(null), 3500) }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-amber-200 text-sm font-bold">Your Fields</p>
+        <span className="text-amber-400/70 text-xs capitalize">{season} · assign each field this season</span>
+      </div>
+      <p className="text-gray-400 text-xs">Plant a crop (costs karma, grows over the season), set a field to grazing, or leave it fallow to rest. Harvest pays karma + feed.</p>
+      {msg && <div className="text-amber-200 text-xs bg-amber-900/40 border border-amber-600/40 rounded p-2">{msg}</div>}
+
+      {parcels.map(p => {
+        const a = getParcelAssignment(p.id)
+        const ready = a?.use === 'crop' && a.harvestDay !== undefined && state.gameDay >= a.harvestDay
+        const status = a?.use === 'crop' && a.cropType
+          ? (ready
+              ? `${CROPS[a.cropType].emoji} ${CROPS[a.cropType].name} — READY TO HARVEST`
+              : `${CROPS[a.cropType].emoji} ${CROPS[a.cropType].name} — ${(a.harvestDay! - state.gameDay)} day(s) to harvest`)
+          : a?.use === 'livestock' ? '🐄 Grazing'
+          : a?.use === 'fallow' ? '🟫 Fallow (resting the soil)'
+          : '— unassigned —'
+        return (
+          <div key={p.id} className="border-2 border-amber-700/50 bg-amber-950/20 rounded-lg p-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-amber-200 text-sm font-bold">🌾 {p.name} <span className="text-amber-500/70 text-[10px] font-normal">({p.acres} acres)</span></span>
+              <span className="text-amber-500/60 text-[10px] italic">{p.note}</span>
+            </div>
+            <p className="text-amber-100 text-xs mt-1">{status}</p>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {ready ? (
+                <button
+                  onClick={() => flash(harvestParcel(p.id).message)}
+                  className="px-2 py-1 rounded text-xs bg-green-700 hover:bg-green-600 text-green-50 border border-green-500"
+                >
+                  🧺 Harvest
+                </button>
+              ) : (
+                <>
+                  {plantable.map(ct => (
+                    <button
+                      key={ct}
+                      onClick={async () => { const ok = await assignParcel(p.id, 'crop', ct); flash(ok ? `Planted ${CROPS[ct].name} in ${p.name}.` : `Can't plant ${CROPS[ct].name} — need ${CROPS[ct].plantCost}🌮 (and it's a ${CROPS[ct].plantSeasons.join('/')} crop).`) }}
+                      className="px-2 py-1 rounded text-[11px] bg-slate-700 hover:bg-amber-700 text-amber-100 border border-amber-600/40"
+                    >
+                      {CROPS[ct].emoji} {CROPS[ct].name} · {CROPS[ct].plantCost}🌮
+                    </button>
+                  ))}
+                  <button onClick={async () => { await assignParcel(p.id, 'livestock'); flash(`${p.name} set to grazing.`) }} className="px-2 py-1 rounded text-[11px] bg-slate-700 hover:bg-amber-700 text-amber-100 border border-amber-600/40">🐄 Graze</button>
+                  <button onClick={async () => { await assignParcel(p.id, 'fallow'); flash(`${p.name} left fallow.`) }} className="px-2 py-1 rounded text-[11px] bg-slate-700 hover:bg-amber-700 text-amber-100 border border-amber-600/40">🟫 Fallow</button>
+                </>
+              )}
+            </div>
+            {plantable.length === 0 && !ready && a?.use !== 'crop' && (
+              <p className="text-amber-500/60 text-[10px] mt-1 italic">No crops can be planted this season — graze or leave fallow.</p>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

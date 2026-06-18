@@ -1113,6 +1113,10 @@ function TownDrawer({
         {/* Mystery Panel */}
         {mystery && (
           <div className="mx-4 mt-3 p-3 bg-slate-800 border-2 border-indigo-500/50 rounded-lg">
+            {/* 2026-06-17: lead the CASE with the real place picture (the Where-in-Time
+                "#2" hallmark Leif praised) so each investigation is picture-led, not
+                text-only. Graceful — renders nothing if a town has no art. */}
+            <PlaceBackdrop id={town.id} className="mb-3 h-28 rounded-md border border-indigo-500/40 object-top" />
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="text-lg">{mysterySolved ? '✅' : '🔎'}</span>
@@ -1152,18 +1156,32 @@ function TownDrawer({
               </div>
             </div>
 
-            {/* Found Clues */}
+            {/* CASE FILE — evidence panel (2026-06-17 shell upgrade). Each clue is
+                tagged with where it was found (its source attraction = the diegetic
+                "witness/place"), and key evidence is marked. Fills as you investigate
+                — the Where-in-Time evidence-panel feel, in pixel-gold parchment. */}
             {mysteryProgress && mysteryProgress.cluesFound.length > 0 && !mysterySolved && (
-              <div className="space-y-1 mb-2">
-                {mystery.clues
-                  .filter(c => mysteryProgress.cluesFound.includes(c.id))
-                  .sort((a, b) => a.order - b.order)
-                  .map(clue => (
-                    <div key={clue.id} className="flex items-start gap-2 text-xs p-1.5 bg-indigo-900/30 rounded">
-                      <span className="text-indigo-400 mt-0.5">📜</span>
-                      <p className="text-indigo-200">{clue.text}</p>
-                    </div>
-                  ))}
+              <div className="mb-3 border-2 border-amber-700/50 bg-amber-950/20 rounded-md p-2">
+                <p className="font-[var(--font-pixel)] text-amber-300 text-[10px] tracking-widest mb-2">
+                  📁 CASE FILE — {mysteryProgress.cluesFound.length}/{mystery.clues.length} GATHERED
+                </p>
+                <ul className="space-y-2">
+                  {mystery.clues
+                    .filter(c => mysteryProgress.cluesFound.includes(c.id))
+                    .sort((a, b) => a.order - b.order)
+                    .map(clue => {
+                      const src = [...(town.attractions || []), ...(town.secretAttractions || [])]
+                        .find(a => a.id === clue.attractionId)
+                      return (
+                        <li key={clue.id} className="border-l-2 border-amber-500/60 pl-2">
+                          <p className="text-amber-100 text-xs leading-relaxed">{clue.text}</p>
+                          <p className="text-amber-400/70 text-[10px] italic mt-0.5">
+                            — found at {src?.name ?? 'the trail'}{clue.required ? ' · key evidence' : ''}
+                          </p>
+                        </li>
+                      )
+                    })}
+                </ul>
               </div>
             )}
 

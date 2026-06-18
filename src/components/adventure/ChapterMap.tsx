@@ -118,7 +118,12 @@ export function ChapterMap({
       onVisitLocation(loc.id)
       return
     }
-    if (isAdjacentToCurrent(loc.id) && discoveredSet.has(loc.id)) {
+    // 2026-06-17 (Leif's call): PERMISSIVE travel — you can travel to ANY town
+    // you've already discovered, not just an adjacent one. Previously the MAP
+    // view was adjacency-gated while the EXPLORE view allowed any discovered
+    // town, so the same trip "worked" in one view but not the other. Both now
+    // allow discovered-town travel; only undiscovered towns must be scouted.
+    if (discoveredSet.has(loc.id)) {
       const access = canAccessLocation(loc, factionReps)
       if (access.accessible) {
         setSelectedId(loc.id)
@@ -129,13 +134,7 @@ export function ChapterMap({
         : `${loc.name} won't let you in just now.`)
       return
     }
-    // Click was not on current, not on a reachable destination — explain why
-    // so the player doesn't read silence as "the game is broken."
-    if (!discoveredSet.has(loc.id)) {
-      onClickHint?.(`That trail hasn't been mapped yet. Scout it from somewhere closer.`)
-      return
-    }
-    onClickHint?.(`${loc.name} is too far. Travel to a connected location first.`)
+    onClickHint?.(`That trail hasn't been mapped yet. Scout it from somewhere closer.`)
   }
 
   const handleTravel = () => {

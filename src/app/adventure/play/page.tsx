@@ -794,7 +794,12 @@ function AdventureContent() {
   const [travelDestination, setTravelDestination] = useState<string | null>(null)
   const [showCamp, setShowCamp] = useState(false)
   const [activeConfrontation, setActiveConfrontation] = useState<ConfrontationEnemy | null>(null)
-  const [explorationMode, setExplorationMode] = useState(true)
+  // 2026-06-17: default to the working SVG node map. The free-roam (Pixi) EXPLORE
+  // view has movement bugs (WASD nulls the travel target; the map remounts the
+  // player home mid-walk) — the "movement under explore often fails" report. Until
+  // the unified state→county→local map lands, the reliable map is the default; the
+  // free-roam stays reachable via the toggle but is no longer the first thing seen.
+  const [explorationMode, setExplorationMode] = useState(false)
   const [pixiFailed, setPixiFailed] = useState(false)
   const [showClueGameUnlock, setShowClueGameUnlock] = useState(false)
   // Authored dialogue tree currently open (NPCs with trees), and the quest journal

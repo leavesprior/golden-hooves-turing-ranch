@@ -187,6 +187,23 @@ export default function AdventurePage() {
   const [karmaAlignment, setKarmaAlignment] = useState<AlignmentPosition | null>(null)
   const [karmaImported, setKarmaImported] = useState(false)
 
+  // 2026-06-17 fix: the preview chapter list was hardcoded all-🔒, so chapters
+  // never appeared to unlock. Read the LIVE game progress (bobr_adventure_state
+  // .chapter, the key /adventure/play actually writes) so completing a chapter
+  // unlocks the next, and a created character unlocks chapter 1. (The old code
+  // gated on an RPGProvider `session` the live game never creates.)
+  const [liveChapter, setLiveChapter] = useState(0)
+  useEffect(() => {
+    try {
+      const hasChar = !!localStorage.getItem('bobr_ot_character')
+      const raw = localStorage.getItem('bobr_adventure_state')
+      const ch = raw ? (JSON.parse(raw).chapter || 0) : 0
+      setLiveChapter(Math.max(ch, hasChar ? 1 : 0))
+    } catch {
+      /* default 0 — everything locked until a game/character exists */
+    }
+  }, [])
+
   useEffect(() => {
     const karmaState = KarmaStorage.load()
     if (karmaState && (karmaState.alignment.lawfulChaotic !== 0 || karmaState.alignment.goodEvil !== 0)) {
@@ -663,7 +680,15 @@ export default function AdventurePage() {
                           {chapter.title}
                         </span>
                       </div>
-                      <span className="text-lg">🔒</span>
+                      <span className="text-lg" title={
+                        chapter.id < liveChapter ? 'Completed'
+                          : chapter.id === liveChapter ? 'Current chapter'
+                          : 'Locked — reach it by playing'
+                      }>
+                        {chapter.id < liveChapter ? '✅'
+                          : chapter.id === liveChapter ? '▶️'
+                          : '🔒'}
+                      </span>
                     </div>
                   </div>
                 ))}
