@@ -35,6 +35,7 @@ import {
   type CropType,
   type CropPlot,
   STARTER_PARCELS,
+  PURCHASABLE_PARCELS,
   type Parcel,
   type ParcelUse,
   type ParcelAssignment,
@@ -87,6 +88,11 @@ export interface RanchState {
   cropPlots: CropPlot[]
   /** Spatial field layer: parcelId -> its current-season assignment. */
   parcelAssignments: Record<string, ParcelAssignment>
+  /** Per-parcel soil quality 0-100 (2026-06-17 ecology). Seeded from each
+   *  parcel's baseSoil; rises with grazing/fallow/forage, falls with row crops. */
+  soilMetrics: Record<string, { quality: number }>
+  /** Ids of nearby parcels the player has bought (beyond the 3 starter fields). */
+  ownedParcels: string[]
 
   // Statistics
   totalLivestockRaised: number
@@ -105,12 +111,20 @@ const defaultRanchState: RanchState = {
     chickens: 0,
     horses: 0,
     goats: 0,
+    donkeys: 0,
+    pigs: 0,
+    emus: 0,
+    sheep: 0,
   },
   livestockHealth: {
     cattle: 100,
     chickens: 100,
     horses: 100,
     goats: 100,
+    donkeys: 100,
+    pigs: 100,
+    emus: 100,
+    sheep: 100,
   },
   feedStock: 0,
   feedType: 'hay',
@@ -123,6 +137,8 @@ const defaultRanchState: RanchState = {
   lastSeasonChecked: null,
   cropPlots: [],
   parcelAssignments: {},
+  soilMetrics: {},
+  ownedParcels: [],
   totalLivestockRaised: 0,
   totalProductsSold: 0,
   totalKarmaEarned: 0,
@@ -178,6 +194,10 @@ interface RanchContextValue {
   getParcelAssignment: (parcelId: string) => ParcelAssignment | undefined
   assignParcel: (parcelId: string, use: ParcelUse, cropType?: CropType) => Promise<boolean>
   harvestParcel: (parcelId: string) => { ok: boolean; message: string }
+  // Soil + land expansion + the pig-potato trick (2026-06-17 ecology)
+  getSoilMetrics: (parcelId: string) => { quality: number }
+  buyParcel: (parcelId: string) => Promise<boolean>
+  releasePigsOnParcel: (parcelId: string) => { ok: boolean; message: string }
 
   // Information
   getRanchValue: () => number
@@ -527,6 +547,25 @@ export function RanchProvider({ children }: { children: ReactNode }) {
           newState.products[product] = (newState.products[product] || 0) + amount
         }
 
+        // Soil ecology (2026-06-17): each field's soil rises or falls with its
+        // use today. Grazing animals manure it (pigs/emus most), fallow and the
+        // forage legume build it, row crops mine it. Seeded from baseSoil.
+        newState.soilMetrics = { ...newState.soilMetrics }
+        const ownedSet = new Set(newState.ownedParcels)
+        const soilParcels = [...STARTER_PARCELS, ...PURCHASABLE_PARCELS.filter(p => ownedSet.has(p.id))]
+        let herdSoil = 0
+        for (const lt of Object.keys(newState.livestock) as LivestockType[]) {
+          herdSoil += newState.livestock[lt] * (LIVESTOCK_TYPES[lt].soilEffect ?? 0.2)
+        }
+        for (const parcel of soilParcels) {
+          const cur = newState.soilMetrics[parcel.id]?.quality ?? parcel.baseSoil
+          const a = newState.parcelAssignments[parcel.id]
+          let delta = 0.3 // default: resting / fallow restores
+          if (a?.use === 'livestock') delta = Math.min(1.5, herdSoil * 0.03)
+          else if (a?.use === 'crop' && a.cropType) delta = CROPS[a.cropType].soilPerDay ?? -0.1
+          newState.soilMetrics[parcel.id] = { quality: Math.max(0, Math.min(100, cur + delta)) }
+        }
+
         // Check for market events at season change
         if (dayOfYear % 90 === 1) {
           const newSeason = getCurrentSeason(dayOfYear)
@@ -604,10 +643,15 @@ export function RanchProvider({ children }: { children: ReactNode }) {
             if (event.seasonRestriction && !event.seasonRestriction.includes(season)) continue
             if (Math.random() > event.chance) continue
 
-            // Check predator resistance
-            if (event.effect.livestockLoss && Math.random() < fenceConfig.predatorResistance) {
-              continue // Fence prevented the event
+            // Check predator resistance — donkeys guard the herd, adding to the
+            // fence's effective resistance (2026-06-17). And goats/sheep keep the
+            // fine fuel down (firebreak), softening any loss that does land.
+            const donkeyGuard = Math.min(0.55, (newState.livestock.donkeys || 0) * 0.12)
+            const effResist = Math.min(0.98, fenceConfig.predatorResistance + donkeyGuard)
+            if (event.effect.livestockLoss && Math.random() < effResist) {
+              continue // fence + donkeys prevented the loss
             }
+            const firebreak = ((newState.livestock.goats || 0) + (newState.livestock.sheep || 0)) > 0 ? 0.6 : 1
 
             // Apply event
             if (event.effect.livestockLoss) {
@@ -615,17 +659,17 @@ export function RanchProvider({ children }: { children: ReactNode }) {
               if (type === 'any') {
                 for (const lt of Object.keys(newState.livestock) as LivestockType[]) {
                   if (newState.livestock[lt] > 0) {
-                    const loss = count === 'percentage'
+                    const base = count === 'percentage'
                       ? Math.ceil(newState.livestock[lt] * amount / 100)
                       : Math.min(amount, newState.livestock[lt])
-                    newState.livestock[lt] -= loss
+                    newState.livestock[lt] -= Math.min(newState.livestock[lt], Math.ceil(base * firebreak))
                   }
                 }
               } else {
-                const loss = count === 'percentage'
+                const base = count === 'percentage'
                   ? Math.ceil(newState.livestock[type] * amount / 100)
                   : Math.min(amount, newState.livestock[type])
-                newState.livestock[type] -= loss
+                newState.livestock[type] -= Math.min(newState.livestock[type], Math.ceil(base * firebreak))
               }
             }
 
@@ -817,7 +861,10 @@ export function RanchProvider({ children }: { children: ReactNode }) {
   }, [state.gameDay])
 
   // --- PARCELS / FIELDS (2026-06-17) -----------------------------------------
-  const getParcels = useCallback((): Parcel[] => STARTER_PARCELS, [])
+  const getParcels = useCallback(
+    (): Parcel[] => [...STARTER_PARCELS, ...PURCHASABLE_PARCELS.filter(p => state.ownedParcels.includes(p.id))],
+    [state.ownedParcels],
+  )
   const getParcelAssignment = useCallback(
     (parcelId: string): ParcelAssignment | undefined => state.parcelAssignments[parcelId],
     [state.parcelAssignments],
@@ -890,6 +937,59 @@ export function RanchProvider({ children }: { children: ReactNode }) {
     [state.parcelAssignments, state.gameDay, earnNeutral],
   )
 
+  // Soil quality for a field (0-100), seeded from its baseSoil if untouched.
+  const getSoilMetrics = useCallback((parcelId: string): { quality: number } => {
+    const existing = state.soilMetrics[parcelId]
+    if (existing) return existing
+    const parcel = [...STARTER_PARCELS, ...PURCHASABLE_PARCELS].find(p => p.id === parcelId)
+    return { quality: parcel?.baseSoil ?? 50 }
+  }, [state.soilMetrics])
+
+  // Buy a nearby parcel to expand the ranch (neutral karma).
+  const buyParcel = useCallback(async (parcelId: string): Promise<boolean> => {
+    if (state.ownedParcels.includes(parcelId)) return false
+    const parcel = PURCHASABLE_PARCELS.find(p => p.id === parcelId)
+    if (!parcel) return false
+    if (!canAfford('neutral', parcel.cost)) return false
+    const ok = await spendNeutral(parcel.cost, `Bought ${parcel.name}`)
+    if (!ok) return false
+    setState(prev => ({
+      ...prev,
+      ownedParcels: [...prev.ownedParcels, parcelId],
+      soilMetrics: { ...prev.soilMetrics, [parcelId]: { quality: parcel.baseSoil } },
+      eventLog: [...prev.eventLog, { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Bought a new parcel: ${parcel.name} (${parcel.acres} ac)`, type: 'purchase' as const }],
+    }))
+    return true
+  }, [state.ownedParcels, canAfford, spendNeutral])
+
+  // The pig–potato trick: loose your pigs onto a ripe potato field. They eat the
+  // crop, till and manure the ground (a big soil boost), and you gain pork + feed
+  // — then the field is left fallow, richer than before. Needs pigs + a potato field.
+  const releasePigsOnParcel = useCallback((parcelId: string): { ok: boolean; message: string } => {
+    const a = state.parcelAssignments[parcelId]
+    const pigs = state.livestock.pigs || 0
+    if (pigs <= 0) return { ok: false, message: 'You have no pigs to loose — buy pigs first.' }
+    if (!a || a.use !== 'crop' || a.cropType !== 'potatoes') {
+      return { ok: false, message: 'Loose pigs onto a POTATO field — that is the trick.' }
+    }
+    const boost = Math.min(35, 8 + pigs * 1.2)
+    const pork = Math.max(1, Math.round(pigs * 0.4))
+    const feedGain = Math.round(pigs * 0.5)
+    void earnNeutral(pork * 4, 'Pork from the potato-field pigs')
+    setState(prev => {
+      const cur = prev.soilMetrics[parcelId]?.quality ?? (STARTER_PARCELS.find(p => p.id === parcelId)?.baseSoil ?? PURCHASABLE_PARCELS.find(p => p.id === parcelId)?.baseSoil ?? 50)
+      return {
+        ...prev,
+        feedStock: prev.feedStock + feedGain,
+        products: { ...prev.products, Pork: (prev.products.Pork || 0) + pork },
+        soilMetrics: { ...prev.soilMetrics, [parcelId]: { quality: Math.min(100, cur + boost) } },
+        parcelAssignments: { ...prev.parcelAssignments, [parcelId]: { use: 'fallow' as const } },
+        eventLog: [...prev.eventLog, { day: prev.gameDay, season: getCurrentSeason(getDayOfYear(prev.gameDay)), event: `Loosed the pigs on the potatoes: +${Math.round(boost)} soil, +${pork} pork, +${feedGain} feed`, type: 'production' as const }],
+      }
+    })
+    return { ok: true, message: `The pigs cleared the potatoes, tilled the ground and left it richer (+${Math.round(boost)} soil), and you gained ${pork} pork.` }
+  }, [state.parcelAssignments, state.livestock.pigs, earnNeutral])
+
   // Reset ranch
   const resetRanch = useCallback(() => {
     setState(defaultRanchState)
@@ -931,6 +1031,9 @@ export function RanchProvider({ children }: { children: ReactNode }) {
     getParcelAssignment,
     assignParcel,
     harvestParcel,
+    getSoilMetrics,
+    buyParcel,
+    releasePigsOnParcel,
     getRanchValue,
     getEventLog,
     saveRanch,

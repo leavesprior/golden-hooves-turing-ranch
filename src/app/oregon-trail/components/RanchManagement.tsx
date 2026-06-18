@@ -8,7 +8,7 @@ import { FenceUpgradePanel } from './FenceUpgradePanel'
 import { LivestockPanel } from './LivestockPanel'
 import { SeasonBar } from './SeasonBar'
 import { LIVESTOCK_TYPES, FEED_TYPES, type LivestockType, type FeedType, type FenceConfig } from '../data/ranchConfig'
-import { CROPS } from '../data/seasonalMarket'
+import { CROPS, PURCHASABLE_PARCELS } from '../data/seasonalMarket'
 
 interface RanchManagementProps {
   onClose: () => void
@@ -280,7 +280,7 @@ function MarketTab({
 
         <div className="flex items-center gap-2 md:gap-4 mb-4 flex-wrap">
           <span className="text-gray-400">Amount:</span>
-          {[10, 25, 50, 100].map(amt => (
+          {[10, 25, 50, 100, 500, 1000].map(amt => (
             <button
               key={amt}
               onClick={() => setBuyAmount(amt)}
@@ -406,12 +406,22 @@ function StatCard({
 // FIELDS PANEL (2026-06-17) — the parcel/season "castle builder" layer. See each
 // field; assign it, this season, to a crop / livestock grazing / fallow; harvest
 // when ready. Reuses the existing crop engine (cost/growth/yield) via the context.
+function soilLabel(q: number): { color: string; word: string } {
+  if (q >= 75) return { color: '#4ade80', word: 'rich' }
+  if (q >= 55) return { color: '#a3e635', word: 'good' }
+  if (q >= 40) return { color: '#facc15', word: 'fair' }
+  if (q >= 25) return { color: '#fb923c', word: 'tired' }
+  return { color: '#f87171', word: 'spent' }
+}
+
 function FieldsPanel() {
-  const { getParcels, getParcelAssignment, assignParcel, harvestParcel, getPlantableCrops, getCurrentSeason, state } = useRanch()
+  const { getParcels, getParcelAssignment, assignParcel, harvestParcel, getPlantableCrops, getCurrentSeason, getSoilMetrics, releasePigsOnParcel, buyParcel, state } = useRanch()
   const [msg, setMsg] = useState<string | null>(null)
   const parcels = getParcels()
   const plantable = getPlantableCrops()
   const season = getCurrentSeason()
+  const pigs = state.livestock.pigs || 0
+  const buyable = PURCHASABLE_PARCELS.filter(p => !state.ownedParcels.includes(p.id))
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(null), 3500) }
 
   return (
@@ -440,6 +450,13 @@ function FieldsPanel() {
               <span className="text-amber-500/60 text-[10px] italic">{p.note}</span>
             </div>
             <p className="text-amber-100 text-xs mt-1">{status}</p>
+            {(() => { const q = Math.round(getSoilMetrics(p.id).quality); const s = soilLabel(q); return (
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-[10px] text-amber-400/70">soil</span>
+                <div className="h-1.5 bg-black/40 rounded overflow-hidden w-[140px]"><div style={{ width: `${q}%`, background: s.color }} className="h-full" /></div>
+                <span className="text-[10px]" style={{ color: s.color }}>{q}% {s.word}</span>
+              </div>
+            ) })()}
             <div className="flex flex-wrap gap-1.5 mt-2">
               {ready ? (
                 <button
@@ -463,6 +480,9 @@ function FieldsPanel() {
                   <button onClick={async () => { await assignParcel(p.id, 'fallow'); flash(`${p.name} left fallow.`) }} className="px-2 py-1 rounded text-[11px] bg-slate-700 hover:bg-amber-700 text-amber-100 border border-amber-600/40">🟫 Fallow</button>
                 </>
               )}
+              {a?.use === 'crop' && a.cropType === 'potatoes' && pigs > 0 && (
+                <button onClick={() => flash(releasePigsOnParcel(p.id).message)} title="The trick: pigs eat the potatoes, till the ground and manure it — leaving the soil richer." className="px-2 py-1 rounded text-[11px] bg-pink-800 hover:bg-pink-700 text-pink-50 border border-pink-500">🐷 Loose the pigs</button>
+              )}
             </div>
             {plantable.length === 0 && !ready && a?.use !== 'crop' && (
               <p className="text-amber-500/60 text-[10px] mt-1 italic">No crops can be planted this season — graze or leave fallow.</p>
@@ -470,6 +490,20 @@ function FieldsPanel() {
           </div>
         )
       })}
+
+      {buyable.length > 0 && (
+        <div className="border-2 border-amber-700/40 bg-amber-950/10 rounded-lg p-3 mt-2">
+          <p className="text-amber-200 text-sm font-bold mb-1">Buy Nearby Parcels</p>
+          <p className="text-gray-400 text-[11px] mb-2">Expand the ranch — each new field can be cropped, grazed, or rested like the rest. Soil starts where the land left it.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {buyable.map(bp => (
+              <button key={bp.id} onClick={async () => { const ok = await buyParcel(bp.id); flash(ok ? `Bought ${bp.name} (${bp.acres} ac).` : `Can't buy ${bp.name} — need ${bp.cost}🌮.`) }} title={bp.note} className="px-2 py-1 rounded text-[11px] bg-slate-700 hover:bg-amber-700 text-amber-100 border border-amber-600/40">
+                🪙 {bp.name} · {bp.acres}ac · {bp.cost}🌮
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

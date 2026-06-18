@@ -122,7 +122,7 @@ export const MARKET_EVENTS: MarketEvent[] = [
 ]
 
 // Crop system — seasonal planting and harvesting
-export type CropType = 'wheat' | 'corn' | 'potatoes' | 'herbs'
+export type CropType = 'wheat' | 'corn' | 'potatoes' | 'herbs' | 'forage'
 
 export interface CropConfig {
   type: CropType
@@ -135,6 +135,12 @@ export interface CropConfig {
   plantCost: number            // Karma cost to plant one plot
   maxPlots: number             // How many can be planted at once
   description: string
+  /** Soil-quality change PER DAY this crop is in the ground (2026-06-17 ecology).
+   *  Grain/row crops MINE the soil (negative); the forage legume BUILDS it
+   *  (positive). Defaults to a mild depletion if omitted. */
+  soilPerDay?: number
+  /** A grazeable forage — animals can be set to graze it directly (superfood). */
+  grazeable?: boolean
 }
 
 export const CROPS: Record<CropType, CropConfig> = {
@@ -172,7 +178,8 @@ export const CROPS: Record<CropType, CropConfig> = {
     feedConversion: 5,
     plantCost: 3,
     maxPlots: 12,
-    description: 'Quick-growing, reliable. Can plant in spring or autumn.',
+    description: 'Quick-growing, reliable. Trick: when ready, loose your PIGS onto the field instead of digging — they eat the lot, till the ground, and leave the soil richer.',
+    soilPerDay: -0.15,
   },
   herbs: {
     type: 'herbs',
@@ -185,6 +192,21 @@ export const CROPS: Record<CropType, CropConfig> = {
     plantCost: 10,
     maxPlots: 4,
     description: 'Valuable but limited. Converts to medicine, not feed.',
+    soilPerDay: -0.05,
+  },
+  forage: {
+    type: 'forage',
+    name: 'Sainfoin Forage',
+    emoji: '🌱',
+    plantSeasons: ['spring', 'autumn'],
+    growthDays: 40,
+    harvestValue: 6,
+    feedConversion: 14, // the best feed yield — a superfood for the herd
+    plantCost: 6,
+    maxPlots: 6,
+    description: 'A deep-rooted forage legume — a "superfood" the animals graze on. It FIXES NITROGEN and builds the soil instead of spending it. Graze it or cut it for the richest feed.',
+    soilPerDay: 0.5, // builds soil while growing
+    grazeable: true,
   },
 }
 
@@ -208,6 +230,9 @@ export interface Parcel {
   acres: number
   /** flavor: what the field is best suited to */
   note: string
+  /** Starting soil quality 0-100 (2026-06-17 ecology). Creek bottoms start rich,
+   *  dry slopes start poor — and every field's soil then rises or falls with use. */
+  baseSoil: number
 }
 
 export type ParcelUse = 'crop' | 'livestock' | 'fallow'
@@ -220,9 +245,21 @@ export interface ParcelAssignment {
 }
 
 export const STARTER_PARCELS: Parcel[] = [
-  { id: 'meadow', name: 'The Meadow', acres: 8, note: 'Open and sunny — good grain ground.' },
-  { id: 'creek_field', name: 'Creek Field', acres: 6, note: 'Rich bottom soil down by the water.' },
-  { id: 'south_slope', name: 'South Slope', acres: 5, note: 'Dry and rocky — best grazed or rested.' },
+  { id: 'meadow', name: 'The Meadow', acres: 8, note: 'Open and sunny — good grain ground.', baseSoil: 60 },
+  { id: 'creek_field', name: 'Creek Field', acres: 6, note: 'Rich bottom soil down by the water.', baseSoil: 80 },
+  { id: 'south_slope', name: 'South Slope', acres: 5, note: 'Dry and rocky — best grazed or rested.', baseSoil: 40 },
+]
+
+// Nearby parcels the player can BUY to expand the ranch (2026-06-17). Each costs
+// neutral karma; once owned it joins the field list and can be cropped/grazed/rested.
+export interface PurchasableParcel extends Parcel {
+  cost: number
+}
+
+export const PURCHASABLE_PARCELS: PurchasableParcel[] = [
+  { id: 'pine_bench', name: 'Pine Bench', acres: 10, note: 'A timbered bench above the creek — clear it and it grazes well.', baseSoil: 50, cost: 120 },
+  { id: 'lower_pasture', name: 'Lower Pasture', acres: 12, note: 'Broad bottom grass the neighbor let go — good grazing, tired soil.', baseSoil: 45, cost: 160 },
+  { id: 'ridge_parcel', name: 'Ridge Parcel', acres: 9, note: 'High, dry ground with a long view — best for hardy stock and brush goats.', baseSoil: 35, cost: 100 },
 ]
 
 /**
