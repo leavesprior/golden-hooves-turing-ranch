@@ -22,7 +22,7 @@ import {
   getTownsByCounty,
   getCanonicalTown,
   projectToSvg,
-  getRegistryBounds,
+  getBoundsForTowns,
   type County,
   type CanonicalTown,
 } from '@/lib/townRegistry'
@@ -114,29 +114,35 @@ function StateView({ onPick }: { onPick: (c: County) => void }) {
 // --- COUNTY: that county's towns on a real-geography SVG --------------------
 function CountyView({ county, onPickTown, onBack }: { county: County; onPickTown: (id: string) => void; onBack: () => void }) {
   const towns = getTownsByCounty(county)
-  const bounds = getRegistryBounds() // shared bounds so counties keep their real relative place
+  const bounds = getBoundsForTowns(towns) // fit THIS county to its own frame
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-[var(--font-pixel)] text-[13px]" style={{ color: GOLD }}>{county} County</h2>
         <button onClick={onBack} className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]/70 hover:text-[var(--pixel-gold-light)]">◂ all counties</button>
       </div>
+      {/* Numbered pins keep the real geography readable even where towns cluster;
+          the numbered list below names them. Pins are clickable; text never
+          intercepts the click (pointer-events none). */}
       <div className="relative w-full overflow-hidden rounded-lg border-2 border-[var(--pixel-gold-dark)] bg-[#15131f]" style={{ aspectRatio: '4 / 3' }}>
         <svg viewBox="0 0 100 100" className="h-full w-full" preserveAspectRatio="xMidYMid meet">
-          {towns.map((t) => {
+          {towns.map((t, i) => {
             const p = projectToSvg(t, bounds)
             return (
               <g key={t.id} className="cursor-pointer" onClick={() => onPickTown(t.id)}>
-                <circle cx={p.x} cy={p.y} r="2.4" fill="var(--pixel-gold-mid)" stroke="var(--pixel-gold-light)" strokeWidth="0.5" />
-                <text x={p.x} y={p.y - 3.5} textAnchor="middle" className="font-[var(--font-pixel)]" fontSize="3.2" fill="var(--pixel-gold-light)">{t.name}</text>
+                {/* generous transparent hit target */}
+                <circle cx={p.x} cy={p.y} r="5" fill="transparent" />
+                <circle cx={p.x} cy={p.y} r="3" fill="var(--pixel-gold-mid)" stroke="var(--pixel-gold-light)" strokeWidth="0.6" />
+                <text x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central" fontSize="3" fontWeight="bold" fill="#15131f" style={{ pointerEvents: 'none' }}>{i + 1}</text>
               </g>
             )
           })}
         </svg>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {towns.map((t) => (
-          <button key={t.id} onClick={() => onPickTown(t.id)} className="border border-[var(--pixel-ui-border)] bg-black/30 px-2 py-1.5 text-left font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] transition-colors hover:bg-[var(--pixel-gold-dark)]/20">
+        {towns.map((t, i) => (
+          <button key={t.id} onClick={() => onPickTown(t.id)} className="flex items-center gap-2 border border-[var(--pixel-ui-border)] bg-black/30 px-2 py-1.5 text-left font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] transition-colors hover:bg-[var(--pixel-gold-dark)]/20">
+            <span className="inline-flex h-4 w-4 flex-none items-center justify-center rounded-full bg-[var(--pixel-gold-mid)] text-[8px] text-[#15131f]">{i + 1}</span>
             {t.name}
           </button>
         ))}

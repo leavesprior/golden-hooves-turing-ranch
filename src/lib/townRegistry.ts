@@ -112,11 +112,30 @@ export function resolveToCanonical(sourceId: string): CanonicalTown | undefined 
   )
 }
 
+export interface Bounds { minLat: number; maxLat: number; minLng: number; maxLng: number }
+
 /** Geographic bounds of the registry (for projecting lat/lng -> map x/y). */
-export function getRegistryBounds(): { minLat: number; maxLat: number; minLng: number; maxLng: number } {
-  const lats = TOWN_REGISTRY.map(t => t.lat)
-  const lngs = TOWN_REGISTRY.map(t => t.lng)
-  return { minLat: Math.min(...lats), maxLat: Math.max(...lats), minLng: Math.min(...lngs), maxLng: Math.max(...lngs) }
+export function getRegistryBounds(): Bounds {
+  return getBoundsForTowns(TOWN_REGISTRY)
+}
+
+/**
+ * Fit-bounds for an arbitrary set of towns (e.g. a single county), so each
+ * county view fills its own frame instead of being crammed against the whole
+ * state's bounds. A single/degenerate set is expanded around its centre so the
+ * lone town projects to the middle, not a corner.
+ */
+export function getBoundsForTowns(towns: CanonicalTown[]): Bounds {
+  if (towns.length === 0) return { minLat: 0, maxLat: 1, minLng: 0, maxLng: 1 }
+  const lats = towns.map(t => t.lat)
+  const lngs = towns.map(t => t.lng)
+  let minLat = Math.min(...lats), maxLat = Math.max(...lats)
+  let minLng = Math.min(...lngs), maxLng = Math.max(...lngs)
+  // Expand near-degenerate spans so a lone (or co-located) town centres.
+  const EPS = 0.02
+  if (maxLat - minLat < EPS) { const c = (maxLat + minLat) / 2; minLat = c - EPS; maxLat = c + EPS }
+  if (maxLng - minLng < EPS) { const c = (maxLng + minLng) / 2; minLng = c - EPS; maxLng = c + EPS }
+  return { minLat, maxLat, minLng, maxLng }
 }
 
 /** Project a town's lat/lng to a 0-100 SVG position within given bounds (y inverted: north=top). */
