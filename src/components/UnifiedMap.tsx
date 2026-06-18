@@ -17,6 +17,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+import { hasInvestigation } from '@/lib/townInvestigations'
 import {
   COUNTIES,
   getTownsByCounty,
@@ -163,6 +164,11 @@ function LocalView({ town, onBack }: { town: CanonicalTown | undefined; onBack: 
       <PlaceBackdrop id={town.artId} className="h-48 rounded-lg border-2 border-[var(--pixel-gold-dark)]" />
       <p className="mt-2 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]/60">{town.county} County · {town.lat.toFixed(3)}, {town.lng.toFixed(3)}</p>
       <div className="mt-3 flex flex-wrap gap-2">
+        {hasInvestigation(town.id) && (
+          <Link href={`/town/${town.id}`} className="border-2 border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]/20 px-3 py-2 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] transition-colors hover:bg-[var(--pixel-gold-dark)]/40">
+            🔍 Investigate {town.name} ▸
+          </Link>
+        )}
         <Link href="/explore" className="border-2 border-[var(--pixel-gold-dark)] px-3 py-2 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] transition-colors hover:bg-[var(--pixel-gold-dark)]/20">
           Explore {town.name} ▸
         </Link>
