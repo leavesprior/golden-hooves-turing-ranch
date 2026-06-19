@@ -226,14 +226,26 @@ export function RanchProvider({ children }: { children: ReactNode }) {
         // replaces livestock/livestockHealth wholesale, so an OLD save (before the
         // donkeys/pigs/emus/sheep + soil were added) drops those keys -> undefined
         // -> NaN in RanchView. Merge onto the defaults so every key always exists.
-        setState(prev => ({
-          ...prev,
-          ...parsed,
-          livestock: { ...prev.livestock, ...(parsed.livestock || {}) },
-          livestockHealth: { ...prev.livestockHealth, ...(parsed.livestockHealth || {}) },
-          soilMetrics: { ...(parsed.soilMetrics || {}) },
-          ownedParcels: Array.isArray(parsed.ownedParcels) ? parsed.ownedParcels : [],
-        }))
+        setState(prev => {
+          // Fill missing keys (old saves) AND coerce every value finite (heals a
+          // save already corrupted by a NaN count from the pre-fix buy path).
+          const livestock = { ...prev.livestock }
+          const livestockHealth = { ...prev.livestockHealth }
+          for (const t of Object.keys(prev.livestock) as LivestockType[]) {
+            livestock[t] = Number((parsed.livestock || {})[t] ?? prev.livestock[t]) || 0
+            const h = Number((parsed.livestockHealth || {})[t] ?? prev.livestockHealth[t])
+            livestockHealth[t] = Number.isFinite(h) ? h : 100
+          }
+          return {
+            ...prev,
+            ...parsed,
+            livestock,
+            livestockHealth,
+            feedStock: Number(parsed.feedStock) || 0,
+            soilMetrics: parsed.soilMetrics && typeof parsed.soilMetrics === 'object' ? parsed.soilMetrics : {},
+            ownedParcels: Array.isArray(parsed.ownedParcels) ? parsed.ownedParcels : [],
+          }
+        })
       }
     } catch (e) {
       console.error('[RanchContext] Failed to load saved state:', e)
@@ -337,7 +349,7 @@ export function RanchProvider({ children }: { children: ReactNode }) {
         ...prev,
         livestock: {
           ...prev.livestock,
-          [type]: prev.livestock[type] + count,
+          [type]: (prev.livestock[type] ?? 0) + count, // ?? 0 — a missing key (old save) must not become NaN
         },
         totalLivestockRaised: prev.totalLivestockRaised + count,
         eventLog: [

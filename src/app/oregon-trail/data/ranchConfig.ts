@@ -475,10 +475,12 @@ export function calculateDailyFeedNeed(
 
   for (const [type, count] of Object.entries(livestock)) {
     const config = LIVESTOCK_TYPES[type as LivestockType];
-    total += config.foodPerDay * count;
+    // Guard count (2026-06-18): a missing/NaN count must NEVER make total NaN,
+    // or `feedStock >= NaN` is always false and ALL feed dumps to 0 in one day.
+    total += (config?.foodPerDay ?? 0) * (Number(count) || 0);
   }
 
-  return Math.ceil(total * seasonConfig.feedMultiplier);
+  return Math.ceil(total * (seasonConfig?.feedMultiplier ?? 1));
 }
 
 export function calculateDailyProduction(
@@ -501,7 +503,7 @@ export function calculateDailyProduction(
 }
 
 export function getTotalLivestockCount(livestock: Record<LivestockType, number>): number {
-  return Object.values(livestock).reduce((sum, count) => sum + count, 0);
+  return Object.values(livestock).reduce((sum, count) => sum + (Number(count) || 0), 0);
 }
 
 export function getCurrentSeason(dayOfYear: number): Season {
