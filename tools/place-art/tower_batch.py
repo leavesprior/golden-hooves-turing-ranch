@@ -64,9 +64,12 @@ def get(path):
     return urllib.request.urlopen(COMFY + path, timeout=600).read()
 
 def pixelize(png_bytes, out_path):
+    # Preset A (2026-06-17, "more pixels / better quality"): 320x240 intermediate
+    # (4x the distinct pixels of the old 160x120) + 96 colors + BOX downscale,
+    # NEAREST -> 640x480 = 2px blocks. Crisper, still crisp pixel art.
     img = Image.open(io.BytesIO(png_bytes)).convert("RGB")
-    small = img.resize((160, 120), Image.BILINEAR)
-    q = small.quantize(colors=64, method=Image.MEDIANCUT)
+    small = img.resize((320, 240), Image.BOX)
+    q = small.quantize(colors=96, method=Image.MEDIANCUT)
     q.convert("RGB").resize((640, 480), Image.NEAREST).save(out_path)
 
 def style_gate(path):
