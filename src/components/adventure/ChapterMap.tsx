@@ -155,7 +155,7 @@ export function ChapterMap({
           CHAPTER {chapter} MAP
         </span>
         <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">
-          {discoveredLocationIds.length} / {allLocations.length} discovered
+          {allLocations.filter(l => discoveredSet.has(l.id)).length} / {allLocations.length} discovered
         </span>
       </div>
 

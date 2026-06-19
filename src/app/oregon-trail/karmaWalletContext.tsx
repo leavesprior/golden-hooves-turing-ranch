@@ -169,13 +169,19 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (stored) {
         const parsed: StoredWalletState = JSON.parse(stored)
-        setState(prev => ({
-          ...prev,
+        const loaded: KarmaWalletState = {
+          ...stateRef.current,
           balance: sanitizeBalance(parsed.balance),
           walletMode: parsed.walletMode,
           alignment: parsed.alignment || DEFAULT_ALIGNMENT,
           isInitialized: true,
-        }))
+        }
+        // Seed the ref SYNCHRONOUSLY so callbacks (spendNeutral/spendGood) that read
+        // stateRef.current don't race the post-commit effect that normally syncs it.
+        // Fixes the cold-load bug where landing directly on /karma-market made the
+        // first purchase a silent no-op (ref still held the default starting balance).
+        stateRef.current = loaded
+        setState(loaded)
       }
     } catch (e) {
       console.warn('Failed to load karma wallet from storage:', e)
