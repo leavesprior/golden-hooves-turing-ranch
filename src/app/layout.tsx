@@ -7,6 +7,7 @@ import { KarmaProvider } from "@/lib/karmaContext";
 import { AuthProvider } from "@/lib/authContext";
 import { SaveLoadProvider } from "@/lib/saveLoadContext";
 import { CrossGameProgressionProvider } from "@/lib/crossGameProgressionContext";
+import { RegisterSW } from "@/components/pwa/RegisterSW";
 
 const pressStart2P = Press_Start_2P({
   weight: "400",
@@ -53,6 +54,12 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+  },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Golden Frog",
+    statusBarStyle: "black-translucent",
   },
 };
 
@@ -189,6 +196,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
+        <RegisterSW />
         <AuthProvider>
           <KarmaProvider>
             <CrossGameProgressionProvider>
