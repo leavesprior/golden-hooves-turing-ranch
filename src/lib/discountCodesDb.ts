@@ -100,6 +100,25 @@ function getDb(): Database.Database {
         created_at    TEXT NOT NULL,
         last_marker_at TEXT NOT NULL
       );
+
+      -- Phase 0 karma ledger (2026-06-18): server-authoritative, append-only,
+      -- hash-chained record of karma EARN events. The SERVER computes every delta;
+      -- the client never supplies a balance. The balance of record = a server fold
+      -- over this table. This is the foundation that lets karma (eventually) drive a
+      -- discount without the client being able to forge value (see FARM/ledger plan).
+      CREATE TABLE IF NOT EXISTS bobr_karma_ledger (
+        seq         INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id    TEXT NOT NULL UNIQUE,   -- idempotency key
+        session_id  TEXT NOT NULL,
+        karma_type  TEXT NOT NULL,          -- good | neutral | bad
+        delta       INTEGER NOT NULL,       -- server-computed
+        source      TEXT NOT NULL,
+        created_at  TEXT NOT NULL,          -- server clock
+        prev_hash   TEXT NOT NULL,          -- hash chain (tamper-evidence)
+        row_hash    TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_bobr_karma_ledger_session
+        ON bobr_karma_ledger (session_id);
     `);
   }
   return _db;
@@ -249,6 +268,48 @@ export function dbGetMarkerProgressCount(sessionId: string): number {
   `).get(sessionId) as { count: number } | undefined;
 
   return row?.count ?? 0;
+}
+
+// --- Phase 0 karma ledger (2026-06-18) -------------------------------------
+export type KarmaType = 'good' | 'neutral' | 'bad';
+export interface KarmaBalance { good: number; neutral: number; bad: number }
+
+/**
+ * Append a SERVER-COMPUTED karma earn-event, hash-chained + idempotent on eventId.
+ * The caller (a server route) decides the delta from validated facts — never the
+ * client. Returns the new balance fold for the session.
+ */
+export function dbAppendKarmaEvent(params: {
+  eventId: string; sessionId: string; karmaType: KarmaType; delta: number; source: string;
+}): KarmaBalance {
+  const db = getDb();
+  const createdAt = new Date().toISOString();
+  const prev = db.prepare(
+    'SELECT row_hash FROM bobr_karma_ledger ORDER BY seq DESC LIMIT 1'
+  ).get() as { row_hash: string } | undefined;
+  const prevHash = prev?.row_hash ?? 'genesis';
+  const rowHash = crypto.createHash('sha256')
+    .update(`${prevHash}|${params.eventId}|${params.sessionId}|${params.karmaType}|${params.delta}|${createdAt}`)
+    .digest('hex');
+  db.prepare(`
+    INSERT OR IGNORE INTO bobr_karma_ledger
+      (event_id, session_id, karma_type, delta, source, created_at, prev_hash, row_hash)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(params.eventId, params.sessionId, params.karmaType, Math.trunc(params.delta), params.source, createdAt, prevHash, rowHash);
+  return dbGetKarmaBalance(params.sessionId);
+}
+
+/** Server fold of the ledger for a session into a {good,neutral,bad} balance. */
+export function dbGetKarmaBalance(sessionId: string): KarmaBalance {
+  const rows = getDb().prepare(`
+    SELECT karma_type, SUM(delta) AS total
+      FROM bobr_karma_ledger
+     WHERE session_id = ?
+     GROUP BY karma_type
+  `).all(sessionId) as { karma_type: KarmaType; total: number }[];
+  const bal: KarmaBalance = { good: 0, neutral: 0, bad: 0 };
+  for (const r of rows) if (r.karma_type in bal) bal[r.karma_type] = Math.max(0, r.total | 0);
+  return bal;
 }
 
 export function dbGetCode(code: string): DiscountCode | null {

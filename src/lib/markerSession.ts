@@ -128,3 +128,10 @@ export function verifyScoreClaim(playerId: string, score: number, game: string, 
   }
   return false;
 }
+
+// Phase 0 karma (2026-06-18): the server signs the balance it returns so the
+// client can verify it wasn't tampered in transit / localStorage. HMAC with the
+// same server secret; the client only verifies via a /balance refetch, server-wins.
+export function signBalance(payload: string): string {
+  return crypto.createHmac('sha256', getSecret()).update(`karma-balance::${payload}`).digest('hex');
+}
