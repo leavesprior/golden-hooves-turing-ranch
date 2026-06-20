@@ -10,6 +10,7 @@ import { DonationPanel } from './components/DonationPanel'
 import { AnimalTreatsStore } from './components/AnimalTreatsStore'
 import { MomentoCollection } from './components/MomentoCollection'
 import { ConsensusIndicator } from './components/ConsensusIndicator'
+import { SignInPanel } from '@/components/account/SignInPanel'
 import { PixelNavigation } from '@/components/pixel'
 
 type MarketTab = 'market' | 'donate' | 'treats' | 'momentos'
@@ -70,6 +71,11 @@ export default function KarmaMarketPage() {
               </span>
             </div>
             <ConsensusIndicator />
+          </div>
+
+          {/* Optional sign-in: links this guest session to an account (per-account economy) */}
+          <div className="mt-3">
+            <SignInPanel />
           </div>
         </div>
       </header>
