@@ -365,6 +365,256 @@ export const TOWN_PUZZLES: TownPuzzle[] = [
       },
     ],
   },
+
+  // ============================================================
+  // GOLD COUNTRY TOWN PUZZLES (2026-06-20)
+  // Additive content per the enrichment plan: the puzzle engine + TownScreen
+  // renderer already support any landmark; these attach to the Gold Country
+  // town `name` strings (matching state.currentLandmark = landmark.name).
+  // Each town gets a DISTINCT verb, grounded in real CHL / Gold Country history.
+  // ============================================================
+
+  // --- Angels Camp: The Jumping Frog (TALK / deduction — Twain at the Angels Hotel, 1865) ---
+  {
+    id: 'angels_camp_jumping_frog',
+    title: 'The Celebrated Frog',
+    landmark: 'Angels Camp',
+    description: 'At the Angels Hotel bar, an old-timer is mid-story about a frog loaded with quail shot so it couldn\'t jump. He stops, eyes you. "You want the rest? Earn it. Answer me true."',
+    narratorIntro: 'The narrator recognizes this tale. A young writer named Sam Clemens heard it at this very bar in 1865 and made himself famous with it. History rhymes; the narrator merely takes notes.',
+    difficulty: 'easy',
+    startStepId: 'hear_tale',
+    oneTimeOnly: true,
+    rewards: {
+      neutralKarma: 25,
+      goodKarma: 1,
+      xp: 35,
+      inventoryItem: 'Lucky Frog Charm',
+    },
+    steps: [
+      {
+        id: 'hear_tale',
+        text: 'The barkeep leans in. "Stranger came through, bet Jim Smiley\'s prize frog Dan\'l couldn\'t out-jump a plain frog. While Smiley fetched one, the stranger did something to Dan\'l. When the contest came, Dan\'l sat like a church. Now — what did the stranger DO to that frog?"',
+        action: 'choose',
+        choices: [
+          { id: 'shot', text: 'Filled him with quail shot so he was too heavy to jump', correct: true, response: '"HAH! You know the tale — or you\'re a fast thinker. Quail shot, right down the gullet. Dan\'l couldn\'t budge." He slaps the bar.' },
+          { id: 'tired', text: 'Tired him out by making him jump first', correct: false, response: 'The barkeep shakes his head. "Nothin\' so honest as that. The stranger cheated clever."' },
+          { id: 'swap', text: 'Swapped Dan\'l for a heavier frog', correct: false, response: '"No swap — same frog, Dan\'l himself. Just... heavier than he ought to be."' },
+        ],
+        successText: 'The barkeep is delighted you know your Calaveras lore.',
+        failStepId: 'second_chance',
+        nextStepId: 'reward_charm',
+        hint: 'Why couldn\'t a champion jumper jump? Think about weight.',
+      },
+      {
+        id: 'second_chance',
+        text: '"You\'re green. I\'ll give you one more. When the stranger left, Smiley picked up Dan\'l and was surprised at how HEAVY he\'d got. He turned him upside down and out came— what?"',
+        action: 'choose',
+        choices: [
+          { id: 'shot2', text: 'A double handful of quail shot', correct: true, response: '"There it is! Spilled out like a busted hourglass. Smiley near tore the county apart lookin\' for that stranger." He laughs.' },
+          { id: 'gold', text: 'Gold nuggets', correct: false, response: '"Gold! Ha. You wish. Heavier and meaner than gold — buckshot."' },
+        ],
+        successText: 'You got there in the end.',
+        nextStepId: 'reward_charm',
+        hint: 'The same thing that weighed him down in the first place.',
+      },
+      {
+        id: 'reward_charm',
+        text: 'The barkeep reaches under the bar and hands you a little brass frog on a thong. "For knowin\' the story right. They jump these frogs for real every May now — the Jumping Frog Jubilee. You carry a piece of it."',
+        action: 'talk',
+        successText: 'You pocket the Lucky Frog Charm. The whole bar raises a glass to Mark Twain, who never knew what that afternoon would start.',
+        nextStepId: null,
+      },
+    ],
+  },
+
+  // --- Murphys: The Banker's Ledger (LEDGER-MATH / cipher — the gold-era counting house) ---
+  {
+    id: 'murphys_ledger_cipher',
+    title: 'The Banker\'s Ledger',
+    landmark: 'Murphys',
+    description: 'In a dusty back room of an old Murphys counting house, a ledger lies open. The last clerk encoded the location of a strongbox in the column sums — but the page is water-stained and one figure is missing.',
+    narratorIntro: 'The narrator, who has strong feelings about arithmetic, perks up. Finally, a puzzle with a correct answer.',
+    difficulty: 'medium',
+    startStepId: 'read_ledger',
+    oneTimeOnly: true,
+    rewards: {
+      neutralKarma: 40,
+      xp: 50,
+      spareParts: 1,
+      inventoryItem: 'Strongbox Key',
+    },
+    steps: [
+      {
+        id: 'read_ledger',
+        text: 'The ledger header reads: "Deposits, week ending. The honest sum opens the box." Three rows are legible: 47, 88, and 65. A fourth is blotted out. At the bottom: "TOTAL: 247."',
+        action: 'skill_check',
+        skillCheck: { stat: 'Shrewdness', dc: 10 },
+        successText: 'You realize the missing row is simply 247 minus the three you can read. The clerk\'s "honest sum" is the missing deposit itself.',
+        failureText: 'The figures swim before you. Maybe work it the other way — what plus the known rows makes the total?',
+        nextStepId: 'compute',
+        failStepId: 'compute',
+        hint: '47 + 88 + 65 + ? = 247. Solve for the blotted figure.',
+      },
+      {
+        id: 'compute',
+        text: 'The known deposits are 47, 88, and 65 — together 200. The total is 247. What was the missing fourth deposit (and the strongbox combination)?',
+        action: 'choose',
+        choices: [
+          { id: '47', text: '47', correct: true, response: 'You dial 4-7 into the strongbox. The tumblers fall. CLICK. Inside: a key and a clerk\'s apologetic note.' },
+          { id: '57', text: '57', correct: false, response: 'The dial won\'t catch. Recount: 247 minus 200 is not 57.' },
+          { id: '147', text: '147', correct: false, response: 'Too large — that would make the total far over 247. Try again.' },
+        ],
+        successText: 'The strongbox opens.',
+        failStepId: 'compute',
+        nextStepId: 'claim_box',
+        hint: '247 − (47 + 88 + 65) = 247 − 200.',
+      },
+      {
+        id: 'claim_box',
+        text: 'Inside the strongbox: a brass Strongbox Key (it fits doors all over the southern mines), spare machine parts, and karma the old clerk set aside "for whoever\'s honest enough to do the sums."',
+        action: 'examine',
+        successText: 'You take the key and the clerk\'s honest hoard. Murphys was once called "Queen of the Sierra" for gold like this.',
+        nextStepId: null,
+      },
+    ],
+  },
+
+  // --- Moaning Cavern: The Shadow Descent (SHADOW/TIMING — the 165-ft vertical chamber) ---
+  {
+    id: 'moaning_cavern_descent',
+    title: 'The Moaning Descent',
+    landmark: 'Moaning Cavern',
+    description: 'The cavern\'s great chamber drops 165 feet — deep enough to hold the Statue of Liberty. A rope ladder sways into the dark. Miners say the safe footing only shows when the noon light spears down the shaft.',
+    narratorIntro: 'The narrator is not fond of caves, holes, or the dark, and notes that this cavern combines all three. It proceeds under protest.',
+    difficulty: 'medium',
+    startStepId: 'time_the_light',
+    oneTimeOnly: true,
+    rewards: {
+      neutralKarma: 35,
+      goodKarma: 1,
+      xp: 45,
+      medicine: 1,
+    },
+    steps: [
+      {
+        id: 'time_the_light',
+        text: 'A shaft of daylight moves across the cavern wall as the sun climbs. Carved ledges are only safe to step on when the light touches them — step in shadow and the rock is slick with cave-moisture. When should you descend?',
+        action: 'choose',
+        choices: [
+          { id: 'noon', text: 'At noon, when the light reaches deepest down the shaft', correct: true, response: 'You wait for the sun to stand highest. The beam plunges far into the chamber, lighting ledge after ledge in a glowing stair. You descend on the lit stone, sure-footed.' },
+          { id: 'dawn', text: 'At dawn, while it is cool', correct: false, response: 'At dawn the light barely clears the rim; the ledges below stay dark and treacherous. You wait.' },
+          { id: 'dusk', text: 'At dusk, to avoid crowds', correct: false, response: 'By dusk the shaft is in shadow and the moss is slick. Far too dangerous. You wait for tomorrow\'s noon.' },
+        ],
+        successText: 'The timed light shows the way down.',
+        failStepId: 'time_the_light',
+        nextStepId: 'descend',
+        hint: 'When does sunlight reach FARTHEST down a vertical shaft? Highest sun = deepest reach.',
+      },
+      {
+        id: 'descend',
+        text: 'On the lit ledges you climb down to the chamber floor. Among the flowstone you find an old miner\'s cache — and the prehistoric bones the cavern is famous for, undisturbed. You leave the bones; you take the cache.',
+        action: 'skill_check',
+        skillCheck: { stat: 'Agility', dc: 8 },
+        successText: 'Sure-footed on the wet rock, you retrieve medicine and karma a careful soul left for the next careful soul.',
+        failureText: 'You slip once, scrape a shin, but catch the ladder. Shaken, you still reach the cache.',
+        nextStepId: null,
+        hint: 'Move when the rock is dry and lit.',
+      },
+    ],
+  },
+
+  // --- Kennedy Mine: The Tailing Wheel (USE_ITEM / mechanism — the real 58-ft Kennedy wheels) ---
+  {
+    id: 'kennedy_mine_tailing_wheel',
+    title: 'The Great Tailing Wheel',
+    landmark: 'Kennedy Mine',
+    description: 'One of the Kennedy Mine\'s giant 58-foot tailing wheels has seized — the elevator that lifts mine waste over the hills has jammed. A foreman offers good pay to anyone who can free it without wrecking the buckets.',
+    narratorIntro: 'The narrator admires a well-made machine, and the Kennedy wheels — four of them, lifting tailings 128 feet — are among the finest the narrator has seen. It would be a shame to break one.',
+    difficulty: 'hard',
+    startStepId: 'inspect_wheel',
+    oneTimeOnly: true,
+    rewards: {
+      neutralKarma: 50,
+      xp: 60,
+      spareParts: 2,
+      inventoryItem: 'Foreman\'s Recommendation',
+    },
+    steps: [
+      {
+        id: 'inspect_wheel',
+        text: 'The huge wheel is fouled — a bucket has come loose and wedged against the frame. Forcing the motor would tear the rim. You have tools. What do you reach for first?',
+        action: 'use_item',
+        successText: 'You set a pry-bar against the wedged bucket and ease tension off the rim before anything turns. The foreman nods — you understand machines.',
+        failureText: 'You consider just running the motor harder. The foreman grabs your arm. "You\'ll snap the rim. Think first."',
+        nextStepId: 'free_bucket',
+        failStepId: 'free_bucket',
+        hint: 'Relieve the jam by hand BEFORE applying power, or you destroy the wheel.',
+      },
+      {
+        id: 'free_bucket',
+        text: 'With the bucket freed and re-pinned, you must restart the wheel. The foreman watches. How do you bring 58 feet of iron back to turning?',
+        action: 'choose',
+        choices: [
+          { id: 'slow', text: 'Engage the drive slowly, letting the wheel take the load gradually', correct: true, response: 'The great wheel groans, then turns — smooth, buckets climbing the hillside again. The foreman grins. "Clean work."' },
+          { id: 'full', text: 'Throw it to full power to break the inertia', correct: false, response: 'The foreman lunges for the lever. "NO — full power on a cold wheel shears the gudgeon. Slow, always slow."' },
+        ],
+        successText: 'The tailing wheel runs again.',
+        failStepId: 'free_bucket',
+        nextStepId: 'get_paid',
+        hint: 'Massive rotating iron must be brought up to speed gently.',
+      },
+      {
+        id: 'get_paid',
+        text: 'The foreman pays you in spare parts and karma, and writes a recommendation. "The Kennedy\'s one of the deepest mines in the country — near a mile straight down. We always need hands who think before they pull a lever."',
+        action: 'talk',
+        successText: 'You pocket the Foreman\'s Recommendation — it opens doors at mines all through the Mother Lode.',
+        nextStepId: null,
+      },
+    ],
+  },
+
+  // --- Mokelumne Hill: The Sixteen-Foot Lie (EXAMINE / survey-fraud — the real 16-ft claim limit) ---
+  {
+    id: 'mokelumne_hill_claim_fraud',
+    title: 'The Sixteen-Foot Lie',
+    landmark: 'Mokelumne Hill',
+    description: 'On Mokelumne Hill, where claims were limited to a mere sixteen feet because the gold was so rich, a miner accuses his neighbor of moving a boundary stake to steal ground. He asks you to judge the line.',
+    narratorIntro: 'The narrator notes that Mokelumne Hill was so rich men killed over sixteen feet of dirt. A boundary dispute here is never small.',
+    difficulty: 'medium',
+    startStepId: 'examine_stakes',
+    oneTimeOnly: true,
+    rewards: {
+      neutralKarma: 35,
+      goodKarma: 1,
+      xp: 50,
+    },
+    steps: [
+      {
+        id: 'examine_stakes',
+        text: 'Two boundary stakes stand sixteen feet apart — the legal claim width. But one stake\'s hole shows fresh-turned earth, while the original posthole sits eighteen inches away, packed and weathered. What does the evidence say?',
+        action: 'examine',
+        successText: 'The fresh dirt is plain: the disputed stake was recently MOVED, narrowing the accuser\'s claim and widening the neighbor\'s. The old, packed posthole is the true line.',
+        failureText: 'At a glance both stakes look planted. But look closer — one hole is fresh, one is old and weathered.',
+        nextStepId: 'render_judgment',
+        failStepId: 'render_judgment',
+        hint: 'Compare the two postholes. Which was dug recently?',
+      },
+      {
+        id: 'render_judgment',
+        text: 'A crowd gathers — claim disputes draw blood here. You must rule. Where is the true boundary?',
+        action: 'choose',
+        choices: [
+          { id: 'old', text: 'The old weathered posthole — the stake was moved; restore the original line', correct: true, response: 'You point to the packed old hole. "That\'s the true mark. The stake was shifted." The crowd murmurs agreement; the neighbor reddens and re-sets the line. Justice on sixteen feet of gold ground.' },
+          { id: 'new', text: 'The current stake position — possession is the law', correct: false, response: 'The accuser erupts. "He MOVED it — you\'re rewarding the thief!" The crowd turns ugly. You reconsider the evidence.' },
+          { id: 'split', text: 'Split the difference between the two holes', correct: false, response: '"There\'s no \'difference\' to split — one hole is a lie!" The miner is right; a fraud isn\'t settled by compromise.' },
+        ],
+        successText: 'You restore the honest boundary.',
+        failStepId: 'render_judgment',
+        nextStepId: null,
+        hint: 'A moved stake isn\'t a negotiation — the original line is the honest one.',
+      },
+    ],
+  },
 ]
 
 /**
