@@ -1,0 +1,573 @@
+{
+  "_comment": "Master place-art manifest for the BOBR game/explorer (42 real places). Each gets a 64-bit picture of the REAL place. `historical_photo` = a verified public archival image (Library of Congress / Calisphere, no API key) to img2img FROM for period accuracy; places without one need a Google Maps Street View reference (capture via the browser agent, no key). Pipeline: generate.py --place <id> [--ref <photo> --denoise 0.45 --aged] -> verify_place_art.py. Tuning: clear reference + low denoise (~0.42-0.5) = faithful + aged; crop photo borders/captions first. Coordinates from the enumeration agent (a2b50daf); photos from the research agent (a1854f8). Confidence: HIGH lower-Mother-Lode towns, LOW upcountry (West Point/Sandy Gulch/ranch \u2014 no period photos, reconstruct from landscape + Maps).",
+  "places": [
+    {
+      "id": "welcome_gate",
+      "name": "The Welcome Gate (Back of Beyond Ranch)",
+      "address": "700 Deer Ln, West Point, CA 95255",
+      "latlng": [
+        38.3947,
+        -120.5269
+      ],
+      "year": 1852,
+      "games": [
+        "markers"
+      ],
+      "prompt": "a rustic split-rail ranch gate on a dirt lane, golden oak-dotted Sierra foothills, a mountain behind at sunset",
+      "historical_photo": null,
+      "note": "Location 1 of 14. No period photo; reconstruct. Ranch land-history = Harris Ranch (Leif 2026-06-14)."
+    },
+    {
+      "id": "west_point",
+      "name": "West Point",
+      "address": "West Point, CA 95255",
+      "latlng": [
+        38.3963,
+        -120.5285
+      ],
+      "year": 1854,
+      "games": [
+        "explore",
+        "chase",
+        "adventure",
+        "markers"
+      ],
+      "prompt": "a high-pine Gold Country trading-post village, a single dusty Main Street of wood-frame false-front stores, a blacksmith, ponderosa pine and oak",
+      "historical_photo": null,
+      "note": "CHL #268, Kit Carson. LOW confidence \u2014 no 1850s photo; wood-frame false-fronts, few/no stone buildings. Use Maps ref for CHL #268 marker."
+    },
+    {
+      "id": "sandy_gulch",
+      "name": "Sandy Gulch",
+      "address": "Sandy Gulch, West Point, CA 95255",
+      "latlng": [
+        38.3803,
+        -120.5328
+      ],
+      "year": 1852,
+      "games": [
+        "explore",
+        "chase"
+      ],
+      "prompt": "an 1849 trading center in oak-grassland gulch terrain, an adobe store, dry-laid stone walls, a milled-lumber barn",
+      "historical_photo": null,
+      "note": "CHL #253. Bardsley Adobe (1853), Harris barn (1850s, milled lumber). No Gold-Rush photo."
+    },
+    {
+      "id": "harris_ranch",
+      "name": "Harris Ranch / Harris Barn",
+      "address": "upper Sandy Gulch, West Point, CA 95255",
+      "latlng": [
+        38.38,
+        -120.533
+      ],
+      "year": 1855,
+      "games": [
+        "markers"
+      ],
+      "prompt": "an 1850s timber-frame barn of locally milled lumber, board siding, gable roof, dry-laid stone footing, oak-grassland and pine",
+      "historical_photo": null,
+      "note": "The documented ranch the BOBR land was carved from (Leif's canon). Barn still stands; no archival photo online."
+    },
+    {
+      "id": "mokelumne_hill",
+      "name": "Mokelumne Hill",
+      "address": "Mokelumne Hill, CA 95245",
+      "latlng": [
+        38.2972,
+        -120.7089
+      ],
+      "year": 1851,
+      "games": [
+        "explore",
+        "chase",
+        "adventure",
+        "oregon"
+      ],
+      "prompt": "a stone Gold Rush county-seat town on a hill, locally-quarried rhyolite and brick buildings with iron shutters, a tall 3-story stone IOOF Hall, plank sidewalks, dirt street",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca0000/ca0093/photos/019684pr.jpg",
+      "note": "True 1866 L&H photos exist (loc.gov/item/2002723067). HABS IOOF Hall."
+    },
+    {
+      "id": "mh_hotel_leger",
+      "name": "Hotel Leger",
+      "address": "8304 Main St, Mokelumne Hill, CA 95245",
+      "latlng": [
+        38.3011,
+        -120.7058
+      ],
+      "year": 1851,
+      "games": [
+        "explore"
+      ],
+      "prompt": "an 1851 two-story stone hotel block, adjacent stone storefronts, iron shutters, plank sidewalk",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca0000/ca0094/photos/019686pr.jpg",
+      "note": "CHL #663."
+    },
+    {
+      "id": "angels_camp",
+      "name": "Angels Camp",
+      "address": "Angels Camp, CA 95222",
+      "latlng": [
+        38.068,
+        -120.5396
+      ],
+      "year": 1855,
+      "games": [
+        "explore",
+        "chase",
+        "adventure",
+        "oregon"
+      ],
+      "prompt": "a single dusty Main Street along a creek gulch, rubble-stone storefronts with iron doors interspersed with wood-frame porched buildings, a two-story stone hotel",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca0000/ca0064/photos/019637pv.jpg",
+      "note": "1857 Kuchel&Dresel lithograph; Angels Hotel HABS (Twain's jumping-frog building, 1855)."
+    },
+    {
+      "id": "ace_angels_hotel",
+      "name": "Angels Hotel",
+      "address": "1287 S Main St, Angels Camp, CA 95222",
+      "latlng": [
+        37.9615,
+        -120.5548
+      ],
+      "year": 1855,
+      "games": [
+        "explore"
+      ],
+      "prompt": "a two-story stone Gold Rush hotel with iron-shuttered windows and a columned wooden second-floor balcony, dusty main street",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca0000/ca0064/photos/019637pv.jpg",
+      "note": "CHL 734. VERIFIED place-accurate img2img at denoise 0.42 (2026-06-15)."
+    },
+    {
+      "id": "san_andreas",
+      "name": "San Andreas",
+      "address": "San Andreas, CA 95249",
+      "latlng": [
+        38.196,
+        -120.6807
+      ],
+      "year": 1866,
+      "games": [
+        "explore",
+        "chase"
+      ],
+      "prompt": "a Mexican-camp main street turned county seat, squat fireproof stone stores and Classical Revival brick fronts, a two-story brick courthouse and jail",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca0100/ca0111/photos/019703pv.jpg",
+      "note": "Black Bart tried here 1883. No pre-1900 photo; HABS + 1923 copy. Use Maps for the courthouse (30 N Main)."
+    },
+    {
+      "id": "sa_courthouse",
+      "name": "Calaveras County Courthouse",
+      "address": "30 N Main St, San Andreas, CA 95249",
+      "latlng": [
+        38.1967,
+        -120.6792
+      ],
+      "year": 1867,
+      "games": [
+        "explore"
+      ],
+      "prompt": "an 1867 two-story brick county courthouse with arched windows and a jail wing, where the gentleman bandit faced a judge",
+      "historical_photo": null,
+      "note": "Black Bart trial building, now the museum. Clean Street View match."
+    },
+    {
+      "id": "jackson",
+      "name": "Jackson",
+      "address": "Jackson, CA 95642",
+      "latlng": [
+        38.3489,
+        -120.7741
+      ],
+      "year": 1862,
+      "games": [
+        "chase",
+        "adventure",
+        "oregon"
+      ],
+      "prompt": "a Mother Lode town on a narrow Main Street curving through a ravine, two-story brick blocks with iron shutters and arched windows, raised sidewalks, the great hanging oak",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/cph/3a20000/3a27000/3a27700/3a27780r.jpg",
+      "note": "National Hotel 1862. Hanging tree burned 1862 \u2014 no photo, render from description."
+    },
+    {
+      "id": "kennedy_mine",
+      "name": "Kennedy Gold Mine",
+      "address": "12594 Kennedy Mine Rd, Jackson, CA 95642",
+      "latlng": [
+        38.3494,
+        -120.7739
+      ],
+      "year": 1856,
+      "games": [
+        "oregon"
+      ],
+      "prompt": "a deep hard-rock gold mine headframe and stamp mill on a hill above town, timber gallows-frame, tailing works",
+      "historical_photo": null,
+      "note": "5,912 ft shaft. Headframe extant for Maps ref."
+    },
+    {
+      "id": "murphys",
+      "name": "Murphys",
+      "address": "Murphys, CA 95247",
+      "latlng": [
+        38.1377,
+        -120.4613
+      ],
+      "year": 1860,
+      "games": [
+        "chase",
+        "adventure",
+        "oregon"
+      ],
+      "prompt": "a Main Street lined with honey-locust trees, unpaved, board sidewalks, a squat two-story rough-stone hotel with folding iron shutters, single-story stone storefronts",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/cph/3a20000/3a28000/3a28200/3a28263r.jpg",
+      "note": "True 1866 L&H photos. Murphys Hotel 1856. (Fire was 1859, not 1854.)"
+    },
+    {
+      "id": "sutter_creek",
+      "name": "Sutter Creek",
+      "address": "Sutter Creek, CA 95685",
+      "latlng": [
+        38.3927,
+        -120.8024
+      ],
+      "year": 1866,
+      "games": [
+        "chase"
+      ],
+      "prompt": "a single narrow winding Main Street along a creek in a steep ravine, brick and native-stone storefronts with iron doors and cantilevered balconies, stamp mills on the hills",
+      "historical_photo": null,
+      "note": "True 1866 L&H 'Sutter's Creek from the South' (calisphere kt800018x4). Knight Foundry 1873."
+    },
+    {
+      "id": "volcano",
+      "name": "Volcano",
+      "address": "Volcano, CA 95689",
+      "latlng": [
+        38.4427,
+        -120.6296
+      ],
+      "year": 1855,
+      "games": [
+        "explore",
+        "chase",
+        "adventure"
+      ],
+      "prompt": "a town in a narrow limestone gulch, gray limestone ashlar and brick commercial buildings with heavy iron shutters, a three-story brick hotel with two-tier wood verandas, roofless stone ruins, oak-and-pine hills",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/cph/3a20000/3a26000/3a26300/3a26310r.jpg",
+      "note": "L&H 1860-70 'Main Street from the St. George Hotel' (calisphere kt6k40193z). St George Hotel clean Maps match."
+    },
+    {
+      "id": "vol_st_george",
+      "name": "St. George Hotel",
+      "address": "16104 Main St, Volcano, CA 95689",
+      "latlng": [
+        38.4419,
+        -120.6297
+      ],
+      "year": 1862,
+      "games": [
+        "explore",
+        "adventure"
+      ],
+      "prompt": "a three-story brick Gold Rush hotel with attic and two tiers of wood verandas, in a limestone gulch town",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/cph/3a20000/3a26000/3a26300/3a26310r.jpg",
+      "note": "1867 rebuild. HABS ca0051; Street View directly comparable."
+    },
+    {
+      "id": "bobr_cabin",
+      "name": "Back of Beyond Ranch",
+      "address": "West Point, CA 95255",
+      "latlng": [
+        38.3947,
+        -120.5269
+      ],
+      "year": 1852,
+      "games": [
+        "explore",
+        "oregon",
+        "adventure",
+        "markers"
+      ],
+      "prompt": "a modest hewn-log and board-and-batten ranch cabin and timber-frame barn on dry-laid stone, split-rail fences, open blue-oak woodland and golden grass meadows grading to ponderosa pine",
+      "historical_photo": null,
+      "note": "The real ranch base camp. No period photo; landscape reconstruction (more open in the 1850s)."
+    },
+    {
+      "id": "nevada_city",
+      "name": "Nevada City",
+      "address": "Nevada City, CA 95959",
+      "latlng": [
+        39.2616,
+        -121.0161
+      ],
+      "year": 1856,
+      "games": [
+        "explore"
+      ],
+      "prompt": "a Northern Mines hillside town, brick storefronts, the National Hotel, a white firehouse with a bell tower, forested ravines",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/cph/3a20000/3a27000/3a27800/3a27873r.jpg",
+      "note": "National Hotel 1856; Firehouse No.1 1861; Nevada Theatre 1865 (Twain lectured)."
+    },
+    {
+      "id": "grass_valley",
+      "name": "Grass Valley",
+      "address": "Grass Valley, CA 95945",
+      "latlng": [
+        39.219,
+        -121.0611
+      ],
+      "year": 1850,
+      "games": [
+        "explore"
+      ],
+      "prompt": "a hard-rock gold-mining town, the Holbrooke Hotel saloon, headframes and a giant Pelton wheel on the hills, brick Main Street",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/cph/3a20000/3a28000/3a28200/3a28245r.jpg",
+      "note": "Empire Mine; North Star Pelton wheel; Holbrooke 1851; Lola Montez house."
+    },
+    {
+      "id": "mariposa",
+      "name": "Mariposa",
+      "address": "Mariposa, CA 95338",
+      "latlng": [
+        37.4849,
+        -119.9663
+      ],
+      "year": 1854,
+      "games": [
+        "explore"
+      ],
+      "prompt": "a southern Mother Lode county seat, a white wood-frame 1854 county courthouse with a clock tower, oak hills, gateway to the giant sequoias",
+      "historical_photo": null,
+      "note": "1854 courthouse \u2014 oldest in continuous use in the West."
+    },
+    {
+      "id": "ch2_hangtown",
+      "name": "Hangtown (Placerville)",
+      "address": "Placerville, CA 95667",
+      "latlng": [
+        38.7296,
+        -120.7985
+      ],
+      "year": 1849,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "a rough 1849 mining camp main street, wood-frame stores and saloons, the notorious hanging tree, muddy street",
+      "historical_photo": null,
+      "note": "El Dorado County. The Hanging Tree (Studebaker, Hangman's Tree saloon)."
+    },
+    {
+      "id": "ch2_drytown",
+      "name": "Drytown",
+      "address": "Drytown, CA 95699",
+      "latlng": [
+        38.4391,
+        -120.858
+      ],
+      "year": 1848,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "the oldest town in Amador, a dusty street with many saloons and wood-frame buildings, oak foothills",
+      "historical_photo": null,
+      "note": "26 saloons in its heyday."
+    },
+    {
+      "id": "ch2_chinese_camp",
+      "name": "Chinese Camp",
+      "address": "Chinese Camp, CA 95309",
+      "latlng": [
+        37.8702,
+        -120.4313
+      ],
+      "year": 1849,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "a Chinese mining settlement with a tong temple, ailanthus 'tree of heaven' groves, stone and adobe buildings",
+      "historical_photo": null,
+      "note": "Tong War 1856."
+    },
+    {
+      "id": "moaning_cavern",
+      "name": "Moaning Cavern",
+      "address": "5350 Moaning Cave Rd, Vallecito, CA 95251",
+      "latlng": [
+        38.0719,
+        -120.4678
+      ],
+      "year": 1850,
+      "games": [
+        "oregon",
+        "adventure"
+      ],
+      "prompt": "the mouth of a vast limestone cave chamber, stalactites, a dark vertical shaft lit by a shaft of daylight",
+      "historical_photo": null,
+      "note": "Largest single cave chamber in CA."
+    },
+    {
+      "id": "big_trees",
+      "name": "Calaveras Big Trees",
+      "address": "1170 CA-4, Arnold, CA 95223",
+      "latlng": [
+        38.2776,
+        -120.3074
+      ],
+      "year": 1852,
+      "games": [
+        "oregon",
+        "adventure"
+      ],
+      "prompt": "a grove of giant sequoias towering over a pine forest, a massive cut stump (the Discovery Tree), filtered sunlight",
+      "historical_photo": null,
+      "note": "Discovery Tree 1852."
+    },
+    {
+      "id": "natural_bridges",
+      "name": "Natural Bridges",
+      "address": "Parrotts Ferry Rd, Vallecito, CA 95251",
+      "latlng": [
+        38.1194,
+        -120.4892
+      ],
+      "year": 1850,
+      "games": [
+        "oregon",
+        "adventure"
+      ],
+      "prompt": "limestone arches spanning a clear creek in oak woodland, a swimmable green pool under the bridge",
+      "historical_photo": null,
+      "note": "Limestone arches over Coyote Creek."
+    },
+    {
+      "id": "ch3_donner_pass",
+      "name": "Donner Pass",
+      "address": "Donner Pass Rd, Truckee, CA 96161",
+      "latlng": [
+        39.3137,
+        -120.329
+      ],
+      "year": 1846,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "a high granite Sierra pass with a frozen lake below, snow-laden pines, jagged peaks, a foreboding winter sky",
+      "historical_photo": null,
+      "note": "Donner Party 1846-47."
+    },
+    {
+      "id": "ch3_carson_trail",
+      "name": "Carson Pass",
+      "address": "Carson Pass, CA-88, Kirkwood, CA 95646",
+      "latlng": [
+        38.694,
+        -119.989
+      ],
+      "year": 1844,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "a high alpine pass at 8500 feet, granite domes, wind-bent pines, an emigrant trail winding over the summit",
+      "historical_photo": null,
+      "note": "Blazed by Kit Carson/Fremont 1844."
+    },
+    {
+      "id": "ch1_independence",
+      "name": "Independence, Missouri",
+      "address": "Independence, MO 64050",
+      "latlng": [
+        39.0911,
+        -94.4155
+      ],
+      "year": 1849,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "the bustling jumping-off town for the overland trails, a courthouse square, ox-drawn covered wagons being outfitted, brick storefronts",
+      "historical_photo": null,
+      "note": "Queen City of the Trails."
+    },
+    {
+      "id": "ch1_fort_kearny",
+      "name": "Fort Kearny",
+      "address": "1020 V Rd, Kearney, NE 68847",
+      "latlng": [
+        40.628,
+        -99.0
+      ],
+      "year": 1848,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "a frontier army post of adobe and sod buildings on the flat Platte River plain, a flagpole, emigrant wagons passing",
+      "historical_photo": null,
+      "note": "Est. 1848 on the Platte."
+    },
+    {
+      "id": "ch1_sutters_fort",
+      "name": "Sutter's Fort",
+      "address": "2701 L St, Sacramento, CA 95816",
+      "latlng": [
+        38.5723,
+        -121.4685
+      ],
+      "year": 1849,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "a large adobe-walled fort with bastions and a central building, oak-savanna plain, the heart of New Helvetia",
+      "historical_photo": null,
+      "note": "Est. 1839."
+    },
+    {
+      "id": "ch1_sacramento_waterfront",
+      "name": "Sacramento Embarcadero",
+      "address": "Old Sacramento, Sacramento, CA 95814",
+      "latlng": [
+        38.5825,
+        -121.5045
+      ],
+      "year": 1849,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "a Gold Rush riverfront of tents and hastily-built wood storefronts, sailing ships and riverboats at a muddy embarcadero, crowds of argonauts",
+      "historical_photo": null,
+      "note": "1849 tent-city waterfront."
+    },
+    {
+      "id": "ch5_ghost_town",
+      "name": "Abandoned Mining Camp",
+      "address": "Bodie, CA 93517",
+      "latlng": [
+        38.2121,
+        -119.0125
+      ],
+      "year": 1859,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "a weathered ghost town of leaning wood-frame buildings, broken windows, sagebrush high desert, a lonely headframe",
+      "historical_photo": null,
+      "note": "Bodie as the archetypal Gold Country ghost town."
+    },
+    {
+      "id": "ch5_hydraulic_scar",
+      "name": "The Hydraulic Scar",
+      "address": "Sierra foothills, CA",
+      "latlng": [
+        39.37,
+        -120.9
+      ],
+      "year": 1875,
+      "games": [
+        "adventure"
+      ],
+      "prompt": "a vast hydraulic-mining scar of raw red-and-white eroded cliffs and pinnacles, washed-out hillsides, a few pines clinging on",
+      "historical_photo": null,
+      "note": "Malakoff Diggins-type terrain."
+    }
+  ]
+}

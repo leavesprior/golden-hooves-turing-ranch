@@ -15,7 +15,7 @@ interface ExplorationMapCanvasProps {
   locations: ExplorationLocation[]
   currentLocationId: string
   onArrive: (locationId: string) => void
-  onEncounter?: () => void
+  onEncounter?: () => boolean
   width?: number
   height?: number
 }
@@ -159,9 +159,13 @@ export function ExplorationMapCanvas({
           if (player.distCheck >= ENCOUNTER_DISTANCE && onEncounter) {
             player.distCheck = 0
             if (Math.random() < ENCOUNTER_CHANCE) {
-              player.walking = false
-              onEncounter()
-              return
+              // Only halt the walk if an encounter actually begins. onEncounter()
+              // returns false when the roll produced nothing — in that case keep
+              // walking so the player isn't stranded mid-map and travel completes.
+              if (onEncounter()) {
+                player.walking = false
+                return
+              }
             }
           }
 
@@ -386,7 +390,7 @@ export function ExplorationMapCanvas({
       <div className="absolute top-2 left-2 font-[var(--font-pixel)] text-amber-500 text-[10px] bg-black/80 px-2 py-1 rounded border border-amber-900">
         CH.{chapter} {'\u2022'} GOLD COUNTRY
       </div>
-      <div className="absolute bottom-2 left-2 font-[var(--font-pixel)] text-amber-600/60 text-[8px] bg-black/60 px-2 py-1 rounded">
+      <div className="absolute bottom-2 left-2 font-[var(--font-pixel)] text-amber-600/60 text-[11px] bg-black/60 px-2 py-1 rounded">
         Click a location to walk there
       </div>
       {arrived && (

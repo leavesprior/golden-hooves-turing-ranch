@@ -6,8 +6,9 @@
  * and occasional genuine wonder at the natural world.
  *
  * Historical basis: Twain lived in Gold Country 1864-1865, staying at
- * Jackass Hill with Jim Gillis, hearing the Jumping Frog story at Angels Camp's
- * Ross's Saloon, and writing for the Territorial Enterprise in Virginia City.
+ * Jackass Hill with Jim Gillis, hearing the Jumping Frog story in the barroom
+ * of Angels Camp's Angels Hotel (still standing), and writing for the
+ * Territorial Enterprise in Virginia City.
  *
  * All Twain-style commentary is original but faithful to his voice and
  * references real works: Roughing It (1872), The Celebrated Jumping Frog of
@@ -440,7 +441,7 @@ export const GENUINE_MEXICAN_PLUG_STATS = {
 export const JUMPING_FROG_EVENT: TwainSpecialEncounter = {
   id: 'jumping_frog_contest',
   title: "The Celebrated Jumping Frog Contest",
-  description: "A crowd has gathered behind Ross's Saloon in Angels Camp. A man in a stained vest stands on a barrel: \"Annual Calaveras County Frog-Jumping Jubilee! Entry fee: ten gold! Prize: forty gold and the admiration of the territory! Who's got a frog that can jump?\"",
+  description: "A crowd has gathered behind the Angels Hotel in Angels Camp. A man in a stained vest stands on a barrel: \"Annual Calaveras County Frog-Jumping Jubilee! Entry fee: ten gold! Prize: forty gold and the admiration of the territory! Who's got a frog that can jump?\"",
   type: 'opportunity',
   icon: '\ud83d\udc38',
   narratorIntro: "The narrator perks up considerably. This is, for reasons the narrator declines to explain, a subject very close to the narrator's heart. The narrator has opinions about frogs. Many opinions. The narrator would like you to enter this contest.",

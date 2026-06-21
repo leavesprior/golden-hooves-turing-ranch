@@ -799,25 +799,32 @@ export default function Home() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/*  MATTERPORT 3D WALKAROUND                                 */}
+      {/*  3D / PROPERTY TOUR  (HIGH-2 fix 2026-06-16)               */}
+      {/*  Removed dead Matterport embed (w4K3m2XemZG → 404).       */}
+      {/*  Real photos + booking live on /rentals. 3D can return    */}
+      {/*  when a working model ID is available from the property.  */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <section className="py-12 px-4 bg-[var(--pixel-bg-mid)]">
         <div className="max-w-5xl mx-auto">
           <h2 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-sm sm:text-lg text-center mb-3">
-            Explore 700 Deer Ln in 3D
+            Explore 700 Deer Ln
           </h2>
           <p className="font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] text-center mb-8">
-            Full property walkthrough -- rooms, hot tub, game room & 60-acre grounds
+            Rooms, hot tub, game room &amp; 60-acre grounds — virtual tour updating
           </p>
-          <div className="bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] rounded-lg overflow-hidden">
-            <iframe
-              src="https://my.matterport.com/show/?m=w4K3m2XemZG"
-              frameBorder="0"
-              allowFullScreen
-              allow="xr-spatial-tracking; fullscreen"
-              className="w-full aspect-video"
-              title="BOBR Property 3D Walkaround"
-            />
+          <div className="bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] rounded-lg p-8 text-center">
+            <div className="font-[var(--font-pixel)] text-[var(--pixel-gold-mid)] text-sm mb-2">
+              3D model temporarily unavailable
+            </div>
+            <p className="text-[var(--pixel-ui-text)] text-[10px] mb-4 max-w-md mx-auto">
+              The interactive walkthrough is being refreshed. In the meantime the real cabin and grounds are documented in high-res photos, and you can book a stay to walk them yourself.
+            </p>
+            <a
+              href="/rentals"
+              className="inline-block font-[var(--font-pixel)] text-[10px] px-4 py-2 border-2 border-[var(--pixel-gold-mid)] hover:bg-[var(--pixel-gold-mid)] hover:text-black transition-colors rounded"
+            >
+              VIEW PHOTO GALLERY + BOOK STAY →
+            </a>
           </div>
         </div>
       </section>

@@ -78,7 +78,7 @@ function SkillNodeCard({
             />
           ))}
         </div>
-        <span className="font-[var(--font-pixel)] text-[8px]" style={{ color: isUnlocked ? color : 'var(--pixel-ui-text)' }}>
+        <span className="font-[var(--font-pixel)] text-[11px]" style={{ color: isUnlocked ? color : 'var(--pixel-ui-text)' }}>
           Tier {node.tier}
         </span>
       </div>
@@ -86,21 +86,21 @@ function SkillNodeCard({
       <h4 className="font-[var(--font-pixel)] text-[11px] mb-1" style={{ color: isUnlocked ? color : 'var(--pixel-ui-text)' }}>
         {isUnlocked ? '\u2605 ' : ''}{node.name}
       </h4>
-      <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70 mb-1">
+      <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-70 mb-1">
         {node.description}
       </p>
       {node.specialEffect && (
-        <p className="font-[var(--font-pixel)] text-[8px] mt-1" style={{ color: `${color}cc` }}>
+        <p className="font-[var(--font-pixel)] text-[11px] mt-1" style={{ color: `${color}cc` }}>
           {node.specialEffect}
         </p>
       )}
       {!isUnlocked && !canUnlockStatus.canUnlock && canUnlockStatus.reason && (
-        <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-fire-orange)] mt-1">
+        <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-fire-orange)] mt-1">
           {canUnlockStatus.reason}
         </p>
       )}
       {!isUnlocked && canUnlockStatus.canUnlock && skillPoints > 0 && (
-        <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mt-1 animate-pulse">
+        <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] mt-1 animate-pulse">
           Click to unlock (1 skill point)
         </p>
       )}
@@ -141,7 +141,7 @@ function BranchColumn({
             <h3 className="font-[var(--font-pixel)] text-[11px]" style={{ color }}>
               {branch.name}
             </h3>
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-60">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-60">
               {branch.stat}
             </p>
           </div>
@@ -169,7 +169,7 @@ function BranchColumn({
       {/* Branch Description */}
       {isExpanded && (
         <div className="p-3 space-y-2">
-          <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-60 mb-3">
+          <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-60 mb-3">
             {branch.description}
           </p>
           {/* Skill Nodes */}
@@ -204,7 +204,7 @@ export function SkillTree({ unlockedNodes, playerLevel, skillPoints, onUnlockNod
             <h2 className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)]">
               SKILL TREE
             </h2>
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">
               {totalUnlocked} / {totalNodes} skills unlocked | Level {playerLevel}
             </p>
           </div>
@@ -243,7 +243,7 @@ export function SkillTree({ unlockedNodes, playerLevel, skillPoints, onUnlockNod
 
         {/* Footer hint */}
         <div className="p-3 border-t border-[var(--pixel-ui-border)]">
-          <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] text-center opacity-50">
+          <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] text-center opacity-50">
             Each skill point unlocks one node. Higher tiers require their prerequisite.
             You cannot master everything — choose wisely.
           </p>

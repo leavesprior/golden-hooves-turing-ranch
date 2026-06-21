@@ -3,9 +3,13 @@ import { dbGetAllEntries, dbCreateEntry } from '@/lib/workerDb';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const entries = dbGetAllEntries();
+    // Default to Mike Fisher so the original /worker page (which sends no param)
+    // keeps showing only Mike's entries even after a second worker exists.
+    const { searchParams } = new URL(req.url);
+    const worker = searchParams.get('worker') || 'Mike Fisher';
+    const entries = dbGetAllEntries(worker);
     return NextResponse.json({ entries });
   } catch (err) {
     console.error('[worker/entries GET]', err);

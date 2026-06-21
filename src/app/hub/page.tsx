@@ -121,6 +121,20 @@ export default function HubPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 pb-16">
+        {/* PLAY THE COMPLETE JOURNEY — the games as one story, in time-order */}
+        <div className="mb-8 rounded-lg border-4 border-amber-400 bg-gradient-to-b from-amber-950/50 to-indigo-950/40 p-4">
+          <h2 className="font-pixel text-amber-300 text-sm tracking-wider">{'▶'} PLAY THE COMPLETE JOURNEY</h2>
+          <p className="text-amber-400/80 text-[11px] mt-2 leading-relaxed">
+            One land, every era. Chase the forger Cyrus Vane across time, then live the years honestly — Gold Rush to the present ranch. Your trail carries forward.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            <Link href="/prologue" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">1. The Prologue {'·'} 600–1500</Link>
+            <Link href="/adventure/where-in-time" className="font-pixel border-2 border-indigo-400/60 bg-indigo-900/30 px-3 py-1.5 text-indigo-200 hover:bg-indigo-800/40">2. Where in Time? {'·'} the chase</Link>
+            <Link href="/oregon-trail" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">3. The Journey {'·'} 1849</Link>
+            <Link href="/investigations" className="font-pixel border-2 border-indigo-400/60 bg-indigo-900/30 px-3 py-1.5 text-indigo-200 hover:bg-indigo-800/40">{'🔍'} The Tare's Trail {'·'} investigate 10 towns</Link>
+          </div>
+        </div>
+
         {/* Ranch scenic view with hidden rope bridge */}
         <div className="mb-8 relative overflow-hidden rounded-lg border-4 border-amber-600">
           <div className="aspect-[21/9] relative" style={{

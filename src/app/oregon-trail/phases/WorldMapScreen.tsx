@@ -74,6 +74,13 @@ export function WorldMapScreen() {
       // Clear selection
       setSelectedLocation(null)
       setTimeout(() => setTravelMessage(null), 3000)
+    } else {
+      // 2026-06-17 fix: never fail silently. A trip that can't happen used to do
+      // nothing (no else) — reading as "travel is broken." Now it says why.
+      setTravelMessage(
+        `You can't reach ${getLocationById(selectedLocation)?.name ?? 'there'} from here — pick a connected town.`,
+      )
+      setTimeout(() => setTravelMessage(null), 3000)
     }
   }, [selectedLocation, travelTo, comment])
 

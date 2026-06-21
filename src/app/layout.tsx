@@ -7,6 +7,7 @@ import { KarmaProvider } from "@/lib/karmaContext";
 import { AuthProvider } from "@/lib/authContext";
 import { SaveLoadProvider } from "@/lib/saveLoadContext";
 import { CrossGameProgressionProvider } from "@/lib/crossGameProgressionContext";
+import { RegisterSW } from "@/components/pwa/RegisterSW";
 
 const pressStart2P = Press_Start_2P({
   weight: "400",
@@ -53,6 +54,12 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+  },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Golden Frog",
+    statusBarStyle: "black-translucent",
   },
 };
 
@@ -179,13 +186,17 @@ export default function RootLayout({
   return (
     <html lang="en" className={pressStart2P.variable}>
       <head>
-        <meta httpEquiv="Content-Security-Policy" content="upgrade-insecure-requests" />
+        {/* upgrade-insecure-requests intentionally NOT set via meta: the production
+            header CSP (middleware/next.config) already carries it, and a meta CSP
+            applies on plain-HTTP LAN canaries too, https-upgrading every asset and
+            blanking the site (root-caused 2026-06-11). */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
       <body className="antialiased">
+        <RegisterSW />
         <AuthProvider>
           <KarmaProvider>
             <CrossGameProgressionProvider>

@@ -2,10 +2,20 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
+// 2026-06-17 map-unification step 1 (nav congruence): the three maps were also
+// reached confusingly. "Quest" pointed at the OLD /game launcher menu — repoint
+// to /hub (the "PLAY THE COMPLETE JOURNEY" hub). "Map" → /explore is the Gold
+// Country TOWN explorer (not character travel) — relabel "Explore" so it isn't
+// mistaken for the travel map.
+// 2026-06-18: the unified /map and the 10 town investigations were orphaned (nav
+// pointed at the old /explore and nothing linked /map). Repoint "Map" -> /map (the
+// canonical state→county→local map, which links into /explore for town detail) and
+// add "Cases" -> /investigations (The Tare's Trail case-board). Closes the congruence loop.
 const navItems = [
   { href: '/', label: '🏠 Home' },
-  { href: '/explore', label: '🗺️ Map' },
-  { href: '/game', label: '⚔️ Quest' },
+  { href: '/hub', label: '🎮 Play' },
+  { href: '/map', label: '🗺️ Map' },
+  { href: '/investigations', label: '🔍 Cases' },
   { href: '/karma-market', label: '🏪 Market' },
   { href: '/rentals', label: '🏨 Stay' },
   { href: '/leaderboard', label: '🏆 Ranks' },

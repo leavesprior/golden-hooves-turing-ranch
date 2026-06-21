@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 import { getGoldCountryLocation, type GoldCountryLocation as LocationType } from '../data/goldCountryLocations'
 import {
   getNPCsAtLocation,
@@ -208,6 +209,9 @@ export function GoldCountryLocation({
             <p className="text-green-300 text-sm leading-relaxed">{location.description}</p>
             <p className="text-green-700 text-xs font-mono mt-2 italic">{location.fact}</p>
           </div>
+
+          {/* 64-bit period backdrop of the real place */}
+          <PlaceBackdrop id={location.id} className="h-44 rounded-lg border border-green-700/40" />
 
           {/* NPCs */}
           <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-4">

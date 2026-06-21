@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === 'development';
+// Plain-HTTP LAN canary (next start on the LAN): serve the dev-grade CSP so
+// upgrade-insecure-requests/HSTS don't blank the site. Never set in production.
+const isLanCanary = process.env.LAN_CANARY === '1';
 
 const nextConfig: NextConfig = {
   async headers() {
@@ -34,7 +37,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: isDev
+            value: isDev || isLanCanary
               ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws:; media-src 'self'; frame-src https://my.matterport.com; frame-ancestors 'self' https://my.matterport.com"
               : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; frame-src https://my.matterport.com; frame-ancestors 'self' https://my.matterport.com; upgrade-insecure-requests",
           },

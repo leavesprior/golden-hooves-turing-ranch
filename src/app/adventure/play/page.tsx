@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { trackPageView, trackGameStart } from '@/lib/eventTracker'
@@ -22,6 +22,7 @@ import { LocationView } from '@/components/adventure/LocationView'
 import { CampManagement } from '@/components/adventure/CampManagement'
 import { SkillTree } from '@/components/adventure/SkillTree'
 import AdventureRewardTracker from '@/components/adventure/AdventureRewardTracker'
+import { ClueGameUnlock } from '@/components/adventure/ClueGameUnlock'
 
 // Lazy-load PixiJS exploration map (SSR-safe)
 import dynamic from 'next/dynamic'
@@ -47,16 +48,33 @@ import {
 import { getSkillTreeBonuses } from '@/app/adventure/data/skillTree'
 import type { ActivityResult } from '@/app/adventure/data/campActivities'
 import { rollConfrontation, type ConfrontationEnemy } from '@/app/adventure/data/confrontationEnemies'
+import { getPickById } from '@/app/adventure/data/advantages'
 import { ConfrontationView, type ConfrontationResult } from '@/components/adventure/ConfrontationView'
 import { type RecruitedAlly, updateAllyDurations, getAllyStatBonuses, rollAllyAbility } from '@/app/adventure/data/enemyRecruitment'
 import { CompanionBar } from '@/components/adventure/CompanionBar'
 import type { DialogueContext } from '@/app/adventure/data/companionDialogues'
+
+// Authored NPC dialogue trees + quest data (previously orphaned — wired 2026-06-11)
+import { DialogueView } from '@/components/adventure/DialogueView'
+import { QuestLog, type QuestLogEntry, type QuestStatus } from '@/components/adventure/QuestLog'
+import { getDialoguesForNpc, type Dialogue, type DialogueEffect } from '@/app/adventure/data/dialogues'
+import { QUESTS, type Quest, type QuestPath } from '@/app/adventure/data/quests'
 
 // ============================================
 // ADVENTURE STATE
 // ============================================
 
 type AdventurePhase = 'loading' | 'exploring' | 'at_location' | 'traveling' | 'camp' | 'chapter_complete'
+
+// Per-quest progress, persisted inside AdventureState. Objectives complete via
+// cheap hooks into existing handlers (talk / travel / clue answered / dialogue
+// questProgress effects); a quest completes when every non-optional objective
+// of one of its paths is done.
+interface QuestSaveState {
+  status: 'active' | 'completed'
+  completedObjectives: string[]
+  completedPathId?: string
+}
 
 interface AdventureState {
   chapter: number
@@ -73,6 +91,10 @@ interface AdventureState {
   confrontationsWon: number
   confrontationsLost: number
   recruitedAllies: RecruitedAlly[]
+  startingAbilitiesApplied?: boolean  // one-time guard for pick-based starting effects
+  // Dialogue/quest progression (added with the dialogue+quest wiring)
+  dialogueFlags: string[]
+  questStates: Record<string, QuestSaveState>
 }
 
 const SAVE_KEY = 'bobr_adventure_state'
@@ -94,15 +116,26 @@ function loadAdventureState(): AdventureState | null {
       confrontationsWon: parsed.confrontationsWon ?? 0,
       confrontationsLost: parsed.confrontationsLost ?? 0,
       recruitedAllies: parsed.recruitedAllies ?? [],
+      dialogueFlags: parsed.dialogueFlags ?? [],
+      questStates: parsed.questStates ?? {},
     }
   } catch {
     return null
   }
 }
 
-function saveAdventureState(state: AdventureState) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(SAVE_KEY, JSON.stringify(state))
+function saveAdventureState(state: AdventureState): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state))
+    return true
+  } catch (e) {
+    // Swallow — never let a save failure abort a React state update (would
+    // freeze the UI), and never let it bubble out of handleSave (would skip
+    // the user-facing toast). Log so the failure isn't silent in devtools.
+    console.error('[adventure] saveAdventureState failed:', e)
+    return false
+  }
 }
 
 function createNewAdventureState(): AdventureState {
@@ -132,7 +165,110 @@ function createNewAdventureState(): AdventureState {
     confrontationsWon: 0,
     confrontationsLost: 0,
     recruitedAllies: [],
+    dialogueFlags: [],
+    questStates: {},
   }
+}
+
+// ============================================
+// QUEST ENGINE (pure helpers — no side effects)
+// ============================================
+
+type QuestEvent = { kind: 'talk' | 'travel' | 'clue'; target: string }
+
+interface QuestUpdateResult {
+  next: Record<string, QuestSaveState>
+  completed: { quest: Quest; path: QuestPath }[]
+  progressed: boolean
+}
+
+/** Check whether a path is fully complete (all non-optional objectives done). */
+function isPathComplete(path: QuestPath, completedIds: Set<string>): boolean {
+  return path.objectives.filter(o => !o.optional).every(o => completedIds.has(o.id))
+}
+
+/**
+ * Mark matching objectives complete across all active quests for a game event,
+ * then detect quest completion. Pure: returns new questStates + completions.
+ */
+function questEventProgress(
+  questStates: Record<string, QuestSaveState>,
+  event: QuestEvent,
+): QuestUpdateResult {
+  const next: Record<string, QuestSaveState> = { ...questStates }
+  const completed: { quest: Quest; path: QuestPath }[] = []
+  let progressed = false
+
+  for (const quest of QUESTS) {
+    const st = next[quest.id]
+    if (!st || st.status !== 'active') continue
+
+    const done = new Set(st.completedObjectives)
+    let changed = false
+    for (const path of quest.paths) {
+      for (const obj of path.objectives) {
+        if (obj.type === event.kind && obj.target === event.target && !done.has(obj.id)) {
+          done.add(obj.id)
+          changed = true
+        }
+      }
+    }
+    if (!changed) continue
+    progressed = true
+
+    const finishedPath = quest.paths.find(p => isPathComplete(p, done))
+    next[quest.id] = {
+      status: finishedPath ? 'completed' : 'active',
+      completedObjectives: Array.from(done),
+      completedPathId: finishedPath?.id,
+    }
+    if (finishedPath) completed.push({ quest, path: finishedPath })
+  }
+
+  return { next, completed, progressed }
+}
+
+/** Complete one specific objective (from a dialogue questProgress effect). */
+function questObjectiveProgress(
+  questStates: Record<string, QuestSaveState>,
+  questId: string,
+  objectiveId: string,
+): QuestUpdateResult {
+  const quest = QUESTS.find(q => q.id === questId)
+  const st = questStates[questId]
+  const objectiveExists = quest?.paths.some(p => p.objectives.some(o => o.id === objectiveId))
+  if (!quest || !st || st.status !== 'active' || !objectiveExists || st.completedObjectives.includes(objectiveId)) {
+    return { next: questStates, completed: [], progressed: false }
+  }
+  const done = new Set(st.completedObjectives)
+  done.add(objectiveId)
+  const finishedPath = quest.paths.find(p => isPathComplete(p, done))
+  return {
+    next: {
+      ...questStates,
+      [questId]: {
+        status: finishedPath ? 'completed' : 'active',
+        completedObjectives: Array.from(done),
+        completedPathId: finishedPath?.id,
+      },
+    },
+    completed: finishedPath ? [{ quest, path: finishedPath }] : [],
+    progressed: true,
+  }
+}
+
+// NPC portrait emoji by witness type (LocationNPC has no icon field)
+const WITNESS_ICONS: Record<string, string> = {
+  bartender: '🍺',
+  sheriff: '⭐',
+  settler: '🤠',
+  miner: '⛏️',
+  native: '🪶',
+  outlaw: '🤠',
+  merchant: '🧺',
+  doctor: '🩺',
+  preacher: '✝️',
+  default: '🗨️',
 }
 
 // ============================================
@@ -209,13 +345,13 @@ function TravelEncounterOverlay({
         <h3 className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-fire-orange)] mb-2 text-center">
           {encounter.name}
         </h3>
-        <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] mb-4 text-center">
+        <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-4 text-center">
           {encounter.description}
         </p>
 
         {!resolved ? (
           <div className="text-center">
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] mb-3 opacity-60">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] mb-3 opacity-60">
               {encounter.stat} check — DC {encounter.difficulty}
               (Your {encounter.stat}: {playerStats[encounter.stat] ?? 0})
             </p>
@@ -231,7 +367,7 @@ function TravelEncounterOverlay({
             {/* Ally ability trigger notification */}
             {allyTrigger?.triggered && (
               <div className="mb-3 p-2 bg-purple-900/50 border border-purple-500 rounded">
-                <p className="font-[var(--font-pixel)] text-[9px] text-purple-300">
+                <p className="font-[var(--font-pixel)] text-[12px] text-purple-300">
                   {'\u2728'} {allyTrigger.description}
                 </p>
               </div>
@@ -241,11 +377,11 @@ function TravelEncounterOverlay({
             }`}>
               {success ? 'SUCCESS!' : 'FAILED'}
             </p>
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] mb-2">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-2">
               {success ? encounter.successText : encounter.failureText}
             </p>
             {encounter.xpReward > 0 && (
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)]">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
                 +{encounter.xpReward} XP
               </p>
             )}
@@ -322,7 +458,7 @@ function PassphraseModal({
           </div>
         ) : (
           <>
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] mb-3">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-3">
               {mode === 'save'
                 ? 'Enter a Trail Passphrase to encrypt your save. Remember it — there is no recovery.'
                 : 'Enter your Trail Passphrase to decrypt your cloud save.'}
@@ -345,7 +481,7 @@ function PassphraseModal({
               />
             )}
             {needsConfirm && passphrase && confirm && passphrase !== confirm && (
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-fire-orange)] mb-2">Passphrases don&apos;t match</p>
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-fire-orange)] mb-2">Passphrases don&apos;t match</p>
             )}
             <div className="flex gap-2 mt-3">
               <button
@@ -374,7 +510,9 @@ function StatsSidebar({
   level,
   xp,
   chapter,
+  karma,
   onOpenSkillTree,
+  onOpenQuestLog,
   onSaveGame,
   onCloudSave,
   onCloudLoad,
@@ -386,7 +524,9 @@ function StatsSidebar({
   level: number
   xp: number
   chapter: number
+  karma: number
   onOpenSkillTree: () => void
+  onOpenQuestLog: () => void
   onSaveGame: () => void
   onCloudSave: () => void
   onCloudLoad: () => void
@@ -394,6 +534,16 @@ function StatsSidebar({
   recruitedAllies: RecruitedAlly[]
   onDismissAlly: (enemyName: string) => void
 }) {
+  // Surface the abilities the player chose at creation — previously stored but
+  // never shown in play, so build choices felt like they vanished.
+  const [abilities, setAbilities] = useState<{ name: string; ability: string }[]>([])
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('bobr_adventure_picks')
+      if (raw) setAbilities(JSON.parse(raw).specialAbilities ?? [])
+    } catch {}
+  }, [])
+
   return (
     <div className="space-y-3">
       {/* Character Stats */}
@@ -403,7 +553,7 @@ function StatsSidebar({
             <div key={stat} className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <span className="text-xs">{STAT_DISPLAY[stat].icon}</span>
-                <span className="font-[var(--font-pixel)] text-[9px]" style={{ color: STAT_DISPLAY[stat].color }}>
+                <span className="font-[var(--font-pixel)] text-[12px]" style={{ color: STAT_DISPLAY[stat].color }}>
                   {stat.slice(0, 3).toUpperCase()}
                 </span>
               </div>
@@ -430,19 +580,37 @@ function StatsSidebar({
       <PixelCard title="Progress">
         <div className="space-y-2">
           <div className="flex justify-between">
-            <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">Level</span>
+            <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">Level</span>
             <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">{level}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">XP</span>
+            <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">XP</span>
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">{xp}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">Chapter</span>
+            <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">Chapter</span>
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">{chapter}/5</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">Karma</span>
+            <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">{'🌮'} {karma}</span>
           </div>
         </div>
       </PixelCard>
+
+      {/* Chosen Abilities — your build choices, now visible in play */}
+      {abilities.length > 0 && (
+        <PixelCard title="ABILITIES">
+          <div className="space-y-2">
+            {abilities.map(a => (
+              <div key={a.name} className="p-2 bg-[var(--pixel-bg-dark)] border border-[var(--pixel-gold-mid)]/40">
+                <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">{a.name}</p>
+                <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-70">{a.ability}</p>
+              </div>
+            ))}
+          </div>
+        </PixelCard>
+      )}
 
       {/* Recruited Allies */}
       {recruitedAllies.length > 0 && (
@@ -453,13 +621,13 @@ function StatsSidebar({
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm">{ally.icon}</span>
-                    <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)]">
+                    <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
                       {ally.enemyName}
                     </span>
                   </div>
                   <button
                     onClick={() => onDismissAlly(ally.enemyName)}
-                    className="text-[8px] text-red-400 hover:text-red-300 font-[var(--font-pixel)]"
+                    className="text-[11px] text-red-400 hover:text-red-300 font-[var(--font-pixel)]"
                     title="Dismiss ally"
                   >
                     {'\u2715'}
@@ -467,23 +635,23 @@ function StatsSidebar({
                 </div>
                 <div className="flex items-center gap-1 mb-1">
                   <span className="text-xs">{STAT_DISPLAY[ally.bonusStat]?.icon ?? ''}</span>
-                  <span className="font-[var(--font-pixel)] text-[8px]" style={{ color: STAT_DISPLAY[ally.bonusStat]?.color ?? '#ccc' }}>
+                  <span className="font-[var(--font-pixel)] text-[11px]" style={{ color: STAT_DISPLAY[ally.bonusStat]?.color ?? '#ccc' }}>
                     +{ally.bonusAmount} {ally.bonusStat}
                   </span>
                 </div>
-                <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-70 mb-1">
+                <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-70 mb-1">
                   {ally.passiveEffect}
                 </p>
                 {ally.specialAbility && (
                   <div className="flex items-center gap-1">
-                    <span className="text-[8px]">{'\u2728'}</span>
-                    <span className="font-[var(--font-pixel)] text-[7px] text-purple-300">
+                    <span className="text-[11px]">{'\u2728'}</span>
+                    <span className="font-[var(--font-pixel)] text-[10px] text-purple-300">
                       {ally.specialAbility.name}
                     </span>
                   </div>
                 )}
                 <div className="mt-1 flex justify-between items-center">
-                  <span className="font-[var(--font-pixel)] text-[7px] text-amber-400">
+                  <span className="font-[var(--font-pixel)] text-[10px] text-amber-400">
                     {ally.chaptersRemaining === 0 ? 'Permanent' : `${ally.chaptersRemaining} ch. left`}
                   </span>
                   <div className="flex gap-0.5">
@@ -505,6 +673,12 @@ function StatsSidebar({
           className="w-full py-2 px-3 font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]"
         >
           {'\uD83C\uDF33'} SKILL TREE
+        </button>
+        <button
+          onClick={onOpenQuestLog}
+          className="w-full py-2 px-3 font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]"
+        >
+          {'\uD83D\uDCDC'} JOURNAL
         </button>
         <button
           onClick={onSaveGame}
@@ -554,15 +728,15 @@ function NarratorToast() {
           : 'bg-[var(--pixel-bg-mid)]/90 border-[var(--pixel-gold-mid)]/50'
       }`}>
         <div className="flex items-start gap-2">
-          <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] shrink-0">
+          <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] shrink-0">
             NARRATOR:
           </span>
-          <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] italic">
+          <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] italic">
             "{comment.text}"
           </p>
         </div>
         {comment.isLie && (
-          <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-fire-orange)] mt-1 opacity-50">
+          <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-fire-orange)] mt-1 opacity-50">
             (The narrator seems... unreliable)
           </p>
         )}
@@ -584,7 +758,7 @@ function ReputationDisplay() {
         const level = getReputationLevel(factionId)
         return (
           <div key={factionId} className="flex items-center gap-1">
-            <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-60">
+            <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-60">
               {factionId.slice(0, 4).toUpperCase()}
             </span>
             <div className="w-10 h-1.5 bg-[var(--pixel-bg-dark)] border border-[var(--pixel-ui-border)]">
@@ -610,7 +784,7 @@ function ReputationDisplay() {
 function AdventureContent() {
   const router = useRouter()
   const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter, modifyStat } = useCharacter()
-  const { balance, earnNeutral, spendNeutral } = useKarmaWallet()
+  const { balance, earnNeutral, spendNeutral, initializeWallet, isInitialized: walletInitialized, getKarmaAlignment } = useKarmaWallet()
   const { state: repState, modifyReputation, getReputationLevel, getReputation } = useReputation()
   const { comment: narratorComment } = useNarrator()
 
@@ -620,8 +794,21 @@ function AdventureContent() {
   const [travelDestination, setTravelDestination] = useState<string | null>(null)
   const [showCamp, setShowCamp] = useState(false)
   const [activeConfrontation, setActiveConfrontation] = useState<ConfrontationEnemy | null>(null)
-  const [explorationMode, setExplorationMode] = useState(true)
+  // 2026-06-17: default to the working SVG node map. The free-roam (Pixi) EXPLORE
+  // view has movement bugs (WASD nulls the travel target; the map remounts the
+  // player home mid-walk) — the "movement under explore often fails" report. Until
+  // the unified state→county→local map lands, the reliable map is the default; the
+  // free-roam stays reachable via the toggle but is no longer the first thing seen.
+  const [explorationMode, setExplorationMode] = useState(false)
   const [pixiFailed, setPixiFailed] = useState(false)
+  const [showClueGameUnlock, setShowClueGameUnlock] = useState(false)
+  // Authored dialogue tree currently open (NPCs with trees), and the quest journal
+  const [activeDialogue, setActiveDialogue] = useState<{ dialogue: Dialogue; npc: LocationNPC } | null>(null)
+  const [showQuestLog, setShowQuestLog] = useState(false)
+  // Backdrop-close grace: the second click of a rapid double-click on the TALK
+  // button would otherwise land on the backdrop and instantly close the
+  // just-opened dialogue. (Escape and the LEAVE button are never gated.)
+  const dialogueOpenedAtRef = useRef(0)
 
   // Track page view on mount
   useEffect(() => {
@@ -641,19 +828,64 @@ function AdventureContent() {
     }
   }, [])
 
-  // Auto-save periodically (enriched with character info for leaderboard/trophy)
+  // Initialize the karma wallet for the adventure path. Oregon Trail initializes
+  // via its New/Continue menu, but the adventure never called initializeWallet —
+  // walletMode stayed null, so the wallet's persistence effect (gated on
+  // isInitialized && walletMode) never wrote and the balance reset to 400 on
+  // every reload while purchases persisted. If a stored wallet exists the
+  // provider hydrates it on mount (which engages persistence); otherwise start
+  // a new wallet exactly once here.
+  const walletInitRef = useRef(false)
+  useEffect(() => {
+    if (walletInitRef.current || walletInitialized) return
+    walletInitRef.current = true
+    // Same canonical key the wallet provider reads/writes (see karmaWalletContext)
+    if (!localStorage.getItem('oregon_trail_karma_wallet')) {
+      initializeWallet('new')
+    }
+  }, [walletInitialized, initializeWallet])
+
+  // Latest-value refs so the persistence effects below don't re-subscribe (and
+  // tear down/recreate timers) on every single state change during combat.
+  // Updated in effects (not during render — writing refs in render is impure).
+  const stateRef = useRef(adventureState)
+  const charRef = useRef(charState.character)
+  useEffect(() => { stateRef.current = adventureState }, [adventureState])
+  useEffect(() => { charRef.current = charState.character }, [charState.character])
+
+  // Debounced persistence: replaces the old in-reducer synchronous save. Every
+  // state change schedules one write 500ms after activity settles, so a burst
+  // of combat updates collapses to a single localStorage write instead of one
+  // blocking write per update (the source of the "very delayed" lag).
   useEffect(() => {
     if (!adventureState) return
+    const t = setTimeout(() => saveAdventureState(adventureState), 500)
+    return () => clearTimeout(t)
+  }, [adventureState])
+
+  // Clock tick for play-time display. Keeps render pure (no Date.now() in JSX);
+  // the minute counter advances off this state, not a render-time clock read.
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 30000)
+    return () => clearInterval(t)
+  }, [])
+
+  // Periodic enriched autosave backstop (leaderboard/trophy fields). Reads from
+  // refs and is created ONCE — it no longer churns a timer on every render.
+  useEffect(() => {
     const interval = setInterval(() => {
-      const enriched = { ...adventureState } as AdventureState & { level?: number; playerName?: string }
-      if (charState.character) {
-        enriched.level = charState.character.level ?? 1
-        enriched.playerName = charState.character.name ?? 'Unknown'
+      const s = stateRef.current
+      if (!s) return
+      const enriched = { ...s } as AdventureState & { level?: number; playerName?: string }
+      if (charRef.current) {
+        enriched.level = charRef.current.level ?? 1
+        enriched.playerName = charRef.current.name ?? 'Unknown'
       }
       saveAdventureState(enriched as AdventureState)
     }, 30000)
     return () => clearInterval(interval)
-  }, [adventureState, charState.character])
+  }, [])
 
   // Redirect if no character (delay to let CharacterProvider hydrate from localStorage)
   useEffect(() => {
@@ -671,13 +903,36 @@ function AdventureContent() {
   }, [adventureState, charState.character, router])
 
   const updateState = useCallback((updates: Partial<AdventureState>) => {
-    setAdventureState(prev => {
-      if (!prev) return prev
-      const next = { ...prev, ...updates }
-      saveAdventureState(next)
-      return next
-    })
+    // Pure reducer — no side effects. Persistence is handled by the debounced
+    // effect above (was a synchronous full-state write here on every change).
+    setAdventureState(prev => (prev ? { ...prev, ...updates } : prev))
   }, [])
+
+  // Apply one-time "Start with +X reputation" abilities from the player's picks.
+  // Guarded by startingAbilitiesApplied so it fires exactly once per game (not on
+  // every reload) — the chosen abilities now actually change the world (B3 follow-through).
+  useEffect(() => {
+    if (!adventureState || adventureState.startingAbilitiesApplied) return
+    try {
+      const raw = localStorage.getItem('bobr_adventure_picks')
+      const picks: string[] = raw ? (JSON.parse(raw).picks ?? []) : []
+      for (const id of picks) {
+        const pick = getPickById(id)
+        if (pick?.startingReputation) {
+          modifyReputation(pick.startingReputation.faction, pick.startingReputation.amount, `Trait: ${pick.name}`)
+        }
+      }
+    } catch {}
+    updateState({ startingAbilitiesApplied: true })
+  }, [adventureState, modifyReputation, updateState])
+
+  // quick_learner ability: double XP earned from skill checks (NPC skill checks
+  // and clue puzzles) — read once from the player's picks.
+  const hasQuickLearner = useMemo(() => {
+    try { return ((JSON.parse(localStorage.getItem('bobr_adventure_picks') || '{}').picks) ?? []).includes('quick_learner') }
+    catch { return false }
+  }, [])
+  const skillCheckXP = useCallback((amount: number) => (hasQuickLearner ? amount * 2 : amount), [hasQuickLearner])
 
   // Get player stats safely (includes recruited ally bonuses)
   const playerStats = useMemo((): Record<StatName, number> => {
@@ -701,26 +956,244 @@ function AdventureContent() {
     return repState.reputations as Record<FactionId, number>
   }, [repState.reputations])
 
-  // === TRAVEL ===
-  const handleTravelTo = useCallback((locationId: string) => {
-    if (!adventureState) return
+  // === XP === (defined before the talk/travel handlers — quest rewards flow through it)
+  const handleAddXP = useCallback((amount: number) => {
+    // Clue XP flows through here — apply the quick_learner skill-check multiplier
+    // once and use the gained amount for both character XP and adventure totals.
+    const gained = skillCheckXP(amount)
+    addExperience(gained)
+    setAdventureState(prev => {
+      if (!prev) return prev
+      const newTotalXP = prev.totalXP + gained
+      // Award 1 skill point every 100 XP
+      const oldLevel = Math.floor(prev.totalXP / 100)
+      const newLevel = Math.floor(newTotalXP / 100)
+      const skillPointsEarned = newLevel - oldLevel
+      // Pure updater — persistence handled by the debounced save effect.
+      return {
+        ...prev,
+        totalXP: newTotalXP,
+        skillPoints: prev.skillPoints + skillPointsEarned,
+      }
+    })
+  }, [addExperience, skillCheckXP])
 
-    // Check for travel encounter first
-    const encounter = rollTravelEncounter()
-    if (encounter) {
-      setTravelDestination(locationId)
-      setTravelEncounter(encounter)
-      narratorComment('Hmm, the road between here and there is never as simple as a map suggests.', 'observation')
-      return
+  // ============================================
+  // QUEST + DIALOGUE WIRING
+  // ============================================
+  // questStatesRef mirrors adventureState.questStates but is updated
+  // SYNCHRONOUSLY when a handler applies progress, so two events in the same
+  // tick (or a rapid double-click) can never double-apply rewards. All setState
+  // updaters below stay pure — rewards are applied via the existing handlers
+  // (handleAddXP / earnNeutral / modifyReputation) outside the updaters.
+  const questStatesRef = useRef<Record<string, QuestSaveState> | null>(null)
+  useEffect(() => {
+    questStatesRef.current = adventureState?.questStates ?? null
+  }, [adventureState?.questStates])
+
+  // Apply a completed quest path's reward through the EXISTING reward paths.
+  const applyQuestCompletions = useCallback((completed: { quest: Quest; path: QuestPath }[]) => {
+    for (const { quest, path } of completed) {
+      const r = path.reward
+      if (r.xp) handleAddXP(r.xp)
+      if (r.gold && r.gold > 0) earnNeutral(r.gold, `Quest: ${quest.title}`)
+      // Karma mapping follows the codebase's precedents: lawful → pinkerton
+      // reputation (see handleConfrontationEnd), positive good → neutral karma
+      // (see camp karmaGain / encounter karmaReward). Negative 'good' has no
+      // existing sink and is intentionally a no-op.
+      if (r.karma?.lawful) modifyReputation('pinkerton', r.karma.lawful, `Quest: ${quest.title}`)
+      if (r.karma?.good && r.karma.good > 0) earnNeutral(r.karma.good, `Quest karma: ${quest.title}`)
+      r.reputation?.forEach(rep => modifyReputation(rep.faction, rep.amount, `Quest: ${quest.title}`))
+      narratorComment(`Quest complete: ${quest.title} — ${path.name}. (+${r.xp} XP)`, 'observation')
+    }
+  }, [handleAddXP, earnNeutral, modifyReputation, narratorComment])
+
+  // Commit a quest engine result: sync the ref, apply rewards, merge state.
+  // setFlag/unlockLocation rewards merge inside the (pure) updater so they
+  // never clobber concurrent updates from the same tick.
+  const commitQuestUpdate = useCallback((result: QuestUpdateResult) => {
+    if (!result.progressed) return
+    questStatesRef.current = result.next
+    applyQuestCompletions(result.completed)
+    const flagAdds = result.completed.map(c => c.path.reward.setFlag).filter((f): f is string => !!f)
+    const locAdds = result.completed.map(c => c.path.reward.unlockLocation).filter((l): l is string => !!l)
+    setAdventureState(prev => {
+      if (!prev) return prev
+      const flags = flagAdds.length > 0
+        ? [...new Set([...(prev.dialogueFlags ?? []), ...flagAdds])]
+        : (prev.dialogueFlags ?? [])
+      const discovered = locAdds.length > 0
+        ? [...new Set([...prev.discoveredLocationIds, ...locAdds])]
+        : prev.discoveredLocationIds
+      return { ...prev, questStates: result.next, dialogueFlags: flags, discoveredLocationIds: discovered }
+    })
+  }, [applyQuestCompletions])
+
+  // Fire a game event (talk / travel / clue) into all active quests.
+  const fireQuestEvent = useCallback((event: QuestEvent) => {
+    const qs = questStatesRef.current
+    if (!qs) return
+    commitQuestUpdate(questEventProgress(qs, event))
+  }, [commitQuestUpdate])
+
+  // Complete one named objective (dialogue questProgress effect).
+  const fireQuestObjective = useCallback((questId: string, objectiveId: string) => {
+    const qs = questStatesRef.current
+    if (!qs) return
+    commitQuestUpdate(questObjectiveProgress(qs, questId, objectiveId))
+  }, [commitQuestUpdate])
+
+  // Activate a quest (from a dialogue questStart effect, or by talking to its
+  // giver). Idempotent — already-active/completed quests are untouched.
+  const activateQuest = useCallback((questId: string) => {
+    const quest = QUESTS.find(q => q.id === questId)
+    if (!quest) return
+    const qs = questStatesRef.current ?? {}
+    if (qs[questId]) return
+    const next = { ...qs, [questId]: { status: 'active' as const, completedObjectives: [] } }
+    questStatesRef.current = next
+    setAdventureState(prev => (prev ? { ...prev, questStates: next } : prev))
+    narratorComment(`New quest: ${quest.title}. Check your journal.`, 'observation')
+  }, [narratorComment])
+
+  // Quest prerequisite gate (giver-talk activation path).
+  const questPrereqMet = useCallback((quest: Quest): boolean => {
+    const pre = quest.prerequisite
+    if (!pre) return true
+    const qs = questStatesRef.current ?? {}
+    if (pre.questId && qs[pre.questId]?.status !== 'completed') return false
+    if (pre.flag && !(stateRef.current?.dialogueFlags ?? []).includes(pre.flag)) return false
+    if (pre.minReputation && getReputation(pre.minReputation.faction) < pre.minReputation.level) return false
+    return true
+  }, [getReputation])
+
+  // Talking to a quest giver in (or before) the current chapter offers the quest.
+  const maybeActivateQuestsFromGiver = useCallback((npcId: string) => {
+    const chapter = stateRef.current?.chapter ?? 1
+    for (const quest of QUESTS) {
+      if (quest.giver !== npcId || quest.chapter > chapter) continue
+      if (questStatesRef.current?.[quest.id]) continue
+      if (!questPrereqMet(quest)) continue
+      activateQuest(quest.id)
+    }
+  }, [questPrereqMet, activateQuest])
+
+  // Synchronous mirror of the persisted reward-claim keys (a subset of
+  // dialogueFlags — entries prefixed `reward_claimed:`). Mirrors the
+  // questStatesRef discipline: updated SYNCHRONOUSLY the instant a node is
+  // paid out so a rapid double-click / Strict-Mode double-invoke in the same
+  // tick can never double-pay, before the (async) setState has committed.
+  const claimedRewardsRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    claimedRewardsRef.current = new Set(
+      (adventureState?.dialogueFlags ?? []).filter(f => f.startsWith('reward_claimed:')),
+    )
+  }, [adventureState?.dialogueFlags])
+
+  // Stable per-grant claim key for an option's effects. The effects object is
+  // passed by reference straight from the authored data module, so we locate
+  // the owning option in the open tree by referential identity and key off
+  // (npcId : optionId) — both stable across re-walks and save/load. If no
+  // option matches (defensive — shouldn't happen for authored trees), fall
+  // back to a deterministic signature of the numeric grants so re-walking the
+  // same node still dedupes rather than silently re-paying.
+  const rewardClaimKey = useCallback((effects: DialogueEffect): string => {
+    const npcId = activeDialogue?.npc.id ?? 'unknown_npc'
+    let optionId: string | undefined
+    for (const node of activeDialogue?.dialogue.nodes ?? []) {
+      const opt = node.options.find(o => o.effects === effects)
+      if (opt) { optionId = `${node.id}:${opt.id}`; break }
+    }
+    if (optionId) return `reward_claimed:${npcId}:${optionId}`
+    const sig = `${effects.xp ?? 0}|${effects.gold ?? 0}|${effects.karma?.lawful ?? 0}|${effects.karma?.good ?? 0}`
+    return `reward_claimed:${npcId}:sig:${sig}`
+  }, [activeDialogue])
+
+  // Apply an authored dialogue option's effects through the EXISTING handlers
+  // — no new state paths, no side effects inside setState updaters.
+  //
+  // Reward-farming guard: the NUMERIC grants (xp / gold / karma) pay out AT
+  // MOST ONCE per (npcId, node:option) per playthrough. Flag/reputation/quest/
+  // unlock effects are NOT guarded here — they already set-dedupe (flags) or
+  // dedupe in the quest engine, and they gate progression so re-firing them is
+  // harmless. Re-walking a tree still reads + navigates; it just won't re-pay.
+  const applyDialogueEffects = useCallback((effects: DialogueEffect) => {
+    if (!effects) return
+
+    const hasNumericGrant = !!(effects.xp || (effects.gold && effects.gold > 0) || effects.karma?.lawful || (effects.karma?.good && effects.karma.good > 0))
+    const claimKey = hasNumericGrant ? rewardClaimKey(effects) : ''
+    // Already claimed (sync ref catches same-tick repeats before the async
+    // setState commits; the persisted dialogueFlags catches re-walks + reloads).
+    const alreadyClaimed = hasNumericGrant && claimedRewardsRef.current.has(claimKey)
+
+    if (hasNumericGrant && !alreadyClaimed) {
+      // Mark claimed synchronously FIRST — idempotent under Strict Mode's
+      // double-invoke and immune to a second rapid call in the same tick.
+      claimedRewardsRef.current.add(claimKey)
+      if (effects.xp) handleAddXP(effects.xp)
+      if (effects.gold && effects.gold > 0) earnNeutral(effects.gold, 'Dialogue')
+      if (effects.karma?.lawful) modifyReputation('pinkerton', effects.karma.lawful, 'Dialogue choice')
+      if (effects.karma?.good && effects.karma.good > 0) earnNeutral(effects.karma.good, 'Dialogue karma')
     }
 
-    // Check for confrontation encounter
-    const enemy = rollConfrontation(adventureState.chapter, adventureState.unlockedSkillNodes)
-    if (enemy) {
-      setTravelDestination(locationId)
-      setActiveConfrontation(enemy)
-      narratorComment(enemy.description, 'observation')
-      return
+    // Spending gold (negative) is a player-initiated cost, not a farmable
+    // grant — leave it ungated so re-walking a "pay the toll" node can charge
+    // again (matches the player's intent, and it can't be exploited for gain).
+    if (effects.gold && effects.gold < 0 && balance.neutral > 0) {
+      spendNeutral(Math.min(balance.neutral, -effects.gold), 'Dialogue')
+    }
+
+    if (effects.reputation) modifyReputation(effects.reputation.faction, effects.reputation.delta, 'Dialogue')
+    if (effects.questStart) activateQuest(effects.questStart)
+    if (effects.questProgress) fireQuestObjective(effects.questProgress.questId, effects.questProgress.objectiveId)
+    // Persist the claim key into dialogueFlags (set-deduped, survives save/load)
+    // in the SAME pure functional update as flag/unlock effects — no side
+    // effects inside the updater.
+    const claimToPersist = hasNumericGrant && !alreadyClaimed ? claimKey : null
+    if (effects.flag || effects.unlockLocation || claimToPersist) {
+      const flag = effects.flag
+      const loc = effects.unlockLocation
+      setAdventureState(prev => {
+        if (!prev) return prev
+        // Build the additions set (flag + claim key), deduped against existing.
+        const toAdd = [flag, claimToPersist].filter((f): f is string => !!f && !(prev.dialogueFlags ?? []).includes(f))
+        const flags = toAdd.length > 0
+          ? [...(prev.dialogueFlags ?? []), ...toAdd]
+          : (prev.dialogueFlags ?? [])
+        const discovered = loc && !prev.discoveredLocationIds.includes(loc)
+          ? [...prev.discoveredLocationIds, loc]
+          : prev.discoveredLocationIds
+        return { ...prev, dialogueFlags: flags, discoveredLocationIds: discovered }
+      })
+      if (loc) narratorComment('A new location has been marked on your map.', 'observation')
+    }
+  }, [handleAddXP, earnNeutral, spendNeutral, balance.neutral, modifyReputation, activateQuest, fireQuestObjective, narratorComment, rewardClaimKey])
+
+  // === TRAVEL ===
+  // _resuming=true skips the encounter rolls — set by handleEncounterResolved /
+  // handleConfrontationEnd so "Continue" after a resolved encounter doesn't
+  // immediately roll a new one (which read as a stuck button to the player).
+  const handleTravelTo = useCallback((locationId: string, _resuming: boolean = false) => {
+    if (!adventureState) return
+
+    if (!_resuming) {
+      // Check for travel encounter first
+      const encounter = rollTravelEncounter()
+      if (encounter) {
+        setTravelDestination(locationId)
+        setTravelEncounter(encounter)
+        narratorComment('Hmm, the road between here and there is never as simple as a map suggests.', 'observation')
+        return
+      }
+
+      // Check for confrontation encounter
+      const enemy = rollConfrontation(adventureState.chapter, adventureState.unlockedSkillNodes)
+      if (enemy) {
+        setTravelDestination(locationId)
+        setActiveConfrontation(enemy)
+        narratorComment(enemy.description, 'observation')
+        return
+      }
     }
 
     // Direct travel — discover and arrive
@@ -760,11 +1233,16 @@ function AdventureContent() {
         'observation'
       )
     }
-  }, [adventureState, updateState, narratorComment])
+
+    // Quest hook: 'travel'-type objectives targeting this location. Fired AFTER
+    // updateState so the commit's functional updater merges on top of the
+    // arrival state (both updaters are pure; ordering keeps discoveries intact).
+    fireQuestEvent({ kind: 'travel', target: locationId })
+  }, [adventureState, updateState, narratorComment, fireQuestEvent])
 
   // Resolve travel encounter
   const handleEncounterResolved = useCallback((success: boolean, allyBonus?: { xp: number; gold: number; description: string }) => {
-    if (!travelEncounter || !travelDestination) return
+    if (!travelEncounter) return
 
     addExperience(travelEncounter.xpReward)
     if (success && travelEncounter.karmaReward) {
@@ -778,11 +1256,16 @@ function AdventureContent() {
       if (allyBonus.description) narratorComment(allyBonus.description, 'observation')
     }
 
-    // Continue to destination
+    // Always clear the encounter overlay first
     setTravelEncounter(null)
-    const destId = travelDestination
-    setTravelDestination(null)
-    handleTravelTo(destId)
+    // Only continue travel if a destination was set (map-click path). Random
+    // encounters triggered by free-roam exploration have no destination — the
+    // player just stays where they are.
+    if (travelDestination) {
+      const destId = travelDestination
+      setTravelDestination(null)
+      handleTravelTo(destId, true)
+    }
   }, [travelEncounter, travelDestination, addExperience, earnNeutral, narratorComment, handleTravelTo])
 
   // Resolve confrontation encounter
@@ -822,12 +1305,12 @@ function AdventureContent() {
       CrossGameStorage.logEvent('rpg_adventure', 'npc_befriended', `Talked down ${activeConfrontation.name}`)
     }
 
-    // Continue travel to destination
+    // Continue travel to destination — resuming, do NOT re-roll a new encounter
     setActiveConfrontation(null)
     if (travelDestination) {
       const destId = travelDestination
       setTravelDestination(null)
-      handleTravelTo(destId)
+      handleTravelTo(destId, true)
     }
   }, [activeConfrontation, adventureState, travelDestination, addExperience, earnNeutral, spendNeutral, modifyReputation, updateState, narratorComment, handleTravelTo])
 
@@ -849,11 +1332,25 @@ function AdventureContent() {
 
   // === NPC TALK ===
   const handleNPCTalk = useCallback((npc: LocationNPC) => {
-    // For now, do a skill check if the NPC has one
+    // Quest hooks fire for every conversation: giver activation first, so a
+    // 'talk' objective targeting the giver completes in the same conversation.
+    maybeActivateQuestsFromGiver(npc.id)
+    fireQuestEvent({ kind: 'talk', target: npc.id })
+
+    // NPCs with an authored dialogue tree open the full Fallout-style
+    // conversation (DialogueView) instead of the bare skill-check toast.
+    const trees = getDialoguesForNpc(npc.id)
+    if (trees.length > 0) {
+      dialogueOpenedAtRef.current = Date.now()
+      setActiveDialogue({ dialogue: trees[0], npc })
+      return
+    }
+
+    // No authored tree — original skill-check/toast path, unchanged.
     if (npc.skillCheckStat && npc.skillCheckDC) {
       const result = rollSkillCheck(npc.skillCheckStat, npc.skillCheckDC)
       if (result.success) {
-        addExperience(15)
+        addExperience(skillCheckXP(15))
         narratorComment(
           `${npc.name} seems to warm up to you. Information flows freely.`,
           'observation'
@@ -863,7 +1360,7 @@ function AdventureContent() {
           modifyReputation(npc.faction, 3, `Talked with ${npc.name}`)
         }
       } else {
-        addExperience(5)
+        addExperience(skillCheckXP(5))
         narratorComment(
           `${npc.name} eyes you warily. Perhaps a different approach would work better.`,
           'observation'
@@ -876,7 +1373,7 @@ function AdventureContent() {
         modifyReputation(npc.faction, 2, `Conversation with ${npc.name}`)
       }
     }
-  }, [rollSkillCheck, addExperience, narratorComment, modifyReputation])
+  }, [rollSkillCheck, addExperience, narratorComment, modifyReputation, skillCheckXP, maybeActivateQuestsFromGiver, fireQuestEvent])
 
   // === SKILL CHECK WRAPPER ===
   const handleSkillCheck = useCallback((stat: StatName, difficulty: number) => {
@@ -895,38 +1392,16 @@ function AdventureContent() {
     return true
   }, [balance.neutral, spendNeutral])
 
-  // === XP ===
-  const handleAddXP = useCallback((amount: number) => {
-    addExperience(amount)
-    setAdventureState(prev => {
-      if (!prev) return prev
-      const newTotalXP = prev.totalXP + amount
-      // Award 1 skill point every 100 XP
-      const oldLevel = Math.floor(prev.totalXP / 100)
-      const newLevel = Math.floor(newTotalXP / 100)
-      const skillPointsEarned = newLevel - oldLevel
-      const next = {
-        ...prev,
-        totalXP: newTotalXP,
-        skillPoints: prev.skillPoints + skillPointsEarned,
-      }
-      saveAdventureState(next)
-      return next
-    })
-  }, [addExperience])
-
   // === CLUE ANSWERED ===
-  const handleClueAnswered = useCallback((_clue: import('@/app/adventure/data/chapterLocations').DiscoveryClue, correct: boolean) => {
+  const handleClueAnswered = useCallback((clue: import('@/app/adventure/data/chapterLocations').DiscoveryClue, correct: boolean) => {
     if (correct) {
-      setAdventureState(prev => {
-        if (!prev) return prev
-        const next = { ...prev, cluesAnswered: prev.cluesAnswered + 1 }
-        saveAdventureState(next)
-        return next
-      })
+      // Pure updater — persistence handled by the debounced save effect.
+      setAdventureState(prev => (prev ? { ...prev, cluesAnswered: prev.cluesAnswered + 1 } : prev))
       narratorComment('Knowledge is its own reward. Well, that and the XP.', 'fourth_wall')
+      // Quest hook: 'clue'-type objectives targeting this clue id
+      fireQuestEvent({ kind: 'clue', target: clue.id })
     }
-  }, [narratorComment])
+  }, [narratorComment, fireQuestEvent])
 
   // === COMPLETE CHAPTER ===
   const handleCompleteChapter = useCallback(() => {
@@ -957,15 +1432,17 @@ function AdventureContent() {
     }
 
     if (adventureState.chapter >= 5) {
-      // Game complete
+      // Game complete — meet Cynthia. The finish-game → Cynthia → QR-hunt chain
+      // runs through ClueGameUnlock (full-screen takeover below); its LEAVE INN
+      // button routes to /game, replacing the old immediate redirect.
       narratorComment('And so the story ends. Or does it? Check the ranch for the real treasure.', 'fourth_wall')
-      router.push('/game')
+      setShowClueGameUnlock(true)
       return
     }
     // Show camp management
     setShowCamp(true)
     updateState({ phase: 'camp' })
-  }, [adventureState, updateState, narratorComment, router])
+  }, [adventureState, updateState, narratorComment])
 
   // === CAMP RESULT ===
   const handleCampResult = useCallback((result: ActivityResult) => {
@@ -1039,8 +1516,14 @@ function AdventureContent() {
 
   // === SAVE ===
   const handleSave = useCallback(() => {
-    if (adventureState) saveAdventureState(adventureState)
-    narratorComment('Progress saved. Not that it matters in the grand scheme of things.', 'sarcasm')
+    if (!adventureState) return
+    const ok = saveAdventureState(adventureState)
+    narratorComment(
+      ok
+        ? 'Progress saved. Not that it matters in the grand scheme of things.'
+        : 'Save failed — your browser storage may be full or blocked. Try a cloud save.',
+      ok ? 'sarcasm' : 'observation'
+    )
   }, [adventureState, narratorComment])
 
   // === CLOUD SAVE/LOAD ===
@@ -1099,6 +1582,8 @@ function AdventureContent() {
             confrontationsWon: loaded.confrontationsWon ?? 0,
             confrontationsLost: loaded.confrontationsLost ?? 0,
             recruitedAllies: loaded.recruitedAllies ?? [],
+            dialogueFlags: loaded.dialogueFlags ?? [],
+            questStates: loaded.questStates ?? {},
           }
           setAdventureState(restored)
           saveAdventureState(restored)
@@ -1125,6 +1610,66 @@ function AdventureContent() {
       handleCloudLoad()
     }
   }, [cloudModal, handleCloudSave, handleCloudLoad])
+
+  // Build the journal entries from quests.ts + saved progress. For quests with
+  // multiple paths we display the path the player has progressed furthest on
+  // (or the completed one); 'available' quests show as rumors without
+  // objective spoilers.
+  const questLogEntries = useMemo((): QuestLogEntry[] => {
+    if (!adventureState) return []
+    const qs = adventureState.questStates ?? {}
+    return QUESTS.filter(q => q.chapter <= adventureState.chapter).map(q => {
+      // (cast: tsconfig has no noUncheckedIndexedAccess, so the bare index
+      // would narrow `st` to always-defined and break the 'available' fallback)
+      const st = qs[q.id] as QuestSaveState | undefined
+      const completedIds = new Set(st?.completedObjectives ?? [])
+
+      let path = q.paths[0]
+      if (st?.completedPathId) {
+        path = q.paths.find(p => p.id === st.completedPathId) ?? path
+      } else if (st) {
+        let best = -1
+        for (const p of q.paths) {
+          const done = p.objectives.filter(o => completedIds.has(o.id)).length
+          const frac = done / Math.max(1, p.objectives.length)
+          if (frac > best) { best = frac; path = p }
+        }
+      }
+
+      const status: QuestStatus = st?.status ?? 'available'
+      const giverLoc = getChapterLocation(q.giverLocation)
+      const giverNpc = giverLoc?.npcs.find(n => n.id === q.giver)
+      const description = status === 'available'
+        ? `${q.description} (Rumored — ${giverNpc ? `seek out ${giverNpc.name}` : 'ask around'}${giverLoc ? ` at ${giverLoc.name}` : ''}.)`
+        : q.description
+
+      return {
+        id: q.id,
+        title: q.title,
+        description,
+        chapter: q.chapter,
+        status,
+        pathName: st
+          ? (q.paths.length > 1 ? `${path.name} (one of ${q.paths.length} ways)` : path.name)
+          : undefined,
+        objectives: status === 'available'
+          ? []
+          : path.objectives.map(o => ({
+              id: o.id,
+              description: o.description,
+              completed: completedIds.has(o.id),
+              optional: o.optional,
+            })),
+        rewards: {
+          xp: path.reward.xp,
+          gold: path.reward.gold,
+          reputation: path.reward.reputation
+            ?.map(r => `${r.amount > 0 ? '+' : ''}${r.amount} ${r.faction}`)
+            .join(', '),
+        },
+      }
+    })
+  }, [adventureState])
 
   // Check if chapter is completable (visited enough locations)
   const canCompleteChapter = useMemo(() => {
@@ -1170,7 +1715,7 @@ function AdventureContent() {
                 {adventureState.recruitedAllies.map(ally => (
                   <span key={ally.enemyName} className="text-sm">{ally.icon}</span>
                 ))}
-                <span className="font-[var(--font-pixel)] text-[8px] text-purple-300">
+                <span className="font-[var(--font-pixel)] text-[11px] text-purple-300">
                   {adventureState.recruitedAllies.length}/2
                 </span>
               </div>
@@ -1178,7 +1723,7 @@ function AdventureContent() {
             {canCompleteChapter && adventureState.phase === 'exploring' && (
               <button
                 onClick={handleCompleteChapter}
-                className="font-[var(--font-pixel)] text-[9px] bg-[var(--pixel-gold-dark)] border border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] px-3 py-1 hover:bg-[var(--pixel-gold-mid)] animate-pulse"
+                className="font-[var(--font-pixel)] text-[12px] bg-[var(--pixel-gold-dark)] border border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] px-3 py-1 hover:bg-[var(--pixel-gold-mid)] animate-pulse"
               >
                 COMPLETE CHAPTER {'\u25B6'}
               </button>
@@ -1198,7 +1743,7 @@ function AdventureContent() {
                 <div className="flex items-center gap-2 mb-2">
                   <button
                     onClick={() => setExplorationMode(false)}
-                    className={`font-[var(--font-pixel)] text-[9px] px-3 py-1 border transition-all ${
+                    className={`font-[var(--font-pixel)] text-[12px] px-3 py-1 border transition-all ${
                       !explorationMode
                         ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
                         : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]'
@@ -1208,7 +1753,7 @@ function AdventureContent() {
                   </button>
                   <button
                     onClick={() => setExplorationMode(true)}
-                    className={`font-[var(--font-pixel)] text-[9px] px-3 py-1 border transition-all ${
+                    className={`font-[var(--font-pixel)] text-[12px] px-3 py-1 border transition-all ${
                       explorationMode
                         ? 'bg-[var(--pixel-gold-dark)] border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)]'
                         : 'bg-[var(--pixel-bg-mid)] border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]'
@@ -1239,13 +1784,22 @@ function AdventureContent() {
                       if (encounter) {
                         setTravelEncounter(encounter)
                         narratorComment('Hmm, the road between here and there is never as simple as a map suggests.', 'observation')
-                      } else {
-                        const enemy = rollConfrontation(adventureState.chapter, adventureState.unlockedSkillNodes)
-                        if (enemy) {
-                          setActiveConfrontation(enemy)
-                          narratorComment(enemy.description, 'observation')
-                        }
+                        return true
                       }
+                      const enemy = rollConfrontation(adventureState.chapter, adventureState.unlockedSkillNodes)
+                      if (enemy) {
+                        setActiveConfrontation(enemy)
+                        narratorComment(enemy.description, 'observation')
+                        return true
+                      }
+                      // Nothing materialized — let the player keep walking to arrival.
+                      return false
+                    }}
+                    onError={() => {
+                      // PixiJS/WebGL failed on this device — switch to the Canvas2D
+                      // fallback so the map stays playable instead of stuck loading.
+                      narratorComment('The shimmering map flickers and settles into a simpler form.', 'observation')
+                      setPixiFailed(true)
                     }}
                     height={500}
                   />
@@ -1269,7 +1823,9 @@ function AdventureContent() {
                       const encounter = rollTravelEncounter()
                       if (encounter) {
                         setTravelEncounter(encounter)
+                        return true
                       }
+                      return false
                     }}
                     height={500}
                   />
@@ -1282,6 +1838,7 @@ function AdventureContent() {
                     factionReps={factionReps}
                     onTravelTo={handleTravelTo}
                     onVisitLocation={handleVisitLocation}
+                    onClickHint={(msg) => narratorComment(msg, 'observation')}
                   />
                 )}
               </div>
@@ -1313,7 +1870,9 @@ function AdventureContent() {
               level={charState.character?.level ?? 1}
               xp={adventureState.totalXP}
               chapter={adventureState.chapter}
+              karma={balance.neutral}
               onOpenSkillTree={() => setShowSkillTree(true)}
+              onOpenQuestLog={() => setShowQuestLog(true)}
               onSaveGame={handleSave}
               onCloudSave={handleCloudSave}
               onCloudLoad={handleCloudLoad}
@@ -1331,7 +1890,7 @@ function AdventureContent() {
           locationsVisited={adventureState.visitedLocationIds.length}
           totalLocations={getChapterLocations(adventureState.chapter).length}
           chapter={adventureState.chapter}
-          playTimeMinutes={Math.floor((Date.now() - adventureState.playStartTime) / 60000)}
+          playTimeMinutes={Math.floor((nowMs - adventureState.playStartTime) / 60000)}
           cluesAnswered={adventureState.cluesAnswered}
           onUseHint={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
         />
@@ -1388,6 +1947,45 @@ function AdventureContent() {
         />
       )}
 
+      {/* Authored NPC Dialogue (Fallout-style tree) */}
+      {activeDialogue && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => {
+            if (Date.now() - dialogueOpenedAtRef.current < 400) return
+            setActiveDialogue(null)
+          }}
+        >
+          <div className="w-full max-w-2xl my-auto" onClick={e => e.stopPropagation()}>
+            <DialogueView
+              npcName={activeDialogue.npc.name}
+              npcIcon={WITNESS_ICONS[activeDialogue.npc.witnessType] ?? WITNESS_ICONS.default}
+              npcRole={activeDialogue.npc.role}
+              nodes={activeDialogue.dialogue.nodes}
+              playerStats={playerStats}
+              onClose={() => setActiveDialogue(null)}
+              onEffect={applyDialogueEffects}
+              onSkillCheck={handleSkillCheck}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Quest Journal */}
+      {showQuestLog && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setShowQuestLog(false)}
+        >
+          <div className="w-full max-w-2xl my-auto" onClick={e => e.stopPropagation()}>
+            <QuestLog
+              quests={questLogEntries}
+              onClose={() => setShowQuestLog(false)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Skill Tree */}
       {showSkillTree && (
         <SkillTree
@@ -1408,6 +2006,21 @@ function AdventureContent() {
             (adventureState.phase === 'at_location' ? 'discovery' : 'idle') as DialogueContext
           }
         />
+      )}
+
+      {/* Cynthia Ending — chapter 5 complete. Full-screen takeover above all
+          other HUD layers (reward tracker modal is z-[100]). */}
+      {showClueGameUnlock && (
+        <div className="fixed inset-0 z-[110] bg-[var(--pixel-bg-dark)] overflow-y-auto p-4 flex items-center justify-center">
+          <div className="w-full max-w-5xl">
+            <ClueGameUnlock
+              karmaAlignment={getKarmaAlignment()}
+              chaptersCompleted={5}
+              playerName={charState.character?.name ?? 'Traveler'}
+              onClose={() => router.push('/game')}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

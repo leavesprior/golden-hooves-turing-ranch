@@ -14,6 +14,7 @@ import {
 } from './data/discountEngine'
 import { KarmaStorage } from '@/lib/karmaStorage'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
+import { getKarmaSessionId, fetchServerBalance, postKarmaEvent, reconcile } from '@/lib/karmaServerSync'
 
 export type WalletMode = 'new' | 'continue'
 
@@ -116,6 +117,24 @@ interface StoredWalletState {
   alignment?: AlignmentAxes // Optional for backwards compatibility
 }
 
+const DEFAULT_BALANCE: KarmaBalance = { good: 0, neutral: STARTING_NEUTRAL_KARMA, bad: 0 }
+
+// A corrupt / legacy / partially-written wallet in localStorage must never hard-crash
+// the game. Consumers read balance.neutral/good/bad directly during render, so an
+// undefined or malformed balance throws "Cannot read properties of undefined" and the
+// whole adventure dies with an unrecoverable error boundary. Coerce anything that
+// isn't a well-formed balance back to a safe default instead.
+function sanitizeBalance(b: unknown): KarmaBalance {
+  if (!b || typeof b !== 'object') return { ...DEFAULT_BALANCE }
+  const r = b as Record<string, unknown>
+  const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
+  return {
+    good: num(r.good, DEFAULT_BALANCE.good),
+    neutral: num(r.neutral, DEFAULT_BALANCE.neutral),
+    bad: num(r.bad, DEFAULT_BALANCE.bad),
+  }
+}
+
 interface KarmaWalletProviderProps {
   children: ReactNode
 }
@@ -150,18 +169,41 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY)
       if (stored) {
         const parsed: StoredWalletState = JSON.parse(stored)
-        setState(prev => ({
-          ...prev,
-          balance: parsed.balance,
+        const loaded: KarmaWalletState = {
+          ...stateRef.current,
+          balance: sanitizeBalance(parsed.balance),
           walletMode: parsed.walletMode,
           alignment: parsed.alignment || DEFAULT_ALIGNMENT,
           isInitialized: true,
-        }))
+        }
+        // Seed the ref SYNCHRONOUSLY so callbacks (spendNeutral/spendGood) that read
+        // stateRef.current don't race the post-commit effect that normally syncs it.
+        // Fixes the cold-load bug where landing directly on /karma-market made the
+        // first purchase a silent no-op (ref still held the default starting balance).
+        stateRef.current = loaded
+        setState(loaded)
       }
     } catch (e) {
       console.warn('Failed to load karma wallet from storage:', e)
     }
   }, [])
+
+  // Read the SERVER-AUTHORITATIVE karma balance and reconcile (server-wins, never
+  // wipes local progress) — the in-game, unverified path (2026-06-19). Fails soft
+  // offline. The 3 boundary ops (convert / >1000 / cross-person) are NOT here.
+  useEffect(() => {
+    if (!state.isInitialized || !state.walletMode) return
+    let cancelled = false
+    ;(async () => {
+      const sessionId = getKarmaSessionId()
+      const res = await fetchServerBalance(sessionId)
+      if (cancelled) return
+      if (res.ok && res.balance) {
+        setState(prev => ({ ...prev, balance: reconcile(prev.balance, res.balance!), isOnline: true }))
+      }
+    })()
+    return () => { cancelled = true }
+  }, [state.isInitialized, state.walletMode])
 
   // Save to local storage on state change
   useEffect(() => {
@@ -280,7 +322,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
           const parsed: StoredWalletState = JSON.parse(stored)
           setState(prev => ({
             ...prev,
-            balance: parsed.balance,
+            balance: sanitizeBalance(parsed.balance),
             walletMode: mode,
             isInitialized: true,
             isOnline: false,
@@ -335,6 +377,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     oregonTrailKarma.spendNeutral(amount, memo).catch(() => {
       // Queued for later sync
     })
+    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'neutral', delta: -amount, source: 'spend' })
 
     return true
   }, [addTransaction])
@@ -357,6 +400,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
     // Sync with blockchain
     oregonTrailKarma.spendGood(amount, memo).catch(() => {})
+    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'good', delta: -amount, source: 'spend' })
 
     return true
   }, [addTransaction])
@@ -379,6 +423,8 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     CrossGameStorage.syncKarmaToPool('prospectors_tale', 'neutral', amount, memo || 'Trail earn')
 
     oregonTrailKarma.earnNeutral(amount, memo).catch(() => {})
+    // Persist to the server-authoritative ledger (in-game, unverified path).
+    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'neutral', delta: amount, source: 'earn' })
   }, [addTransaction])
 
   // Earn good karma
@@ -399,6 +445,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     CrossGameStorage.syncKarmaToPool('prospectors_tale', 'good', amount, memo || 'Trail good deed')
 
     oregonTrailKarma.earnGood(amount, memo).catch(() => {})
+    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'good', delta: amount, source: 'earn' })
   }, [addTransaction])
 
   // Add bad karma
@@ -419,6 +466,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     CrossGameStorage.syncKarmaToPool('prospectors_tale', 'bad', amount, reason)
 
     oregonTrailKarma.addBadKarma(amount, reason).catch(() => {})
+    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'bad', delta: amount, source: 'contrition' })
   }, [addTransaction])
 
   // Earn karma from donation (neutral + good in one call)

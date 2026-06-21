@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 export type QuestStatus = 'available' | 'active' | 'completed' | 'failed'
 
@@ -54,6 +54,15 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
   const [tab, setTab] = useState<TabFilter>('active')
   const [expandedId, setExpandedId] = useState<string | null>(activeQuestId ?? null)
 
+  // Escape always closes the journal — no soft-lock.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   const filtered = quests.filter(q => {
     if (tab === 'active') return q.status === 'active' || q.status === 'available'
     if (tab === 'completed') return q.status === 'completed' || q.status === 'failed'
@@ -84,7 +93,7 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 py-2 font-[var(--font-pixel)] text-[9px] transition-all ${
+            className={`flex-1 py-2 font-[var(--font-pixel)] text-[12px] transition-all ${
               tab === t
                 ? 'bg-[var(--pixel-bg-mid)] text-[var(--pixel-gold-light)] border-b-2 border-[var(--pixel-gold-mid)]'
                 : 'text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)]'
@@ -98,7 +107,7 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
       {/* Quest List */}
       <div className="p-2 space-y-1 max-h-[400px] overflow-y-auto">
         {filtered.length === 0 ? (
-          <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-50 text-center py-8">
+          <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-50 text-center py-8">
             {tab === 'active' ? 'No active quests. Talk to NPCs to find work.' : 'No completed quests yet.'}
           </p>
         ) : (
@@ -128,7 +137,7 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
                       <span className={`font-[var(--font-pixel)] text-[10px] ${STATUS_COLORS[quest.status]}`}>
                         {quest.title}
                       </span>
-                      <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-40">
+                      <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-40">
                         Ch.{quest.chapter}
                       </span>
                     </div>
@@ -140,13 +149,13 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
                             style={{ width: `${(completedObjectives / totalObjectives) * 100}%` }}
                           />
                         </div>
-                        <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
+                        <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-50">
                           {completedObjectives}/{totalObjectives}
                         </span>
                       </div>
                     )}
                   </div>
-                  <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-40">
+                  <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-40">
                     {isExpanded ? '\u25BC' : '\u25B6'}
                   </span>
                 </button>
@@ -154,12 +163,12 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
                 {/* Expanded Details */}
                 {isExpanded && (
                   <div className="px-3 pb-3 pt-1 border-t border-[var(--pixel-ui-border)]/30">
-                    <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70 mb-2">
+                    <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-70 mb-2">
                       {quest.description}
                     </p>
 
                     {quest.pathName && (
-                      <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-gold-light)] mb-2">
+                      <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] mb-2">
                         Path: {quest.pathName}
                       </p>
                     )}
@@ -168,12 +177,12 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
                     <div className="space-y-1">
                       {quest.objectives.map(obj => (
                         <div key={obj.id} className="flex items-start gap-2">
-                          <span className={`font-[var(--font-pixel)] text-[8px] ${
+                          <span className={`font-[var(--font-pixel)] text-[11px] ${
                             obj.completed ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-ui-text)]'
                           }`}>
                             {obj.completed ? '\u2611' : '\u2610'}
                           </span>
-                          <span className={`font-[var(--font-pixel)] text-[8px] ${
+                          <span className={`font-[var(--font-pixel)] text-[11px] ${
                             obj.completed ? 'text-[var(--pixel-ui-text)] opacity-50 line-through' : 'text-[var(--pixel-ui-text)]'
                           }`}>
                             {obj.description}
@@ -188,7 +197,7 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
                     {/* Rewards preview */}
                     {quest.rewards && quest.status !== 'completed' && (
                       <div className="mt-2 pt-2 border-t border-[var(--pixel-ui-border)]/20">
-                        <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-gold-light)]">
+                        <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
                           REWARDS:{' '}
                           {quest.rewards.xp && `${quest.rewards.xp} XP `}
                           {quest.rewards.gold && `${quest.rewards.gold} Gold `}
@@ -206,7 +215,7 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
 
       {/* Footer */}
       <div className="p-2 border-t-2 border-[var(--pixel-ui-border)] text-center">
-        <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-40">
+        <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-40">
           {quests.length} total quests | {activeCount} active | {completedCount} completed
         </span>
       </div>

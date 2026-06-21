@@ -293,8 +293,8 @@ export function RanchView({ onClose }: RanchViewProps) {
               <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {(Object.keys(LIVESTOCK_TYPES) as LivestockType[]).map((type) => {
                   const config = LIVESTOCK_TYPES[type]
-                  const count = state.livestock[type]
-                  const health = state.livestockHealth[type]
+                  const count = state.livestock[type] ?? 0
+                  const health = state.livestockHealth[type] ?? 100
                   const isSpring = season === 'spring'
                   const hasProduction = config.produces.length > 0
 

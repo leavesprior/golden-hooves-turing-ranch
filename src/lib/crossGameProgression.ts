@@ -52,6 +52,8 @@ export type MilestoneId =
   | 'prologue_califia_complete'
   | 'prologue_incan_complete'
   | 'prologue_convergence_complete'
+  // Where in Time (time-chase) milestone
+  | 'time_chase_complete'
   // Booking verification
   | 'booking_verified'
   // Karma Marketplace milestones
@@ -560,10 +562,12 @@ export const CrossGameStorage = {
     try {
       if (typeof window === 'undefined') return false
       state.lastSyncTimestamp = new Date().toISOString()
-      localStorage.setItem(CROSS_GAME_STORAGE_KEY, JSON.stringify(state))
+      // Stringify once and reuse — this runs on every travel/combat game event.
+      const json = JSON.stringify(state)
+      localStorage.setItem(CROSS_GAME_STORAGE_KEY, json)
       window.dispatchEvent(new StorageEvent('storage', {
         key: CROSS_GAME_STORAGE_KEY,
-        newValue: JSON.stringify(state),
+        newValue: json,
       }))
       return true
     } catch (e) {

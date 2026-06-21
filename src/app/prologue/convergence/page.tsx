@@ -139,6 +139,14 @@ export default function ConvergencePage() {
           <p className="text-amber-600 text-[9px] mt-3">
             Your discoveries will determine the fate of an empire.
           </p>
+          <div className="mt-6">
+            <Link
+              href="/adventure/where-in-time"
+              className="inline-block font-pixel text-xs text-amber-200 border border-amber-600 px-6 py-3 rounded hover:text-amber-100 hover:border-amber-400 transition-all"
+            >
+              Follow the forger through time ▶
+            </Link>
+          </div>
         </div>
       </main>
     </div>

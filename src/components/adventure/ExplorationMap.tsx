@@ -26,9 +26,12 @@ interface ExplorationMapProps {
   currentLocationId: string
   playerIcon?: string
   onArrive: (locationId: string) => void
-  onEncounter?: () => void
+  onEncounter?: () => boolean
   width?: number
   height?: number
+  // Fired if PixiJS/WebGL initialization fails (old GPU, no WebGL, low memory).
+  // The parent should switch to the Canvas2D fallback (ExplorationMapCanvas).
+  onError?: (err: unknown) => void
 }
 
 // ============================================
@@ -90,6 +93,7 @@ export function ExplorationMap({
   onEncounter,
   width: propWidth,
   height: propHeight,
+  onError,
 }: ExplorationMapProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const appRef = useRef<any>(null)
@@ -138,6 +142,7 @@ export function ExplorationMap({
     let app: any = null
 
     ;(async () => {
+     try {
       // Dynamic import — avoids SSR crash
       const PIXI = await import('pixi.js')
       if (destroyedRef.current) return
@@ -322,10 +327,14 @@ export function ExplorationMap({
               player.distanceSinceCheck = 0
               const chance = ENCOUNTER_BASE_CHANCE + (dist > 10 ? 0.1 : 0)
               if (Math.random() < chance) {
-                player.walking = false
-                flashTimer = 0.3
-                flashOverlay.alpha = 0.5
-                onEncounter()
+                // Only halt the walk if an encounter actually begins. onEncounter()
+                // returns false when the roll produced nothing — keep walking so the
+                // player isn't stranded mid-map and travel completes.
+                if (onEncounter()) {
+                  player.walking = false
+                  flashTimer = 0.3
+                  flashOverlay.alpha = 0.5
+                }
               }
             }
 
@@ -476,6 +485,15 @@ export function ExplorationMap({
       })
 
       setMapReady(true)
+     } catch (err) {
+       // WebGL/Pixi failed to initialize (old GPU, no WebGL, low memory, or a
+       // locked-down environment). Previously this rejected silently and left the
+       // player stuck on "Loading exploration map…" forever. Surface it so the
+       // parent flips to the Canvas2D fallback (ExplorationMapCanvas).
+       console.error('ExplorationMap: PixiJS init failed, signaling fallback:', err)
+       pixiLoadedRef.current = false
+       if (!destroyedRef.current) onError?.(err)
+     }
     })()
 
     return () => {
@@ -492,6 +510,12 @@ export function ExplorationMap({
   // ── Keyboard input ──
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // Don't capture keys when the user is typing in a form field (mirrors
+      // the /game guard) — preventDefault here was swallowing WASD/arrows in
+      // focused inputs (e.g. the Cloud Save passphrase).
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key)) {
         e.preventDefault()
         keysRef.current.add(e.key)
@@ -523,7 +547,7 @@ export function ExplorationMap({
       )}
       {/* WASD hint */}
       {mapReady && (
-        <div className="absolute bottom-2 left-2 font-[var(--font-pixel)] text-amber-600/60 text-[8px] bg-black/60 px-2 py-1 rounded">
+        <div className="absolute bottom-2 left-2 font-[var(--font-pixel)] text-amber-600/60 text-[11px] bg-black/60 px-2 py-1 rounded">
           WASD/Arrows to walk {'\u2022'} Click location to travel
         </div>
       )}

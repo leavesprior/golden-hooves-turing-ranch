@@ -95,3 +95,43 @@ export function timingFloorRemainingMs(lastMarkerAtIso: string, nowMs: number): 
   const elapsed = nowMs - last;
   return elapsed >= MARKER_MIN_INTERVAL_MS ? 0 : MARKER_MIN_INTERVAL_MS - elapsed;
 }
+
+// === Score claim signing (anti-forgery for leaderboard / public ranks) ===
+// Reuses the same HMAC secret + timingSafeEqual pattern as marker sessions.
+// Claim is short-lived (minute-bucket) so a captured token cannot be replayed
+// long after the legitimate run. Games can call a future /api/record-run (or
+// equivalent) at victory to obtain a claim for their exact final score, then
+// forward that claim with the leaderboard POST. For now the claim is optional
+// (to avoid breaking the existing manual submit form) but the route will
+// enforce ceiling + per-IP rate limit as the immediate control.
+
+export function issueScoreClaim(playerId: string, score: number, game: string = 'bobr'): string {
+  // Minute-bucket keeps claim valid a short time without clock skew issues.
+  const minute = Math.floor(Date.now() / 1000 / 60);
+  return crypto
+    .createHmac('sha256', getSecret())
+    .update(`score-claim::${playerId}::${score}::${game}::${minute}`)
+    .digest('hex');
+}
+
+export function verifyScoreClaim(playerId: string, score: number, game: string, presented: string): boolean {
+  const a = Buffer.from(presented ?? '', 'utf8');
+  // Accept current minute or the previous one (grace for clock/page reload)
+  for (let off = 0; off < 2; off++) {
+    const minute = Math.floor(Date.now() / 1000 / 60) - off;
+    const expected = crypto
+      .createHmac('sha256', getSecret())
+      .update(`score-claim::${playerId}::${score}::${game}::${minute}`)
+      .digest('hex');
+    const b = Buffer.from(expected, 'utf8');
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return true;
+  }
+  return false;
+}
+
+// Phase 0 karma (2026-06-18): the server signs the balance it returns so the
+// client can verify it wasn't tampered in transit / localStorage. HMAC with the
+// same server secret; the client only verifies via a /balance refetch, server-wins.
+export function signBalance(payload: string): string {
+  return crypto.createHmac('sha256', getSecret()).update(`karma-balance::${payload}`).digest('hex');
+}

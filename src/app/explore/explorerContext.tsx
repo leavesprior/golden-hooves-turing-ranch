@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
 import {
   type TownMystery,
   TOWN_MYSTERIES,
@@ -354,6 +354,15 @@ export function ExplorerProvider({
 }: ExplorerProviderProps) {
   const [progress, setProgress] = useState<ExplorerProgress>(DEFAULT_PROGRESS)
 
+  // Latest-progress ref so callbacks with [] deps can compute side-effect
+  // inputs OUTSIDE setProgress updaters. Updaters must stay PURE: Strict Mode
+  // re-invokes them during render, so any CrossGameStorage/localStorage call
+  // inside one fires setState in other providers mid-render ("Cannot update a
+  // component while rendering a different component") and double-applies
+  // side effects. Ref is updated in an effect, never during render.
+  const progressRef = useRef(progress)
+  useEffect(() => { progressRef.current = progress }, [progress])
+
   // Load saved progress on mount
   useEffect(() => {
     loadProgressFromStorage()
@@ -377,70 +386,85 @@ export function ExplorerProvider({
   }, [towns])
 
   // Visit attraction
+  // Pure-updater discipline: XP/level/badge/journal are computed OUTSIDE the
+  // setProgress updater (from progressRef) so the updater has no Date.now(),
+  // no closure mutation, and no side effects. Side effects run after.
   const visitAttraction = useCallback((attractionId: string, townId: string) => {
+    const current = progressRef.current
+    const attraction = current.visitedAttractions.includes(attractionId)
+      ? undefined // Already visited
+      : getAllAttractions().find(a => a.id === attractionId)
+
     let xpGained = 0
     let levelUp = false
     let badgeEarned: Badge | undefined
+    let newLevel = current.level
 
-    setProgress(prev => {
-      if (prev.visitedAttractions.includes(attractionId)) {
-        return prev // Already visited
-      }
-
-      const attraction = getAllAttractions().find(a => a.id === attractionId)
-      if (!attraction) return prev
-
+    if (attraction) {
+      const now = Date.now()
       xpGained = attraction.xp
-      const newXP = prev.totalXP + xpGained
-      const newLevel = EXPLORER_LEVELS.reduce((acc, level) => {
+      const newXP = current.totalXP + xpGained
+      newLevel = EXPLORER_LEVELS.reduce((acc, level) => {
         if (newXP >= level.xpRequired) return level.level
         return acc
       }, 1)
 
-      levelUp = newLevel > prev.level
+      levelUp = newLevel > current.level
 
       // Check for first visit badge
-      if (prev.visitedAttractions.length === 0) {
+      if (current.visitedAttractions.length === 0) {
         badgeEarned = COLLECTION_BADGES.find(b => b.id === 'first_visit')
       }
 
       // Check for attraction's badge
-      if (attraction.badge && !prev.badges.find(b => b.id === attraction.badge?.id)) {
+      if (attraction.badge && !current.badges.find(b => b.id === attraction.badge?.id)) {
         badgeEarned = attraction.badge
       }
 
-      const newBadges = badgeEarned
-        ? [...prev.badges, { ...badgeEarned, unlockedAt: Date.now() }]
-        : prev.badges
-
-      // Historical depth: +1 for attraction visit
-      const newDepthScore = prev.historicalDepthScore + 1
+      const stampedBadge = badgeEarned ? { ...badgeEarned, unlockedAt: now } : undefined
 
       // Auto-generate journal entry for attraction visit
       const journalEntry: JournalEntry = {
-        id: `attraction_${attractionId}_${Date.now()}`,
-        timestamp: Date.now(),
+        id: `attraction_${attractionId}_${now}`,
+        timestamp: now,
         type: 'attraction',
         townId,
         title: attraction.name,
         content: attraction.funFact,
       }
 
-      return {
-        ...prev,
-        totalXP: newXP,
-        level: newLevel,
-        visitedAttractions: [...prev.visitedAttractions, attractionId],
-        badges: newBadges,
-        lastVisitedTown: townId,
-        historicalDepthScore: newDepthScore,
-        historicalDepthLevel: getHistoricalDepthLevel(newDepthScore),
-        journalEntries: [...prev.journalEntries, journalEntry],
-      }
-    })
+      setProgress(prev => {
+        if (prev.visitedAttractions.includes(attractionId)) {
+          return prev // Already visited
+        }
+
+        const newTotalXP = prev.totalXP + xpGained
+        const badge = stampedBadge
+
+        // Historical depth: +1 for attraction visit
+        const newDepthScore = prev.historicalDepthScore + 1
+
+        return {
+          ...prev,
+          totalXP: newTotalXP,
+          level: EXPLORER_LEVELS.reduce((acc, level) => {
+            if (newTotalXP >= level.xpRequired) return level.level
+            return acc
+          }, 1),
+          visitedAttractions: [...prev.visitedAttractions, attractionId],
+          badges: badge && !prev.badges.find(b => b.id === badge.id)
+            ? [...prev.badges, badge]
+            : prev.badges,
+          lastVisitedTown: townId,
+          historicalDepthScore: newDepthScore,
+          historicalDepthLevel: getHistoricalDepthLevel(newDepthScore),
+          journalEntries: [...prev.journalEntries, journalEntry],
+        }
+      })
+    }
 
     if (levelUp && onLevelUp) {
-      const newLevelData = EXPLORER_LEVELS.find(l => l.level === progress.level + 1)
+      const newLevelData = EXPLORER_LEVELS.find(l => l.level === newLevel)
       if (newLevelData) {
         onLevelUp(newLevelData)
         // Cross-game milestone for reaching legendary
@@ -468,7 +492,7 @@ export function ExplorerProvider({
     }
 
     return { xpGained, levelUp, badgeEarned }
-  }, [getAllAttractions, onLevelUp, onBadgeEarned, progress.level])
+  }, [getAllAttractions, onLevelUp, onBadgeEarned])
 
   // Visit town
   const visitTown = useCallback((townId: string) => {
@@ -483,66 +507,80 @@ export function ExplorerProvider({
   }, [])
 
   // Unlock secret
+  // Pure-updater discipline: secret lookup, XP, badge and journal entry are
+  // computed OUTSIDE the setProgress updater (from progressRef); the updater
+  // has no Date.now() and no closure mutation.
   const unlockSecret = useCallback((secretId: string) => {
-    let xpGained = 0
+    const current = progressRef.current
+
+    if (current.unlockedSecrets.includes(secretId)) {
+      return { xpGained: 0, attraction: null }
+    }
+
+    // Find the secret attraction
     let attraction: Attraction | null = null
+    for (const town of towns) {
+      const secret = town.secretAttractions.find(a => a.id === secretId)
+      if (secret) {
+        attraction = secret
+        break
+      }
+    }
+
+    if (!attraction) {
+      return { xpGained: 0, attraction: null }
+    }
+
+    const xpGained = attraction.xp * 2 // Bonus XP for secrets
+    const now = Date.now()
+
+    // Check for secret finder badge
+    const secretBadge = current.unlockedSecrets.length === 0
+      ? COLLECTION_BADGES.find(b => b.id === 'secret_finder')
+      : undefined
+    const stampedBadge = secretBadge && !current.badges.find(b => b.id === 'secret_finder')
+      ? { ...secretBadge, unlockedAt: now }
+      : undefined
+
+    // Find which town this secret belongs to for journal entry
+    const secretTownId = towns.find(t =>
+      t.secretAttractions.some(a => a.id === secretId)
+    )?.id || ''
+
+    // Auto-generate journal entry for secret discovery
+    const journalEntry: JournalEntry = {
+      id: `discovery_${secretId}_${now}`,
+      timestamp: now,
+      type: 'discovery',
+      townId: secretTownId,
+      title: attraction.name,
+      content: attraction.secretUnlock || attraction.description,
+    }
 
     setProgress(prev => {
       if (prev.unlockedSecrets.includes(secretId)) {
         return prev
       }
 
-      // Find the secret attraction
-      for (const town of towns) {
-        const secret = town.secretAttractions.find(a => a.id === secretId)
-        if (secret) {
-          attraction = secret
-          xpGained = secret.xp * 2 // Bonus XP for secrets
-          break
-        }
-      }
-
-      if (!attraction) return prev
-
-      // Check for secret finder badge
-      let newBadges = prev.badges
-      if (prev.unlockedSecrets.length === 0) {
-        const secretBadge = COLLECTION_BADGES.find(b => b.id === 'secret_finder')
-        if (secretBadge && !prev.badges.find(b => b.id === 'secret_finder')) {
-          newBadges = [...newBadges, { ...secretBadge, unlockedAt: Date.now() }]
-        }
-      }
+      const badge = stampedBadge
 
       // Historical depth: +5 for secret unlock
       const newDepthScore = prev.historicalDepthScore + 5
-
-      // Find which town this secret belongs to for journal entry
-      const secretTownId = towns.find(t =>
-        t.secretAttractions.some(a => a.id === secretId)
-      )?.id || ''
-
-      // Auto-generate journal entry for secret discovery
-      const journalEntry: JournalEntry = {
-        id: `discovery_${secretId}_${Date.now()}`,
-        timestamp: Date.now(),
-        type: 'discovery',
-        townId: secretTownId,
-        title: (attraction as Attraction).name,
-        content: (attraction as Attraction).secretUnlock || (attraction as Attraction).description,
-      }
 
       return {
         ...prev,
         totalXP: prev.totalXP + xpGained,
         unlockedSecrets: [...prev.unlockedSecrets, secretId],
-        badges: newBadges,
+        badges: badge && !prev.badges.find(b => b.id === badge.id)
+          ? [...prev.badges, badge]
+          : prev.badges,
         historicalDepthScore: newDepthScore,
         historicalDepthLevel: getHistoricalDepthLevel(newDepthScore),
         journalEntries: [...prev.journalEntries, journalEntry],
       }
     })
 
-    if (attraction && onSecretUnlocked) {
+    if (onSecretUnlocked) {
       onSecretUnlocked(attraction)
     }
 
@@ -591,14 +629,13 @@ export function ExplorerProvider({
       if (streakBadge) newBadges.push(streakBadge)
     }
 
-    // Award new badges
+    // Award new badges (timestamp computed once outside the pure updater)
     if (newBadges.length > 0) {
+      const now = Date.now()
+      const stampedBadges = newBadges.map(b => ({ ...b, unlockedAt: now }))
       setProgress(prev => ({
         ...prev,
-        badges: [
-          ...prev.badges,
-          ...newBadges.map(b => ({ ...b, unlockedAt: Date.now() })),
-        ],
+        badges: [...prev.badges, ...stampedBadges],
       }))
 
       newBadges.forEach(badge => {
@@ -610,19 +647,30 @@ export function ExplorerProvider({
   }, [progress, getAllAttractions, onBadgeEarned])
 
   // Update challenge progress
+  // Pure-updater discipline: completion/reward decided OUTSIDE the updater
+  // (from progressRef); onBadgeEarned (a parent setState path) no longer
+  // fires from inside the updater, and Date.now() is computed once outside.
   const updateChallengeProgress = useCallback((challengeId: string, increment = 1) => {
+    const current = progressRef.current
+    const challenge = current.challenges.find(c => c.id === challengeId)
+    if (!challenge || challenge.completed) return
+
+    const newProgress = Math.min(challenge.progress + increment, challenge.target)
+    const completed = newProgress >= challenge.target
+    const rewardBadge = completed
+      && challenge.reward.badge
+      && !current.badges.find(b => b.id === challenge.reward.badge?.id)
+      ? challenge.reward.badge
+      : undefined
+    const stampedBadge = rewardBadge ? { ...rewardBadge, unlockedAt: Date.now() } : undefined
+
     setProgress(prev => {
       const challengeIndex = prev.challenges.findIndex(c => c.id === challengeId)
       if (challengeIndex === -1) return prev
-
-      const challenge = prev.challenges[challengeIndex]
-      if (challenge.completed) return prev
-
-      const newProgress = Math.min(challenge.progress + increment, challenge.target)
-      const completed = newProgress >= challenge.target
+      if (prev.challenges[challengeIndex].completed) return prev
 
       const updatedChallenge = {
-        ...challenge,
+        ...prev.challenges[challengeIndex],
         progress: newProgress,
         completed,
       }
@@ -635,9 +683,9 @@ export function ExplorerProvider({
       let newBadges = prev.badges
       if (completed) {
         newXP += challenge.reward.xp
-        if (challenge.reward.badge && !prev.badges.find(b => b.id === challenge.reward.badge?.id)) {
-          newBadges = [...newBadges, { ...challenge.reward.badge, unlockedAt: Date.now() }]
-          if (onBadgeEarned) onBadgeEarned(challenge.reward.badge)
+        const badge = stampedBadge
+        if (badge && !prev.badges.find(b => b.id === badge.id)) {
+          newBadges = [...newBadges, badge]
         }
       }
 
@@ -648,6 +696,8 @@ export function ExplorerProvider({
         challenges: newChallenges,
       }
     })
+
+    if (rewardBadge && onBadgeEarned) onBadgeEarned(rewardBadge)
   }, [onBadgeEarned])
 
   // Get challenges
@@ -769,20 +819,22 @@ export function ExplorerProvider({
   // === Mystery Deduction Methods (Carmen Sandiego style) ===
 
   const discoverClue = useCallback((mysteryId: string, clueId: string) => {
-    let xpGained = 0
-    let isNew = false
+    // Already-found check OUTSIDE the updater (no closure mutation inside it)
+    const existing = progressRef.current.mysteries.find(m => m.mysteryId === mysteryId)
+    if (existing?.cluesFound.includes(clueId)) {
+      return { xpGained: 0, isNew: false } // Already found
+    }
+
+    const xpGained = 15 // Base clue discovery XP
 
     setProgress(prev => {
-      const existing = prev.mysteries.find(m => m.mysteryId === mysteryId)
+      const prevEntry = prev.mysteries.find(m => m.mysteryId === mysteryId)
 
-      if (existing?.cluesFound.includes(clueId)) {
+      if (prevEntry?.cluesFound.includes(clueId)) {
         return prev // Already found
       }
 
-      isNew = true
-      xpGained = 15 // Base clue discovery XP
-
-      if (existing) {
+      if (prevEntry) {
         // Update existing mystery progress
         const updated = prev.mysteries.map(m =>
           m.mysteryId === mysteryId
@@ -802,12 +854,45 @@ export function ExplorerProvider({
       }
     })
 
-    return { xpGained, isNew }
+    return { xpGained, isNew: true }
   }, [])
 
   const attemptMysteryDeduction = useCallback((mysteryId: string, optionId: string) => {
     const result = attemptDeduction(mysteryId, optionId)
 
+    // THE FIX for "Cannot update a component (CrossGameProgressionProvider)
+    // while rendering a different component (ExplorerProvider)": all
+    // CrossGameStorage calls used to live INSIDE the setProgress updater.
+    // Strict Mode re-invokes updaters during render, so syncKarmaToPool's
+    // save() dispatched a storage event whose listener setState'd the
+    // cross-game provider mid-render (and side effects double-applied).
+    // Now: side-effect inputs are computed OUTSIDE from progressRef, the
+    // updater is pure, and CrossGameStorage runs AFTER the state update.
+    const now = Date.now()
+    const current = progressRef.current
+    const mystery = TOWN_MYSTERIES.find(m => m.id === mysteryId)
+
+    // Badge to award on correct deduction (decided outside the updater)
+    const badgeDef = result.correct && mystery?.badgeId
+      ? COLLECTION_BADGES.find(b => b.id === mystery.badgeId)
+      : undefined
+    const earnedBadge = badgeDef && !current.badges.some(b => b.id === badgeDef.id)
+      ? { ...badgeDef, unlockedAt: now }
+      : undefined
+
+    // Journal entry on correct deduction (timestamp computed once)
+    const journalEntry: JournalEntry | undefined = result.correct
+      ? {
+          id: `mystery_${mysteryId}_${now}`,
+          timestamp: now,
+          type: 'mystery',
+          townId: mystery?.townId || '',
+          title: mystery?.title || mysteryId,
+          content: result.response,
+        }
+      : undefined
+
+    // Pure updater — no CrossGameStorage, no Date.now(), no callbacks.
     setProgress(prev => {
       const updated = prev.mysteries.map(m => {
         if (m.mysteryId !== mysteryId) return m
@@ -815,56 +900,24 @@ export function ExplorerProvider({
           ...m,
           attempts: m.attempts + 1,
           solved: result.correct ? true : m.solved,
-          solvedAt: result.correct ? Date.now() : m.solvedAt,
+          solvedAt: result.correct ? now : m.solvedAt,
         }
       })
 
       // Award mystery badge on correct deduction
-      let newBadges = prev.badges
-      if (result.correct) {
-        const mystery = TOWN_MYSTERIES.find(m => m.id === mysteryId)
-        if (mystery?.badgeId) {
-          const badge = COLLECTION_BADGES.find(b => b.id === mystery.badgeId)
-          if (badge && !prev.badges.some(b => b.id === badge.id)) {
-            newBadges = [...prev.badges, { ...badge, unlockedAt: Date.now() }]
-          }
-        }
-
-        // Cross-game: sync good karma for historical discovery
-        CrossGameStorage.syncKarmaToPool(
-          'gold_country_explorer', 'good',
-          Math.floor(result.xpReward / 10),
-          `Mystery solved: ${mysteryId}`
-        )
-        // Track historical depth
-        CrossGameStorage.addHistoricalDepth(2)
-
-        // Check for explorer milestones
-        const solvedCount = updated.filter(m => m.solved).length
-        if (solvedCount === 1) {
-          CrossGameStorage.recordMilestone('explorer_first_mystery_solved', 'gold_country_explorer')
-        }
-        const totalMysteries = TOWN_MYSTERIES.length
-        if (solvedCount >= totalMysteries) {
-          CrossGameStorage.recordMilestone('explorer_all_mysteries_solved', 'gold_country_explorer')
-        }
-      }
+      const badge = earnedBadge
+      const newBadges = badge && !prev.badges.some(b => b.id === badge.id)
+        ? [...prev.badges, badge]
+        : prev.badges
 
       // Historical depth: +3 for mystery solve, journal entry
       let newDepthScore = prev.historicalDepthScore
       let newJournalEntries = prev.journalEntries
       if (result.correct) {
         newDepthScore = prev.historicalDepthScore + 3
-        const mystery = TOWN_MYSTERIES.find(m => m.id === mysteryId)
-        const journalEntry: JournalEntry = {
-          id: `mystery_${mysteryId}_${Date.now()}`,
-          timestamp: Date.now(),
-          type: 'mystery',
-          townId: mystery?.townId || '',
-          title: mystery?.title || mysteryId,
-          content: result.response,
+        if (journalEntry) {
+          newJournalEntries = [...prev.journalEntries, journalEntry]
         }
-        newJournalEntries = [...prev.journalEntries, journalEntry]
       }
 
       return {
@@ -877,6 +930,30 @@ export function ExplorerProvider({
         journalEntries: newJournalEntries,
       }
     })
+
+    // Side effects AFTER the pure state update — run exactly once per attempt.
+    if (result.correct) {
+      // Cross-game: sync good karma for historical discovery
+      CrossGameStorage.syncKarmaToPool(
+        'gold_country_explorer', 'good',
+        Math.floor(result.xpReward / 10),
+        `Mystery solved: ${mysteryId}`
+      )
+      // Track historical depth
+      CrossGameStorage.addHistoricalDepth(2)
+
+      // Check for explorer milestones — solved count derived from the
+      // pre-update state plus this solve (the known delta), not from
+      // inside the updater. recordMilestone also dedupes internally.
+      const wasAlreadySolved = current.mysteries.find(m => m.mysteryId === mysteryId)?.solved ?? false
+      const solvedCount = current.mysteries.filter(m => m.solved).length + (wasAlreadySolved ? 0 : 1)
+      if (solvedCount === 1) {
+        CrossGameStorage.recordMilestone('explorer_first_mystery_solved', 'gold_country_explorer')
+      }
+      if (solvedCount >= TOWN_MYSTERIES.length) {
+        CrossGameStorage.recordMilestone('explorer_all_mysteries_solved', 'gold_country_explorer')
+      }
+    }
 
     return result
   }, [])

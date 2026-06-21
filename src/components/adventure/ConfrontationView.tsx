@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import type { StatName } from '@/app/oregon-trail/characterContext'
 import { canRecruitEnemy, attemptRecruitment, getRecruitmentData, type RecruitedAlly } from '@/app/adventure/data/enemyRecruitment'
 import { playSFX } from '@/app/oregon-trail/lib/audioManager'
@@ -61,7 +61,6 @@ export function ConfrontationView({
   const [playerHP, setPlayerHP] = useState(initialPlayerHealth)
   const [enemyHP, setEnemyHP] = useState(enemy.health)
   const [phase, setPhase] = useState<Phase>('player_turn')
-  const [isDefending, setIsDefending] = useState(false)
   const [log, setLog] = useState<TurnLog[]>([
     { text: `${enemy.icon} ${enemy.name} blocks your path!`, type: 'system' },
   ])
@@ -70,6 +69,33 @@ export function ConfrontationView({
   const [talkAttempts, setTalkAttempts] = useState(0)
   const [playerShake, setPlayerShake] = useState(false)
   const [enemyShake, setEnemyShake] = useState(false)
+
+  // Idempotency guard: the confrontation may only resolve ONCE. React Strict
+  // Mode (and racing victory/defeat timers) can fire the resolution twice;
+  // without this, onEnd runs twice — double XP and a race that left the player
+  // stranded mid-travel instead of arriving at the destination.
+  const endedRef = useRef(false)
+
+  // Synchronous combat-state mirrors. State reads inside callbacks are
+  // captured per render and go stale under rapid clicks / scheduled turns:
+  // - processingRef gates handleAction the instant an action starts (the
+  //   `phase` state guard alone let 6 fast ATTACK clicks queue 6 attacks);
+  //   it clears when the enemy turn hands the round back to the player.
+  // - enemyHPRef/playerHPRef carry the live HP so damage applied via
+  //   functional updates matches the value used for end-of-combat checks
+  //   (captured HP caused lost updates: 18 dmg logged → 2 applied).
+  const processingRef = useRef(false)
+  const enemyHPRef = useRef(enemy.health)
+  const playerHPRef = useRef(initialPlayerHealth)
+  // Render mirror of processingRef (refs must not be read during render) —
+  // drives the buttons' disabled state.
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  useEffect(() => {
+    endedRef.current = false
+    processingRef.current = false
+    setIsProcessing(false)
+  }, [enemy])
 
   const addLog = useCallback((entry: TurnLog) => {
     setLog(prev => [...prev, entry])
@@ -89,6 +115,8 @@ export function ConfrontationView({
   } | null>(null)
 
   const endConfrontation = useCallback((outcome: ConfrontationResult['outcome'], ally?: RecruitedAlly, goldSpent?: number) => {
+    if (endedRef.current) return // already resolved — ignore duplicate/strict-mode fire
+    endedRef.current = true
     setPhase('ended')
     const gold = outcome === 'victory' ? (enemy.loot?.gold ?? 0) : 0
     const xp = outcome === 'victory' ? (enemy.loot?.xp ?? 20) + xpEarned
@@ -140,36 +168,40 @@ export function ConfrontationView({
     endConfrontation('talked')
   }, [addLog, endConfrontation])
 
-  const enemyTurn = useCallback(() => {
+  // `defending` is passed as a parameter (not read from state) because this
+  // callback runs from a setTimeout scheduled in a closure where the defend
+  // flag would still read false — +4 AC and damage-halving never applied.
+  const enemyTurn = useCallback((defending: boolean = false) => {
     setPhase('enemy_turn')
 
     setTimeout(() => {
       const roll = rollD20()
       const enemyMod = getStatMod('Agility', enemy.stats)
-      const playerDefense = 10 + getStatMod('Agility', playerStats) + (isDefending ? 4 : 0)
+      const playerDefense = 10 + getStatMod('Agility', playerStats) + (defending ? 4 : 0)
       const attackTotal = roll + enemyMod
 
       if (attackTotal >= playerDefense) {
         // Enemy hits
         const baseDamage = Math.max(1, Math.floor(Math.random() * 6) + 1 + getStatMod('Durability', enemy.stats))
-        const actualDamage = isDefending ? Math.max(1, Math.floor(baseDamage / 2)) : baseDamage
+        const actualDamage = defending ? Math.max(1, Math.floor(baseDamage / 2)) : baseDamage
 
-        setPlayerHP(prev => {
-          const newHP = Math.max(0, prev - actualDamage)
-          if (newHP <= 0) {
-            addLog({ text: `${enemy.name} strikes a devastating blow! You fall...`, type: 'failure' })
-            setTimeout(() => endConfrontation('defeat'), 1000)
-          } else {
-            addLog({
-              text: `${enemy.name} ${isDefending ? 'breaks through your guard for' : 'hits you for'} ${actualDamage} damage! [${roll}+${enemyMod} vs AC ${playerDefense}]`,
-              type: 'enemy',
-            })
-          }
-          return newHP
-        })
+        // Functional update keeps the updater pure; side effects below use
+        // the ref-computed value (captured playerHP could be stale).
+        const newPlayerHP = Math.max(0, playerHPRef.current - actualDamage)
+        playerHPRef.current = newPlayerHP
+        setPlayerHP(prev => Math.max(0, prev - actualDamage))
         setTotalDamage(prev => prev + actualDamage)
         setPlayerShake(true)
         setTimeout(() => setPlayerShake(false), 300)
+        if (newPlayerHP <= 0) {
+          addLog({ text: `${enemy.name} strikes a devastating blow! You fall...`, type: 'failure' })
+          setTimeout(() => endConfrontation('defeat'), 1000)
+        } else {
+          addLog({
+            text: `${enemy.name} ${defending ? 'breaks through your guard for' : 'hits you for'} ${actualDamage} damage! [${roll}+${enemyMod} vs AC ${playerDefense}]`,
+            type: 'enemy',
+          })
+        }
       } else {
         addLog({
           text: `${enemy.name} swings and misses! [${roll}+${enemyMod} vs AC ${playerDefense}]`,
@@ -177,13 +209,18 @@ export function ConfrontationView({
         })
       }
 
-      setIsDefending(false)
+      processingRef.current = false
+      setIsProcessing(false)
       setPhase('player_turn')
     }, 800)
-  }, [enemy, playerStats, isDefending, addLog, endConfrontation])
+  }, [enemy, playerStats, addLog, endConfrontation])
 
   const handleAction = useCallback((action: Action) => {
-    if (phase !== 'player_turn') return
+    // processingRef is checked/set synchronously — the `phase` guard alone
+    // reads a stale phase under rapid clicks and queued one attack per click.
+    if (phase !== 'player_turn' || processingRef.current) return
+    processingRef.current = true
+    setIsProcessing(true)
     setPhase('resolving')
 
     switch (action) {
@@ -195,28 +232,30 @@ export function ConfrontationView({
         const attackTotal = roll + playerMod
 
         if (roll === 20 || attackTotal >= enemyAC) {
-          const baseDamage = Math.floor(Math.random() * 8) + 1 + getStatMod('Durability', playerStats)
-          const damage = roll === 20 ? baseDamage * 2 : Math.max(1, baseDamage)
+          const baseDamage = Math.max(1, Math.floor(Math.random() * 8) + 1 + getStatMod('Durability', playerStats))
+          const damage = roll === 20 ? baseDamage * 2 : baseDamage
           const crit = roll === 20 ? ' CRITICAL HIT!' : ''
 
-          setEnemyHP(prev => {
-            const newHP = Math.max(0, prev - damage)
-            if (newHP <= 0) {
-              addLog({ text: `You strike ${enemy.name} for ${damage} damage!${crit} They go down!`, type: 'success' })
-              setXpEarned(prev => prev + 10)
-              setTimeout(() => endConfrontation('victory'), 1000)
-            } else {
-              addLog({
-                text: `You hit ${enemy.name} for ${damage} damage!${crit} [${roll}+${playerMod} vs AC ${enemyAC}]`,
-                type: 'player',
-              })
-              setTimeout(() => enemyTurn(), 500)
-            }
-            return newHP
-          })
+          // Functional update keeps the updater pure (Strict Mode runs them
+          // twice); side effects below use the ref-computed value, since the
+          // captured enemyHP can be stale (lost-update bug under fast turns).
+          const newEnemyHP = Math.max(0, enemyHPRef.current - damage)
+          enemyHPRef.current = newEnemyHP
+          setEnemyHP(prev => Math.max(0, prev - damage))
           setXpEarned(prev => prev + 5)
           setEnemyShake(true)
           setTimeout(() => setEnemyShake(false), 300)
+          if (newEnemyHP <= 0) {
+            addLog({ text: `You strike ${enemy.name} for ${damage} damage!${crit} They go down!`, type: 'success' })
+            setXpEarned(prev => prev + 10)
+            setTimeout(() => endConfrontation('victory'), 1000)
+          } else {
+            addLog({
+              text: `You hit ${enemy.name} for ${damage} damage!${crit} [${roll}+${playerMod} vs AC ${enemyAC}]`,
+              type: 'player',
+            })
+            setTimeout(() => enemyTurn(), 500)
+          }
         } else {
           addLog({
             text: `You swing and miss! [${roll}+${playerMod} vs AC ${enemyAC}]`,
@@ -229,10 +268,9 @@ export function ConfrontationView({
 
       case 'defend': {
         playSFX('click')
-        setIsDefending(true)
         addLog({ text: 'You raise your guard. (+4 AC this round)', type: 'player' })
         setXpEarned(prev => prev + 2)
-        setTimeout(() => enemyTurn(), 500)
+        setTimeout(() => enemyTurn(true), 500)
         break
       }
 
@@ -298,10 +336,10 @@ export function ConfrontationView({
         {/* Player */}
         <div>
           <div className="flex justify-between items-center mb-1">
-            <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)]">
+            <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
               {playerName}
             </span>
-            <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+            <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
               {playerHP}/{playerMaxHealth}
             </span>
           </div>
@@ -316,10 +354,10 @@ export function ConfrontationView({
         {/* Enemy */}
         <div>
           <div className="flex justify-between items-center mb-1">
-            <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-fire-red)]">
+            <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-fire-red)]">
               {enemy.icon} {enemy.name}
             </span>
-            <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+            <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
               {enemyHP}/{enemy.maxHealth}
             </span>
           </div>
@@ -337,7 +375,7 @@ export function ConfrontationView({
         {log.map((entry, i) => (
           <p
             key={i}
-            className={`font-[var(--font-pixel)] text-[8px] ${
+            className={`font-[var(--font-pixel)] text-[11px] ${
               entry.type === 'player' ? 'text-[var(--pixel-forest-light)]'
               : entry.type === 'enemy' ? 'text-[var(--pixel-fire-red)]'
               : entry.type === 'success' ? 'text-[var(--pixel-gold-light)]'
@@ -355,48 +393,52 @@ export function ConfrontationView({
         <div className="p-3 grid grid-cols-2 gap-2">
           <button
             onClick={() => handleAction('attack')}
-            className="p-2 bg-red-950/30 border-2 border-[var(--pixel-fire-red)] hover:bg-red-900/40 transition-all text-left"
+            disabled={isProcessing}
+            className="p-2 bg-red-950/30 border-2 border-[var(--pixel-fire-red)] hover:bg-red-900/40 transition-all text-left disabled:opacity-50"
           >
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-fire-red)]">
               {'\u2694\uFE0F'} ATTACK
             </span>
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
+            <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-50">
               Agility vs AC
             </p>
           </button>
 
           <button
             onClick={() => handleAction('defend')}
-            className="p-2 bg-blue-950/30 border-2 border-[var(--pixel-sky-light)] hover:bg-blue-900/40 transition-all text-left"
+            disabled={isProcessing}
+            className="p-2 bg-blue-950/30 border-2 border-[var(--pixel-sky-light)] hover:bg-blue-900/40 transition-all text-left disabled:opacity-50"
           >
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-sky-light)]">
               {'\uD83D\uDEE1\uFE0F'} DEFEND
             </span>
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
+            <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-50">
               +4 AC this round
             </p>
           </button>
 
           <button
             onClick={() => handleAction('flee')}
-            className="p-2 bg-yellow-950/30 border-2 border-[var(--pixel-gold-mid)] hover:bg-yellow-900/40 transition-all text-left"
+            disabled={isProcessing}
+            className="p-2 bg-yellow-950/30 border-2 border-[var(--pixel-gold-mid)] hover:bg-yellow-900/40 transition-all text-left disabled:opacity-50"
           >
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-mid)]">
               {'\uD83C\uDFC3'} FLEE
             </span>
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
+            <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-50">
               Agility check
             </p>
           </button>
 
           <button
             onClick={() => handleAction('talk')}
-            className="p-2 bg-green-950/30 border-2 border-[var(--pixel-forest-light)] hover:bg-green-900/40 transition-all text-left"
+            disabled={isProcessing}
+            className="p-2 bg-green-950/30 border-2 border-[var(--pixel-forest-light)] hover:bg-green-900/40 transition-all text-left disabled:opacity-50"
           >
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-forest-light)]">
               {'\uD83D\uDDE3\uFE0F'} TALK
             </span>
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
+            <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-50">
               Diplomacy DC {12 + talkAttempts * 3}
             </p>
           </button>
@@ -413,10 +455,10 @@ export function ConfrontationView({
               <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
                 RECRUIT {enemy.name.toUpperCase()}?
               </span>
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] mt-1">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] mt-1">
                 {recruitData.passiveEffect}
               </p>
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-mid)] mt-1">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-mid)] mt-1">
                 Cost: {recruitData.goldCost} gold | Diplomacy DC {recruitData.recruitDC} | Stays {recruitData.duration} chapter{recruitData.duration !== 1 ? 's' : ''}
               </p>
             </div>
@@ -433,7 +475,7 @@ export function ConfrontationView({
                 <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-forest-light)]">
                   {'\uD83E\uDD1D'} RECRUIT
                 </span>
-                <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
+                <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-50">
                   {playerGold >= recruitData.goldCost
                     ? `Pay ${recruitData.goldCost}g`
                     : `Need ${recruitData.goldCost}g (have ${playerGold})`}
@@ -446,7 +488,7 @@ export function ConfrontationView({
                 <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-mid)]">
                   {'\uD83D\uDC4B'} PART WAYS
                 </span>
-                <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50">
+                <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-50">
                   Peaceful farewell
                 </p>
               </button>

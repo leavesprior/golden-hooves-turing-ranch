@@ -39,6 +39,11 @@ const EXTENDED_TIERS: Record<ExtendedTier, ExtendedTierInfo> = {
   platinum: { ...DISCOUNT_TIERS.platinum, badge: '\uD83D\uDC8E' },
 }
 
+// The full panel (320px wide) covers half a 390px viewport including the
+// \u2190 MAP button (P1-1 mobile half) \u2014 so it collapses to a small chip.
+const COLLAPSE_STORAGE_KEY = 'bobr_reward_tracker_collapsed'
+const SMALL_SCREEN_PX = 768
+
 export default function AdventureRewardTracker({
   locationsVisited,
   totalLocations,
@@ -52,6 +57,27 @@ export default function AdventureRewardTracker({
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
   const [hasCheckedWelcome, setHasCheckedWelcome] = useState(false)
+  // Start collapsed (safe for SSR + small screens); resolved on mount below.
+  const [collapsed, setCollapsed] = useState(true)
+
+  // Resolve collapse state on mount: the user's saved choice wins; otherwise
+  // default collapsed on small screens, expanded on desktop.
+  useEffect(() => {
+    const stored = localStorage.getItem(COLLAPSE_STORAGE_KEY)
+    if (stored !== null) {
+      setCollapsed(stored === '1')
+    } else {
+      setCollapsed(window.innerWidth < SMALL_SCREEN_PX)
+    }
+  }, [])
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed(prev => {
+      const next = !prev
+      localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? '1' : '0')
+      return next
+    })
+  }, [])
 
   const mysteryClues = getCorrectClueCount()
   const casesSolved = mysteryState.casesSolved.length
@@ -79,6 +105,26 @@ export default function AdventureRewardTracker({
       setShowWelcomeModal(true)
     }
   }, [welcomeEligible, hasCheckedWelcome])
+
+  // Dismissing the auto-shown celebration also re-collapses the tracker on
+  // small screens (unless the user has explicitly chosen to keep it open).
+  const dismissWelcomeModal = useCallback(() => {
+    setShowWelcomeModal(false)
+    if (localStorage.getItem(COLLAPSE_STORAGE_KEY) === null && window.innerWidth < SMALL_SCREEN_PX) {
+      setCollapsed(true)
+    }
+  }, [])
+
+  // The celebration modal auto-fires over whatever is open (P1-1) — it must
+  // never trap the player. Escape dismisses it while open.
+  useEffect(() => {
+    if (!showWelcomeModal) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') dismissWelcomeModal()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showWelcomeModal, dismissWelcomeModal])
 
   // Progress to next tier
   const getProgressInfo = useCallback(() => {
@@ -137,15 +183,39 @@ export default function AdventureRewardTracker({
 
   return (
     <>
+      {collapsed ? (
+        /* Collapsed: a small chip that stays out of the way (mobile-safe) */
+        <button
+          onClick={toggleCollapsed}
+          aria-label="Expand reward tracker"
+          className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] px-3 py-2 font-[var(--font-pixel)] shadow-lg hover:border-[var(--pixel-gold-mid)] transition-colors"
+        >
+          <span className="text-[14px]">
+            {currentTier ? EXTENDED_TIERS[currentTier].badge : '🏆'}
+          </span>
+          <span className="text-[10px] text-[var(--pixel-gold-light)] font-bold">
+            {Math.floor(progress.percent)}%
+          </span>
+        </button>
+      ) : (
       <div className="fixed top-4 right-4 w-80 bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] p-4 font-[var(--font-pixel)] shadow-lg z-50">
         {/* Header */}
         <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-[var(--pixel-ui-border)]">
           <h3 className="text-[12px] text-[var(--pixel-gold-light)] uppercase tracking-wider">
             Reward Tracker
           </h3>
-          <span className="text-[10px] text-[var(--pixel-ui-text)]">
-            {playTimeMinutes} min
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-[var(--pixel-ui-text)]">
+              {playTimeMinutes} min
+            </span>
+            <button
+              onClick={toggleCollapsed}
+              aria-label="Collapse reward tracker"
+              className="text-[12px] leading-none text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] px-1 border border-[var(--pixel-ui-border)]"
+            >
+              {'−'}
+            </button>
+          </div>
         </div>
 
         {/* Current Tier */}
@@ -168,8 +238,8 @@ export default function AdventureRewardTracker({
         {/* Progress to Next Tier */}
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[8px] text-[var(--pixel-ui-text)] uppercase">Next Tier</span>
-            <span className="text-[8px] text-[var(--pixel-gold-mid)]">{Math.floor(progress.percent)}%</span>
+            <span className="text-[11px] text-[var(--pixel-ui-text)] uppercase">Next Tier</span>
+            <span className="text-[11px] text-[var(--pixel-gold-mid)]">{Math.floor(progress.percent)}%</span>
           </div>
           <div className="w-full h-4 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] relative overflow-hidden">
             <div
@@ -177,12 +247,12 @@ export default function AdventureRewardTracker({
               style={{ width: `${progress.percent}%` }}
             />
           </div>
-          <div className="text-[8px] text-[var(--pixel-ui-text)] mt-1">{progress.message}</div>
+          <div className="text-[11px] text-[var(--pixel-ui-text)] mt-1">{progress.message}</div>
         </div>
 
         {/* Karma Alignment */}
         <div className="mb-3 p-2 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)]">
-          <div className="text-[8px] text-[var(--pixel-ui-text)] uppercase mb-1">Karma Alignment</div>
+          <div className="text-[11px] text-[var(--pixel-ui-text)] uppercase mb-1">Karma Alignment</div>
           <div className="flex justify-between items-center">
             <span className="text-[10px] text-[var(--pixel-forest-light)]">{alignmentName}</span>
             <span className="text-[10px] text-[var(--pixel-gold-light)] font-bold">{karmaMultiplier.toFixed(1)}x</span>
@@ -199,7 +269,7 @@ export default function AdventureRewardTracker({
               <span className="text-[14px]">{'\uD83D\uDD0D'}</span>
               <span className="text-[10px] uppercase font-bold">Search The Listing</span>
             </div>
-            <div className="text-[7px] mt-1 opacity-80">
+            <div className="text-[10px] mt-1 opacity-80">
               The answer might be hidden in the cabin listing...
             </div>
           </button>
@@ -220,25 +290,35 @@ export default function AdventureRewardTracker({
         {/* Reward Verification */}
         {currentTier && (
           <div className="border-t-2 border-[var(--pixel-ui-border)] pt-3">
-            <div className="text-[8px] text-[var(--pixel-ui-text)] uppercase mb-2">
+            <div className="text-[11px] text-[var(--pixel-ui-text)] uppercase mb-2">
               Reward Verification
             </div>
             <div className="p-2 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)]">
-              <div className="text-[8px] text-[var(--pixel-gold-light)] uppercase">
+              <div className="text-[11px] text-[var(--pixel-gold-light)] uppercase">
                 {EXTENDED_TIERS[currentTier].displayName} earned
               </div>
-              <div className="text-[7px] text-[var(--pixel-ui-text)] mt-1 leading-relaxed">
+              <div className="text-[10px] text-[var(--pixel-ui-text)] mt-1 leading-relaxed">
                 Booking rewards now require host verification. No client discount codes are issued from this tracker.
               </div>
             </div>
           </div>
         )}
       </div>
+      )}
 
       {/* Welcome Modal */}
       {showWelcomeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] font-[var(--font-pixel)]">
-          <div className="bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-gold-light)] p-6 max-w-md w-full mx-4 shadow-2xl">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] font-[var(--font-pixel)]"
+          onClick={dismissWelcomeModal}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Welcome tier reward"
+            className="bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-gold-light)] p-6 max-w-md w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="text-center mb-4">
               <div className="text-[24px] mb-2">{'\uD83E\uDD20'}</div>
               <h2 className="text-[16px] text-[var(--pixel-gold-light)] uppercase tracking-wider mb-2">
@@ -250,8 +330,8 @@ export default function AdventureRewardTracker({
             </div>
 
             <div className="mb-4 p-3 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-mid)]">
-              <div className="text-[8px] text-[var(--pixel-ui-text)] uppercase mb-2 text-center">Host Verification Required</div>
-              <p className="text-[8px] text-[var(--pixel-gold-light)] text-center leading-relaxed">
+              <div className="text-[11px] text-[var(--pixel-ui-text)] uppercase mb-2 text-center">Host Verification Required</div>
+              <p className="text-[11px] text-[var(--pixel-gold-light)] text-center leading-relaxed">
                 Your Welcome tier is tracked here, but booking discounts must be verified by the host before a code is issued.
               </p>
             </div>
@@ -265,15 +345,15 @@ export default function AdventureRewardTracker({
               Book Now
             </a>
 
-            <p className="text-[8px] text-[var(--pixel-ui-text)] text-center mb-4">
+            <p className="text-[11px] text-[var(--pixel-ui-text)] text-center mb-4">
               Keep playing to unlock bigger discounts!
               <br />
               Next tier: <span className="text-[var(--pixel-gold-light)]">Bronze Deputy (8%)</span>
             </p>
 
             <button
-              onClick={() => setShowWelcomeModal(false)}
-              className="w-full p-2 bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-ui-border)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] text-[8px] uppercase transition-colors"
+              onClick={dismissWelcomeModal}
+              className="w-full p-2 bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-ui-border)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] text-[11px] uppercase transition-colors"
             >
               Continue Playing
             </button>

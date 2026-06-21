@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import {
   CAMP_ACTIVITIES,
   CAMP_DAYS,
@@ -37,14 +37,19 @@ export function CampManagement({
   const [dayLog, setDayLog] = useState<DayLog[]>([])
   const [activeResult, setActiveResult] = useState<{ activity: CampActivity; result: ActivityResult; success: boolean } | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  // Synchronous guard: `isProcessing` state is stale under rapid clicks (one
+  // click per frame slipped through → N× rewards and negative days). The ref
+  // flips the moment an activity starts, before React re-renders.
+  const processingRef = useRef(false)
 
   const daysPassed = CAMP_DAYS - daysRemaining
 
   const handleActivity = useCallback((activity: CampActivity) => {
-    if (isProcessing) return
+    if (processingRef.current || isProcessing) return
     const check = canPerformActivity(activity, daysRemaining, playerStats)
     if (!check.canDo) return
 
+    processingRef.current = true
     setIsProcessing(true)
 
     // Simulate activity with delay for feel
@@ -63,8 +68,10 @@ export function CampManagement({
       }
 
       setDayLog(prev => [...prev, logEntry])
-      setDaysRemaining(prev => prev - activity.daysCost)
+      // Clamp: days can never go negative, even if a stray activity lands late.
+      setDaysRemaining(prev => Math.max(0, prev - activity.daysCost))
       setActiveResult({ activity, result, success: skillResult.success })
+      processingRef.current = false
       setIsProcessing(false)
     }, 800)
   }, [daysRemaining, playerStats, daysPassed, isProcessing, onSkillCheck, onApplyResult])
@@ -83,7 +90,7 @@ export function CampManagement({
               <h2 className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)]">
                 CAMP BETWEEN CHAPTERS
               </h2>
-              <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-60">
+              <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-60">
                 Rest and prepare before Chapter {chapter + 1}
               </p>
             </div>
@@ -124,35 +131,35 @@ export function CampManagement({
                   {activeResult.success ? 'SUCCESS' : 'PARTIAL'}  — {activeResult.activity.name}
                 </span>
               </div>
-              <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">
+              <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">
                 {activeResult.result.text}
               </p>
               {/* Result details */}
               <div className="flex flex-wrap gap-2 mt-2">
                 {activeResult.result.xpGain && (
-                  <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)]">
+                  <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
                     +{activeResult.result.xpGain} XP
                   </span>
                 )}
                 {activeResult.result.healthChange && (
-                  <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-forest-light)]">
+                  <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)]">
                     +{activeResult.result.healthChange} Health
                   </span>
                 )}
                 {activeResult.result.karmaGain && (
-                  <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)]">
+                  <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
                     +{activeResult.result.karmaGain} Karma
                   </span>
                 )}
                 {activeResult.result.revealLocations && (
-                  <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-earth-light)]">
+                  <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-earth-light)]">
                     {activeResult.result.revealLocations} location(s) revealed
                   </span>
                 )}
               </div>
               <button
                 onClick={dismissResult}
-                className="mt-2 font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)]"
+                className="mt-2 font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)]"
               >
                 DISMISS
               </button>
@@ -182,20 +189,20 @@ export function CampManagement({
                       <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
                         {activity.name}
                       </span>
-                      <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50 ml-2">
+                      <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50 ml-2">
                         ({activity.daysCost} day{activity.daysCost > 1 ? 's' : ''})
                       </span>
                     </div>
                   </div>
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-60">
+                  <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-60">
                     {activity.description}
                   </p>
                   <div className="flex justify-between items-center mt-2">
-                    <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-40">
+                    <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-40">
                       {activity.stat} DC {activity.difficulty}
                     </span>
                     {!check.canDo && check.reason && (
-                      <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-fire-orange)]">
+                      <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-fire-orange)]">
                         {check.reason}
                       </span>
                     )}
@@ -210,7 +217,7 @@ export function CampManagement({
             <h3 className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] mb-4">
               CAMP COMPLETE
             </h3>
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] mb-4">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-4">
               {CAMP_DAYS} days have passed. Time to move on.
             </p>
           </div>
@@ -225,11 +232,11 @@ export function CampManagement({
             <div className="space-y-1 max-h-[120px] overflow-y-auto">
               {dayLog.map((entry, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-40">
+                  <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-40">
                     Day {entry.day}:
                   </span>
                   <span className="text-xs">{entry.activity.icon}</span>
-                  <span className={`font-[var(--font-pixel)] text-[8px] ${
+                  <span className={`font-[var(--font-pixel)] text-[11px] ${
                     entry.success ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-orange)]'
                   }`}>
                     {entry.activity.name} — {entry.success ? 'Success' : 'Partial'}
@@ -256,7 +263,7 @@ export function CampManagement({
             }
           </button>
           {daysRemaining > 0 && (
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] text-center mt-1 opacity-40">
+            <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] text-center mt-1 opacity-40">
               You have {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining. Unused days are lost.
             </p>
           )}

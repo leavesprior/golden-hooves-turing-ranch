@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { clientIpFrom, rateLimitOk, verifyScoreClaim } from '@/lib/markerSession'
 
 /**
  * Leaderboard API Route - Notion Database Proxy
@@ -8,6 +9,14 @@ import { NextRequest, NextResponse } from 'next/server'
  *
  * POST /api/leaderboard
  *   Creates/updates a player entry (dedup by PlayerId)
+ *
+ * Security (2026-06-16):
+ *   - Ceiling (MAX_PLAUSIBLE_SCORE) + per-IP rate limit (re-uses markerSession
+ *     token bucket, the same control that already protects marker rewards).
+ *   - Optional claimToken: short-lived HMAC(score+playerId+game) issued by a
+ *     trusted game completion path. See issueScoreClaim in markerSession.ts.
+ *   - Direct unauth high-score POSTs (the 999999999 HACKER/NEOMA_AUDIT_FORGE
+ *     injections) are now rejected at the API.
  *
  * Keeps Notion API token server-side. Graceful degradation when unconfigured.
  */
@@ -179,10 +188,53 @@ export async function POST(request: NextRequest) {
     const {
       playerName, playerId, score, trophies, chapter, level,
       alignment, saddleStats, topFaction, timeEchoes, milestonesCount,
+      claimToken, game,
     } = body
 
     if (!playerName || !playerId || typeof score !== 'number') {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // HIGH-1 FIX (2026-06-16): anti-forgery controls.
+    // - Plausible ceiling: current content (Oregon/Adventure/WIT) cannot legitimately
+    //   produce 8-9 digit scores. This kills the 999,999,999 curl attack.
+    // - Per-IP rate limit reuses the proven token-bucket from markerSession (same
+    //   primitive that already hardens the BOBR-EARLY marker path).
+    // - claimToken (optional for now): when present must verify via the HMAC helper.
+    //   Future: games call a record-run endpoint at end-of-run to obtain a claim
+    //   for their exact final score, then forward it here. Full enforcement can
+    //   flip to "claim required for score > X" without schema change.
+    //
+    // Test forgeries injected during audit (FULL_TEST_AUDIT_20260616):
+    //   HACKER (999999999) and NEOMA_AUDIT_FORGE — purge manually from the Notion
+    //   leaderboard DB (filter by Name or PlayerId). They were created via direct
+    //   unauthenticated POST before this guard landed.
+    const MAX_PLAUSIBLE_SCORE = 100000; // generous; real play max is far lower
+    if (score > MAX_PLAUSIBLE_SCORE) {
+      return NextResponse.json(
+        { error: 'Score exceeds plausible maximum for current game content' },
+        { status: 400 }
+      );
+    }
+
+    const ip = clientIpFrom(request.headers);
+    if (!rateLimitOk(ip)) {
+      return NextResponse.json(
+        { error: 'Rate limited — too many submissions from this IP. Slow down.' },
+        { status: 429 }
+      );
+    }
+
+    // If a claimToken was supplied, verify it binds this exact player+score+game.
+    // (Non-fatal for now; allows the existing leaderboard UI submit form to keep
+    // working while games are updated to obtain claims.)
+    if (claimToken && typeof claimToken === 'string') {
+      const gameTag = (game as string) || 'bobr';
+      if (!verifyScoreClaim(playerId, score, gameTag, claimToken)) {
+        // Soft-fail the claim but still accept under the ceiling+rate umbrella
+        // (upgrade to hard reject once all callers are migrated).
+        console.warn('Leaderboard claimToken present but invalid for', playerId, score);
+      }
     }
 
     // Dedup: check if player already exists

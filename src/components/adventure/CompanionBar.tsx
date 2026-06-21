@@ -91,7 +91,7 @@ export function CompanionBar({ allies, context, onAllyClick }: CompanionBarProps
 
       {/* Ally portraits row */}
       <div className="flex items-center gap-2">
-        <span className="font-pixel text-[8px] text-amber-400/40 uppercase tracking-wider mr-1">
+        <span className="font-pixel text-[11px] text-amber-400/40 uppercase tracking-wider mr-1">
           Party
         </span>
         {allies.map((ally) => {
@@ -114,7 +114,7 @@ export function CompanionBar({ allies, context, onAllyClick }: CompanionBarProps
 
         {/* Compact info */}
         <div className="ml-auto flex items-center gap-2">
-          <span className="font-pixel text-[8px] text-amber-400/40">
+          <span className="font-pixel text-[11px] text-amber-400/40">
             {allies.length} companion{allies.length !== 1 ? 's' : ''}
           </span>
         </div>

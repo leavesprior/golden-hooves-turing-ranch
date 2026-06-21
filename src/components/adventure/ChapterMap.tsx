@@ -16,6 +16,9 @@ interface ChapterMapProps {
   factionReps: Record<FactionId, number>
   onTravelTo: (locationId: string) => void
   onVisitLocation: (locationId: string) => void
+  /** Optional: surface a short message to the player when a click can't
+   *  progress. Without this, silent rejects read as "the game is broken." */
+  onClickHint?: (message: string) => void
 }
 
 const ATMOSPHERE_COLORS: Record<string, string> = {
@@ -43,6 +46,21 @@ const ATMOSPHERE_COLORS: Record<string, string> = {
   wild: '#22c55e',
 }
 
+/** Short label for always-visible map markers. Truncates long names to
+ *  leading word(s) + ellipsis so labels stay legible at the 100-unit
+ *  viewBox scale (esp. 390px mobile) without colliding. */
+function shortLabel(name: string): string {
+  const clean = name.replace(/\(.*?\)/g, '').trim()
+  if (clean.length <= 14) return clean
+  const words = clean.split(/\s+/)
+  let label = words[0]
+  for (let i = 1; i < words.length; i++) {
+    if (`${label} ${words[i]}`.length > 13) break
+    label = `${label} ${words[i]}`
+  }
+  return `${label.replace(/[,—-]+$/, '')}…`
+}
+
 function canAccessLocation(
   loc: ChapterLocation,
   factionReps: Record<FactionId, number>,
@@ -67,6 +85,7 @@ export function ChapterMap({
   factionReps,
   onTravelTo,
   onVisitLocation,
+  onClickHint,
 }: ChapterMapProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -99,12 +118,23 @@ export function ChapterMap({
       onVisitLocation(loc.id)
       return
     }
-    if (isAdjacentToCurrent(loc.id) && discoveredSet.has(loc.id)) {
+    // 2026-06-17 (Leif's call): PERMISSIVE travel — you can travel to ANY town
+    // you've already discovered, not just an adjacent one. Previously the MAP
+    // view was adjacency-gated while the EXPLORE view allowed any discovered
+    // town, so the same trip "worked" in one view but not the other. Both now
+    // allow discovered-town travel; only undiscovered towns must be scouted.
+    if (discoveredSet.has(loc.id)) {
       const access = canAccessLocation(loc, factionReps)
       if (access.accessible) {
         setSelectedId(loc.id)
+        return
       }
+      onClickHint?.(access.reason
+        ? `${loc.name} is closed off — ${access.reason}.`
+        : `${loc.name} won't let you in just now.`)
+      return
     }
+    onClickHint?.(`That trail hasn't been mapped yet. Scout it from somewhere closer.`)
   }
 
   const handleTravel = () => {
@@ -124,8 +154,8 @@ export function ChapterMap({
         <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
           CHAPTER {chapter} MAP
         </span>
-        <span className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">
-          {discoveredLocationIds.length} / {allLocations.length} discovered
+        <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">
+          {allLocations.filter(l => discoveredSet.has(l.id)).length} / {allLocations.length} discovered
         </span>
       </div>
 
@@ -236,8 +266,25 @@ export function ChapterMap({
                   {!access.accessible ? '\uD83D\uDD12' : loc.icon}
                 </text>
 
-                {/* Name label */}
-                {(isHovered || isCurrent || isSelected) && (
+                {/* Always-visible short name (deduction + touch support —
+                    names must not be hover-only) */}
+                <text
+                  x={Math.min(90, Math.max(10, loc.x))}
+                  y={loc.y + (isCurrent ? 6.4 : 5.4)}
+                  textAnchor="middle"
+                  fontSize={2.2}
+                  fill={isCurrent ? '#fff' : color}
+                  stroke="#0a0a14"
+                  strokeWidth={0.5}
+                  style={{ paintOrder: 'stroke' }}
+                  opacity={!access.accessible ? 0.6 : 0.95}
+                  className="font-[var(--font-pixel)] pointer-events-none select-none"
+                >
+                  {shortLabel(loc.name)}
+                </text>
+
+                {/* Full-name tooltip label (hover / selection) */}
+                {(isHovered || isSelected) && (
                   <g>
                     <rect
                       x={loc.x - 12} y={loc.y - 7}
@@ -284,12 +331,12 @@ export function ChapterMap({
                 <h3 className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
                   {selectedLoc.icon} {selectedLoc.name}
                 </h3>
-                <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70">
+                <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-70">
                   {selectedLoc.description}
                 </p>
               </div>
               {selectedLoc.travelDanger !== 'safe' && (
-                <span className={`font-[var(--font-pixel)] text-[8px] px-2 py-0.5 border ${
+                <span className={`font-[var(--font-pixel)] text-[11px] px-2 py-0.5 border ${
                   selectedLoc.travelDanger === 'dangerous'
                     ? 'text-[var(--pixel-fire-red)] border-[var(--pixel-fire-red)]'
                     : 'text-[var(--pixel-fire-orange)] border-[var(--pixel-fire-orange)]'
@@ -301,14 +348,14 @@ export function ChapterMap({
             {selectedLoc.services.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {selectedLoc.services.map(s => (
-                  <span key={s.type} className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-forest-light)] px-1 border border-[var(--pixel-forest-dark)]">
+                  <span key={s.type} className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)] px-1 border border-[var(--pixel-forest-dark)]">
                     {s.name}
                   </span>
                 ))}
               </div>
             )}
             {selectedLoc.npcs.length > 0 && (
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
                 {selectedLoc.npcs.length} NPC{selectedLoc.npcs.length > 1 ? 's' : ''} present
               </p>
             )}
@@ -324,7 +371,7 @@ export function ChapterMap({
             <h3 className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
               {hoveredLoc.icon} {hoveredLoc.name}
             </h3>
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50">
               {hoveredLoc.id === currentLocationId ? 'You are here. Click to explore.' : 'Click to select destination.'}
             </p>
           </div>
@@ -333,17 +380,22 @@ export function ChapterMap({
             <h3 className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
               {currentLoc?.icon} {currentLoc?.name ?? 'Unknown'}
             </h3>
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50">
               Click a location to travel. Click your current location to explore it.
             </p>
           </div>
         )}
 
-        {/* Historical fact */}
+        {/* Historical fact — styled to match the LocationView plaque */}
         {(selectedLoc ?? currentLoc)?.historicalFact && (
-          <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-earth-light)] mt-2 italic opacity-70">
-            "{(selectedLoc ?? currentLoc)!.historicalFact}"
-          </p>
+          <div className="mt-2 p-2 bg-[var(--pixel-gold-dark)]/15 border border-[var(--pixel-gold-dark)]/60 border-l-4 border-l-[var(--pixel-gold-mid)]">
+            <span className="font-[var(--font-pixel)] text-[10px] tracking-wider text-[var(--pixel-gold-light)]">
+              {'📜'} HISTORICAL RECORD
+            </span>
+            <p className="font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-earth-light)] mt-1">
+              {(selectedLoc ?? currentLoc)!.historicalFact}
+            </p>
+          </div>
         )}
       </div>
     </div>

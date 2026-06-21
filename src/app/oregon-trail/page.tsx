@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { trackPageView, trackGameStart } from '@/lib/eventTracker'
 import { OregonTrailProvider, useOregonTrail } from './oregonTrailContext'
 import { ShareLegacy } from '@/components/ui/ShareLegacy'
@@ -12,7 +12,7 @@ import { ReputationProvider } from './reputationContext'
 import { NarratorProvider } from './narratorContext'
 import { MysteryProvider } from './mysteryContext'
 import { ChapterProvider } from './chapterContext'
-import { RanchProvider } from './ranchContext'
+import { RanchProvider, useRanch } from './ranchContext'
 import { SettlementProvider } from './settlementContext'
 import { NPCProvider } from './npcContext'
 
@@ -22,7 +22,7 @@ import { ChapterIntro, CHAPTERS } from './components/ChapterIntro'
 
 // Authentication & Save/Load System
 import { AuthSavePanel } from '@/components/game/AuthSavePanel'
-import { useSaveLoad } from '@/lib/saveLoadContext'
+import { useSaveLoad, getSaveGameType } from '@/lib/saveLoadContext'
 
 // Golden Hooves Enhancements
 import { GameErrorBoundary } from './components/GameErrorBoundary'
@@ -133,10 +133,22 @@ function TravelScreen() {
 }
 
 function OregonTrailGame() {
-  const { state, startFromTitle, completeChapterIntro, loadState } = useOregonTrail()
+  const { state, startFromTitle, completeChapterIntro, loadState, openRanchManagement } = useOregonTrail()
+  // 2026-06-17: the homestead (Back of Beyond Ranch) was only reachable via a
+  // West-Point-gated button — "I still don't see how I get to my farm." This
+  // gives a persistent, self-evident way home from anywhere in gameplay.
+  const { unlockRanch } = useRanch()
   const [audioInitialized, setAudioInitialized] = useState(false)
   const [continueError, setContinueError] = useState(false)
   const { saves, loadGame } = useSaveLoad()
+
+  // C2 fix: the save-slot store is shared across all games. Only consider
+  // saves that belong to THIS game (explicit gameType, or inferred for legacy
+  // slots) so "Continue Game" can never load an Adventure save.
+  const trailSaves = useMemo(
+    () => saves.filter(s => getSaveGameType(s) === 'oregon-trail'),
+    [saves]
+  )
 
   // Track page view on mount
   useEffect(() => {
@@ -209,8 +221,8 @@ function OregonTrailGame() {
     } else {
       AudioManager.playPlaylist()
     }
-    // Try slot-based saves first (authenticated users)
-    const sorted = [...saves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    // Try slot-based saves first (authenticated users) — Oregon Trail slots only (C2)
+    const sorted = [...trailSaves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     if (sorted.length > 0) {
       const result = await loadGame(sorted[0].id)
       if (result.success) return
@@ -234,7 +246,7 @@ function OregonTrailGame() {
     console.warn('[Continue] No valid save found from auth slots or local storage')
     setContinueError(true)
     setTimeout(() => setContinueError(false), 3000)
-  }, [audioInitialized, saves, loadGame, loadState])
+  }, [audioInitialized, trailSaves, loadGame, loadState])
 
   // Playlist auto-cycles tracks via AudioManager - no manual switching needed
 
@@ -246,7 +258,7 @@ function OregonTrailGame() {
       return (
         <TitleScreen
           onStart={handleGameStart}
-          hasSaves={saves.length > 0 || hasLocalSave}
+          hasSaves={trailSaves.length > 0 || hasLocalSave}
           onContinue={handleContinue}
           continueError={continueError}
         />
@@ -361,11 +373,27 @@ function OregonTrailGame() {
   // Hide save panel during cinematic/non-interactive phases
   const showSavePanel = state.phase !== 'chapter_intro'
 
+  // Persistent "My Farm" affordance — visible during real gameplay (not titles,
+  // creation, or while already in the ranch). One click home to Back of Beyond.
+  const hideFarmButton = [
+    'title', 'chapter_intro', 'character_creation', 'outfitting',
+    'ranch_management', 'settlement', 'settlement_victory', 'game_over', 'complete', 'menu',
+  ].includes(state.phase)
+
   return (
     <>
       {renderPhaseContent()}
+      {!hideFarmButton && (
+        <button
+          onClick={() => { unlockRanch(); openRanchManagement() }}
+          title="Go to your homestead — Back of Beyond Ranch (manage livestock, fields & buildings)"
+          className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-lg border-2 border-amber-500 bg-amber-900/90 px-3 py-2 font-[var(--font-pixel)] text-[11px] text-amber-100 shadow-lg transition-colors hover:bg-amber-800"
+        >
+          🏡 My Farm
+        </button>
+      )}
       <SaveLoadIntegration />
-      {showSavePanel && <AuthSavePanel />}
+      {showSavePanel && <AuthSavePanel gameType="oregon-trail" />}
       <ShareLegacy />
     </>
   )

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useMarket } from '../marketContext'
-import { useKarmaWallet } from '@/app/oregon-trail/karmaWalletContext'
 import {
   PAYMENT_SERVICES,
   DONATION_PRESETS,
@@ -10,6 +9,37 @@ import {
   calculateDonationKarma,
   type DonationRecord,
 } from '../data/donationConfig'
+
+/**
+ * C4 fix (2026-06-10 UI test): donations must NEVER mint karma client-side.
+ * Integrity rule: money only touches NEUTRAL karma, and NOTHING mints on the
+ * client. Submitting a transaction ID now only records a local
+ * "pending contribution" — karma is credited after the ranch verifies the
+ * payment. Client-side queue is capped to stop spam-storage.
+ * TODO: server-side signed-grant verification (see docs/vision2/ECON_KARMA_STEWARDSHIP_20260610.md §2)
+ */
+interface PendingContribution {
+  id: string
+  amount: number
+  timestamp: number
+  status: 'pending_verification'
+  paymentService: string
+  confirmationCode: string
+}
+
+const PENDING_CONTRIBUTIONS_KEY = 'bobr_pending_contributions'
+const MAX_PENDING_CONTRIBUTIONS = 5
+
+function loadPendingContributions(): PendingContribution[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(PENDING_CONTRIBUTIONS_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
 
 // Dynamic import for qrcode to keep it client-only
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,7 +55,6 @@ async function loadQRCode() {
 
 export function DonationPanel() {
   const { recordDonation } = useMarket()
-  const { earnNeutral, earnGood, addBadKarma } = useKarmaWallet()
 
   const [selectedService, setSelectedService] = useState(PAYMENT_SERVICES[0].id)
   const [selectedAmount, setSelectedAmount] = useState(10)
@@ -34,7 +63,10 @@ export function DonationPanel() {
   const [confirmCode, setConfirmCode] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
   const [donationComplete, setDonationComplete] = useState(false)
-  const [lastReward, setLastReward] = useState<{ neutral: number; bonus: number; type: 'good' | 'bad' } | null>(null)
+  const [pendingContributions, setPendingContributions] = useState<PendingContribution[]>(loadPendingContributions)
+  const [queueFullError, setQueueFullError] = useState(false)
+
+  const pendingQueueFull = pendingContributions.length >= MAX_PENDING_CONTRIBUTIONS
 
   // Karma calculation for current amount
   const karmaReward = calculateDonationKarma(selectedAmount)
@@ -60,41 +92,58 @@ export function DonationPanel() {
     })
   }, [selectedService, selectedAmount])
 
-  // Handle donation confirmation
+  // Handle donation confirmation — records a PENDING contribution only.
+  // NO karma is granted here: client-side minting was exploitable (any fake
+  // transaction ID = +100 neutral karma, unlimited). Karma is credited after
+  // the ranch verifies the payment.
+  // TODO: server-side signed-grant verification (see docs/vision2/ECON_KARMA_STEWARDSHIP_20260610.md §2)
   const handleConfirmDonation = useCallback(() => {
     if (!confirmCode.trim()) return
 
+    // Client-side rate limit: stop spam-storage at MAX_PENDING_CONTRIBUTIONS
+    if (pendingContributions.length >= MAX_PENDING_CONTRIBUTIONS) {
+      setQueueFullError(true)
+      setTimeout(() => setQueueFullError(false), 5000)
+      return
+    }
+
+    const now = Date.now()
+
+    const pendingRecord: PendingContribution = {
+      id: `pend_${now}`,
+      amount: selectedAmount,
+      timestamp: now,
+      status: 'pending_verification',
+      paymentService: selectedService,
+      confirmationCode: confirmCode.trim(),
+    }
+
     const donation: DonationRecord = {
-      id: `don_${Date.now()}`,
-      timestamp: Date.now(),
+      id: `don_${now}`,
+      timestamp: now,
       dollarAmount: selectedAmount,
       paymentService: selectedService,
-      confirmationCode: confirmCode,
-      neutralKarmaAwarded: karmaReward.neutralKarma,
-      bonusKarmaAwarded: karmaReward.bonusKarma,
+      confirmationCode: confirmCode.trim(),
+      neutralKarmaAwarded: 0, // nothing awarded client-side; set on verification
+      bonusKarmaAwarded: 0,
       bonusType,
-      verified: false, // MVP: admin verifies later
+      verified: false,
     }
 
-    // Award karma immediately (trust-based MVP)
-    earnNeutral(karmaReward.neutralKarma, `Donation: $${selectedAmount}`)
-    if (karmaReward.bonusKarma > 0) {
-      if (bonusType === 'good') {
-        earnGood(karmaReward.bonusKarma, `Donation bonus: $${selectedAmount}`)
-      } else {
-        addBadKarma(karmaReward.bonusKarma, `Donation bonus (bad): $${selectedAmount}`)
-      }
-    }
+    const nextPending = [...pendingContributions, pendingRecord]
+    setPendingContributions(nextPending)
+    try {
+      localStorage.setItem(PENDING_CONTRIBUTIONS_KEY, JSON.stringify(nextPending))
+    } catch { /* storage full/unavailable — in-memory record still shown */ }
 
-    setLastReward({ neutral: karmaReward.neutralKarma, bonus: karmaReward.bonusKarma, type: bonusType })
     recordDonation(donation)
     setDonationComplete(true)
     setShowConfirm(false)
     setConfirmCode('')
 
-    // Reset after 5 seconds
-    setTimeout(() => setDonationComplete(false), 5000)
-  }, [confirmCode, selectedAmount, selectedService, karmaReward, bonusType, earnNeutral, earnGood, addBadKarma, recordDonation])
+    // Reset after 8 seconds
+    setTimeout(() => setDonationComplete(false), 8000)
+  }, [confirmCode, selectedAmount, selectedService, bonusType, pendingContributions, recordDonation])
 
   const activeService = PAYMENT_SERVICES.find(s => s.id === selectedService)
 
@@ -204,6 +253,9 @@ export function DonationPanel() {
         <div className="text-[8px] text-amber-500 text-center mt-1">
           All donations support ranch animal care
         </div>
+        <div className="text-[8px] text-amber-400 text-center mt-1">
+          Karma is credited after the ranch verifies your donation
+        </div>
       </div>
 
       {/* QR Code */}
@@ -271,22 +323,62 @@ export function DonationPanel() {
           </div>
         )}
 
-        {/* Donation complete message */}
-        {donationComplete && lastReward && (
-          <div className="mt-3 p-3 bg-green-900/40 border-2 border-green-600 rounded text-center animate-pulse">
+        {/* Queue-full message */}
+        {queueFullError && (
+          <div className="mt-3 p-3 bg-red-900/40 border-2 border-red-600 rounded text-center">
+            <div className="text-red-300 font-pixel text-xs">Pending Queue Full</div>
+            <div className="text-red-400 text-[9px] mt-1">
+              You already have {MAX_PENDING_CONTRIBUTIONS} contributions awaiting verification.
+              Please wait for the ranch to verify them before submitting more.
+            </div>
+          </div>
+        )}
+
+        {/* Donation submitted message — honest: nothing credited yet */}
+        {donationComplete && (
+          <div className="mt-3 p-3 bg-green-900/40 border-2 border-green-600 rounded text-center">
             <div className="text-green-300 font-pixel text-sm">Thank You!</div>
             <div className="text-green-400 text-xs mt-1">
-              +{lastReward.neutral} neutral karma
-              {lastReward.bonus > 0 && (
-                <> + {lastReward.bonus} {lastReward.type} karma</>
-              )}
+              Your contribution is recorded as pending verification.
             </div>
             <div className="text-green-500 text-[9px] mt-1">
-              Your donation helps feed and protect the ranch animals.
+              Karma will be credited after the ranch verifies your donation.
             </div>
           </div>
         )}
       </div>
+
+      {/* Pending contributions */}
+      {pendingContributions.length > 0 && (
+        <div className="bg-amber-950/60 border-2 border-amber-700 rounded-lg p-4">
+          <h3 className="font-pixel text-amber-200 text-xs mb-3">
+            Pending Contributions ({pendingContributions.length}/{MAX_PENDING_CONTRIBUTIONS})
+          </h3>
+          <div className="space-y-2">
+            {pendingContributions.map(p => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between p-2 bg-amber-900/30 border border-amber-700/50 rounded"
+              >
+                <div>
+                  <div className="text-amber-200 text-xs font-pixel">${p.amount}</div>
+                  <div className="text-amber-500 text-[8px]">
+                    {new Date(p.timestamp).toLocaleString()}
+                  </div>
+                </div>
+                <span className="text-[8px] text-amber-400 border border-amber-600 rounded px-2 py-1">
+                  ⏳ pending verification
+                </span>
+              </div>
+            ))}
+          </div>
+          {pendingQueueFull && (
+            <p className="text-[8px] text-amber-500 mt-2 text-center">
+              Queue full — new submissions are paused until the ranch verifies these.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

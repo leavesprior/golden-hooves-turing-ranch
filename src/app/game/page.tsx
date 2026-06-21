@@ -20,6 +20,11 @@ export default function GamePage() {
   // Keyboard navigation like a real RPG
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Scope guard (C3): this is a window-level listener — if it ever
+      // outlives this page (SPA navigation edge case), it must never act
+      // outside /game. Space/Enter from another page was observed hijacking
+      // navigation to /adventure/character-creation (2026-06-10 UI test).
+      if (window.location.pathname !== '/game') return
       if (currentView !== 'main') return
       // Don't capture keys when user is in an input or modal
       const tag = (e.target as HTMLElement)?.tagName

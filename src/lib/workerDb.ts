@@ -54,7 +54,17 @@ function getDb(): Database.Database {
   return _db;
 }
 
-export function dbGetAllEntries(): WorkerEntry[] {
+export function dbGetAllEntries(workerName?: string): WorkerEntry[] {
+  // workerName filters to a single worker (multiple workers share one table,
+  // tagged by worker_name). Omitting it returns every worker's entries (used by
+  // the sync script / admin). The /worker page resolves to 'Mike Fisher'; the
+  // /worker/danna page passes "Danna's friend" — so each tracker only sees its
+  // own rows and the two never cross-contaminate.
+  if (workerName) {
+    return getDb()
+      .prepare('SELECT * FROM worker_entries WHERE worker_name = ? ORDER BY date DESC, created_at DESC')
+      .all(workerName) as WorkerEntry[];
+  }
   return getDb()
     .prepare('SELECT * FROM worker_entries ORDER BY date DESC, created_at DESC')
     .all() as WorkerEntry[];

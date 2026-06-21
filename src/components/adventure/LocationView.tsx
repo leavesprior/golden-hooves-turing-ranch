@@ -9,6 +9,7 @@ import {
   type DiscoveryClue,
 } from '@/app/adventure/data/chapterLocations'
 import type { StatName, SkillCheckResult } from '@/app/oregon-trail/characterContext'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 import { playSFX } from '@/app/oregon-trail/lib/audioManager'
 import { DOSMessage } from '@/components/ui/DOSMessage'
 
@@ -195,7 +196,7 @@ export function LocationView({
     <div className="mb-3">
       <button
         onClick={backToServices}
-        className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] mb-2"
+        className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] mb-2"
       >
         {'\u2190'} BACK
       </button>
@@ -212,7 +213,7 @@ export function LocationView({
       <div className={`mt-3 p-2 border-2 ${
         svcSuccess ? 'border-green-700 bg-green-950/30' : svcSuccess === false ? 'border-red-700 bg-red-950/30' : 'border-[var(--pixel-ui-border)] bg-black/30'
       }`}>
-        <DOSMessage text={svcMessage} speed={20} sfxEvery={0} className={`font-[var(--font-pixel)] text-[9px] whitespace-pre-line ${
+        <DOSMessage text={svcMessage} speed={20} sfxEvery={0} className={`font-[var(--font-pixel)] text-[12px] whitespace-pre-line ${
           svcSuccess ? 'text-green-400' : svcSuccess === false ? 'text-red-400' : 'text-[var(--pixel-ui-text)]'
         }`} />
       </div>
@@ -244,7 +245,7 @@ export function LocationView({
             <h2 className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)]">
               {location.icon} {location.name}
             </h2>
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 mt-1">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70 mt-1">
               {location.description}
             </p>
           </div>
@@ -256,11 +257,19 @@ export function LocationView({
           </button>
         </div>
         {location.historicalFact && (
-          <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-earth-light)] mt-2 italic opacity-60">
-            &quot;{location.historicalFact}&quot;
-          </p>
+          <div className="mt-3 p-3 bg-[var(--pixel-gold-dark)]/15 border-2 border-[var(--pixel-gold-dark)]/60 border-l-4 border-l-[var(--pixel-gold-mid)]">
+            <span className="font-[var(--font-pixel)] text-[10px] tracking-wider text-[var(--pixel-gold-light)]">
+              {'📜'} HISTORICAL RECORD
+            </span>
+            <p className="font-[var(--font-pixel)] text-[12px] leading-relaxed text-[var(--pixel-earth-light)] mt-1.5">
+              {location.historicalFact}
+            </p>
+          </div>
         )}
       </div>
+
+      {/* 64-bit period backdrop of the real place */}
+      <PlaceBackdrop id={location.id} className="h-44 border-y-2 border-[var(--pixel-ui-border)]/40" />
 
       {/* Main Actions */}
       {view === 'main' && (
@@ -276,7 +285,7 @@ export function LocationView({
                   <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
                     {'\uD83D\uDDE3\uFE0F'} TALK TO PEOPLE
                   </span>
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50 mt-1">
+                  <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50 mt-1">
                     {location.npcs.length} {location.npcs.length === 1 ? 'person' : 'people'} here
                   </p>
                 </div>
@@ -296,7 +305,7 @@ export function LocationView({
                   <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
                     {'\uD83C\uDFE0'} VISIT ESTABLISHMENTS
                   </span>
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50 mt-1">
+                  <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50 mt-1">
                     {location.services.map(s => s.name).join(', ')}
                   </p>
                 </div>
@@ -315,7 +324,7 @@ export function LocationView({
                 <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
                   {'\uD83D\uDD0D'} SEARCH THE AREA
                 </span>
-                <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50 mt-1">
+                <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50 mt-1">
                   Look for clues, items, and hidden paths
                 </p>
               </div>
@@ -329,7 +338,7 @@ export function LocationView({
               <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
                 {'\uD83D\uDCCB'} ACTIVE INVESTIGATION
               </span>
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70 mt-1">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-70 mt-1">
                 Clues may be found here. Talk to witnesses and search carefully.
               </p>
             </div>
@@ -346,7 +355,7 @@ export function LocationView({
                   <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-fire-orange)]">
                     {'\u2753'} DISCOVERY CLUES
                   </span>
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50 mt-1">
+                  <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50 mt-1">
                     {unansweredClues.length} clue{unansweredClues.length !== 1 ? 's' : ''} to discover — answer for XP and rewards
                   </p>
                 </div>
@@ -362,7 +371,7 @@ export function LocationView({
         <div className="p-4 space-y-2">
           <button
             onClick={() => setView('main')}
-            className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] mb-2"
+            className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] mb-2"
           >
             {'\u2190'} BACK
           </button>
@@ -386,21 +395,21 @@ export function LocationView({
                     <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
                       {npc.name}
                     </span>
-                    <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50">
+                    <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50">
                       {npc.role}
                     </p>
-                    <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-40 mt-1">
+                    <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-40 mt-1">
                       {npc.dialogueHint}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     {npc.faction && (
-                      <span className="font-[var(--font-pixel)] text-[7px] px-1 border border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)]">
+                      <span className="font-[var(--font-pixel)] text-[10px] px-1 border border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)]">
                         {npc.faction}
                       </span>
                     )}
                     {hasSkillCheck && (
-                      <span className={`font-[var(--font-pixel)] text-[7px] px-1 border ${
+                      <span className={`font-[var(--font-pixel)] text-[10px] px-1 border ${
                         canPass
                           ? 'text-[var(--pixel-forest-light)] border-[var(--pixel-forest-dark)]'
                           : 'text-[var(--pixel-fire-orange)] border-[var(--pixel-fire-red)]'
@@ -421,7 +430,7 @@ export function LocationView({
         <div className="p-4 space-y-2">
           <button
             onClick={() => setView('main')}
-            className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] mb-2"
+            className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] mb-2"
           >
             {'\u2190'} BACK
           </button>
@@ -442,7 +451,7 @@ export function LocationView({
                       {service.name}
                     </span>
                   </div>
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-60">
+                  <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-60">
                     {service.description}
                   </p>
                 </div>
@@ -457,7 +466,7 @@ export function LocationView({
       {view === 'svc_shop' && (
         <div className="p-4">
           <SvcHeader icon={SERVICE_ICONS.shop} title="GENERAL STORE" />
-          <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 mb-3 italic">
+          <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70 mb-3 italic">
             You browse the goods on display. Dust motes dance in the lamplight as the shopkeeper watches.
           </p>
           <div className="space-y-2">
@@ -469,9 +478,9 @@ export function LocationView({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">{item.name}</span>
-                      <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] shrink-0">{item.cost} karma</span>
+                      <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] shrink-0">{item.cost} karma</span>
                     </div>
-                    <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] opacity-50 mt-1">{item.flavor}</p>
+                    <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-50 mt-1">{item.flavor}</p>
                   </div>
                   <button
                     disabled={bought}
@@ -479,11 +488,10 @@ export function LocationView({
                       const spent = onSpendKarma?.(item.cost, `Bought ${item.name}`)
                       if (spent) {
                         playSFX('coin')
-                        setPurchasedItems(prev => {
-                          const next = new Set(prev).add(item.id)
-                          try { localStorage.setItem('bobr_adventure_purchased_items', JSON.stringify([...next])) } catch {}
-                          return next
-                        })
+                        // Persist outside the updater (updaters must be pure).
+                        const nextPurchased = new Set(purchasedItems).add(item.id)
+                        setPurchasedItems(nextPurchased)
+                        try { localStorage.setItem('bobr_adventure_purchased_items', JSON.stringify([...nextPurchased])) } catch {}
                         onAddXP(3)
                         setSvcSuccess(true)
                         setSvcMessage(`Purchased ${item.name}! The shopkeeper nods approvingly.`)
@@ -492,7 +500,7 @@ export function LocationView({
                         setSvcMessage('Not enough karma to afford that.')
                       }
                     }}
-                    className={`shrink-0 font-[var(--font-pixel)] text-[9px] px-2 py-1 border transition-all ${
+                    className={`shrink-0 font-[var(--font-pixel)] text-[12px] px-2 py-1 border transition-all ${
                       bought
                         ? 'text-green-500 border-green-800 opacity-60 cursor-default'
                         : 'text-[var(--pixel-gold-light)] border-[var(--pixel-gold-dark)] hover:bg-[var(--pixel-gold-dark)]/20'
@@ -513,7 +521,7 @@ export function LocationView({
         <div className="p-4">
           <SvcHeader icon={SERVICE_ICONS.inn} title="INN" />
           <div className="p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)]">
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
               You rest at the inn. The warmth of the fire and a proper bed ease the weariness from your bones.
             </p>
             <button
@@ -523,7 +531,7 @@ export function LocationView({
                 setSvcSuccess(true)
                 setSvcMessage('You feel rested and restored. (+5 XP)')
               }}
-              className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-forest-light)] border border-[var(--pixel-forest-dark)] px-3 py-1 hover:bg-[var(--pixel-forest-dark)]/20 transition-all"
+              className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-forest-light)] border border-[var(--pixel-forest-dark)] px-3 py-1 hover:bg-[var(--pixel-forest-dark)]/20 transition-all"
             >
               REST (Restores Health)
             </button>
@@ -537,7 +545,7 @@ export function LocationView({
         <div className="p-4">
           <SvcHeader icon={SERVICE_ICONS.sheriff} title="SHERIFF&apos;S OFFICE" />
           <div className="p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)]">
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
               The sheriff listens to your report, chewing tobacco thoughtfully. He leans back and studies a map on the wall.
             </p>
             <button
@@ -550,7 +558,7 @@ export function LocationView({
                 )
                 onEarnKarma(1, 'Investigated at sheriff')
               }}
-              className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
+              className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
             >
               REPORT / INVESTIGATE
             </button>
@@ -564,7 +572,7 @@ export function LocationView({
         <div className="p-4">
           <SvcHeader icon={SERVICE_ICONS.blacksmith} title="BLACKSMITH" />
           <div className="p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)]">
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
               The forge glows hot. The blacksmith wipes soot from his brow and looks at your worn equipment.
             </p>
             <button
@@ -576,7 +584,7 @@ export function LocationView({
                   10, 3,
                 )
               }}
-              className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
+              className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
             >
               REPAIR GEAR
             </button>
@@ -589,12 +597,12 @@ export function LocationView({
       {view === 'svc_saloon' && (
         <div className="p-4">
           <SvcHeader icon={SERVICE_ICONS.saloon} title="SALOON" />
-          <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
+          <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
             Piano music drifts through tobacco smoke. The bartender polishes a glass and eyes you from across the bar.
           </p>
           <div className="space-y-2">
             <div className="p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)]">
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50 mb-2">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50 mb-2">
                 Buy drinks for the locals. Good for your reputation if you can hold a conversation.
               </p>
               <button
@@ -612,13 +620,13 @@ export function LocationView({
                     setSvcMessage(`${rolled}\nYou buy a round but spill half of it. The crowd is unimpressed. (+3 XP)`)
                   }
                 }}
-                className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
+                className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
               >
                 {'\uD83C\uDF7B'} BUY A ROUND
               </button>
             </div>
             <div className="p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)]">
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50 mb-2">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50 mb-2">
                 Keep your ears open. Shrewd travelers pick up useful gossip in places like this.
               </p>
               <button
@@ -643,7 +651,7 @@ export function LocationView({
                     setSvcMessage(`${rolled}\nThe locals clam up when you lean in. Nothing useful tonight. (+3 XP)`)
                   }
                 }}
-                className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
+                className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
               >
                 {'\uD83D\uDC42'} LISTEN TO RUMORS
               </button>
@@ -658,7 +666,7 @@ export function LocationView({
         <div className="p-4">
           <SvcHeader icon={SERVICE_ICONS.stable} title="STABLE" />
           <div className="p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)]">
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
               The stable smells of hay and leather. Horses stamp and snort in their stalls. A seasoned hand can always find work here.
             </p>
             <button
@@ -670,7 +678,7 @@ export function LocationView({
                   10, 3,
                 )
               }}
-              className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
+              className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-3 py-1 hover:bg-[var(--pixel-gold-dark)]/20 transition-all"
             >
               TEND ANIMALS
             </button>
@@ -684,7 +692,7 @@ export function LocationView({
         <div className="p-4">
           <SvcHeader icon={SERVICE_ICONS.church ?? '\u26EA'} title="CHURCH" />
           <div className="p-3 bg-black/30 border-2 border-[var(--pixel-ui-border)]">
-            <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
+            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70 italic mb-3">
               The quiet interior offers a moment of peace. Candlelight flickers against the wooden walls.
             </p>
             <button
@@ -695,7 +703,7 @@ export function LocationView({
                 setSvcSuccess(true)
                 setSvcMessage('You spend a moment in quiet reflection. It steadies your resolve. (+5 XP, +1 karma)')
               }}
-              className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-forest-light)] border border-[var(--pixel-forest-dark)] px-3 py-1 hover:bg-[var(--pixel-forest-dark)]/20 transition-all"
+              className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-forest-light)] border border-[var(--pixel-forest-dark)] px-3 py-1 hover:bg-[var(--pixel-forest-dark)]/20 transition-all"
             >
               PRAY
             </button>
@@ -709,7 +717,7 @@ export function LocationView({
         <div className="p-4">
           <button
             onClick={() => { setView('main'); setSearchResult(null) }}
-            className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] mb-2"
+            className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] mb-2"
           >
             {'\u2190'} BACK
           </button>
@@ -725,17 +733,17 @@ export function LocationView({
               </div>
             ) : searchResult ? (
               <div>
-                <DOSMessage text={searchResult} speed={20} sfxEvery={0} className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]" />
+                <DOSMessage text={searchResult} speed={20} sfxEvery={0} className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]" />
                 <button
                   onClick={() => setSearchResult(null)}
-                  className="mt-3 font-[var(--font-pixel)] text-[9px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-2 py-1"
+                  className="mt-3 font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] border border-[var(--pixel-gold-dark)] px-2 py-1"
                 >
                   SEARCH AGAIN
                 </button>
               </div>
             ) : (
               <div className="text-center">
-                <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] mb-3">
+                <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-3">
                   You survey the area around {location.name}. An Expertise check determines what you find.
                 </p>
                 <button
@@ -755,7 +763,7 @@ export function LocationView({
         <div className="p-4 space-y-3">
           <button
             onClick={() => { setView('main'); setActiveClue(null); setClueResult(null) }}
-            className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] mb-2"
+            className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] mb-2"
           >
             {'\u2190'} BACK
           </button>
@@ -777,18 +785,18 @@ export function LocationView({
                         {clue.question}
                       </span>
                       <div className="flex gap-2 mt-1">
-                        <span className={`font-[var(--font-pixel)] text-[7px] px-1 border ${
+                        <span className={`font-[var(--font-pixel)] text-[10px] px-1 border ${
                           clue.difficulty === 'easy' ? 'text-green-400 border-green-800' :
                           clue.difficulty === 'medium' ? 'text-yellow-400 border-yellow-800' :
                           'text-red-400 border-red-800'
                         }`}>
                           {clue.difficulty.toUpperCase()}
                         </span>
-                        <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-gold-light)]">
+                        <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
                           +{clue.xpReward} XP
                         </span>
                         {clue.isListingClue && (
-                          <span className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-fire-orange)] border border-[var(--pixel-fire-orange)]/50 px-1">
+                          <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-fire-orange)] border border-[var(--pixel-fire-orange)]/50 px-1">
                             RANCH CLUE
                           </span>
                         )}
@@ -807,7 +815,7 @@ export function LocationView({
 
               {/* Hint */}
               <div className="mb-3 p-2 bg-[var(--pixel-gold-dark)]/20 border border-[var(--pixel-gold-dark)]">
-                <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)]">
+                <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)]">
                   HINT: {activeClue.hintText}
                 </p>
                 {activeClue.hintUrl && (
@@ -815,7 +823,7 @@ export function LocationView({
                     href={`${activeClue.hintUrl}?utm_source=bobr_game&utm_medium=clue&utm_campaign=discovery_${activeClue.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block mt-2 font-[var(--font-pixel)] text-[9px] bg-[var(--pixel-fire-orange)] text-[var(--pixel-bg-dark)] px-3 py-1 border border-[var(--pixel-ui-border)] hover:bg-[var(--pixel-gold-mid)] transition-colors"
+                    className="inline-block mt-2 font-[var(--font-pixel)] text-[12px] bg-[var(--pixel-fire-orange)] text-[var(--pixel-bg-dark)] px-3 py-1 border border-[var(--pixel-ui-border)] hover:bg-[var(--pixel-gold-mid)] transition-colors"
                   >
                     SEARCH THE LISTING
                   </a>
@@ -829,7 +837,7 @@ export function LocationView({
                     {clueResult.correct ? '\u2713' : '\u2717'} {clueResult.message}
                   </p>
                   {clueResult.correct && (
-                    <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mt-1">
+                    <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] mt-1">
                       +{activeClue.xpReward} XP earned
                     </p>
                   )}
@@ -843,7 +851,7 @@ export function LocationView({
                         setClueResult(null)
                       }
                     }}
-                    className="mt-2 font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] border border-[var(--pixel-ui-border)] px-3 py-1 hover:text-[var(--pixel-gold-light)]"
+                    className="mt-2 font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] border border-[var(--pixel-ui-border)] px-3 py-1 hover:text-[var(--pixel-gold-light)]"
                   >
                     {clueResult.correct ? 'NEXT CLUE' : 'TRY AGAIN'}
                   </button>
@@ -870,7 +878,7 @@ export function LocationView({
 
               <button
                 onClick={() => { setActiveClue(null); setClueResult(null) }}
-                className="mt-3 font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50 hover:opacity-100"
+                className="mt-3 font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50 hover:opacity-100"
               >
                 {'\u2190'} Back to clue list
               </button>

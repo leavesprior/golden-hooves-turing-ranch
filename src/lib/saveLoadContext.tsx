@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useRef, ReactNode, useEffect } from 'react'
 import { useAuth } from './authContext'
 
 /**
@@ -9,6 +9,15 @@ import { useAuth } from './authContext'
  * Persists game state per user with multiple save slots
  */
 
+/**
+ * Which game a save slot belongs to. The SaveLoadProvider is shared across
+ * all games (mounted once in the root layout), so slots MUST be typed to
+ * prevent one game's title screen from loading another game's save (C2 bug,
+ * 2026-06-10 UI test). Older saves lack this field — use getSaveGameType()
+ * which infers the type from the slot's gameData (never deletes/loses saves).
+ */
+export type SaveGameType = 'oregon-trail' | 'adventure' | 'unknown'
+
 export interface SaveSlot {
   id: string
   name: string
@@ -16,6 +25,7 @@ export interface SaveSlot {
   timestamp: string
   gameData: GameSaveData
   metadata: SaveMetadata
+  gameType?: SaveGameType
 }
 
 export interface SaveMetadata {
@@ -71,6 +81,26 @@ interface SaveLoadContextType {
   setGameDataCollector: (collector: () => GameSaveData) => void
   setGameDataLoader: (loader: (data: GameSaveData) => void) => void
   setMetadataCollector: (collector: () => SaveMetadata) => void
+  /** Declare which game is currently registered — new saves are stamped with this type. */
+  setActiveGameType: (gameType: SaveGameType) => void
+}
+
+/** Infer which game a save's data belongs to (for slots saved before gameType existed). */
+function inferGameTypeFromData(data: GameSaveData | undefined): SaveGameType {
+  if (!data) return 'unknown'
+  // Oregon Trail's SaveLoadIntegration collects these keys
+  if (data.oregonTrail || data.mysteryState) return 'oregon-trail'
+  // Adventure / RPG-shaped data
+  if (data.rpg) return 'adventure'
+  return 'unknown'
+}
+
+/**
+ * Resolve a slot's game type: explicit field wins, otherwise infer from data.
+ * Migration is non-destructive — legacy slots are never modified or deleted.
+ */
+export function getSaveGameType(slot: SaveSlot): SaveGameType {
+  return slot.gameType ?? inferGameTypeFromData(slot.gameData)
 }
 
 const SaveLoadContext = createContext<SaveLoadContextType | undefined>(undefined)
@@ -105,6 +135,12 @@ export function SaveLoadProvider({ children }: { children: ReactNode }) {
 
   const setMetadataCollector = useCallback((collector: () => SaveMetadata) => {
     setMetadataCollectorState(() => collector)
+  }, [])
+
+  // Active game type (ref: read at save-time only, never drives renders)
+  const activeGameTypeRef = useRef<SaveGameType>('unknown')
+  const setActiveGameType = useCallback((gameType: SaveGameType) => {
+    activeGameTypeRef.current = gameType
   }, [])
 
   // Load saves for current user
@@ -183,6 +219,13 @@ export function SaveLoadProvider({ children }: { children: ReactNode }) {
       // Check for existing slot (update) or new slot
       const existingIndex = userSaves.findIndex(s => s.id === finalSlotId)
 
+      // Stamp the slot with the registered game type so title screens can
+      // filter to their own game's saves (C2). Falls back to inference so a
+      // save is never stamped 'unknown' when its data identifies the game.
+      const gameType: SaveGameType = activeGameTypeRef.current !== 'unknown'
+        ? activeGameTypeRef.current
+        : inferGameTypeFromData(gameData)
+
       const newSlot: SaveSlot = {
         id: finalSlotId,
         name: finalName,
@@ -190,6 +233,7 @@ export function SaveLoadProvider({ children }: { children: ReactNode }) {
         timestamp,
         gameData,
         metadata,
+        gameType,
       }
 
       let updatedUserSaves: SaveSlot[]
@@ -323,6 +367,7 @@ export function SaveLoadProvider({ children }: { children: ReactNode }) {
         setGameDataCollector,
         setGameDataLoader,
         setMetadataCollector,
+        setActiveGameType,
       }}
     >
       {children}

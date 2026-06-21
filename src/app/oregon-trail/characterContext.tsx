@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
 
 // S.A.D.D.L.E. Stats (replacing basic party system)
 export interface SaddleStats {
@@ -77,7 +77,7 @@ interface CharacterContextValue {
   state: CharacterState
 
   // Character creation
-  createCharacter: (name: string, background: CharacterBackground) => void
+  createCharacter: (name: string, background: CharacterBackground, statsOverride?: SaddleStats, traits?: string[]) => void
   loadCharacter: (character: Character) => void
   allocateStatPoints: (stats: Partial<SaddleStats>) => void
 
@@ -296,21 +296,44 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     return initialState
   })
 
-  // Create a new character
-  const createCharacter = useCallback((name: string, background: CharacterBackground) => {
-    const bonuses = BACKGROUND_BONUSES[background]
-    const stats: SaddleStats = { ...BASE_STATS }
+  // Persist the character whenever it changes — previously only
+  // createCharacter/loadCharacter wrote, so XP/stat changes and level-ups were
+  // memory-only and reverted on reload. Write lives here (not in the updaters —
+  // pure-updater discipline) and stores the same Character shape under the same
+  // canonical key, so existing readers are unaffected.
+  useEffect(() => {
+    if (!state.character) return
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.character))
+    } catch {}
+  }, [state.character])
 
-    // Apply background bonuses
-    Object.entries(bonuses).forEach(([stat, bonus]) => {
-      stats[stat as StatName] += bonus
-    })
+  // Create a new character
+  const createCharacter = useCallback((name: string, background: CharacterBackground, statsOverride?: SaddleStats, traits: string[] = []) => {
+    const bonuses = BACKGROUND_BONUSES[background]
+    // When an explicit stat block is supplied (e.g. the adventure creation flow,
+    // which has already folded base + background + pick modifiers into the exact
+    // values shown on its review screen), trust it verbatim so the character the
+    // player BUILDS is the character they PLAY. Otherwise fall back to the default
+    // base + background math (Oregon Trail flow relies on BASE_STATS = 5).
+    const stats: SaddleStats = statsOverride
+      ? { ...statsOverride }
+      : { ...BASE_STATS }
+
+    if (!statsOverride) {
+      // Apply background bonuses
+      Object.entries(bonuses).forEach(([stat, bonus]) => {
+        stats[stat as StatName] += bonus
+      })
+    }
 
     const character: Character = {
       name,
       background,
       stats,
-      traits: [],
+      // Record the player's chosen picks/abilities on the character so they are
+      // not orphaned in a side key (B3). Empty for the default Oregon Trail flow.
+      traits,
       level: 1,
       experience: 0,
       experienceToNextLevel: 100,

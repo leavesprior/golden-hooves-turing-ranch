@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { useAuth } from '@/lib/authContext'
-import { useSaveLoad, type SaveSlot } from '@/lib/saveLoadContext'
+import { useSaveLoad, getSaveGameType, type SaveSlot, type SaveGameType } from '@/lib/saveLoadContext'
 
 /**
  * Golden Frog Trail - Authentication & Save/Load Panel
@@ -16,7 +16,7 @@ import { useSaveLoad, type SaveSlot } from '@/lib/saveLoadContext'
 
 type PanelView = 'collapsed' | 'login' | 'saves' | 'profile'
 
-export function AuthSavePanel() {
+export function AuthSavePanel({ gameType }: { gameType?: SaveGameType } = {}) {
   const {
     user,
     isAuthenticated,
@@ -40,6 +40,16 @@ export function AuthSavePanel() {
     enableAutoSave,
     setEnableAutoSave,
   } = useSaveLoad()
+
+  // C2: the slot store is shared across games. When a gameType is given, show
+  // only this game's slots plus legacy 'unknown' slots (which stay visible and
+  // manageable here — saves are never hidden away or deleted by the filter).
+  const visibleSaves = gameType
+    ? saves.filter(s => {
+        const t = getSaveGameType(s)
+        return t === gameType || t === 'unknown'
+      })
+    : saves
 
   const [view, setView] = useState<PanelView>('collapsed')
   const [email, setEmail] = useState('')
@@ -277,12 +287,12 @@ export function AuthSavePanel() {
 
           {/* Save slots */}
           <div className="space-y-2">
-            {saves.length === 0 ? (
+            {visibleSaves.length === 0 ? (
               <p className="text-gray-500 text-xs text-center py-4">
                 No saves yet. Click "Save" to create one!
               </p>
             ) : (
-              saves
+              [...visibleSaves]
                 .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                 .map(save => (
                   <SaveSlotCard
@@ -332,7 +342,7 @@ export function AuthSavePanel() {
           <div className="border-t border-gray-700 pt-4 space-y-2">
             <div className="flex justify-between text-xs">
               <span className="text-gray-400">Saves:</span>
-              <span className="text-amber-200">{saves.length}</span>
+              <span className="text-amber-200">{visibleSaves.length}</span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-gray-400">Member since:</span>

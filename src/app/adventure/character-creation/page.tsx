@@ -40,10 +40,27 @@ function CharacterCreationContent() {
     setStep('review')
   }, [])
 
+  // Mirror in-progress selections so picks survive the picker unmounting
+  // on any back-nav (step 3 BACK, Review's CHANGE PICKS) — P1-9.
+  const handlePicksChange = useCallback((ids: string[], mods: Partial<SaddleStats>) => {
+    setSelectedPicks(ids)
+    setPickMods(mods)
+  }, [])
+
   const handleCreateCharacter = useCallback(() => {
     if (!selectedBackground || !characterName) return
-    // Create character with the Oregon Trail characterContext
-    createCharacter(characterName, selectedBackground)
+    // Build the SAME final stats the review screen shows (base 8 + background + picks)
+    // and hand them to createCharacter verbatim, so the character the player built
+    // is exactly the character they play (no base mismatch, no dropped pick modifiers).
+    const bgBonuses = getBackgroundBonuses(selectedBackground)
+    const allStats: StatName[] = ['Shrewdness', 'Agility', 'Durability', 'Diplomacy', 'Luck', 'Expertise']
+    const finalStats = allStats.reduce((acc, stat) => {
+      acc[stat] = 8 + (bgBonuses[stat] ?? 0) + (pickMods[stat] ?? 0)
+      return acc
+    }, {} as SaddleStats)
+    // Create character with the Oregon Trail characterContext, stats pre-resolved
+    // and the chosen picks recorded on the character (B3) so they aren't orphaned.
+    createCharacter(characterName, selectedBackground, finalStats, selectedPicks)
     // Store pick selections in localStorage for the adventure system to apply
     const adventureData = {
       picks: selectedPicks,
@@ -56,7 +73,7 @@ function CharacterCreationContent() {
     localStorage.setItem('bobr_adventure_picks', JSON.stringify(adventureData))
     // Navigate to play
     router.push('/adventure/play')
-  }, [selectedBackground, characterName, selectedPicks, pickMods, createCharacter, router])
+  }, [selectedBackground, characterName, selectedPicks, pickMods, createCharacter, getBackgroundBonuses, router])
 
   // Calculate final stats for review
   const getFinalStats = (): Partial<SaddleStats> => {
@@ -83,7 +100,7 @@ function CharacterCreationContent() {
           <h1 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-lg mb-1">
             FORGE YOUR DESTINY
           </h1>
-          <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-60">
+          <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-60">
             Every choice shapes who you are. Every pick costs something.
           </p>
           {/* Step indicator */}
@@ -119,7 +136,7 @@ function CharacterCreationContent() {
               maxLength={20}
               className="w-full bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] p-3 font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] placeholder:text-[var(--pixel-ui-text)]/30 focus:border-[var(--pixel-gold-mid)] outline-none"
             />
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-50 mt-2">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-50 mt-2">
               This name will follow you through five chapters of Gold Country history.
             </p>
             <button
@@ -142,7 +159,7 @@ function CharacterCreationContent() {
             <h2 className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] text-center mb-2">
               CHOOSE YOUR BACKGROUND
             </h2>
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] text-center opacity-60 mb-4">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] text-center opacity-60 mb-4">
               Your past shapes your present. Each background grants +2 to two S.A.D.D.L.E. stats.
             </p>
 
@@ -164,10 +181,10 @@ function CharacterCreationContent() {
                         {info.name}
                       </span>
                     </div>
-                    <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70">
+                    <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-70">
                       {info.description}
                     </p>
-                    <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-forest-light)] mt-1">
+                    <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)] mt-1">
                       {info.bonuses}
                     </p>
                   </button>
@@ -203,11 +220,13 @@ function CharacterCreationContent() {
             <h2 className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)] text-center mb-2">
               SPEND YOUR PICKS
             </h2>
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] text-center opacity-60 mb-4">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] text-center opacity-60 mb-4">
               {STARTING_PICKS} picks to spend. Advantages cost picks. Flaws grant picks.
               Every advantage has a price. There is no perfect build.
             </p>
             <ZeroSumPicker
+              initialSelectedIds={selectedPicks}
+              onSelectionChange={handlePicksChange}
               onConfirm={handleConfirmPicks}
               onBack={() => setStep('background')}
             />
@@ -226,7 +245,7 @@ function CharacterCreationContent() {
               <h3 className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)] text-center mb-1">
                 {characterName}
               </h3>
-              <p className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)] text-center mb-4 opacity-70">
+              <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] text-center mb-4 opacity-70">
                 {selectedBackground && BACKGROUND_DESCRIPTIONS[selectedBackground].name}
               </p>
 
@@ -257,13 +276,13 @@ function CharacterCreationContent() {
                       if (!pick) return null
                       return (
                         <div key={id} className="flex items-center gap-2">
-                          <span className={`font-[var(--font-pixel)] text-[9px] ${
+                          <span className={`font-[var(--font-pixel)] text-[12px] ${
                             pick.cost > 0 ? 'text-[var(--pixel-gold-light)]' : 'text-[var(--pixel-fire-orange)]'
                           }`}>
                             {pick.cost > 0 ? '+' : ''}{pick.name}
                           </span>
                           {pick.specialAbility && (
-                            <span className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-forest-light)]">
+                            <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)]">
                               ({pick.specialAbility})
                             </span>
                           )}

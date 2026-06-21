@@ -91,7 +91,7 @@ export const FENCE_TIERS: Record<FenceTier, FenceConfig> = {
 };
 
 // Livestock Types
-export type LivestockType = 'cattle' | 'chickens' | 'horses' | 'goats';
+export type LivestockType = 'cattle' | 'chickens' | 'horses' | 'goats' | 'donkeys' | 'pigs' | 'emus' | 'sheep';
 
 export interface LivestockConfig {
   type: LivestockType;
@@ -105,6 +105,14 @@ export interface LivestockConfig {
   offspringRange: [number, number]; // Min-max offspring per birth
   slaughterValue: number; // Karma earned from slaughter
   specialBonus?: string; // Special gameplay effect
+  /** Soil-quality change PER HEAD PER DAY while this animal grazes a parcel
+   *  (2026-06-17 ranch ecology). Every animal eats and improves the soil; pigs
+   *  and emus do far more. Negative is possible (overgrazing) but unused today. */
+  soilEffect?: number;
+  /** Ecological role: 'predator_guard' (donkeys protect the herd), 'tiller'
+   *  (pigs root & turn soil — the potato trick), 'firebreak' (goats/sheep clear
+   *  the fine fuel that carries a grass fire), 'nitrogen' (emus drop fast nitrogen). */
+  role?: 'predator_guard' | 'tiller' | 'firebreak' | 'nitrogen';
   emoji: string;
 }
 
@@ -128,6 +136,7 @@ export const LIVESTOCK_TYPES: Record<LivestockType, LivestockConfig> = {
     breedingCycle: 90, // Seasonal breeding
     offspringRange: [1, 1],
     slaughterValue: 50,
+    soilEffect: 0.3, // heavy grazers manure richly
     emoji: '🐄',
   },
   chickens: {
@@ -143,6 +152,7 @@ export const LIVESTOCK_TYPES: Record<LivestockType, LivestockConfig> = {
     breedingCycle: 21,
     offspringRange: [2, 6],
     slaughterValue: 5,
+    soilEffect: 0.1, // scratch and fertilize as they range
     emoji: '🐔',
   },
   horses: {
@@ -157,6 +167,7 @@ export const LIVESTOCK_TYPES: Record<LivestockType, LivestockConfig> = {
     offspringRange: [1, 1],
     slaughterValue: 25, // Low - people don't like horse slaughter
     specialBonus: 'travel_speed_+10%',
+    soilEffect: 0.1,
     emoji: '🐴',
   },
   goats: {
@@ -173,7 +184,74 @@ export const LIVESTOCK_TYPES: Record<LivestockType, LivestockConfig> = {
     breedingCycle: 60,
     offspringRange: [1, 3],
     slaughterValue: 20,
+    soilEffect: 0.4,
+    role: 'firebreak', // browse brush & saplings — clear the fuel a grass fire climbs into the trees on
+    specialBonus: 'firebreak_brush',
     emoji: '🐐',
+  },
+  donkeys: {
+    type: 'donkeys',
+    name: 'Donkey',
+    namePlural: 'Donkeys',
+    description: 'Bonded guardians. A donkey brays, charges and stomps coyotes and stray dogs — each one sharply cuts predator losses to the whole herd.',
+    neutralKarmaCost: 60,
+    foodPerDay: 2,
+    produces: [],
+    breedingCycle: 365,
+    offspringRange: [1, 1],
+    slaughterValue: 15,
+    soilEffect: 0.2,
+    role: 'predator_guard',
+    specialBonus: 'predator_guard',
+    emoji: '🫏',
+  },
+  pigs: {
+    type: 'pigs',
+    name: 'Pig',
+    namePlural: 'Pigs',
+    description: 'Rooters that turn and enrich the soil as they forage. Loose them onto a spent potato field and they eat the lot, till it, and manure it — the classic trick that leaves the ground better than you found it.',
+    neutralKarmaCost: 30,
+    foodPerDay: 2,
+    produces: [{ name: 'Pork', productionRate: 0.1, karmaValue: 4 }],
+    breedingCycle: 50,
+    offspringRange: [4, 8],
+    slaughterValue: 40,
+    soilEffect: 1.2, // the strongest tiller
+    role: 'tiller',
+    emoji: '🐷',
+  },
+  emus: {
+    type: 'emus',
+    name: 'Emu',
+    namePlural: 'Emus',
+    description: 'Big birds, big eggs. Their droppings green a pasture fast — quick nitrogen back to the soil — and a single emu egg sells for as much as a dozen hen eggs.',
+    neutralKarmaCost: 50,
+    foodPerDay: 1.5,
+    produces: [{ name: 'Emu Egg', productionRate: 0.2, karmaValue: 8 }],
+    breedingCycle: 120,
+    offspringRange: [3, 6],
+    slaughterValue: 30,
+    soilEffect: 1.0, // fast nitrogen
+    role: 'nitrogen',
+    emoji: '🪶',
+  },
+  sheep: {
+    type: 'sheep',
+    name: 'Sheep',
+    namePlural: 'Sheep',
+    description: 'Graze grass low and even — knocking down the fine, dry fuel that carries a grass fire — and improve the soil as they go. Shear them for wool.',
+    neutralKarmaCost: 35,
+    foodPerDay: 1.2,
+    produces: [
+      { name: 'Wool', productionRate: 0.1, karmaValue: 4 },
+      { name: 'Sheep Milk', productionRate: 0.4, karmaValue: 1 },
+    ],
+    breedingCycle: 60,
+    offspringRange: [1, 2],
+    slaughterValue: 22,
+    soilEffect: 0.5,
+    role: 'firebreak',
+    emoji: '🐑',
   },
 };
 
@@ -397,10 +475,12 @@ export function calculateDailyFeedNeed(
 
   for (const [type, count] of Object.entries(livestock)) {
     const config = LIVESTOCK_TYPES[type as LivestockType];
-    total += config.foodPerDay * count;
+    // Guard count (2026-06-18): a missing/NaN count must NEVER make total NaN,
+    // or `feedStock >= NaN` is always false and ALL feed dumps to 0 in one day.
+    total += (config?.foodPerDay ?? 0) * (Number(count) || 0);
   }
 
-  return Math.ceil(total * seasonConfig.feedMultiplier);
+  return Math.ceil(total * (seasonConfig?.feedMultiplier ?? 1));
 }
 
 export function calculateDailyProduction(
@@ -423,7 +503,7 @@ export function calculateDailyProduction(
 }
 
 export function getTotalLivestockCount(livestock: Record<LivestockType, number>): number {
-  return Object.values(livestock).reduce((sum, count) => sum + count, 0);
+  return Object.values(livestock).reduce((sum, count) => sum + (Number(count) || 0), 0);
 }
 
 export function getCurrentSeason(dayOfYear: number): Season {
