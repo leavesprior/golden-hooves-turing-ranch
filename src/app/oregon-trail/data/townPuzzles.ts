@@ -529,7 +529,7 @@ export const TOWN_PUZZLES: TownPuzzle[] = [
     title: 'The Great Tailing Wheel',
     landmark: 'Kennedy Mine',
     description: 'One of the Kennedy Mine\'s giant 58-foot tailing wheels has seized — the elevator that lifts mine waste over the hills has jammed. A foreman offers good pay to anyone who can free it without wrecking the buckets.',
-    narratorIntro: 'The narrator admires a well-made machine, and the Kennedy wheels — four of them, lifting tailings 128 feet — are among the finest the narrator has seen. It would be a shame to break one.',
+    narratorIntro: 'The narrator admires a well-made machine, and the Kennedy wheels — four of them, each lifting the tailings forty-eight feet to carry the waste nearly a mile over the hills — are among the finest the narrator has seen. It would be a shame to break one.',
     difficulty: 'hard',
     startStepId: 'inspect_wheel',
     oneTimeOnly: true,
@@ -578,8 +578,8 @@ export const TOWN_PUZZLES: TownPuzzle[] = [
     id: 'mokelumne_hill_claim_fraud',
     title: 'The Sixteen-Foot Lie',
     landmark: 'Mokelumne Hill',
-    description: 'On Mokelumne Hill, where claims were limited to a mere sixteen feet because the gold was so rich, a miner accuses his neighbor of moving a boundary stake to steal ground. He asks you to judge the line.',
-    narratorIntro: 'The narrator notes that Mokelumne Hill was so rich men killed over sixteen feet of dirt. A boundary dispute here is never small.',
+    description: 'On Mokelumne Hill, where claims were limited to a mere sixteen SQUARE feet because the gold was so rich, a miner accuses his neighbor of moving a boundary stake to steal ground. He asks you to judge the line.',
+    narratorIntro: 'The narrator notes that Mokelumne Hill was so rich men killed over sixteen square feet of dirt — a patch you could cover with a blanket. A boundary dispute here is never small.',
     difficulty: 'medium',
     startStepId: 'examine_stakes',
     oneTimeOnly: true,
@@ -591,7 +591,7 @@ export const TOWN_PUZZLES: TownPuzzle[] = [
     steps: [
       {
         id: 'examine_stakes',
-        text: 'Two boundary stakes stand sixteen feet apart — the legal claim width. But one stake\'s hole shows fresh-turned earth, while the original posthole sits eighteen inches away, packed and weathered. What does the evidence say?',
+        text: 'Two corner stakes mark a claim barely four feet to a side — the legal sixteen-square-foot limit. But one stake\'s hole shows fresh-turned earth, while the original posthole sits eighteen inches away, packed and weathered. What does the evidence say?',
         action: 'examine',
         successText: 'The fresh dirt is plain: the disputed stake was recently MOVED, narrowing the accuser\'s claim and widening the neighbor\'s. The old, packed posthole is the true line.',
         failureText: 'At a glance both stakes look planted. But look closer — one hole is fresh, one is old and weathered.',
@@ -604,7 +604,7 @@ export const TOWN_PUZZLES: TownPuzzle[] = [
         text: 'A crowd gathers — claim disputes draw blood here. You must rule. Where is the true boundary?',
         action: 'choose',
         choices: [
-          { id: 'old', text: 'The old weathered posthole — the stake was moved; restore the original line', correct: true, response: 'You point to the packed old hole. "That\'s the true mark. The stake was shifted." The crowd murmurs agreement; the neighbor reddens and re-sets the line. Justice on sixteen feet of gold ground.' },
+          { id: 'old', text: 'The old weathered posthole — the stake was moved; restore the original line', correct: true, response: 'You point to the packed old hole. "That\'s the true mark. The stake was shifted." The crowd murmurs agreement; the neighbor reddens and re-sets the line. Justice on sixteen square feet of gold ground.' },
           { id: 'new', text: 'The current stake position — possession is the law', correct: false, response: 'The accuser erupts. "He MOVED it — you\'re rewarding the thief!" The crowd turns ugly. You reconsider the evidence.' },
           { id: 'split', text: 'Split the difference between the two holes', correct: false, response: '"There\'s no \'difference\' to split — one hole is a lie!" The miner is right; a fraud isn\'t settled by compromise.' },
         ],
