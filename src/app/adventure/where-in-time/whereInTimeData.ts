@@ -170,6 +170,45 @@ export function buildChase(seed: number, randomize: boolean, length = 4): TimeHo
 // Feature flag: randomized trail. OFF by default (ships dark; set NEXT_PUBLIC_WIT_RANDOMIZE=1).
 export const RANDOMIZE_TRAIL = process.env.NEXT_PUBLIC_WIT_RANDOMIZE === '1'
 
+// ── ITEM 1: distractor eras as real side-threads (Grok enrichment, 2026-06-21) ──
+// A wrong era used to be a flat −1 causality + a generic "no sign of him" line.
+// Now each distractor era is a real place with a witness who confirms the tare was
+// glimpsed but had already moved on — turning a wrong guess into texture, not just a
+// tax. Still costs the unit (a wrong jump has a price), but the player LEARNS something
+// and is nudged onward. Keyed by distractor era id. Grounded, theme-accurate.
+export interface DistractorScene { witness: string; line: string }
+export const DISTRACTOR_SCENES: Record<string, DistractorScene> = {
+  era_dreamtime: {
+    witness: 'a Mi-Wuk story-keeper',
+    line: 'Six centuries too early. The story-keeper studies you kindly: "No miner in a wide hat has stood here — that is a thing not yet dreamed." A painted codex shows the figure you chase, drawn before he could exist. He forged even this. The timeline frays; you lose a unit of causality, but the Guide reads the grain truer for it.',
+  },
+  era_1906: {
+    witness: 'a soot-faced telegraph boy',
+    line: 'Nineteen-six. The city shakes itself to rubble and the wires are down. "A gent like that? Came through, paid in coin that rang wrong, caught the last coach before the quake." He was here — and gone. A paradox ripples; you lose a unit of causality, but now you know which way he ran.',
+  },
+  era_2049: {
+    witness: 'a creek-restoration drone tech',
+    line: 'The Long Now. Drones count red-legged frogs over water that runs clean again. "Your man? His name\'s on a ledger nobody can verify — a presence with no witness. He doesn\'t live here; he hides in the seams." Too far ahead. You lose a unit of causality, but the seam he hides in just showed itself.',
+  },
+}
+
+// ── ITEM 3: post-chase TRUE-HISTORY summary (Grok "replay → learning") ──
+// On the won screen, after the warrant, show the HONEST counterpart to each forgery —
+// the real, shareable history of this land that Vane could only ever counterfeit. This
+// turns the chase from "catch the villain" into "learn why the land's true record is
+// the thing that catches him." Public/shareable facts only (file-top guardrails).
+export interface TrueHistoryNote { era: string; forgery: string; truth: string }
+export const TRUE_HISTORY: TrueHistoryNote[] = [
+  { era: 'The Gold Rush (1849)', forgery: 'shaved scales & salted dust',
+    truth: 'Kit Carson really kept a trading post in the West Point pines before the gold (California Historical Landmark #268). The honest weight of a thing is the one number a clever scale can\'t shave forever.' },
+  { era: "The Forester's Trail (1960s)", forgery: 'false timber surveys',
+    truth: 'A real registered forester walked these ridges — eight years fighting wildfire taught him exactly where fires start. You cannot forge a survey against ground that a fire-trained eye has actually read.' },
+  { era: 'The Ranch Begins (1982)', forgery: 'phantom solar rebates',
+    truth: 'Thirteen acres were really bought off a subdivided ranch; the county\'s first passive-solar permit was really filed; a half-mile of power line was really buried by hand. The black oak was milled on-site and waited thirty years for its window sills.' },
+  { era: 'Back of Beyond (the present)', forgery: 'counterfeit reviews & karma',
+    truth: 'The red-legged frog is really counted. Presence, honestly kept — a hand on the line, a stay on the land, a frog tallied at dusk — is the only assay the tare could never fake.' },
+]
+
 export const VANE = {
   name: 'CYRUS VANE — "THE TARE"',
   charge:

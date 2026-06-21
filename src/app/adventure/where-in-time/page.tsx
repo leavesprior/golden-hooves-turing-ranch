@@ -13,6 +13,7 @@ import {
   STARTING_CAUSALITY, OBSERVE_COST, SESSION_KEY,
   buildChase, RANDOMIZE_TRAIL,
   WARRANT_PROMPT, WARRANT_CHARGES, WARRANT_WRONG, WARRANT_RIGHT,
+  DISTRACTOR_SCENES, TRUE_HISTORY,
   type TimeTrait, type TimeHop,
 } from './whereInTimeData'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
@@ -117,10 +118,13 @@ export default function WhereInTimePage() {
     } else {
       const remaining = state.causality - 1
       if (remaining <= 0) { setState((s) => ({ ...s, causality: 0 })); setPhase('lost'); return }
-      setState((s) => ({
-        ...s, causality: remaining, observed: false,
-        redirect: { witness: 'a confused bystander', line: `No sign of him in ${ERAS[eraId].name} (${ERAS[eraId].year}). A paradox ripples through; you lose a unit of causality. The Guide reads the grain again and points you on.` },
-      }))
+      // Item 1: a wrong era is now a real side-thread (witness + onward clue), not a
+      // flat generic line. Falls back to the generic line for any era without a scene.
+      const scene = DISTRACTOR_SCENES[eraId]
+      const redirect = scene
+        ? { witness: scene.witness, line: scene.line }
+        : { witness: 'a confused bystander', line: `No sign of him in ${ERAS[eraId].name} (${ERAS[eraId].year}). A paradox ripples through; you lose a unit of causality. The Guide reads the grain again and points you on.` }
+      setState((s) => ({ ...s, causality: remaining, observed: false, redirect }))
       setPhase('clue')
     }
   }, [phase, hop, isFinal, state.causality])
@@ -209,6 +213,18 @@ export default function WhereInTimePage() {
                 <p className="font-[var(--font-pixel)] text-[13px] leading-relaxed text-[var(--pixel-forest-light)] sm:text-[15px]">WARRANT SERVED — VANE BOUND OUTSIDE TIME</p>
                 {warrantMsg && <p className="mt-3 font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-gold-light)]">{warrantMsg}</p>}
                 <p className="mt-3 font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)]">{RECKONING}</p>
+                {/* Item 3: the true-history summary — replay becomes learning. Each forgery
+                    paired with the real, shareable history of this land that catches him. */}
+                <div className="mt-4 border-2 border-[var(--pixel-earth-dark)]/60 bg-black/30 p-3" data-testid="true-history">
+                  <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">THE HONEST RECORD — what the land really holds</p>
+                  <ul className="mt-2 space-y-2">
+                    {TRUE_HISTORY.map((n, i) => (
+                      <li key={i} className="font-[var(--font-pixel)] text-[9px] leading-relaxed text-[var(--pixel-ui-text)]/80">
+                        <span className="text-[#7a1f10]">{n.era}</span> — he forged <span className="italic">{n.forgery}</span>; but: {n.truth}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
                 <p className="mt-3 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)]/70">The trail of forgeries ends where the honest story begins — at the bottom of the years, in 1849, with a wagon pointed west.</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Link href="/oregon-trail" data-testid="to-journey" className="border-2 border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]/20 px-4 py-2 font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] transition-all hover:bg-[var(--pixel-gold-dark)]/40">BEGIN THE JOURNEY — 1849 {'▶'}</Link>
@@ -256,7 +272,13 @@ export default function WhereInTimePage() {
                     </button>
                   )}
                   {!state.redirect && state.observed && (
-                    <p className="mt-3 font-[var(--font-pixel)] text-[10px] italic text-[#b9a7e0]/50">You observed it; the timeline collapsed a little to let you. Half a unit spent.</p>
+                    <div className="mt-3" data-testid="observed-trait">
+                      <p className="font-[var(--font-pixel)] text-[10px] italic text-[#b9a7e0]/50">You observed it; the timeline collapsed a little to let you. Half a unit spent.</p>
+                      {/* Item 3: OBSERVE now surfaces the forgery tell early — the reward for the ½-causality cost. It's the warrant clue, glimpsed before you jump. */}
+                      <p className="mt-2 border-l-2 border-[var(--pixel-gold-mid)] pl-2 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-gold-light)]">
+                        You glimpse his forgery here — <span className="text-[#7a1f10]">[{hop.trait.label}]</span> {hop.trait.value}. <span className="text-[#b9a7e0]/60">(a tell for the warrant)</span>
+                      </p>
+                    </div>
                   )}
                 </div>
 
