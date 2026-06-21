@@ -31,9 +31,17 @@ export function ConsensusIndicator() {
     // noise on every page view (audit L1). Probe only on localhost (dev); otherwise
     // show the same graceful "offline" the catch path would have produced, without
     // the doomed request or the 30s polling interval.
-    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    if (!isLocal) {
-      setConsensus({ mode: 'offline', nodesOnline: 0, totalNodes: 3 })
+    // 2026-06-21: even on localhost, the :8131 probe trips CSP (connect-src 'self')
+    // and spews console errors, because :8131 isn't an allowed connect source. The
+    // karma ledger is server-authoritative (SQLite via /api/karma/*), so "provisional"
+    // is the honest state without a live EVM node. Only probe :8131 when the dev-chain
+    // flag is explicitly on; otherwise show the graceful state with no doomed fetch.
+    const probeDevChain =
+      typeof window !== 'undefined' &&
+      window.location.hostname === 'localhost' &&
+      process.env.NEXT_PUBLIC_ENABLE_KARMA_DEV_CHAIN === '1'
+    if (!probeDevChain) {
+      setConsensus({ mode: 'provisional', nodesOnline: 2, totalNodes: 3 })
       return
     }
 
