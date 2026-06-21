@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/adventure/layout,_N_T_/adventure/character/layout,_N_T_/adventure/character/page,_N_T_/adventure/character"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/adventure/character/__PAGE__",
+    "/adventure/character",
+    "/adventure",
+    "/_index",
+    "/_head"
+  ]
+}

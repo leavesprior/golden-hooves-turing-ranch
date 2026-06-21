@@ -1,0 +1,3 @@
+{
+  "/api/llm/health/route": "app/api/llm/health/route.js"
+}

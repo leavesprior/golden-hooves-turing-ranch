@@ -90,7 +90,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'vc_1',
         attractionId: 'vol_st_george',
-        text: 'A faded letter behind the hotel bar reads: "The package arrives by mule train Thursday. Tell no one. —Union League"',
+        text: 'A faded letter behind the hotel bar reads: "The package arrives by hearse Thursday. Tell no one. —Volcano Blues"',
         discoveryText: 'You notice something tucked behind a portrait in the lobby...',
         required: true,
         order: 1,
@@ -114,7 +114,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'vc_4',
         attractionId: 'vol_cemetery',
-        text: 'A headstone reads: "Capt. Edward Byrne, Union League of Volcano, 1824-1891. He kept the secret."',
+        text: 'A headstone reads: "Capt. Edward Byrne, Volcano Blues militia, 1824-1891. He kept the secret."',
         discoveryText: 'Walking among the headstones, one epitaph is unusually specific...',
         required: true,
         order: 4,
@@ -123,17 +123,17 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     deduction: {
       question: 'Who organized the secret transport of Old Abe to Volcano?',
       options: [
-        { id: 'a', text: 'Confederate sympathizers hiding weapons', correct: false, response: 'No — the cannon was brought BY Union supporters, not against them. The Confederates never knew about it.' },
-        { id: 'b', text: 'The Union League, a secret pro-Union society', correct: true, response: 'Correct! The Union League of Volcano secretly transported Old Abe to defend the gold shipments from Confederate raiders. The cannon was never needed — its mere presence was deterrent enough.' },
-        { id: 'c', text: 'A traveling arms dealer from San Francisco', correct: false, response: 'Close, but no. The cannon was a community effort by local Union loyalists, not a commercial transaction.' },
+        { id: 'a', text: 'Confederate sympathizers hiding weapons', correct: false, response: 'No — the cannon was brought BY Union supporters to deter the local Confederate faction (the Knights of the Golden Circle), not by them.' },
+        { id: 'b', text: 'The Volcano Blues, the local Union militia', correct: true, response: 'Correct! The Volcano Blues — the town\'s Union militia — smuggled Old Abe in by hearse to deter the Knights of the Golden Circle from seizing gold-country gold for the Confederacy. Its mere presence was deterrent enough.' },
+        { id: 'c', text: 'A traveling arms dealer from San Francisco', correct: false, response: 'Close, but no. The cannon was spared from the Benicia armory at the militia\'s request — not a commercial transaction.' },
         { id: 'd', text: 'The U.S. Army garrison at Fort Miller', correct: false, response: 'The Army was spread thin. Old Abe was a grassroots effort by Volcano\'s own citizens.' },
       ],
       minCluesRequired: 2,
     },
     xpReward: 75,
     badgeId: 'mystery_volcano',
-    solvedText: 'The mystery of Old Abe is solved! The Union League\'s secret mission kept Gold Country loyal.',
-    historicalNote: 'Old Abe, a brass cannon, was indeed smuggled into Volcano by the Union League in 1862. It was never fired in anger but served as a powerful symbol of Union loyalty in the gold country. The cannon still sits in Volcano today.',
+    solvedText: 'The mystery of Old Abe is solved! The Volcano Blues\' secret mission kept Gold Country loyal.',
+    historicalNote: 'Old Abe — an 800-lb 6-pounder brass cannon (cast by Cyrus Alger & Co. of Boston in 1837) — was spared from the Benicia armory and smuggled into Volcano by hearse by the "Volcano Blues" Union militia during the Civil War (c. 1862–63), to deter the local Confederate faction known as the Knights of the Golden Circle from seizing gold shipments for the South. Accounts conflict on whether it was ever discharged — most say its mere presence was deterrent enough, though some local tradition holds it was fired once down Main Street. It still sits in Volcano today, on its original wooden carriage.',
   },
 
   // === ANGELS CAMP ===
@@ -315,7 +315,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     id: 'sanandreas_bart',
     townId: 'san_andreas',
     title: 'The Gentleman Bandit\'s Double Life',
-    briefing: 'When Black Bart was finally arrested in San Andreas in 1883, detectives discovered something shocking: he had been living openly in San Francisco as respectable mining consultant "Charles E. Bolton" for years. How did a wanted man hide in plain sight — and who helped him do it?',
+    briefing: 'When Black Bart was finally caught in 1883 — arrested in San Francisco after detectives traced a laundry mark on a handkerchief he dropped at a Calaveras County stage robbery, then brought to San Andreas to answer for it — they discovered something shocking: he had been living openly in San Francisco as respectable mining consultant "Charles E. Bolton" for years. How did a wanted man hide in plain sight — and who helped him do it?',
     era: '1883',
     difficulty: 'medium',
     clues: [
@@ -489,14 +489,14 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     id: 'moaningcavern_bones',
     townId: 'moaning_cavern',
     title: 'The Ancient Dead of Moaning Cavern',
-    briefing: 'When Gold Rush miners enlarged the entrance to Moaning Cavern in 1851 to mine guano, they made a grim discovery: ancient human bones at the bottom of a 180-foot shaft, some more than 12,000 years old. Who were these people? And how did their bones end up at the bottom of an inaccessible vertical pit?',
+    briefing: 'When Gold Rush–era explorers entered Moaning Cavern around 1851, they made a grim discovery: ancient human bones at the bottom of a 180-foot shaft, the largest single natural vertical cavern in California. Who were these people? And how did their bones end up at the bottom of an inaccessible vertical pit?',
     era: '1851',
     difficulty: 'hard',
     clues: [
       {
         id: 'mcb_1',
         attractionId: 'mc_main_chamber',
-        text: 'A museum placard reads: "Paleontological excavation 1922 — Dr. William Sinclair, UC Berkeley: recovered 13+ sets of human remains, all pre-Columbian. Ages ranged from adolescent to elder. Carbon dating (1970s): 8,000-13,000 BP. This is among the oldest human remains found in California."',
+        text: 'A museum placard reads: "Excavations 1951–1952 — Phil C. Orr, Santa Barbara Museum of Natural History: recovered the remains of dozens of individuals, ages adolescent to elder. Orr estimated some at ~12,000 years using sinter-thickness (\'speleological\') dating; later radiocarbon work has questioned those ages, but the remains are still among the oldest known in California."',
         discoveryText: 'In the main chamber, geological and historical placards line the walls...',
         required: true,
         order: 1,
@@ -527,10 +527,10 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       },
     ],
     deduction: {
-      question: 'How did 13+ ancient human skeletons end up at the bottom of an inaccessible vertical pit?',
+      question: 'How did dozens of ancient human skeletons end up at the bottom of an inaccessible vertical pit?',
       options: [
-        { id: 'a', text: 'They were carried down by ancient people using primitive rope systems', correct: false, response: 'The bones were found scattered, not arranged — suggesting falls, not deliberate placement. And carbon dating puts them at 8,000-13,000 years ago, far predating any evidence of rope technology in the region.' },
-        { id: 'b', text: 'They fell accidentally through a smaller prehistoric entrance in the dark', correct: true, response: 'Correct! The geological evidence is compelling: the original entrance was much smaller, and the "moaning" sound would have been louder and more eerie, possibly luring curious individuals. In the dark, the vertical shaft would have been invisible. Over thousands of years, multiple people — possibly cave explorers or those drawn by the mysterious sound — fell to their deaths. The remains span 5,000+ years, suggesting repeated accidental tragedies.' },
+        { id: 'a', text: 'They were carried down by ancient people using primitive rope systems', correct: false, response: 'The bones were found scattered, not arranged — suggesting falls, not deliberate placement, and predating any evidence of rope-lowering technology in the region.' },
+        { id: 'b', text: 'They fell accidentally through a smaller prehistoric entrance in the dark', correct: true, response: 'Correct! The geological evidence is compelling: the original entrance was much smaller, and the "moaning" sound would have been louder and more eerie, possibly luring curious individuals. In the dark, the vertical shaft would have been invisible. Over a very long span, multiple people — possibly cave explorers or those drawn by the mysterious sound — fell to their deaths, leaving remains that accumulated across many generations.' },
         { id: 'c', text: 'They were deliberately thrown in as human sacrifice victims', correct: false, response: 'Possible but not the leading theory. The skeletal remains show no evidence of pre-mortem trauma suggesting ritual killing, and the age span of the victims (adolescent to elder) argues against a targeted sacrifice program.' },
         { id: 'd', text: 'They climbed in voluntarily and became trapped', correct: false, response: 'At 180 feet deep, with no footholds, entrapment would mean death by thirst/starvation, not the sudden-impact injuries archaeologists found.' },
       ],
@@ -538,8 +538,8 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     },
     xpReward: 150,
     badgeId: 'mystery_moaning_cavern',
-    solvedText: 'The ancient dead of Moaning Cavern reveal 13,000 years of human curiosity — and its cost.',
-    historicalNote: 'Moaning Cavern near Vallecito, California contains one of the oldest documented human remains in North America. The 180-foot vertical pit has yielded skeletal material carbon-dated to between 8,000 and 13,000 years ago. The cave was used as a guano mine during the Gold Rush before its paleontological significance was understood. Today it operates as a show cave and adventure attraction with rappelling available.',
+    solvedText: 'The ancient dead of Moaning Cavern reveal millennia of human curiosity — and its cost.',
+    historicalNote: 'Moaning Cavern near Vallecito, California contains some of the oldest documented human remains in California. In 1951–1952 Phil C. Orr of the Santa Barbara Museum of Natural History excavated the remains of dozens of individuals from the floor of the 180-foot main chamber, which his sinter-thickness ("speleological") dating placed at roughly 12,000 years old; later radiocarbon redating has called those exact ages into question, but the assemblage remains archaeologically significant. The remains are housed at the Santa Barbara Museum of Natural History. Today the cave operates as a show cave and adventure attraction with rappelling available.',
   },
 
   // === KENNEDY MINE ===
@@ -1003,7 +1003,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     xpReward: 150,
     badgeId: 'mystery_pelton_wheel',
     solvedText: 'The Lost Pelton Wheel may still be waiting behind brick in a hotel cellar — the forgotten prototype that powered the modern world.',
-    historicalNote: 'Lester Allan Pelton (1829-1908) developed the Pelton water wheel in Nevada City and Camptonville, California in the late 1870s. His split-bucket design achieved 90% efficiency — a dramatic improvement over previous water wheels — and became the foundation of hydroelectric power generation. Pelton won a critical patent case in 1889, and the Pelton Water Wheel Company (later absorbed by General Electric) manufactured wheels used in power plants worldwide. The original prototype has never been conclusively located.',
+    historicalNote: 'Lester Allan Pelton (1829-1908) developed the Pelton water wheel in Nevada City and Camptonville, California in the late 1870s. His split-bucket design achieved roughly 90% efficiency — a dramatic improvement over previous water wheels — and became a foundation of hydroelectric power generation. Pelton received U.S. Patent 233,692 on October 26, 1880; the Pelton Water Wheel Company he co-founded in San Francisco in 1888 (acquired by Baldwin-Lima-Hamilton in 1955, operating thereafter as its Pelton Division) manufactured wheels used in power plants worldwide. The original prototype has never been conclusively located.',
   },
 
   // === GRASS VALLEY — Empire's Hidden Vault ===

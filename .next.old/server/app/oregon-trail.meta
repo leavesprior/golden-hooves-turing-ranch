@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/oregon-trail/layout,_N_T_/oregon-trail/page,_N_T_/oregon-trail"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/oregon-trail/__PAGE__",
+    "/oregon-trail",
+    "/_index",
+    "/_head"
+  ]
+}

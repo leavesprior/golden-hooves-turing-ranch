@@ -1,0 +1,49 @@
+{
+  "app": {
+    "[project]/src/app/_not-found/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/adventure/character/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/adventure/leaderboard/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/adventure/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/adventure/play/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/certificate/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/clue/[slug]/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/explore/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/game/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/hub/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/leaderboard/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/oregon-trail/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ],
+    "[project]/src/app/rentals/page": [
+      "static/media/de161955856a921d-s.p.25da2b95.woff2"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}

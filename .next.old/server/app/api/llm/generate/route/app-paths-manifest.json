@@ -1,0 +1,3 @@
+{
+  "/api/llm/generate/route": "app/api/llm/generate/route.js"
+}

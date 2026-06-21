@@ -1,0 +1,20 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/adventure/character/page": "app/adventure/character/page.js",
+  "/adventure/leaderboard/page": "app/adventure/leaderboard/page.js",
+  "/adventure/page": "app/adventure/page.js",
+  "/adventure/play/page": "app/adventure/play/page.js",
+  "/api/llm/generate/route": "app/api/llm/generate/route.js",
+  "/api/llm/health/route": "app/api/llm/health/route.js",
+  "/certificate/page": "app/certificate/page.js",
+  "/clue/[slug]/page": "app/clue/[slug]/page.js",
+  "/explore/page": "app/explore/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/game/page": "app/game/page.js",
+  "/hub/page": "app/hub/page.js",
+  "/leaderboard/page": "app/leaderboard/page.js",
+  "/oregon-trail/page": "app/oregon-trail/page.js",
+  "/page": "app/page.js",
+  "/rentals/page": "app/rentals/page.js"
+}
