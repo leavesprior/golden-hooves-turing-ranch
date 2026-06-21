@@ -94,6 +94,82 @@ export const CHASE: TimeHop[] = [
   },
 ]
 
+// ── HOP POOL + randomized trail (Grok "do first", 2026-06-20 consult APPROVE) ──
+// Canonical CHASE above stays the flag-OFF fallback (instant rollback). With the flag
+// ON, buildChase(seed) selects a travel-coherent randomized route from this pool so the
+// correct destination isn't memorizable across replays. New hops are grounded ONLY in
+// the same shareable land/craft history (guardrails at top of file).
+export const HOP_POOL: TimeHop[] = [
+  ...CHASE,
+  {
+    fromEra: 'era_1849', toEra: 'era_1982',
+    witness: { name: 'a county recorder', role: 'land-office desk' },
+    guideEasy: "He's jumped to the year thirteen raw acres are carved off a thousand-acre ranch and the county stamps its first passive-solar permit on land with no power and no water.",
+    guideHard: "Find him where a man trades a gold-pan for a post-hole digger and buries the future by hand, because eight years of fire taught him where it starts.",
+    trait: { label: 'FORGERY', value: 'Files a homestead claim on acreage he never broke ground on' },
+    distractors: ['era_1906', 'era_dreamtime'],
+    paradox: 'The founding year. The Guide is certain the cabin already has power. It does not. It will, in forty years, by hand.',
+  },
+  {
+    fromEra: 'era_forester', toEra: 'era_present',
+    witness: { name: 'Cynthia, at the inn', role: 'keeper of the place' },
+    guideEasy: "He's run straight to the now — sixty acres, a hot tub, QR codes on the fence posts, a star-rating where the assay office used to be.",
+    guideHard: "Chase him to where the only gold left to fake is a five-star review, minted by the hundred before breakfast, never touching real ore.",
+    trait: { label: 'FORGERY', value: 'Mints fake reviews and counterfeit karma' },
+    distractors: ['era_2049', 'era_1906'],
+    paradox: 'The present arrives early, or you arrived late; the Guide cannot say which, only that the frog has already been counted.',
+  },
+  {
+    fromEra: 'era_1982', toEra: 'era_future',
+    witness: { name: 'Elias Cole', role: 'the ghost post-rider' },
+    guideEasy: "He's stepped clean out of the years into the not-yet — the present of a guest who hasn't arrived, where his frauds aren't caught because they aren't yet committed.",
+    guideHard: "He's gone to the one country a mind without a body can reach: everyone's now, all at once. Corner him there and you corner a little of yourself.",
+    trait: { label: 'TELL', value: 'Forges presence itself — claims a now he was never in' },
+    distractors: ['era_dreamtime', 'era_2049'],
+    paradox: 'The future is another player’s now, read before they live it — narrated with total confidence and total inaccuracy, the correct register for this.',
+  },
+]
+
+// Deterministic seeded PRNG (mulberry32) — same seed => same trail (replayable + debuggable).
+function _mulberry32(seed: number): () => number {
+  let a = seed >>> 0
+  return () => {
+    a |= 0; a = (a + 0x6D2B79F5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * Build a chase for this session. flag OFF (or seed<0) => canonical CHASE (rollback).
+ * flag ON => a travel-coherent randomized route of `length` hops from HOP_POOL, chained
+ * so each hop.fromEra == previous hop.toEra (no arbitrary era-hopping; Grok's coherence
+ * pitfall). Final hop must reach era_future (the capture). Defensive fallback to CHASE.
+ */
+export function buildChase(seed: number, randomize: boolean, length = 4): TimeHop[] {
+  if (!randomize || seed < 0) return CHASE
+  const rnd = _mulberry32(seed || 1)
+  const shuffled = HOP_POOL.map((h, i) => ({ h, k: rnd(), i }))
+    .sort((a, b) => a.k - b.k)
+    .map((x) => x.h)
+  const route: TimeHop[] = []
+  let need = 'era_1849'
+  const used = new Set<number>()
+  for (let step = 0; step < length; step++) {
+    const idx = shuffled.findIndex((h, i) => !used.has(i) && h.fromEra === need)
+    if (idx === -1) break
+    used.add(idx)
+    route.push(shuffled[idx])
+    need = shuffled[idx].toEra
+  }
+  if (route.length >= 3 && route[route.length - 1].toEra === 'era_future') return route
+  return CHASE
+}
+
+// Feature flag: randomized trail. OFF by default (ships dark; set NEXT_PUBLIC_WIT_RANDOMIZE=1).
+export const RANDOMIZE_TRAIL = process.env.NEXT_PUBLIC_WIT_RANDOMIZE === '1'
+
 export const VANE = {
   name: 'CYRUS VANE — "THE TARE"',
   charge:
@@ -107,6 +183,26 @@ export const VANE = {
 export const RECKONING =
   'You corner Cyrus Vane in the not-yet, and the costumes fall off at once. The assayer, the false surveyor, the phantom-solar man, the review-forger — one crime wearing every age: the forgery of presence, claiming a place he never honestly stood in. ' +
   'Which is the one thing this land cannot do. The black oak was really milled and waited thirty years for its window sills. The power line was really buried by hand. The frog is really counted. Presence, honestly kept, is the only thing he could never counterfeit — and the only thing that catches him.'
+
+// ── THE WARRANT (Grok "single most important", 2026-06-20 consult APPROVE) ──
+// The deduction payoff: before the final capture, the player assembles the forgery
+// TRAITS they collected during the chase into a warrant for Vane. It appears only after
+// the traits are collected (it's the payoff, not a tax), is required to advance to the
+// RECKONING, and finally makes the trait-collection mechanic mean something.
+// One screen, one confirm. The decoys are plausible-but-false charges.
+export interface WarrantCharge { id: string; text: string; isReal: boolean }
+export const WARRANT_PROMPT =
+  'OUTSIDE TIME, you finally corner the tare — but a ghost post-rider cannot serve a warrant on a feeling. Name the charge. Which of these is the ONE crime that wears every age, the thread that ties his whole trail together?'
+export const WARRANT_CHARGES: WarrantCharge[] = [
+  { id: 'presence', text: 'Forgery of PRESENCE — claiming a now he was never honestly in', isReal: true },
+  { id: 'theft', text: 'Grand theft of gold from the ’49 gravel bars', isReal: false },
+  { id: 'arson', text: 'Setting the wildfires the forester fought', isReal: false },
+  { id: 'trespass', text: 'Trespass on thirteen subdivided acres', isReal: false },
+]
+export const WARRANT_WRONG =
+  'The Guide shakes its head (in several directions at once). "Gold, fire, fences — those are costumes. Look at what every costume hides. He was never HONESTLY anywhere." The charge does not hold; read your collected tells again.'
+export const WARRANT_RIGHT =
+  'The warrant takes. Every forgery you logged — shaved scales, false surveys, phantom solar, counterfeit karma — was the same crime: a presence he never kept. Signed, sealed, served outside time. The tare is bound to the harvest at last.'
 
 export const STARTING_CAUSALITY = 6
 export const OBSERVE_COST = 0.5
