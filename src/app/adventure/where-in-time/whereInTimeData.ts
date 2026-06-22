@@ -23,7 +23,7 @@ export interface Era {
 
 export const ERAS: Record<string, Era> = {
   era_1849: { id: 'era_1849', name: 'The Gold Rush', year: '1849',
-    descriptor: "Kit Carson's trading post in the pines; gravel-bar miners; scales a clever man can shave.", art: 'west_point' },
+    descriptor: "The trading post Kit Carson named in the pines; gravel-bar miners; scales a clever man can shave.", art: 'west_point' },
   era_forester: { id: 'era_forester', name: "The Forester's Trail", year: 'the 1960s',
     descriptor: 'A registered forester drags a surveyor’s chain through the manzanita; a boy walks ahead cutting the sight-lines with a machete, learning every pine by its Latin name.', art: 'forester_trail' },
   era_1982: { id: 'era_1982', name: 'The Ranch Begins', year: '1982',
@@ -149,21 +149,30 @@ function _mulberry32(seed: number): () => number {
  */
 export function buildChase(seed: number, randomize: boolean, length = 4): TimeHop[] {
   if (!randomize || seed < 0) return CHASE
-  const rnd = _mulberry32(seed || 1)
-  const shuffled = HOP_POOL.map((h, i) => ({ h, k: rnd(), i }))
-    .sort((a, b) => a.k - b.k)
-    .map((x) => x.h)
-  const route: TimeHop[] = []
-  let need = 'era_1849'
-  const used = new Set<number>()
-  for (let step = 0; step < length; step++) {
-    const idx = shuffled.findIndex((h, i) => !used.has(i) && h.fromEra === need)
-    if (idx === -1) break
-    used.add(idx)
-    route.push(shuffled[idx])
-    need = shuffled[idx].toEra
+  // The greedy walk can dead-end on a <3-hop path for ~1 seed in 4 (e.g. it commits
+  // 1849->1982->future and fails the length guard). Rather than silently fall back to
+  // the canonical trail that often, re-salt the seed a few times and take the first
+  // shuffle that yields a valid coherent route — this drops the fallback rate to
+  // ~nil and widens trail variety. Deterministic: same seed => same salt sequence =>
+  // same route (replayable/debuggable). Coherence is still guaranteed: every returned
+  // route chains hop.fromEra == previous hop.toEra and ends at era_future.
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const rnd = _mulberry32(((seed || 1) + attempt * 0x9e3779b1) >>> 0)
+    const shuffled = HOP_POOL.map((h, i) => ({ h, k: rnd(), i }))
+      .sort((a, b) => a.k - b.k)
+      .map((x) => x.h)
+    const route: TimeHop[] = []
+    let need = 'era_1849'
+    const used = new Set<number>()
+    for (let step = 0; step < length; step++) {
+      const idx = shuffled.findIndex((h, i) => !used.has(i) && h.fromEra === need)
+      if (idx === -1) break
+      used.add(idx)
+      route.push(shuffled[idx])
+      need = shuffled[idx].toEra
+    }
+    if (route.length >= 3 && route[route.length - 1].toEra === 'era_future') return route
   }
-  if (route.length >= 3 && route[route.length - 1].toEra === 'era_future') return route
   return CHASE
 }
 
@@ -200,7 +209,7 @@ export const DISTRACTOR_SCENES: Record<string, DistractorScene> = {
 export interface TrueHistoryNote { era: string; forgery: string; truth: string }
 export const TRUE_HISTORY: TrueHistoryNote[] = [
   { era: 'The Gold Rush (1849)', forgery: 'shaved scales & salted dust',
-    truth: 'Kit Carson really kept a trading post in the West Point pines before the gold (California Historical Landmark #268). The honest weight of a thing is the one number a clever scale can\'t shave forever.' },
+    truth: 'Kit Carson really named West Point in the pines, and a trading post really thrived here before the gold (California Historical Landmark #268). The honest weight of a thing is the one number a clever scale can\'t shave forever.' },
   { era: "The Forester's Trail (1960s)", forgery: 'false timber surveys',
     truth: 'A real registered forester walked these ridges — eight years fighting wildfire taught him exactly where fires start. You cannot forge a survey against ground that a fire-trained eye has actually read.' },
   { era: 'The Ranch Begins (1982)', forgery: 'phantom solar rebates',

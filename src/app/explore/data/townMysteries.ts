@@ -272,7 +272,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'mh_2',
         attractionId: 'mh_courthouse',
-        text: 'Court records show the 17th murder was of a Mexican miner named Dr. Concha — the camp\'s only doctor. After his death, the miners realized they needed him alive.',
+        text: 'Local legend holds the 17th killing took the camp\'s only doctor — and that losing him is what finally shocked the miners into organizing. (The surviving court records credit a vigilance committee; the doctor is the story the Hill still tells.)',
         discoveryText: 'Dusty court records in the old courthouse tell a dark story...',
         required: true,
         order: 2,
@@ -280,7 +280,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'mh_3',
         attractionId: 'mh_cemetery',
-        text: 'A gravestone reads: "Dr. Raphael Concha, Healer. His death cured the killing fever." The only headstone with flowers still laid.',
+        text: 'A weathered gravestone the locals still tend reads: "The Healer. His death cured the killing fever." The only headstone with flowers laid — a legend kept, whether or not any register ever named him.',
         discoveryText: 'One grave in the overcrowded cemetery stands apart from the rest...',
         required: true,
         order: 3,
@@ -299,7 +299,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       options: [
         { id: 'a', text: 'The sheriff caught and hanged the serial killer', correct: false, response: 'There was no single killer. The murders were separate incidents — claim disputes, gambling feuds, and racial violence.' },
         { id: 'b', text: 'The army arrived and imposed martial law', correct: false, response: 'The U.S. Army had no presence in Mokelumne Hill. The miners governed themselves — for better or worse.' },
-        { id: 'c', text: 'The town\'s only doctor was murdered, and miners realized they needed to stop', correct: true, response: 'Correct! The 17th murder was Dr. Concha, the only physician for miles. The miners realized that without a doctor, the next gunshot wound or mining accident could kill any of them. A vigilance committee formed, and the killing stopped.' },
+        { id: 'c', text: 'The camp organized a vigilance committee — legend says losing their only doctor was the final shock', correct: true, response: 'Correct — by the documented record, a vigilance committee formed in December 1851 and the killing stopped. The Hill\'s enduring legend supplies the catalyst: that the spree took the camp\'s only doctor, and losing him is what finally shocked the miners into order. The committee is history; the doctor is the story the town keeps.' },
         { id: 'd', text: 'A massive flood washed away the mining camp', correct: false, response: 'Mokelumne Hill survived floods, fires, and worse. It was the loss of their doctor that changed everything.' },
       ],
       minCluesRequired: 3,
@@ -307,7 +307,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     xpReward: 150,
     badgeId: 'mystery_mokehill',
     solvedText: 'The grim tale of Murder Capital is solved. Sometimes it takes losing what you need to appreciate what you had.',
-    historicalNote: 'Mokelumne Hill\'s violent 1851 period is documented in multiple Gold Rush era accounts. While the exact details vary, the town did experience extraordinary violence during the mining boom, driven by claim jumping, ethnic tensions, and lawlessness before vigilance committees brought order.',
+    historicalNote: 'Mokelumne Hill\'s violent 1851 period — a reputed killing a week for seventeen weeks — is documented in multiple Gold Rush accounts, and a vigilance committee is what the record credits with ending it. The "town\'s only doctor" said to have died as the 17th victim is local legend rather than established fact (and is not to be confused with the Chilean Dr. Concha of Mok Hill\'s separate 1849 claim-war), so this mystery is told as the camp\'s enduring story, not court record.',
   },
 
   // === SAN ANDREAS ===

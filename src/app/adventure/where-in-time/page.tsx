@@ -61,7 +61,14 @@ export default function WhereInTimePage() {
       const raw = sessionStorage.getItem(SESSION_KEY)
       if (raw) {
         const saved = JSON.parse(raw) as { state: State; phase: Phase }
-        if (saved?.state) { setState(saved.state); if (saved.phase) setPhase(saved.phase) }
+        // Defensive: only adopt a save whose shape is sane. A parseable-but-invalid
+        // save (empty/missing eraRoute, non-finite numbers) is discarded in favour of
+        // initialState — never crash the render on corrupt storage (karma-wallet pattern).
+        const st = saved?.state
+        const valid = !!st && Array.isArray(st.eraRoute) && st.eraRoute.length > 0
+          && typeof st.causality === 'number' && Number.isFinite(st.causality)
+          && typeof st.hopIndex === 'number' && Number.isFinite(st.hopIndex)
+        if (valid) { setState(st); if (saved.phase) setPhase(saved.phase) }
         setInited(true); return
       }
     } catch { /* ignore */ }
@@ -89,6 +96,9 @@ export default function WhereInTimePage() {
   const hop = chase[state.hopIndex] ?? chase[chase.length - 1]
   const hasActive = state.hopIndex < chase.length
   const currentEra = state.eraRoute[state.eraRoute.length - 1]
+  // Render-time guard: an unknown/empty era id must not throw (ERAS[undefined].name).
+  // Fall back to the route's first era. Belt-and-suspenders with the loader validation.
+  const eraObj = ERAS[currentEra] ?? ERAS[chase[0].fromEra]
   const isFinal = state.hopIndex === chase.length - 1
   const candidates = useMemo(() => (hasActive ? candidatesFor(chase, state.hopIndex) : []), [chase, hasActive, state.hopIndex])
 
@@ -164,7 +174,7 @@ export default function WhereInTimePage() {
             <span className={state.causality <= 2 ? 'text-[var(--pixel-fire-orange)]' : 'text-[var(--pixel-gold-light)]'} data-testid="causality">{fmt(state.causality)}</span>
           </span>
           <span className="font-[var(--font-pixel)] text-[11px] text-[#b9a7e0]">
-            ERA: <span className="text-[var(--pixel-gold-light)]">{ERAS[currentEra].name}</span>{' '}<span className="text-[#8a78b8]">({ERAS[currentEra].year})</span>
+            ERA: <span className="text-[var(--pixel-gold-light)]">{eraObj.name}</span>{' '}<span className="text-[#8a78b8]">({eraObj.year})</span>
           </span>
           <span className="font-[var(--font-pixel)] text-[11px] text-[#b9a7e0]" data-testid="hop-progress">
             JUMP {Math.min(state.hopIndex + 1, TOTAL)}/{TOTAL}
@@ -174,9 +184,9 @@ export default function WhereInTimePage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_290px]">
           <div className="space-y-4">
             {/* era backdrop */}
-            {ERAS[currentEra].art && (
+            {eraObj.art && (
               <div className="border-2 border-[#4b3a7a] bg-black/40">
-                <PlaceBackdrop id={ERAS[currentEra].art!} className="mx-auto h-40 max-w-md object-top" />
+                <PlaceBackdrop id={eraObj.art} className="mx-auto h-40 max-w-md object-top" />
               </div>
             )}
 

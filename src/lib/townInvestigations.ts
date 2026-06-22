@@ -84,11 +84,11 @@ const WEST_POINT: TownInvestigation = {
   title: 'The Salted Claim at West Point',
   villain: 'Cyrus Vane — "the Tare"',
   setup:
-    'West Point, in the upcountry pines — where Kit Carson kept a trading post before there was any gold to trade for. A stranger has been buying a winter\'s supplies on the promise of a strike, paying in dust that rings a little wrong on an honest scale. The clerk swears the man was here; the man swears he was somewhere richer. Read the real places of this town by their true grain, and you will find which story the ground actually tells.',
+    'West Point, in the upcountry pines — the thriving trading post Kit Carson named, years before there was any gold to trade for. A stranger has been buying a winter\'s supplies on the promise of a strike, paying in dust that rings a little wrong on an honest scale. The clerk swears the man was here; the man swears he was somewhere richer. Read the real places of this town by their true grain, and you will find which story the ground actually tells.',
   scenes: [
     {
       id: 'trading_post',
-      place: "Kit Carson's Trading Post (Landmark #268)",
+      place: "The West Point Trading Post (Landmark #268)",
       art: 'west_point',
       witness: { name: 'Eb Crandall', role: 'trading-post clerk' },
       prompt: 'The stranger paid for a season\'s flour and powder in gold dust that rang false on the scale. He needed that dust "proven" honest before anyone weighed it twice. Where in this district would a man take raw dust to be assayed and stamped?',
@@ -155,9 +155,9 @@ const WEST_POINT: TownInvestigation = {
   ],
   verdict:
     'You corner Cyrus Vane at the false claim, and the story falls apart in the order he built it: salted dust, a bought receipt, a cabin of this-year\'s lumber pretending to be thirty years old. One crime under all of it — the forgery of PRESENCE: claiming to have struck, settled, and stood where he never honestly did. ' +
-    'Which is the one thing this country cannot do. Kit Carson really kept the post before the gold. The Carsners really pulled the first nugget. The mills really cut the timber that built the county\'s towns, board by dated board. West Point was a world of honest homesteads, each one self-contained — and the honest record of who was really here is exactly what catches a man who never was.',
+    'Which is the one thing this country cannot do. Kit Carson really named West Point before the gold, and the post here really thrived before it. The Carsners really pulled the first nugget. The mills really cut the timber that built the county\'s towns, board by dated board. West Point was a world of honest homesteads, each one self-contained — and the honest record of who was really here is exactly what catches a man who never was.',
   sources: [
-    'Kit Carson\'s pre-gold trading post — California Historical Landmark #268 (plaque dedicated 1949).',
+    'West Point, named by scout Kit Carson — a thriving trading post before the gold discovery (CHL #268, plaque dedicated 1949). The plaque credits Carson with naming the place, not operating the post.',
     'Sandy Gulch (2 mi south): the Carsner brothers\' 1849 nugget find, the district\'s first stamp mill, and a Mi-Wuk village.',
     'Indian Gulch (1852) → renamed West Point (1854) → post office (1856); the writer Bret Harte lived here; 10+ stamp mills by the 1860s–70s.',
     'Locally-milled timber tradition: the Harris mill (Sandy Gulch, "supplied materials throughout the region"), the Tiger Creek mill (photographed 1920), and the Raggio steam sawmill (1888–1924). West Point still keeps Lumberjack Day.',
@@ -926,7 +926,7 @@ const MARIPOSA: TownInvestigation = {
       clueEasy:
         'Larkin spreads the old papers. "The grant Micheltorena signed to Alvarado in \'44 had no surveyed lines — just outer limits between the Merced, the Chowchilla and the Sierra. A man could move ten leagues inside that like a tile on a board. Only one bench ever blessed that kind of float."',
       clueHard:
-        'He lowers his voice. "Frémont\'s title rode all the way to Washington. The Supreme Court confirmed Las Mariposas in 1854 — Frémont v. United States — and let a FLOATING claim stand. Vane studied that ruling. He\'s not forging gold; he\'s forging the right to BE somewhere. Find where that float gets stamped honest and you find his model."',
+        'He lowers his voice. "Frémont\'s title rode all the way to Washington. The Supreme Court confirmed Las Mariposas in 1855 — Frémont v. United States — and let a FLOATING claim stand. Vane studied that ruling. He\'s not forging gold; he\'s forging the right to BE somewhere. Find where that float gets stamped honest and you find his model."',
       evidence: { label: 'GRANT', value: 'Ten square leagues with no surveyed corners — a boundary that floats to the gold' },
       answer: 'courthouse',
       choices: [
