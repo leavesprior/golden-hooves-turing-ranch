@@ -1061,7 +1061,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     xpReward: 150,
     badgeId: 'mystery_empire_vault',
     solvedText: 'The Empire\'s Hidden Vault lies flooded and sealed on Level 4 — 400 ounces of gold, waiting in the dark since 1869.',
-    historicalNote: 'The Empire Mine in Grass Valley experienced several labor disputes during its 106-year history (1850-1956). The mine\'s 367 miles of tunnels descend to 5,912 feet, with many lower levels permanently flooded after closure. The mine produced an estimated 5.8 million ounces of gold — worth over $11 billion at modern prices. It is now a California State Historic Park. Whether any hidden vault exists on Level 4 has never been conclusively determined, as the lower levels remain inaccessible.',
+    historicalNote: 'The Empire Mine in Grass Valley experienced several labor disputes during its 106-year history (1850-1956). The mine\'s 367 miles of tunnels descend along inclined shafts to roughly 11,000 feet — nearly a vertical mile — with many lower levels permanently flooded after closure. The mine produced an estimated 5.8 million ounces of gold — worth over $11 billion at modern prices. It is now a California State Historic Park. Whether any hidden vault exists on Level 4 has never been conclusively determined, as the lower levels remain inaccessible.',
   },
 
   // === ANGELS CAMP (Old Town) — Twain's Lost Notebook ===
