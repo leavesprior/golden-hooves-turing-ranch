@@ -1,5 +1,27 @@
 # BOBR RPG - D&D 3.5 Style Game Design Specification
 
+> ## ⚠️ SUPERSEDED — Stat system is historical, not how the live game works
+>
+> **The D&D 3.5 attribute model described below (Strength / Dexterity / Constitution /
+> Intelligence / Wisdom / Charisma — "STR/DEX/…") is NO LONGER the live system.**
+> It is kept here as historical design context only. Do not implement against it.
+>
+> The shipped game runs on the **S.A.D.D.L.E.** attributes:
+>
+> | S | A | D | D | L | E |
+> |---|---|---|---|---|---|
+> | **S**hrewdness | **A**gility | **D**urability | **D**iplomacy | **L**uck | **E**xpertise |
+>
+> Read these instead for the current, authoritative system:
+> - **`src/lib/crossGameProgression.ts`** → `qualitiesFromSaddle(...)` — the canonical
+>   S.A.D.D.L.E.→derived-qualities mapping (the bridge that replaces direct STR/DEX use).
+> - **`docs/ADVENTURE_ABILITY_WIRING.md`** — how a S.A.D.D.L.E. pick / advantage is wired
+>   to actually affect gameplay (the live ability pipeline).
+>
+> Anywhere this document says STR/DEX/CON/INT/WIS/CHA, mentally substitute the
+> S.A.D.D.L.E. attribute above. The historical D&D content is retained for reference
+> only and is intentionally not deleted.
+
 ## Historical Setting: California Gold Rush (1848-1855)
 
 ### Primary Location: Tuolumne County, California
