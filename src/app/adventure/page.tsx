@@ -1,23 +1,12 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
-import { useRPG, TRAITS, type TraitId, type AttributeName, type RPGSession } from '@/lib/rpgContext'
-import {
-  rollAllStats,
-  generateMandelbrotSeed,
-  distributeStatsMandelbrot,
-  attributeRollsToStats,
-  type AttributeRolls,
-  type CharacterAttributes,
-  type CreationMethod,
-} from '@/lib/rpgContext'
+import { useRPG, type AttributeName, type RPGSession } from '@/lib/rpgContext'
 import { chapters } from '@/lib/chapters'
 import { KarmaStorage, getAlignmentPosition, type AlignmentPosition } from '@/lib/karmaStorage'
-
-// Character creation steps
-type CreationStep = 'name' | 'method' | 'stats' | 'trait' | 'confirm'
+import { BOBR_CANON_PRIMARY_GUIDE } from '@/lib/bobrCanon'
 
 function getRewardTierPercent(session: RPGSession | null): number {
   if (!session) return 0
@@ -44,146 +33,12 @@ const ATTRIBUTE_INFO: Record<AttributeName, { name: string; abbr: string; desc: 
   cha: { name: 'Charisma', abbr: 'CHA', desc: 'Negotiation & trust' },
 }
 
-// Dice component for visual display
-function DiceDisplay({ value, kept }: { value: number; kept: boolean }) {
-  const dots: Record<number, string[]> = {
-    1: ['50% 50%'],
-    2: ['25% 25%', '75% 75%'],
-    3: ['25% 25%', '50% 50%', '75% 75%'],
-    4: ['25% 25%', '25% 75%', '75% 25%', '75% 75%'],
-    5: ['25% 25%', '25% 75%', '50% 50%', '75% 25%', '75% 75%'],
-    6: ['25% 25%', '25% 50%', '25% 75%', '75% 25%', '75% 50%', '75% 75%'],
-  }
-
-  return (
-    <div
-      className={`
-        relative w-8 h-8 sm:w-10 sm:h-10 border-2 rounded
-        ${kept
-          ? 'bg-[var(--pixel-ui-bg)] border-[var(--pixel-gold-mid)]'
-          : 'bg-[var(--pixel-bg-dark)] border-[var(--pixel-fire-red)] opacity-50'}
-      `}
-    >
-      {dots[value]?.map((pos, i) => (
-        <div
-          key={i}
-          className={`absolute w-2 h-2 rounded-full ${kept ? 'bg-[var(--pixel-gold-light)]' : 'bg-[var(--pixel-fire-red)]'}`}
-          style={{
-            left: pos.split(' ')[0],
-            top: pos.split(' ')[1],
-            transform: 'translate(-50%, -50%)',
-          }}
-        />
-      ))}
-      {!kept && (
-        <div className="absolute inset-0 flex items-center justify-center text-[var(--pixel-fire-red)] font-bold text-lg">
-          ×
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Stat row with dice display
-function StatRollRow({
-  attr,
-  rolls,
-  total,
-}: {
-  attr: AttributeName
-  rolls: { value: number; kept: boolean }[]
-  total: number
-}) {
-  const info = ATTRIBUTE_INFO[attr]
-  const modifier = Math.floor((total - 10) / 2)
-  const modStr = modifier >= 0 ? `+${modifier}` : `${modifier}`
-
-  return (
-    <div className="flex items-center justify-between gap-2 py-2 border-b border-[var(--pixel-ui-border)] last:border-0">
-      <div className="w-16 sm:w-20">
-        <span className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-gold-light)]">
-          {info.abbr}
-        </span>
-        <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-ui-text)]">
-          {info.desc}
-        </p>
-      </div>
-      <div className="flex gap-1">
-        {rolls.map((die, i) => (
-          <DiceDisplay key={i} value={die.value} kept={die.kept} />
-        ))}
-      </div>
-      <div className="text-right w-16">
-        <span className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)]">
-          {total}
-        </span>
-        <span className={`font-[var(--font-pixel)] text-[10px] sm:text-[12px] ml-1 ${modifier >= 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
-          ({modStr})
-        </span>
-      </div>
-    </div>
-  )
-}
-
-// Mandelbrot visualization
-function MandelbrotVisual({ c, iterations }: { c: { re: number; im: number }; iterations: number }) {
-  return (
-    <div className="relative w-32 h-32 mx-auto border-2 border-[var(--pixel-gold-mid)] bg-[var(--pixel-bg-dark)]">
-      {/* Simple fractal-like visualization */}
-      <div
-        className="absolute rounded-full bg-[var(--pixel-gold-mid)]"
-        style={{
-          width: `${Math.min(80, iterations * 0.8)}%`,
-          height: `${Math.min(80, iterations * 0.8)}%`,
-          left: `${50 + c.re * 20}%`,
-          top: `${50 + c.im * 20}%`,
-          transform: 'translate(-50%, -50%)',
-          opacity: 0.3 + (iterations / 100) * 0.7,
-        }}
-      />
-      <div
-        className="absolute w-2 h-2 bg-[var(--pixel-fire-orange)] rounded-full"
-        style={{
-          left: `${50 + c.re * 30}%`,
-          top: `${50 + c.im * 30}%`,
-          transform: 'translate(-50%, -50%)',
-        }}
-      />
-      <div className="absolute bottom-1 left-1 right-1 text-center">
-        <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)]">
-          z = z² + ({c.re.toFixed(2)} + {c.im.toFixed(2)}i)
-        </span>
-      </div>
-    </div>
-  )
-}
-
 export default function AdventurePage() {
-  const { session, startNewGame, loadGame, resetGame, getDiscountCode } = useRPG()
+  const { session, loadGame, resetGame, getDiscountCode } = useRPG()
 
-  // Character creation state
   const router = useRouter()
-  const [creationStep, setCreationStep] = useState<CreationStep>('name')
-  const [nameInput, setNameInput] = useState('')
-  const [showNewGame, setShowNewGame] = useState(false)
-  const [creationMethod, setCreationMethod] = useState<CreationMethod | null>(null)
 
-  // Dice roll state
-  const [attributeRolls, setAttributeRolls] = useState<AttributeRolls | null>(null)
-  const [rerollsUsed, setRerollsUsed] = useState(0)
-  const MAX_REROLLS = 3
-
-  // Mandelbrot state
-  const [mandelbrotResult, setMandelbrotResult] = useState<{ seed: number; iterations: number; c: { re: number; im: number }; escaped: boolean } | null>(null)
-  const [mandelbrotStats, setMandelbrotStats] = useState<CharacterAttributes | null>(null)
-
-  // Trait selection
-  const [selectedTrait, setSelectedTrait] = useState<TraitId | null>(null)
-
-  // Final stats for starting the game
-  const [finalStats, setFinalStats] = useState<CharacterAttributes | null>(null)
-
-  // Unified karma carry-forward
+  // Unified karma carry-forward (shown as a badge on the start screen)
   const [karmaAlignment, setKarmaAlignment] = useState<AlignmentPosition | null>(null)
   const [karmaImported, setKarmaImported] = useState(false)
 
@@ -225,94 +80,6 @@ export default function AdventurePage() {
   const discount = getDiscountCode()
   const rewardPercent = discount?.percent ?? getRewardTierPercent(session)
 
-  // Handle rolling dice
-  const handleRollDice = useCallback(() => {
-    const rolls = rollAllStats()
-    setAttributeRolls(rolls)
-    setFinalStats(attributeRollsToStats(rolls))
-  }, [])
-
-  // Handle reroll
-  const handleReroll = useCallback(() => {
-    if (rerollsUsed < MAX_REROLLS) {
-      handleRollDice()
-      setRerollsUsed(prev => prev + 1)
-    }
-  }, [rerollsUsed, handleRollDice])
-
-  // Handle Mandelbrot generation
-  const handleMandelbrot = useCallback(() => {
-    const result = generateMandelbrotSeed()
-    setMandelbrotResult(result)
-    const stats = distributeStatsMandelbrot(result.seed)
-    setMandelbrotStats(stats)
-    setFinalStats(stats)
-  }, [])
-
-  // Select creation method
-  const handleSelectMethod = useCallback((method: CreationMethod) => {
-    setCreationMethod(method)
-    if (method === 'dice_roll') {
-      handleRollDice()
-    } else if (method === 'mandelbrot') {
-      handleMandelbrot()
-    }
-    setCreationStep('stats')
-  }, [handleRollDice, handleMandelbrot])
-
-  // Proceed to trait selection
-  const handleConfirmStats = useCallback(() => {
-    setCreationStep('trait')
-  }, [])
-
-  // Apply karma alignment bonuses to stats
-  const applyKarmaBonuses = useCallback((base: CharacterAttributes | undefined): CharacterAttributes | undefined => {
-    if (!base || !karmaAlignment) return base
-    const bonused = { ...base }
-    // Alignment bonus table from plan
-    switch (karmaAlignment) {
-      case 'lawful_good':
-        bonused.cha = Math.min(20, bonused.cha + 2) // +2 Diplomacy via CHA
-        break
-      case 'chaotic_good':
-        bonused.wis = Math.min(20, bonused.wis + 2) // +2 Luck via WIS
-        break
-      case 'lawful_evil':
-        bonused.int = Math.min(20, bonused.int + 2) // +2 Shrewdness via INT
-        break
-      case 'chaotic_evil':
-        bonused.dex = Math.min(20, bonused.dex + 2) // +2 Agility via DEX
-        break
-      // Partial alignments get +1
-      case 'neutral_good':
-        bonused.cha = Math.min(20, bonused.cha + 1)
-        break
-      case 'lawful_neutral':
-        bonused.int = Math.min(20, bonused.int + 1)
-        break
-      case 'chaotic_neutral':
-        bonused.dex = Math.min(20, bonused.dex + 1)
-        break
-      case 'neutral_evil':
-        bonused.int = Math.min(20, bonused.int + 1)
-        break
-      // true_neutral: no bonuses
-    }
-    return bonused
-  }, [karmaAlignment])
-
-  // Start the game
-  const handleStartGame = useCallback(() => {
-    const playerName = nameInput.trim() || 'Prospector'
-    const adjustedStats = applyKarmaBonuses(finalStats ?? undefined)
-    startNewGame(playerName, {
-      attributes: adjustedStats,
-      creationMethod: creationMethod || 'standard',
-      rerollsUsed,
-      traits: selectedTrait ? [selectedTrait] : [],
-    })
-  }, [nameInput, finalStats, creationMethod, rerollsUsed, selectedTrait, startNewGame, applyKarmaBonuses])
-
   const handleContinue = () => {
     // Canonical saves have no legacy RPG session for loadGame() to restore —
     // resume them directly in the play route instead of a silent no-op.
@@ -321,14 +88,6 @@ export default function AdventurePage() {
       return
     }
     loadGame()
-  }
-
-  // Check if trait prerequisites are met
-  const isTraitAvailable = (traitId: TraitId): boolean => {
-    if (!finalStats) return true
-    const trait = TRAITS[traitId]
-    if (!trait.prerequisite) return true
-    return finalStats[trait.prerequisite.attribute] >= trait.prerequisite.min
   }
 
   return (
@@ -613,7 +372,7 @@ export default function AdventurePage() {
         </div>
 
         {/* Game Start Options */}
-        {!session && !showNewGame && (
+        {!session && (
           <div className="space-y-4 max-w-md mx-auto">
             {hasSavedGame && (
               <PixelButton onClick={handleContinue} variant="gold" size="md">
@@ -621,8 +380,8 @@ export default function AdventurePage() {
               </PixelButton>
             )}
             {/* Route straight to the canonical S.A.D.D.L.E. creation flow.
-                The old inline D&D creator below is superseded — sending players
-                here prevents building a character twice (B1). */}
+                The old inline D&D creator was superseded and has been removed —
+                sending players here prevents building a character twice (B1). */}
             <PixelButton onClick={() => router.push('/adventure/character-creation')} variant="green" size="md">
               New Adventure
             </PixelButton>
@@ -694,263 +453,6 @@ export default function AdventurePage() {
                 ))}
               </div>
             </div>
-          </div>
-        )}
-
-        {/* New Game Form - Character Creation Flow */}
-        {!session && showNewGame && (
-          <div className="max-w-lg mx-auto">
-            {/* Step 1: Name Entry */}
-            {creationStep === 'name' && (
-              <PixelCard title="Step 1: Name Your Character">
-                <div className="space-y-4">
-                  <div>
-                    <label className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)] block mb-2">
-                      What is your name, traveler?
-                    </label>
-                    <input
-                      type="text"
-                      value={nameInput}
-                      onChange={(e) => setNameInput(e.target.value)}
-                      placeholder="Tobias"
-                      className="w-full bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] p-3 font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-ui-text)] placeholder:text-[var(--pixel-ui-border)]"
-                      maxLength={20}
-                      onKeyDown={(e) => e.key === 'Enter' && setCreationStep('method')}
-                    />
-                  </div>
-                  <div className="flex gap-4">
-                    <PixelButton onClick={() => setCreationStep('method')} variant="gold" size="md">
-                      Next
-                    </PixelButton>
-                    <PixelButton onClick={() => setShowNewGame(false)} variant="blue" size="sm">
-                      Back
-                    </PixelButton>
-                  </div>
-                </div>
-              </PixelCard>
-            )}
-
-            {/* Step 2: Choose Creation Method */}
-            {creationStep === 'method' && (
-              <PixelCard title="Step 2: Choose Your Fate">
-                <div className="space-y-4">
-                  <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center mb-4">
-                    How shall destiny shape {nameInput || 'Prospector'}?
-                  </p>
-
-                  <div className="grid gap-4">
-                    {/* Dice Rolling Option */}
-                    <button
-                      onClick={() => handleSelectMethod('dice_roll')}
-                      className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-gold-mid)] p-4 hover:bg-[var(--pixel-gold-dark)] transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl">🎲</span>
-                        <div>
-                          <h3 className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)]">
-                            Roll the Dice
-                          </h3>
-                          <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
-                            Classic D&D style: 4d6, drop lowest
-                          </p>
-                          <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-forest-light)] mt-1">
-                            Higher highs, lower lows • {MAX_REROLLS} rerolls allowed
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-
-                    {/* Mandelbrot Option */}
-                    <button
-                      onClick={() => handleSelectMethod('mandelbrot')}
-                      className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-ui-border)] p-4 hover:bg-[var(--pixel-bg-light)] transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl">🌀</span>
-                        <div>
-                          <h3 className="font-[var(--font-pixel)] text-[14px] sm:text-[16px] text-[var(--pixel-gold-light)]">
-                            Just Start
-                          </h3>
-                          <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
-                            Mandelbrot-seeded balanced stats
-                          </p>
-                          <p className="font-[var(--font-pixel)] text-[11px] sm:text-[12px] text-[var(--pixel-sky-light)] mt-1">
-                            z = z² + C • Balanced distribution (8-16)
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  </div>
-
-                  <div className="text-center pt-2">
-                    <button
-                      onClick={() => setCreationStep('name')}
-                      className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-border)] hover:text-[var(--pixel-ui-text)]"
-                    >
-                      ← Back to name
-                    </button>
-                  </div>
-                </div>
-              </PixelCard>
-            )}
-
-            {/* Step 3: View/Reroll Stats */}
-            {creationStep === 'stats' && (
-              <PixelCard title="Step 3: Your Attributes">
-                <div className="space-y-4">
-                  {/* Dice Roll Display */}
-                  {creationMethod === 'dice_roll' && attributeRolls && (
-                    <div className="space-y-2">
-                      <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center mb-2">
-                        4d6, drop lowest (shown crossed out)
-                      </p>
-                      <StatRollRow attr="str" rolls={attributeRolls.str.dice} total={attributeRolls.str.total} />
-                      <StatRollRow attr="dex" rolls={attributeRolls.dex.dice} total={attributeRolls.dex.total} />
-                      <StatRollRow attr="con" rolls={attributeRolls.con.dice} total={attributeRolls.con.total} />
-                      <StatRollRow attr="int" rolls={attributeRolls.int.dice} total={attributeRolls.int.total} />
-                      <StatRollRow attr="wis" rolls={attributeRolls.wis.dice} total={attributeRolls.wis.total} />
-                      <StatRollRow attr="cha" rolls={attributeRolls.cha.dice} total={attributeRolls.cha.total} />
-
-                      {/* Total and Reroll */}
-                      <div className="flex justify-between items-center pt-3 border-t-2 border-[var(--pixel-gold-mid)]">
-                        <span className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)]">
-                          Total: <span className="text-[var(--pixel-gold-light)]">
-                            {Object.values(attributeRolls).reduce((sum, r) => sum + r.total, 0)}
-                          </span>
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)]">
-                            Rerolls: {MAX_REROLLS - rerollsUsed}/{MAX_REROLLS}
-                          </span>
-                          {rerollsUsed < MAX_REROLLS && (
-                            <PixelButton onClick={handleReroll} variant="orange" size="sm">
-                              Reroll All 🎲
-                            </PixelButton>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Mandelbrot Display */}
-                  {creationMethod === 'mandelbrot' && mandelbrotResult && mandelbrotStats && (
-                    <div className="space-y-4">
-                      <MandelbrotVisual c={mandelbrotResult.c} iterations={mandelbrotResult.iterations} />
-                      <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center">
-                        Seed: {mandelbrotResult.seed} • {mandelbrotResult.iterations} iterations
-                        {mandelbrotResult.escaped ? ' (escaped)' : ' (bounded)'}
-                      </p>
-
-                      <div className="grid grid-cols-3 gap-3">
-                        {(Object.keys(mandelbrotStats) as AttributeName[]).map((attr) => {
-                          const val = mandelbrotStats[attr]
-                          const mod = Math.floor((val - 10) / 2)
-                          return (
-                            <div key={attr} className="bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] p-2 text-center">
-                              <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
-                                {ATTRIBUTE_INFO[attr].abbr}
-                              </span>
-                              <p className="font-[var(--font-pixel)] text-[16px] text-[var(--pixel-ui-text)]">{val}</p>
-                              <span className={`font-[var(--font-pixel)] text-[10px] ${mod >= 0 ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
-                                ({mod >= 0 ? '+' : ''}{mod})
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
-
-                      <div className="text-center">
-                        <PixelButton onClick={handleMandelbrot} variant="blue" size="sm">
-                          Generate New Seed 🌀
-                        </PixelButton>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex gap-4 pt-4">
-                    <PixelButton onClick={handleConfirmStats} variant="gold" size="md">
-                      Accept Stats
-                    </PixelButton>
-                    <PixelButton onClick={() => setCreationStep('method')} variant="blue" size="sm">
-                      Back
-                    </PixelButton>
-                  </div>
-                </div>
-              </PixelCard>
-            )}
-
-            {/* Step 4: Trait Selection */}
-            {creationStep === 'trait' && (
-              <PixelCard title="Step 4: Choose a Trait (Optional)">
-                <div className="space-y-4">
-                  <p className="font-[var(--font-pixel)] text-[10px] sm:text-[12px] text-[var(--pixel-ui-text)] text-center">
-                    Traits provide special bonuses. Some require minimum attributes.
-                  </p>
-
-                  <div className="grid gap-2 max-h-64 overflow-y-auto">
-                    {/* No Trait Option */}
-                    <button
-                      onClick={() => setSelectedTrait(null)}
-                      className={`text-left p-3 border-2 transition-colors ${
-                        selectedTrait === null
-                          ? 'border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]'
-                          : 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-bg-light)]'
-                      }`}
-                    >
-                      <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)]">
-                        No Trait (Start humble)
-                      </span>
-                    </button>
-
-                    {/* Trait Options */}
-                    {(Object.keys(TRAITS) as TraitId[]).map((traitId) => {
-                      const trait = TRAITS[traitId]
-                      const available = isTraitAvailable(traitId)
-
-                      return (
-                        <button
-                          key={traitId}
-                          onClick={() => available && setSelectedTrait(traitId)}
-                          disabled={!available}
-                          className={`text-left p-3 border-2 transition-colors ${
-                            selectedTrait === traitId
-                              ? 'border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]'
-                              : available
-                              ? 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-bg-light)]'
-                              : 'border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-dark)] opacity-50 cursor-not-allowed'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
-                                {trait.name}
-                              </span>
-                              <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
-                                {trait.description}
-                              </p>
-                            </div>
-                            {trait.prerequisite && (
-                              <span className={`font-[var(--font-pixel)] text-[11px] ${available ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-fire-red)]'}`}>
-                                {ATTRIBUTE_INFO[trait.prerequisite.attribute].abbr} {trait.prerequisite.min}+
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  <div className="flex gap-4 pt-4">
-                    <PixelButton onClick={handleStartGame} variant="gold" size="md">
-                      Begin Adventure!
-                    </PixelButton>
-                    <PixelButton onClick={() => setCreationStep('stats')} variant="blue" size="sm">
-                      Back
-                    </PixelButton>
-                  </div>
-                </div>
-              </PixelCard>
-            )}
           </div>
         )}
 
@@ -1133,8 +635,8 @@ export default function AdventurePage() {
           </h2>
           <p className="font-[var(--font-pixel)] text-[12px] sm:text-[14px] text-[var(--pixel-ui-text)] mb-4 max-w-lg mx-auto">
             Complete the online adventure to unlock the prologue. Then visit Back of Beyond Ranch
-            in person to play "The Golden Hooves Legacy" - a QR code mystery hunt where you
-            discover what Tobias left behind 170 years ago.
+            in person to play &ldquo;The Golden Hooves Legacy&rdquo; - a QR code mystery hunt where you
+            discover what {BOBR_CANON_PRIMARY_GUIDE.displayName} and the ranch family left behind 170 years ago.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <PixelButton href="/game" variant="gold" size="sm">
