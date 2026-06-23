@@ -1,11 +1,17 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { getKarmaSessionId } from '@/lib/karmaServerSync'
+import { getKarmaSessionId, getMarkerProof } from '@/lib/karmaServerSync'
 
-// Optional sign-in. Guests keep playing with their browser session id; signing in LINKS
-// that session to an account (email + a server-generated >=512-bit key). The key is shown
-// ONCE at registration (recovery-key model) — the server stores only a scrypt hash.
+// Account creation + session management (SCAFFOLDING). NO authorization is wired yet —
+// signing in does not grant any privileged or value-bearing action; it only authenticates
+// the browser and links its (proven) session to an account for the future per-account
+// karma-cost feature. "Sign in" here = authentication + session management, not authZ.
+//
+// Guests keep playing with their browser session id; signing in LINKS that session to an
+// account (email + a server-generated >=512-bit key) ONLY when the client can prove it owns
+// the session (markerSession HMAC token — anti karma-grafting). The key is shown ONCE at
+// registration (recovery-key model) — the server stores only a scrypt hash.
 //
 // Security notes surfaced to the player: the key cannot be recovered; save it. QSD entropy
 // is a gated future upgrade (mixed with CSPRNG, never sole) — shown as a status line only.
@@ -33,13 +39,28 @@ export function SignInPanel() {
 
   useEffect(() => { void refreshMe() }, [refreshMe])
 
+  // Build the session-link fields. The server only links a session it can verify the
+  // client owns, via the markerSession HMAC proof. If there's no proof yet (e.g. the
+  // player hasn't recorded a marker), we send no session — the account is still created,
+  // it just isn't linked to an unproven session (anti karma-grafting). Always link the
+  // PROVEN session id, never a free-form one from the client.
+  const linkFields = (): { sessionId?: string; markerToken?: string; difficulty?: string } => {
+    const proof = getMarkerProof()
+    if (proof) {
+      return { sessionId: proof.sessionId, markerToken: proof.markerToken, difficulty: proof.difficulty }
+    }
+    // No verifiable proof — fall back to advertising the karma session id only (the
+    // server will refuse to link it without proof, which is the safe outcome).
+    return { sessionId: getKarmaSessionId() }
+  }
+
   const handleRegister = async () => {
     setBusy(true); setMsg(''); setIssuedKey('')
     try {
       const r = await fetch('/api/account/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), sessionId: getKarmaSessionId() }),
+        body: JSON.stringify({ email: email.trim(), ...linkFields() }),
       })
       const d = await r.json()
       if (!d.ok) { setMsg(d.reason === 'email_unavailable' ? 'That email is unavailable.' : `Error: ${d.reason}`); return }
@@ -50,13 +71,22 @@ export function SignInPanel() {
     } catch { setMsg('Network error.') } finally { setBusy(false) }
   }
 
+  const handleLogout = async () => {
+    setBusy(true); setMsg('')
+    try {
+      await fetch('/api/account/logout', { method: 'POST' })
+      setMsg('Signed out.')
+      await refreshMe()
+    } catch { setMsg('Network error.') } finally { setBusy(false) }
+  }
+
   const handleLogin = async () => {
     setBusy(true); setMsg('')
     try {
       const r = await fetch('/api/account/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), credential: credential.trim(), sessionId: getKarmaSessionId() }),
+        body: JSON.stringify({ email: email.trim(), credential: credential.trim(), ...linkFields() }),
       })
       const d = await r.json()
       if (!d.ok) { setMsg('Invalid email or key.'); return }
@@ -91,6 +121,12 @@ export function SignInPanel() {
       <div className="p-3 border-2 border-amber-600 bg-amber-900/20 rounded text-amber-100 font-pixel text-xs">
         <div>Signed in as <span className="text-amber-300">{me.email}</span></div>
         <div className="text-amber-400/70 mt-1">entropy: {me.entropySource ?? 'csprng'}</div>
+        <button
+          onClick={handleLogout}
+          disabled={busy}
+          className="mt-2 px-2 py-1 rounded border border-amber-600 text-amber-200 hover:bg-amber-800/40 disabled:text-gray-500"
+        >{busy ? '...' : 'Sign out'}</button>
+        {msg && <div className="text-amber-300/90 mt-1">{msg}</div>}
       </div>
     )
   }

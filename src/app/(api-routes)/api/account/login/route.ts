@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'rate_limited' }, { status: 429 });
   }
 
-  let body: { email?: string; credential?: string; sessionId?: string };
+  let body: { email?: string; credential?: string; sessionId?: string; markerToken?: string; difficulty?: string };
   try {
     body = await req.json();
   } catch {
@@ -46,7 +46,11 @@ export async function POST(req: NextRequest) {
   }
 
   touchLogin(account.id);
-  if (sessionId) linkSession(sessionId, account.id);
+  // Anti karma-grafting: only link the guest session with a server-verifiable ownership
+  // proof (the markerSession HMAC token). Unproven session ids are not linked.
+  if (sessionId && body.markerToken && body.difficulty) {
+    linkSession(sessionId, account.id, { markerToken: body.markerToken, difficulty: body.difficulty });
+  }
 
   const token = issueAccountToken(account.id);
   const res = NextResponse.json({ ok: true, email: account.email, accountId: account.id });

@@ -25,6 +25,54 @@ export function getKarmaSessionId(): string {
   }
 }
 
+// --- Session ownership proof (anti karma-grafting) ---------------------------------
+// To link a guest session to an account, the server requires the markerSession HMAC
+// token it issued for that session (proof the client legitimately progressed it). The
+// game records markers under a `game_*` session id and the server returns that token;
+// we persist it here, keyed by session id, so the (separate) SignInPanel component can
+// present it when linking. Without this proof the server refuses to link the session.
+
+const MARKER_PROOF_KEY = 'bobr_marker_proof' // { sessionId, markerToken, difficulty }
+
+export interface MarkerOwnershipProof {
+  sessionId: string
+  markerToken: string
+  difficulty: string
+}
+
+/** Persist the server-issued marker token for a session (called when the server
+ *  returns sessionToken from /api/record-bobr-marker). Also unifies the karma session
+ *  id onto this proven session id so balance + linking key off the same id. */
+export function rememberMarkerProof(proof: MarkerOwnershipProof): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(MARKER_PROOF_KEY, JSON.stringify(proof))
+    // Unify: the karma session now IS the proven game session, so the karma balance
+    // and the account link both key off the same, server-verifiable session id.
+    if (/^[A-Za-z0-9_-]{1,128}$/.test(proof.sessionId)) {
+      localStorage.setItem(KARMA_SESSION_KEY, proof.sessionId)
+    }
+  } catch {
+    // best-effort; failing to persist just means the user can't link until next marker
+  }
+}
+
+/** Read the stored marker ownership proof (or null). */
+export function getMarkerProof(): MarkerOwnershipProof | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(MARKER_PROOF_KEY)
+    if (!raw) return null
+    const p = JSON.parse(raw)
+    if (p && typeof p.sessionId === 'string' && typeof p.markerToken === 'string' && typeof p.difficulty === 'string') {
+      return p as MarkerOwnershipProof
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 export interface ServerBalanceResult {
   ok: boolean
   balance?: KarmaBalance
