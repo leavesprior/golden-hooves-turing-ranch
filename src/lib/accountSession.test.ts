@@ -52,7 +52,7 @@ async function main() {
   // --- Honest round-trip under a real secret is the control ---
   console.log('account-session — honest round-trip under a real secret')
   {
-    delete process.env.NODE_ENV
+    delete (process.env as Record<string, string | undefined>).NODE_ENV
     process.env.MARKER_SESSION_SECRET = REAL_SECRET
     delete process.env.BOBR_SERVER_SECRET
     const t = issueAccountToken('acct_honest')
@@ -72,7 +72,7 @@ async function main() {
     // structurally-broken token.
     delete process.env.MARKER_SESSION_SECRET
     delete process.env.BOBR_SERVER_SECRET
-    process.env.NODE_ENV = 'development'
+    ;(process.env as Record<string, string | undefined>).NODE_ENV = 'development'
     ok(
       verifyAccountToken(forged) === 'acct_victim',
       'control: the forged token DOES verify under the dev secret in dev (mismatch is the cause)',
@@ -84,7 +84,7 @@ async function main() {
   {
     delete process.env.MARKER_SESSION_SECRET
     delete process.env.BOBR_SERVER_SECRET
-    process.env.NODE_ENV = 'production'
+    ;(process.env as Record<string, string | undefined>).NODE_ENV = 'production'
     let threwOnIssue = false
     try {
       issueAccountToken('acct_prod')
@@ -105,7 +105,7 @@ async function main() {
   // --- In production WITH a real secret, normal operation resumes (no over-strict throw). ---
   console.log('account-session — production WITH a real secret operates normally')
   {
-    process.env.NODE_ENV = 'production'
+    ;(process.env as Record<string, string | undefined>).NODE_ENV = 'production'
     process.env.MARKER_SESSION_SECRET = REAL_SECRET
     const t = issueAccountToken('acct_prod_ok')
     ok(verifyAccountToken(t) === 'acct_prod_ok', 'prod with a real secret signs + verifies normally')

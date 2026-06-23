@@ -28,7 +28,7 @@ import path from 'path'
 const SERVER_SECRET = 'test-server-secret-accounts-DDD'
 process.env.MARKER_SESSION_SECRET = SERVER_SECRET
 // Force the dev/local path (never throw on /data absence) and an isolated DB file.
-process.env.NODE_ENV = 'test'
+;(process.env as Record<string, string | undefined>).NODE_ENV = 'test'
 
 // accountsDb.getDbPath() resolves to /tmp/accounts.db when /data is absent (the local/dev
 // path). Start from a CLEAN DB so a stale link from a prior run can't pollute this test.
