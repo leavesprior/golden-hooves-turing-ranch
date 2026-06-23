@@ -1,94 +1,54 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { getKarmaSessionId, fetchServerBalance } from '@/lib/karmaServerSync'
 
-type ConsensusMode = 'full' | 'provisional' | 'offline'
-
-interface ConsensusState {
-  mode: ConsensusMode
-  nodesOnline: number
-  totalNodes: number
-}
+type LedgerMode = 'saved' | 'local'
 
 /**
- * Shows the current blockchain consensus status.
- * - Green: Full Consensus (3 nodes)
- * - Yellow: Provisional Ledger (2 nodes)
- * - Red: Local Only (offline)
+ * Shows where the player's karma is actually being saved — honestly.
+ *
+ * The old version claimed a 3-node blockchain "consensus" (green = 3 nodes,
+ * yellow = "provisional 2 of 3") by probing localhost:8131, a node never
+ * reachable from a visitor's browser, so it perpetually showed a fictional
+ * provisional state. Karma is really persisted to the same-origin SQLite ranch
+ * ledger (`/api/karma/balance`), which works in production. This now reflects
+ * that real state:
+ * - Green  "Saved to ranch ledger" — the server ledger answered.
+ * - Amber  "Saved locally"         — server unreachable; progress kept on device.
  */
 export function ConsensusIndicator() {
-  const [consensus, setConsensus] = useState<ConsensusState>({
-    mode: 'offline',
-    nodesOnline: 0,
-    totalNodes: 3,
-  })
+  const [mode, setMode] = useState<LedgerMode>('local')
 
-  // Check blockchain connectivity on mount and periodically
   useEffect(() => {
-    // The karma ledger node lives at localhost:8131 on a Neoma machine — it is
-    // never reachable from a public visitor's browser. In production, firing this
-    // fetch only produces a guaranteed-failed cross-origin request plus CSP console
-    // noise on every page view (audit L1). Probe only on localhost (dev); otherwise
-    // show the same graceful "offline" the catch path would have produced, without
-    // the doomed request or the 30s polling interval.
-    const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    if (!isLocal) {
-      setConsensus({ mode: 'offline', nodesOnline: 0, totalNodes: 3 })
-      return
+    let cancelled = false
+
+    const checkLedger = async () => {
+      const res = await fetchServerBalance(getKarmaSessionId())
+      if (cancelled) return
+      // Server-authoritative ledger answered → karma is saved to the ranch ledger.
+      // Otherwise it's still safe on the device (offline-tolerant), shown honestly.
+      setMode(res.ok ? 'saved' : 'local')
     }
 
-    const checkConsensus = async () => {
-      try {
-        const response = await fetch('http://localhost:8131/health', {
-          signal: AbortSignal.timeout(1000),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          const nodesOnline = data.nodes_online ?? data.nodesOnline ?? 2
-          const totalNodes = data.total_nodes ?? data.totalNodes ?? 3
-
-          setConsensus({
-            mode: nodesOnline >= 3 ? 'full' : nodesOnline >= 2 ? 'provisional' : 'offline',
-            nodesOnline,
-            totalNodes,
-          })
-        } else {
-          setConsensus({ mode: 'offline', nodesOnline: 0, totalNodes: 3 })
-        }
-      } catch {
-        // In production or when blockchain is down, default to provisional
-        if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-          setConsensus({ mode: 'provisional', nodesOnline: 2, totalNodes: 3 })
-        } else {
-          setConsensus({ mode: 'offline', nodesOnline: 0, totalNodes: 3 })
-        }
-      }
+    checkLedger()
+    const interval = setInterval(checkLedger, 30000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
     }
-
-    checkConsensus()
-    const interval = setInterval(checkConsensus, 30000)
-    return () => clearInterval(interval)
   }, [])
 
   const config = {
-    full: {
+    saved: {
       color: 'text-green-400',
       bg: 'bg-green-900/30',
       border: 'border-green-600',
       dot: 'bg-green-400',
       label: 'Karma Ledger',
-      description: 'All karma tracked',
+      description: 'Saved to ranch ledger',
     },
-    provisional: {
-      color: 'text-yellow-400',
-      bg: 'bg-yellow-900/30',
-      border: 'border-yellow-600',
-      dot: 'bg-yellow-400',
-      label: 'Karma Ledger',
-      description: 'Syncing your karma',
-    },
-    offline: {
+    local: {
       color: 'text-amber-400',
       bg: 'bg-amber-900/30',
       border: 'border-amber-700',
@@ -98,13 +58,13 @@ export function ConsensusIndicator() {
     },
   }
 
-  const c = config[consensus.mode]
+  const c = config[mode]
 
   return (
     <div className={`flex items-center gap-2 px-3 py-1.5 rounded border ${c.bg} ${c.border}`}>
       <div className="relative">
         <div className={`w-2 h-2 rounded-full ${c.dot}`} />
-        {consensus.mode !== 'offline' && (
+        {mode === 'saved' && (
           <div className={`absolute inset-0 w-2 h-2 rounded-full ${c.dot} animate-ping opacity-50`} />
         )}
       </div>

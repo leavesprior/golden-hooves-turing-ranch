@@ -2,10 +2,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
 import {
-  KarmaBlockchainClient,
   KarmaBalance,
   KarmaType,
-  oregonTrailKarma,
 } from '@/lib/karmaBlockchain'
 import {
   AlignmentPosition,
@@ -245,21 +243,10 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     }
   }, [state.alignment, state.isInitialized])
 
-  // Check online status periodically
-  useEffect(() => {
-    const checkOnline = async () => {
-      const online = await oregonTrailKarma.checkConnection()
-      setState(prev => ({
-        ...prev,
-        isOnline: online,
-        pendingTransactions: oregonTrailKarma.pendingCount,
-      }))
-    }
-
-    checkOnline()
-    const interval = setInterval(checkOnline, 10000)
-    return () => clearInterval(interval)
-  }, [])
+  // (Removed 2026-06-22) The periodic :8131 blockchain connection check is gone.
+  // It polled the dead KarmaBlockchainClient, which was force-offline in prod and
+  // only ever set isOnline=false there. Online status now follows the
+  // server-authoritative ledger sync (fetchServerBalance effect above).
 
   // Add a transaction to recent history
   const addTransaction = useCallback((tx: Omit<KarmaTransaction, 'id' | 'timestamp'>) => {
@@ -285,9 +272,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
       const balance = { good: carryForward, neutral: STARTING_NEUTRAL_KARMA, bad: 0 }
 
-      // Try to initialize on blockchain
-      await oregonTrailKarma.initializeWallet(STARTING_NEUTRAL_KARMA)
-
       setState(prev => ({
         ...prev,
         balance,
@@ -305,18 +289,10 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
           : [],
       }))
     } else {
-      // Continue - fetch existing balance
+      // Continue - restore the locally-persisted balance. The server-authoritative
+      // ledger then reconciles it via the fetchServerBalance effect (server-wins,
+      // never wipes local progress).
       try {
-        const balance = await oregonTrailKarma.getBalance()
-        setState(prev => ({
-          ...prev,
-          balance,
-          walletMode: mode,
-          isInitialized: true,
-          isOnline: oregonTrailKarma.online,
-        }))
-      } catch (e) {
-        // Use local storage balance if available
         const stored = localStorage.getItem(LOCAL_STORAGE_KEY)
         if (stored) {
           const parsed: StoredWalletState = JSON.parse(stored)
@@ -325,7 +301,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
             balance: sanitizeBalance(parsed.balance),
             walletMode: mode,
             isInitialized: true,
-            isOnline: false,
           }))
         } else {
           // Fallback to starting balance
@@ -334,23 +309,32 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
             balance: { good: 0, neutral: STARTING_NEUTRAL_KARMA, bad: 0 },
             walletMode: mode,
             isInitialized: true,
-            isOnline: false,
           }))
         }
+      } catch (e) {
+        console.warn('Failed to restore karma wallet on continue:', e)
+        setState(prev => ({
+          ...prev,
+          balance: { good: 0, neutral: STARTING_NEUTRAL_KARMA, bad: 0 },
+          walletMode: mode,
+          isInitialized: true,
+        }))
       }
     }
   }, [])
 
-  // Refresh balance from blockchain
+  // Refresh balance from the server-authoritative ledger.
   const refreshBalance = useCallback(async () => {
     try {
-      const balance = await oregonTrailKarma.getBalance()
-      setState(prev => ({
-        ...prev,
-        balance,
-        isOnline: oregonTrailKarma.online,
-        pendingTransactions: oregonTrailKarma.pendingCount,
-      }))
+      const sessionId = getKarmaSessionId()
+      const res = await fetchServerBalance(sessionId)
+      if (res.ok && res.balance) {
+        setState(prev => ({
+          ...prev,
+          balance: reconcile(prev.balance, res.balance!),
+          isOnline: true,
+        }))
+      }
     } catch (e) {
       setState(prev => ({ ...prev, isOnline: false }))
     }
@@ -373,10 +357,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       memo,
     })
 
-    // Sync with blockchain (fire and forget for speed)
-    oregonTrailKarma.spendNeutral(amount, memo).catch(() => {
-      // Queued for later sync
-    })
+    // Persist to the server-authoritative ledger (fire and forget for speed).
     void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'neutral', delta: -amount, source: 'spend' })
 
     return true
@@ -398,8 +379,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       memo,
     })
 
-    // Sync with blockchain
-    oregonTrailKarma.spendGood(amount, memo).catch(() => {})
+    // Persist to the server-authoritative ledger.
     void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'good', delta: -amount, source: 'spend' })
 
     return true
@@ -422,7 +402,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     // Sync to shared karma pool
     CrossGameStorage.syncKarmaToPool('prospectors_tale', 'neutral', amount, memo || 'Trail earn')
 
-    oregonTrailKarma.earnNeutral(amount, memo).catch(() => {})
     // Persist to the server-authoritative ledger (in-game, unverified path).
     void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'neutral', delta: amount, source: 'earn' })
   }, [addTransaction])
@@ -444,7 +423,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     // Sync to shared karma pool
     CrossGameStorage.syncKarmaToPool('prospectors_tale', 'good', amount, memo || 'Trail good deed')
 
-    oregonTrailKarma.earnGood(amount, memo).catch(() => {})
     void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'good', delta: amount, source: 'earn' })
   }, [addTransaction])
 
@@ -465,7 +443,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     // Sync to shared karma pool
     CrossGameStorage.syncKarmaToPool('prospectors_tale', 'bad', amount, reason)
 
-    oregonTrailKarma.addBadKarma(amount, reason).catch(() => {})
     void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'bad', delta: amount, source: 'contrition' })
   }, [addTransaction])
 
@@ -501,9 +478,11 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       })
     }
 
-    oregonTrailKarma.earnNeutral(neutralAmount, `DONATION: ${memo}`).catch(() => {})
+    // Persist donation to the server-authoritative ledger (was previously only
+    // sent to the dead :8131 client, i.e. lost in prod).
+    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'neutral', delta: neutralAmount, source: 'earn' })
     if (goodAmount > 0) {
-      oregonTrailKarma.earnGood(goodAmount, `DONATION_BONUS: ${memo}`).catch(() => {})
+      void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'good', delta: goodAmount, source: 'earn' })
     }
   }, [addTransaction])
 
@@ -532,7 +511,8 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       memo: `Converted to ${neutralReceived}🌮`,
     })
 
-    oregonTrailKarma.convertGoodToNeutral(goodAmount).catch(() => {})
+    // Convert is a karma boundary op (good→neutral); it is intentionally NOT
+    // auto-posted to the server ledger here — that path is presence-gated.
 
     return true
   }, [addTransaction])
@@ -554,8 +534,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       amount: amount,
       memo: `Debt: +${amount}🪨 / +${amount}🌮`,
     })
-
-    oregonTrailKarma.takeDebt(amount).catch(() => {})
 
     return true
   }, [addTransaction])
