@@ -10,6 +10,7 @@ import {
   EARLY_DISCOUNT_VALID_DAYS,
 } from './locations'
 import { isTopDownBetaRoute } from './topDownBetaRoute'
+import { rememberMarkerProof } from './karmaServerSync'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 export type GameState = 'menu' | 'playing' | 'complete'
@@ -160,7 +161,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
       .then(data => {
         if (!data?.ok) return
         // Capture the token minted by the server on the first marker.
-        if (data.sessionToken) markerTokenRef.current[activeSession.id] = data.sessionToken
+        if (data.sessionToken) {
+          markerTokenRef.current[activeSession.id] = data.sessionToken
+          // Persist the server-issued ownership proof so the (separate) SignInPanel can
+          // present it when linking this session to an account — closes karma-grafting.
+          rememberMarkerProof({
+            sessionId: activeSession.id,
+            markerToken: data.sessionToken,
+            difficulty: activeSession.difficulty,
+          })
+        }
         if (data.markerCount >= EARLY_DISCOUNT_MARKER && !activeSession.earlyDiscountCode) {
           requestEarlyDiscount(activeSession.id)
         }

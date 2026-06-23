@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'rate_limited' }, { status: 429 });
   }
 
-  let body: { email?: string; sessionId?: string };
+  let body: { email?: string; sessionId?: string; markerToken?: string; difficulty?: string };
   try {
     body = await req.json();
   } catch {
@@ -56,7 +56,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'email_unavailable' }, { status: 409 });
   }
 
-  if (sessionId) linkSession(sessionId, accountId);
+  // Anti karma-grafting: only link the guest session if the client presents a
+  // server-verifiable ownership proof (the markerSession HMAC token for this session).
+  // A session that cannot prove ownership is simply not linked — the account is still
+  // created; grafting an unproven session id from the request body is refused.
+  if (sessionId && body.markerToken && body.difficulty) {
+    linkSession(sessionId, accountId, { markerToken: body.markerToken, difficulty: body.difficulty });
+  }
 
   const token = issueAccountToken(accountId);
   const res = NextResponse.json({
