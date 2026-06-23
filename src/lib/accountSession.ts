@@ -2,15 +2,31 @@
 // HMAC-based (same secret family as markerSession), with an expiry. Set as an httpOnly
 // cookie by the auth routes. This is a session proof, NOT a credential — it never
 // contains the secret.
+//
+// SCOPE: this file is account-creation + SESSION-MANAGEMENT scaffolding. It proves
+// "this browser holds a valid session for account X". It does NOT (yet) authorize any
+// action — no route consumes this token to grant a privileged/value-bearing operation.
+// "Auth" here = authentication + session management only, NOT authorization.
 
 import crypto from 'crypto';
 
+// Literal dev fallback secret. Cookies signed with this are FORGEABLE by anyone who
+// reads the source, so it must NEVER be used in production.
+const DEV_FALLBACK_SECRET = 'bobr-dev-marker-secret-do-not-use-in-prod';
+
+// FAIL-CLOSED: in production we refuse to sign or verify any session with the dev
+// fallback secret. A real MARKER_SESSION_SECRET (or BOBR_SERVER_SECRET) MUST be set,
+// or account sessions are forgeable. The dev fallback is permitted ONLY outside prod.
 function getSecret(): string {
-  return (
-    process.env.MARKER_SESSION_SECRET ||
-    process.env.BOBR_SERVER_SECRET ||
-    'bobr-dev-marker-secret-do-not-use-in-prod'
-  );
+  const real = process.env.MARKER_SESSION_SECRET || process.env.BOBR_SERVER_SECRET;
+  if (real) return real;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'FATAL: MARKER_SESSION_SECRET (or BOBR_SERVER_SECRET) is required in production. ' +
+        'Refusing to sign/verify account sessions with the forgeable dev fallback secret.',
+    );
+  }
+  return DEV_FALLBACK_SECRET;
 }
 
 export const ACCOUNT_COOKIE = 'bobr_account';
