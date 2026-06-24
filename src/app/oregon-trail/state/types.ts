@@ -183,4 +183,10 @@ export interface OregonTrailState {
   // Seasonal market (trail-side — ranch has its own; this tracks the active event for the trail shop)
   trailMarketEvent: MarketEvent | null       // Active market event affecting trail shop prices
   trailMarketEventEndDay: number             // Game day the event expires
+
+  // Deterministic RNG (B3) — the reducer/engines draw from a seeded stream so the
+  // pure state-transition path has no Math.random() side effect. rngSeed is fixed
+  // at new-game; rngCursor advances by K each time an action/engine draws K randoms.
+  rngSeed: number                            // Per-game seed, set once at game creation
+  rngCursor: number                          // Position in the deterministic stream
 }

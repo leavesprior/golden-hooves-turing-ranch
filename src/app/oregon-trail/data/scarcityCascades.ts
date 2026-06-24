@@ -479,6 +479,7 @@ export function checkDesperationEvent(
   scarcityDays: Record<string, number>,
   currentDay: number = 0,
   lastDesperationEventDay: number = 0,
+  randFn: () => number = Math.random,
 ): DesperationEvent | null {
   // 3-day cooldown between desperation events
   if (lastDesperationEventDay > 0 && currentDay - lastDesperationEventDay < 3) return null
@@ -506,7 +507,7 @@ export function checkDesperationEvent(
     }
 
     // Random chance (don't fire every day)
-    if (Math.random() > 0.3) continue
+    if (randFn() > 0.3) continue
 
     return event
   }

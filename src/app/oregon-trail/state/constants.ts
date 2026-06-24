@@ -1,4 +1,5 @@
 import type { InvestigationState, OregonTrailState, RandomEvent, Weather } from './types'
+import { freshSeed } from '../lib/seededRng'
 
 // Landmarks along the trail (Missouri to California Gold Country)
 export const LANDMARKS = [
@@ -589,15 +590,18 @@ export const DEFAULT_STATE: OregonTrailState = {
   // Seasonal market (trail-side)
   trailMarketEvent: null,
   trailMarketEventEndDay: 0,
+  // Deterministic RNG (B3) — fresh seed picked once at module load (new-game);
+  // the single permitted Math.random() only chooses the seed. rngCursor starts at 0.
+  rngSeed: freshSeed(),
+  rngCursor: 0,
 }
 
 // Helper function for weather
-export function getRandomWeather(distance: number): Weather {
+export function getRandomWeather(distance: number, rand: number = Math.random()): Weather {
   // Mountain passes: Rocky Mountains (800-1032) and Truckee Pass (1700-1800)
   const inMountains = (distance > 800 && distance < 1032) || (distance > 1700 && distance < 1800)
   // Desert region: Humboldt Sink through Forty Mile Desert (1380-1700)
   const inDesert = distance > 1380 && distance < 1700
-  const rand = Math.random()
 
   if (inMountains) {
     if (rand < 0.3) return 'snow'

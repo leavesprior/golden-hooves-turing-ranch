@@ -384,12 +384,12 @@ export function calculatePartyBonuses(
 /**
  * Check if a posse member will desert based on loyalty
  */
-export function checkDesertion(loyalty: number): { deserts: boolean; warning: boolean } {
+export function checkDesertion(loyalty: number, rand: number = Math.random()): { deserts: boolean; warning: boolean } {
   if (loyalty <= 10) {
-    return { deserts: Math.random() < 0.5, warning: false }
+    return { deserts: rand < 0.5, warning: false }
   }
   if (loyalty <= 20) {
-    return { deserts: Math.random() < 0.15, warning: true }
+    return { deserts: rand < 0.15, warning: true }
   }
   if (loyalty <= 30) {
     return { deserts: false, warning: true }
