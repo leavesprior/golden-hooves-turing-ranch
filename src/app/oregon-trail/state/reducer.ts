@@ -1,16 +1,24 @@
 /**
  * Main game reducer — delegates to engine functions per action type.
  *
- * Note: Some actions (TRAVEL, HUNT, CROSS_RIVER) use Math.random() inside the
- * reducer. This matches the existing useState behavior. The three callbacks with
- * karma side effects (handleEventChoice, crossRiver, completeQuestWithReward)
- * call karma hooks BEFORE dispatching, then the reducer handles the state-only part.
+ * Purity (B3): the reducer and the engine helpers it calls draw randomness from
+ * a deterministic seeded stream (state.rngSeed / state.rngCursor via lib/seededRng),
+ * NOT from Math.random(). Actions/engines that draw K randoms read the (seed,cursor)
+ * pair from state and return the advanced cursor (cursor + K) in the new state, so
+ * the path is a pure function of (state, action). The only Math.random() in this
+ * path picks a fresh seed once at new-game (START_GAME / RESET_GAME); LOAD_STATE
+ * migrates legacy saves to a stable derived seed (logged, never silent).
+ *
+ * The three callbacks with karma side effects (handleEventChoice, crossRiver,
+ * completeQuestWithReward) call karma hooks BEFORE dispatching, then the reducer
+ * handles the state-only part.
  */
 
 import type { OregonTrailState, GamePhase, PartyMember } from './types'
 import type { GameAction } from './actions'
 import { DEFAULT_STATE, DEFAULT_INVESTIGATION } from './constants'
 import { computeTravel } from './travelEngine'
+import { nextRandom, nextInt, freshSeed, seedFromString } from '../lib/seededRng'
 import {
   applyBuySupplies, applySellSupplies, applyRepairWagon,
   applyRestAtInn, applyBuyFood, applyBuyDrink,
@@ -56,7 +64,9 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
           role: 'companion' as PartyRole,
         })),
       ]
-      return { ...DEFAULT_STATE, phase: 'outfitting', party, wagonLeader: action.leaderName }
+      // Fresh seed per new game (the single permitted Math.random — it only
+      // PICKS the seed; all subsequent in-game draws are deterministic from it).
+      return { ...DEFAULT_STATE, phase: 'outfitting', party, wagonLeader: action.leaderName, rngSeed: freshSeed(), rngCursor: 0 }
     }
 
     case 'PURCHASE_SUPPLIES':
@@ -76,10 +86,26 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       return computeTravel(state)
 
     case 'RESET_GAME':
-      return DEFAULT_STATE
+      return { ...DEFAULT_STATE, rngSeed: freshSeed(), rngCursor: 0 }
 
-    case 'LOAD_STATE':
-      return { ...DEFAULT_STATE, ...action.savedState }
+    case 'LOAD_STATE': {
+      const loaded = { ...DEFAULT_STATE, ...action.savedState }
+      // Migration: legacy saves predate the deterministic RNG and have no
+      // rngSeed. Derive a STABLE seed from stable fields so the same save always
+      // resumes the same stream, and reset the cursor. Never silently change
+      // behavior — log the migration.
+      if (action.savedState.rngSeed === undefined || action.savedState.rngSeed === null) {
+        const derived = seedFromString(
+          `${loaded.distance}|${loaded.day}|${loaded.wagonLeader}`,
+        )
+        loaded.rngSeed = derived
+        loaded.rngCursor = 0
+        console.log(
+          `[oregon-trail] LOAD_STATE: legacy save without rngSeed — derived deterministic seed ${derived} (cursor reset to 0).`,
+        )
+      }
+      return loaded
+    }
 
     // === Settings ===
 
@@ -160,12 +186,14 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       if (state.ammunition < 10) {
         return { ...state, message: 'Not enough ammunition to hunt!' }
       }
-      const roll = Math.random()
+      // Deterministic draws (B3): consume 3 from the seeded stream.
+      const huntC = state.rngCursor
+      const roll = nextRandom(state.rngSeed, huntC)
       const success = roll > 0.3
       const isCritSuccess = roll > 0.95
       const isCritFailure = roll < 0.05
-      const ammoUsed = Math.floor(Math.random() * 10) + 5
-      const foodGained = success ? Math.floor(Math.random() * 200) + 50 : 0
+      const ammoUsed = nextInt(state.rngSeed, huntC + 1, 10) + 5
+      const foodGained = success ? nextInt(state.rngSeed, huntC + 2, 200) + 50 : 0
       let huntMessage = success
         ? `You shot a deer! Gained ${foodGained} pounds of food.`
         : 'The animals got away. Better luck next time.'
@@ -179,6 +207,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         ammunition: state.ammunition - ammoUsed,
         food: state.food + foodGained,
         animalsKilled: state.animalsKilled + (success ? 1 : 0),
+        rngCursor: huntC + 3,
         message: huntMessage,
       }
     }
@@ -198,13 +227,16 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
           crossOutcome = { message: 'You caulk the wagon and float across...', damageProbability: 0.25, damageAmount: 15 }
           break
       }
-      const tookDamage = Math.random() < crossOutcome.damageProbability
+      // Deterministic draw (B3): consume 1 from the seeded stream.
+      const crossC = state.rngCursor
+      const tookDamage = nextRandom(state.rngSeed, crossC) < crossOutcome.damageProbability
       const foodLost = tookDamage ? Math.floor(state.food * 0.1) : 0
       return {
         ...state,
         food: state.food - foodLost,
         wagonCondition: tookDamage ? Math.max(0, state.wagonCondition - crossOutcome.damageAmount) : state.wagonCondition,
         riversCrossed: state.riversCrossed + 1,
+        rngCursor: crossC + 1,
         phase: 'traveling',
         message: tookDamage
           ? `${crossOutcome.message} Some supplies were lost in the crossing!`
@@ -214,13 +246,18 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
 
     case 'APPLY_RIVER_CROSSING_EFFECTS': {
       const { effects, message } = action
+      let riverC = state.rngCursor
       let updatedRiverParty = state.party.map(member => ({
         ...member,
         health: Math.max(0, Math.min(100, member.health + (effects.healthDelta || 0)))
       }))
       if (effects.specificInjury) {
-        const targetId = effects.specificInjury.memberId ||
-          updatedRiverParty[Math.floor(Math.random() * updatedRiverParty.length)]?.id
+        let targetId = effects.specificInjury.memberId
+        if (!targetId) {
+          // Deterministic draw (B3): pick a random injured member from the stream.
+          targetId = updatedRiverParty[nextInt(state.rngSeed, riverC, updatedRiverParty.length)]?.id
+          riverC += 1
+        }
         updatedRiverParty = updatedRiverParty.map(member => {
           if (member.id === targetId) {
             const newHealth = Math.max(0, member.health - effects.specificInjury!.damage)
@@ -250,6 +287,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         day: state.day + (effects.daysLost || 0),
         daysOnTrail: state.daysOnTrail + (effects.daysLost || 0),
         riversCrossed: state.riversCrossed + 1,
+        rngCursor: riverC,
         phase: 'traveling' as GamePhase,
         message,
       }

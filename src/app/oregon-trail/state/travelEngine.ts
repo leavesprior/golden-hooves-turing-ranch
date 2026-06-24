@@ -9,6 +9,7 @@
 
 import type { OregonTrailState, GamePhase } from './types'
 import { LANDMARKS, RANDOM_EVENTS, getRandomWeather } from './constants'
+import { nextRandom, nextInt } from '../lib/seededRng'
 import {
   calculatePartyBonuses,
   checkDesertion,
@@ -43,6 +44,13 @@ function computeLandmarkState(
 
 export function computeTravel(prev: OregonTrailState): OregonTrailState {
   if (prev.phase !== 'traveling') return prev
+
+  // === DETERMINISTIC RNG (B3) ===
+  // Draw from the seeded stream rather than Math.random(). `cursor` advances by 1
+  // per draw and the final value is written back to state.rngCursor in every
+  // returned branch, keeping computeTravel a pure (seed,cursor)-threaded function.
+  let cursor = prev.rngCursor
+  const draw = (): number => nextRandom(prev.rngSeed, cursor++)
 
   // === POSSE BONUSES (#6) ===
   const roles = prev.party.map(m => m.role)
@@ -130,6 +138,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
     newScarcityDays,
     prev.day,
     prev.lastDesperationEventDay,
+    draw,
   )
 
   // Calculate new resource values
@@ -212,7 +221,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   }).filter(member => {
     // Check if hired member deserts
     if (member.isHired && member.loyalty !== undefined) {
-      const { deserts } = checkDesertion(member.loyalty)
+      const { deserts } = checkDesertion(member.loyalty, draw())
       if (deserts) {
         desertionMessage = `${member.name} has deserted the party!`
         return false
@@ -224,7 +233,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   // Check for deaths
   const survivors = updatedParty.filter(m => m.health > 0)
   if (survivors.length === 0) {
-    return { ...prev, phase: 'game_over' as GamePhase, message: 'Your entire party has perished...' }
+    return { ...prev, phase: 'game_over' as GamePhase, rngCursor: cursor, message: 'Your entire party has perished...' }
   }
 
   // Recalculate bonuses after potential desertion
@@ -279,9 +288,10 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
           },
         })),
       },
-      weather: getRandomWeather(prev.distance + dailyDistance),
+      weather: getRandomWeather(prev.distance + dailyDistance, draw()),
       partyBonuses: newBonuses,
       compositionBonusNames: activeComps.map(c => c.name),
+      rngCursor: cursor,
       message: desertionMessage,
     }
   }
@@ -305,6 +315,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
       scarcityDays: newScarcityDays,
       partyBonuses: newBonuses,
       compositionBonusNames: activeComps.map(c => c.name),
+      rngCursor: cursor,
       message: 'You have reached Gold Country! The frontier awaits...',
     }
   }
@@ -317,8 +328,8 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   const newPhase = landmarkState.landmarkPhase
 
   // Random events (30% chance when traveling)
-  if (newPhase === 'traveling' && Math.random() < 0.3) {
-    const event = RANDOM_EVENTS[Math.floor(Math.random() * RANDOM_EVENTS.length)]
+  if (newPhase === 'traveling' && draw() < 0.3) {
+    const event = RANDOM_EVENTS[nextInt(prev.rngSeed, cursor++, RANDOM_EVENTS.length)]
     return {
       ...prev,
       day: prev.day + 1,
@@ -336,16 +347,20 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
       daysOnTrail: prev.daysOnTrail + 1,
       phase: 'event',
       currentEvent: event,
-      weather: getRandomWeather(prev.distance),
+      weather: getRandomWeather(prev.distance, draw()),
       scarcityDays: newScarcityDays,
       partyBonuses: newBonuses,
       compositionBonusNames: activeComps.map(c => c.name),
+      rngCursor: cursor,
       message: desertionMessage,
     }
   }
 
   // Normal weather changes
-  const newWeather = Math.random() < 0.15 ? getRandomWeather(newDistance) : prev.weather
+  // Short-circuit preserved: getRandomWeather's draw only fires on the <0.15 path,
+  // matching the original Math.random() ordering.
+  const weatherRoll = draw()
+  const newWeather = weatherRoll < 0.15 ? getRandomWeather(newDistance, draw()) : prev.weather
 
   return {
     ...prev,
@@ -367,6 +382,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
     scarcityDays: newScarcityDays,
     partyBonuses: newBonuses,
     compositionBonusNames: activeComps.map(c => c.name),
+    rngCursor: cursor,
     message: desertionMessage ||
              (newPhase === 'river' ? `You have arrived at ${newLandmark}. The river must be crossed.` :
               newPhase === 'town' ? `You have arrived at ${newLandmark}.` :
