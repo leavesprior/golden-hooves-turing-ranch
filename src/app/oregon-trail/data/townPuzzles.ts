@@ -615,6 +615,83 @@ export const TOWN_PUZZLES: TownPuzzle[] = [
       },
     ],
   },
+  // --- Phase 0 upgrade (per bobr_game_enrichment_plan_20260620): Big Trees ring-count puzzle ---
+  {
+    id: 'big_trees_rings',
+    title: 'The Discovery Tree\'s Calendar',
+    landmark: 'big_trees',
+    description: 'The Big Trees (Calaveras Grove). The "Discovery Tree" stump still shows its rings — 1,244 of them. A claim marker nearby says Vane\'s party "settled and milled here in \'48." The rings disagree.',
+    narratorIntro: 'The narrator observes that trees do not lie, and liars hate trees.',
+    difficulty: 'medium',
+    startStepId: 'examine_stump',
+    oneTimeOnly: true,
+    rewards: {
+      neutralKarma: 25,
+      xp: 40,
+      goodKarma: 1,
+    },
+    steps: [
+      {
+        id: 'examine_stump',
+        text: 'The stump is cross-sectioned. A fresh blaze mark claims "1848 — first cut." But the ring count from the center to that blaze is only 1,191 rings. The outer bark edge adds the rest.',
+        action: 'examine',
+        successText: 'Counting inward from the blaze: 1,191 rings to the heart. The tree was still standing in 1849 when the first real claims were registered. 1848 is a lie.',
+        nextStepId: 'date_the_cut',
+        hint: 'The blaze claims a year. Count the rings it would take to reach that year.',
+      },
+      {
+        id: 'date_the_cut',
+        text: 'If the outer ring is 1852 (the year the "Discovery Tree" was felled for exhibition), how many rings lie between the false 1848 blaze and the true heart?',
+        action: 'choose',
+        choices: [
+          { id: '1191', text: '1,191 rings — the tree was growing strong in 1848; Vane\'s "settled" marker is fresh-milled fraud', correct: true, response: 'The rings are honest. Whoever blazed 1848 was cutting after the fact. Evidence for the Tare\'s presence forgery.' },
+          { id: '1244', text: 'The full 1,244 — it is ancient, therefore Vane is old', correct: false, response: 'The total age is irrelevant. The blaze date is the lie.' },
+          { id: '1852', text: 'Count only from the bark inward', correct: false, response: 'The bark is the present. The question is what the blaze year proves.' },
+        ],
+        successText: 'You pocket a sliver of the false blaze as evidence. Another thread in the case against Cyrus Vane.',
+        nextStepId: null,
+        hint: 'The question is not the tree\'s age, but whether it was standing when Vane claims he milled it.',
+      },
+    ],
+  },
+  // --- Phase 0: Mokelumne Hill ledger / math (Adams & Co express tie-in) ---
+  {
+    id: 'mok_hill_ledger',
+    title: 'The Adams Express Tally',
+    landmark: 'mokelumne_hill',
+    description: 'Adams & Co. express office. A deposit slip for "Vane & Co." shows 47 ounces credited on a date when the books say the office was closed by the Panic. The numbers do not add up to any honest panning day.',
+    narratorIntro: 'The narrator notes that panic years make the best liars — and the worst accountants.',
+    difficulty: 'medium',
+    startStepId: 'read_slip',
+    oneTimeOnly: true,
+    rewards: {
+      neutralKarma: 20,
+      xp: 35,
+    },
+    steps: [
+      {
+        id: 'read_slip',
+        text: 'The slip is dated June 1855. "47 oz dust, assayed, credited." But the ledger for that week is stamped "OFFICE CLOSED — RUN." The only other entry that week is a single 12-oz withdrawal by the same name two days later.',
+        action: 'examine',
+        successText: '47 oz credited on a closed day, then 12 oz out. The dust was never in the safe. The slip is the forgery; the withdrawal is the cleanup.',
+        nextStepId: 'balance_the_books',
+        hint: 'Closed office cannot credit. Look at what actually moved.',
+      },
+      {
+        id: 'balance_the_books',
+        text: 'If the real daily take that week averaged 8-9 oz for honest claims, what does 47 oz on one slip actually represent?',
+        action: 'choose',
+        choices: [
+          { id: 'salted', text: 'Salted with filings or low-grade from multiple claims — Vane "found" what others had already dug', correct: true, response: 'The numbers only work if the dust was collected after the fact and laundered through a closed book. Classic Tare.' },
+          { id: 'lucky', text: 'One rich pan — the luck of the draw', correct: false, response: 'No pan in the Hill ever ran 47 oz in a morning. The books would have noted a strike.' },
+          { id: 'error', text: 'Clerk error; ignore the date stamp', correct: false, response: 'The stamp and the withdrawal two days later tell the same lie.' },
+        ],
+        successText: 'The ledger now carries a marginal note in your hand: "Presence forged — dust arrived after the run." Another honest record Vane cannot erase.',
+        nextStepId: null,
+        hint: 'The closed date is the tell. The withdrawal is the proof it was never real.',
+      },
+    ],
+  },
 ]
 
 /**
