@@ -3287,7 +3287,7 @@ export const dialogues: Record<string, DialogueNode> = {
   twain_his_stories: {
     id: 'twain_his_stories',
     speaker: 'young_writer',
-    text: '"I\'ve got a thousand stories, friend. But the best ones are the ones people don\'t believe are true. Like that jumping frog old Ross Coon told me about..."',
+    text: '"I\'ve got a thousand stories, friend. But the best ones are the ones people don\'t believe are true. Like that jumping frog old Ben Coon told me about..."',
     nextNode: 'twain_frog_story',
   },
   twain_frog_story: {
