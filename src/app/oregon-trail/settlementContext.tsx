@@ -20,6 +20,7 @@ import {
   canAffordPropertyUpgrade,
   calculateNetWorth,
   determineEnding,
+  getUnifiedLivestockCount,
 } from './data/settlementConfig'
 import {
   type BusinessTier,
@@ -675,7 +676,12 @@ export function SettlementProvider({ children }: SettlementProviderProps) {
   }, [balance.neutral, state, ranch])
 
   const getCurrentEnding = useCallback(() => {
-    const totalLivestock = ranch?.getTotalLivestock?.() || 0
+    // Unify horses across both siloed stores: ranch livestock (bobr_ranch_state)
+    // + settlement horses (oregon_trail_settlement). Read-only — no store writes.
+    const totalLivestock = getUnifiedLivestockCount(
+      ranch?.getTotalLivestock?.() || 0,
+      state.horses,
+    )
     const mysterySolved = mysteryState.casesSolved.length > 0 || mysteryState.outlawsCaught > 0
     const allCasesSolved = mysteryState.casesSolved.length >= getAllCases().length
     const outlawCaught = mysteryState.outlawsCaught > 0
