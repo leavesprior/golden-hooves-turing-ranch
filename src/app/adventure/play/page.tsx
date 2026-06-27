@@ -12,7 +12,7 @@ import { ReputationProvider, useReputation, type FactionId } from '@/app/oregon-
 import { NarratorProvider, useNarrator } from '@/app/oregon-trail/narratorContext'
 import { NPCProvider } from '@/app/oregon-trail/npcContext'
 import { MysteryProvider, useMystery } from '@/app/oregon-trail/mysteryContext'
-import { CrossGameStorage } from '@/lib/crossGameProgression'
+import { CrossGameStorage, qualitiesFromSaddle } from '@/lib/crossGameProgression'
 import { saveToCloud, loadFromCloud, hasCloudSave, cachePassphrase, getCachedPassphrase, getDeviceId } from '@/lib/cloudSave'
 import { getPlayerIdentifier } from '@/lib/trophyStateCollector'
 
@@ -852,6 +852,17 @@ function AdventureContent() {
   const charRef = useRef(charState.character)
   useEffect(() => { stateRef.current = adventureState }, [adventureState])
   useEffect(() => { charRef.current = charState.character }, [charState.character])
+
+  // Sync the player's S.A.D.D.L.E. stats into cross-game CharacterQualities so the
+  // braided systems (chase-ledger free-witness gates that require investigation/social
+  // >= 70, and the trophy/legacy share card) reflect the real character instead of the
+  // 50-default. Previously only the prologue populated qualities, so adventure-first
+  // players carried "average" qualities everywhere. See cross-progression sweep 2026-06-26.
+  useEffect(() => {
+    if (charState.character) {
+      CrossGameStorage.updateQualities(qualitiesFromSaddle(charState.character.stats))
+    }
+  }, [charState.character])
 
   // Debounced persistence: replaces the old in-reducer synchronous save. Every
   // state change schedules one write 500ms after activity settles, so a burst
