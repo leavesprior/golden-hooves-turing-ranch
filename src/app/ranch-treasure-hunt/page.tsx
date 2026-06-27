@@ -2,9 +2,21 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import { CrossGameStorage, type TimeEchoId } from '@/lib/crossGameProgression'
 import { useKarma } from '@/lib/karmaContext'
+
+// 3D ranch SPIKE (research, Grok-blessed 2026-06-26). Lazy + client-only so the
+// three.js/R3F bundle never loads unless the player opens the 3D view.
+const RanchScene3D = dynamic(() => import('./RanchScene3D'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[70vh] items-center justify-center text-amber-300 font-pixel text-xs">
+      Loading the 3D ranch…
+    </div>
+  ),
+})
 
 const ECHO_RIDDLES: Record<string, { riddle: string; answer: string; story: string }> = {
   norse_runestone: {
@@ -36,6 +48,7 @@ export default function RanchTreasureHuntPage() {
   const [activeRiddle, setActiveRiddle] = useState<string | null>(null)
   const [riddleAnswer, setRiddleAnswer] = useState('')
   const [riddleResult, setRiddleResult] = useState<{ correct: boolean; story?: string } | null>(null)
+  const [view3D, setView3D] = useState(false)
 
   useEffect(() => {
     setIsReady(true)
@@ -161,9 +174,78 @@ export default function RanchTreasureHuntPage() {
 
           {/* Time Echoes */}
           <div className="bg-purple-900/20 border-2 border-purple-700/50 rounded-lg p-5">
-            <h3 className="font-pixel text-purple-200 text-sm mb-3">
-              {'\u2728'} Time Echoes ({discoveredEchoes}/7)
-            </h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-pixel text-purple-200 text-sm">
+                {'\u2728'} Time Echoes ({discoveredEchoes}/7)
+              </h3>
+              <button
+                onClick={() => setView3D(v => !v)}
+                className="font-pixel text-[9px] text-purple-200 border border-purple-600 px-2 py-1 rounded hover:bg-purple-800/40"
+              >
+                {view3D ? '\u25a3 2D list' : '\u25c8 Explore in 3D (beta)'}
+              </button>
+            </div>
+
+            {view3D && (
+              <div className="mb-4">
+                <RanchScene3D
+                  discoveredEchoIds={Object.entries(timeEchoes).filter(([, v]) => v).map(([k]) => k)}
+                  onInspect={handleEchoClick}
+                />
+                {activeRiddle && (
+                  <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+                    onClick={() => { setActiveRiddle(null); setRiddleResult(null) }}
+                  >
+                    <div
+                      className="w-full max-w-md bg-purple-950 border-2 border-purple-600 rounded-lg p-5"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <p className="font-pixel text-purple-200 text-[11px] mb-3">{ECHO_RIDDLES[activeRiddle]?.riddle}</p>
+                      {riddleResult ? (
+                        <div>
+                          {riddleResult.correct ? (
+                            <div className="text-purple-200 text-[10px]">
+                              <p className="text-green-400 font-pixel mb-1">{'\u2713'} Correct!</p>
+                              <p className="italic">{riddleResult.story}</p>
+                            </div>
+                          ) : (
+                            <p className="text-red-400 text-[10px]">Not quite. Try again...</p>
+                          )}
+                          <button
+                            onClick={() => { if (riddleResult.correct) setActiveRiddle(null); setRiddleResult(null) }}
+                            className="mt-3 font-pixel text-[10px] text-purple-300 border border-purple-600 px-3 py-1 rounded hover:text-purple-100"
+                          >
+                            {riddleResult.correct ? 'Close' : 'Retry'}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            autoFocus
+                            type="text"
+                            value={riddleAnswer}
+                            onChange={e => setRiddleAnswer(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleRiddleSubmit() }}
+                            placeholder="Your answer..."
+                            className="flex-1 bg-black/40 border border-purple-700 text-purple-200 text-[11px] px-2 py-2 rounded outline-none focus:border-purple-500"
+                          />
+                          <button
+                            onClick={handleRiddleSubmit}
+                            className="font-pixel text-[10px] text-purple-200 bg-purple-800/60 border border-purple-600 px-3 py-2 rounded hover:bg-purple-700/60"
+                          >
+                            Submit
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!view3D && (
+            <>
             <p className="text-purple-400 text-xs mb-3">
               Ancient discoveries from the Prologue that manifest here at the ranch.
             </p>
@@ -240,6 +322,8 @@ export default function RanchTreasureHuntPage() {
                 )
               })}
             </div>
+            </>
+            )}
           </div>
         </div>
 
