@@ -4,18 +4,23 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
+import type { Weather, TimeOfDay } from '@/components/CinematicScene'
+
 const CinematicScene = dynamic(() => import('@/components/CinematicScene'), { ssr: false })
 
-// The strongest existing place-art scenes to dress as living paintings.
-const SCENES: { art: string; label: string; rayColor?: number; fireflies?: boolean }[] = [
-  { art: 'welcome_gate', label: 'Ranch Gate — sunset', rayColor: 0xffe6a8, fireflies: true },
-  { art: 'bobr_cabin', label: 'Back of Beyond cabin', rayColor: 0xffdca0, fireflies: true },
-  { art: 'volcano', label: 'Volcano town', rayColor: 0xffe2b0, fireflies: false },
-  { art: 'big_trees', label: 'Big Trees', rayColor: 0xd8f0b0, fireflies: true },
-  { art: 'forester_trail', label: 'Forester trail', rayColor: 0xcdeaa0, fireflies: true },
-  { art: 'kennedy_mine', label: 'Kennedy Mine', rayColor: 0xffd28a, fireflies: false },
-  { art: 'ch3_donner_pass', label: 'Donner Pass', rayColor: 0xbcdfff, fireflies: false },
-  { art: 'natural_bridges', label: 'Natural Bridges', rayColor: 0xbfeecf, fireflies: true },
+// The strongest existing place-art scenes to dress as living paintings —
+// now each with a per-place mood (weather + time-of-day).
+const SCENES: { art: string; label: string; rayColor?: number; fireflies?: boolean; weather?: Weather; timeOfDay?: TimeOfDay }[] = [
+  { art: 'welcome_gate', label: 'Ranch Gate — dusk', rayColor: 0xffe6a8, fireflies: true, timeOfDay: 'dusk' },
+  { art: 'bobr_cabin', label: 'Back of Beyond — dusk fireflies', rayColor: 0xffdca0, fireflies: true, timeOfDay: 'dusk' },
+  { art: 'volcano', label: 'Volcano town — night embers', rayColor: 0xffe2b0, fireflies: false, weather: 'embers', timeOfDay: 'night' },
+  { art: 'big_trees', label: 'Big Trees — morning', rayColor: 0xd8f0b0, fireflies: true, timeOfDay: 'dawn' },
+  { art: 'forester_trail', label: 'Forester trail — dawn', rayColor: 0xcdeaa0, fireflies: true, timeOfDay: 'dawn' },
+  { art: 'kennedy_mine', label: 'Kennedy Mine — dusk', rayColor: 0xffd28a, fireflies: false, timeOfDay: 'dusk' },
+  { art: 'ch3_donner_pass', label: 'Donner Pass — snow', rayColor: 0xbcdfff, fireflies: false, weather: 'snow' },
+  { art: 'natural_bridges', label: 'Natural Bridges — dawn', rayColor: 0xbfeecf, fireflies: true, timeOfDay: 'dawn' },
+  { art: 'ch5_ghost_town', label: 'Ghost town — night embers', rayColor: 0xffc890, fireflies: false, weather: 'embers', timeOfDay: 'night' },
+  { art: 'ch5_hydraulic_scar', label: 'Hydraulic scar — rain', rayColor: 0xc8d6e6, fireflies: false, weather: 'rain', timeOfDay: 'dusk' },
 ]
 
 export default function CinematicPreviewPage() {
@@ -43,7 +48,7 @@ export default function CinematicPreviewPage() {
 
         <div className="overflow-hidden rounded-lg border-2 border-amber-900 bg-black">
           {/* key forces a clean remount per scene */}
-          <CinematicScene key={sc.art} src={`/place-art/${sc.art}.png`} width={1280} height={720} rayColor={sc.rayColor} fireflies={sc.fireflies} />
+          <CinematicScene key={sc.art} src={`/place-art/${sc.art}.png`} width={1280} height={720} rayColor={sc.rayColor} fireflies={sc.fireflies} weather={sc.weather} timeOfDay={sc.timeOfDay} />
         </div>
         <p className="mt-2 text-center font-pixel text-amber-300 text-xs">{sc.label}</p>
 

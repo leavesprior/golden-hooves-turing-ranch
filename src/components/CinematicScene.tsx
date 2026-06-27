@@ -10,22 +10,30 @@ import { useEffect, useRef } from 'react'
  *   • volumetric god-rays from the sun
  *   • drifting warm dust motes + dusk fireflies
  *   • soft sun-glow + vignette + gentle light pulse
+ *   • per-place WEATHER (snow / rain / embers) + TIME-OF-DAY color grade
  *
  * Asset-free beyond the base image; client-only (dynamic import of pixi.js). The
  * point is to prove the "alive cinematic" direction on real art before scaling.
  */
+export type Weather = 'none' | 'snow' | 'rain' | 'embers'
+export type TimeOfDay = 'day' | 'dawn' | 'dusk' | 'night'
+
 export default function CinematicScene({
   src,
   width = 1280,
   height = 720,
   fireflies = true,
   rayColor = 0xffe6a8,
+  weather = 'none',
+  timeOfDay = 'day',
 }: {
   src: string
   width?: number
   height?: number
   fireflies?: boolean
   rayColor?: number
+  weather?: Weather
+  timeOfDay?: TimeOfDay
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
 
@@ -128,8 +136,55 @@ export default function CinematicScene({
         }
       }
 
-      // vignette (dark edges)
-      const vig = new PIXI.Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.62, 'rgba(0,0,0,0)'], [1, 'rgba(15,8,2,0.85)']]))
+      // ── per-place weather (snow / rain / embers) ──
+      const wx: any[] = []
+      if (weather === 'snow') {
+        const snowTex = radial(24, [[0, 'rgba(255,255,255,1)'], [0.6, 'rgba(235,245,255,0.7)'], [1, 'rgba(235,245,255,0)']])
+        for (let i = 0; i < 90; i++) {
+          const p = new PIXI.Sprite(snowTex); p.anchor.set(0.5); p.scale.set(0.2 + Math.random() * 0.5)
+          p.x = Math.random() * width; p.y = Math.random() * height; p.alpha = 0.4 + Math.random() * 0.5
+          atmo.addChild(p)
+          wx.push({ s: p, kind: 'snow', vy: 18 + Math.random() * 30, sway: 8 + Math.random() * 16, ph: Math.random() * 6.28, sp: 0.5 + Math.random() })
+        }
+      } else if (weather === 'rain') {
+        for (let i = 0; i < 120; i++) {
+          const p = new PIXI.Sprite(PIXI.Texture.WHITE); p.anchor.set(0.5)
+          p.width = 1.4; p.height = 14 + Math.random() * 12; p.tint = 0xbfd2e6; p.alpha = 0.18 + Math.random() * 0.22; p.rotation = 0.12
+          p.x = Math.random() * width; p.y = Math.random() * height
+          atmo.addChild(p)
+          wx.push({ s: p, kind: 'rain', vy: 420 + Math.random() * 260, vx: 60 })
+        }
+      } else if (weather === 'embers') {
+        const emTex = radial(24, [[0, 'rgba(255,230,150,1)'], [0.5, 'rgba(255,140,40,0.7)'], [1, 'rgba(255,80,20,0)']])
+        for (let i = 0; i < 50; i++) {
+          const p = new PIXI.Sprite(emTex); p.anchor.set(0.5); p.blendMode = 'add'; p.scale.set(0.15 + Math.random() * 0.5)
+          p.x = Math.random() * width; p.y = Math.random() * height; p.alpha = 0.4 + Math.random() * 0.5
+          atmo.addChild(p)
+          wx.push({ s: p, kind: 'ember', vy: -(20 + Math.random() * 45), sway: 10 + Math.random() * 22, ph: Math.random() * 6.28, sp: 0.6 + Math.random() * 1.2 })
+        }
+      }
+
+      // ── time-of-day color grade (multiply tint + additive light + vignette depth) ──
+      const GRADE: Record<TimeOfDay, { mult: number; multA: number; glow: number; glowA: number; vig: number }> = {
+        day:   { mult: 0xffffff, multA: 0.0,  glow: 0xfff0d0, glowA: 0.0,  vig: 0.85 },
+        dawn:  { mult: 0xffd9d0, multA: 0.22, glow: 0xff9d6a, glowA: 0.18, vig: 0.80 },
+        dusk:  { mult: 0xffcaa0, multA: 0.26, glow: 0xff7e3c, glowA: 0.22, vig: 0.90 },
+        night: { mult: 0x3b4a86, multA: 0.42, glow: 0x6a86c0, glowA: 0.10, vig: 0.95 },
+      }
+      const grade = GRADE[timeOfDay] ?? GRADE.day
+      if (grade.multA > 0) {
+        const cg = new PIXI.Sprite(PIXI.Texture.WHITE)
+        cg.width = width; cg.height = height; cg.tint = grade.mult; cg.alpha = grade.multA; cg.blendMode = 'multiply'
+        app.stage.addChild(cg)
+      }
+      if (grade.glowA > 0) {
+        const cgw = new PIXI.Sprite(PIXI.Texture.WHITE)
+        cgw.width = width; cgw.height = height; cgw.tint = grade.glow; cgw.alpha = grade.glowA; cgw.blendMode = 'add'
+        app.stage.addChild(cgw)
+      }
+
+      // vignette (dark edges — deepens toward night)
+      const vig = new PIXI.Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.62, 'rgba(0,0,0,0)'], [1, `rgba(15,8,2,${grade.vig})`]]))
       vig.width = width * 1.5; vig.height = height * 1.5; vig.anchor.set(0.5); vig.x = width / 2; vig.y = height / 2
       app.stage.addChild(vig)
 
@@ -165,6 +220,20 @@ export default function CinematicScene({
           f.s.y = f.oy + Math.cos(t * f.sp * 0.8 + f.ph) * f.ry
           f.s.alpha = 0.25 + (Math.sin(t * 2.2 + f.ph) * 0.5 + 0.5) * 0.7
         }
+        // weather: snow sways down, rain streaks down, embers rise + glow
+        for (const p of wx) {
+          if (p.kind === 'snow') {
+            p.s.y += p.vy * dt; p.s.x += Math.sin(t * p.sp + p.ph) * p.sway * dt
+            if (p.s.y > height + 10) { p.s.y = -10; p.s.x = Math.random() * width }
+          } else if (p.kind === 'rain') {
+            p.s.y += p.vy * dt; p.s.x += p.vx * dt
+            if (p.s.y > height + 14) { p.s.y = -14; p.s.x = Math.random() * width - 40 }
+          } else if (p.kind === 'ember') {
+            p.s.y += p.vy * dt; p.s.x += Math.sin(t * p.sp + p.ph) * p.sway * dt
+            p.s.alpha = 0.3 + (Math.sin(t * 2 + p.ph) * 0.5 + 0.5) * 0.6
+            if (p.s.y < -10) { p.s.y = height + 10; p.s.x = Math.random() * width }
+          }
+        }
       })
 
       onMove = (e: PointerEvent) => {
@@ -180,7 +249,7 @@ export default function CinematicScene({
       if (canvasEl && onMove) canvasEl.removeEventListener('pointermove', onMove)
       if (app) { try { app.destroy(true, { children: true }) } catch { /* noop */ } }
     }
-  }, [src, width, height, fireflies, rayColor])
+  }, [src, width, height, fireflies, rayColor, weather, timeOfDay])
 
   return <div ref={hostRef} style={{ width: '100%', lineHeight: 0 }} />
 }
