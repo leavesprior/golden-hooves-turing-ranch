@@ -9,6 +9,17 @@ export function middleware(request: NextRequest) {
   const isLanCanary = process.env.LAN_CANARY === '1'
   const isLocalhost = isLanCanary || host.startsWith('localhost') || host.startsWith('127.0.0.1')
 
+  // Timesheets (Micah/Danna worker hours = financial data) must NOT be readily
+  // available. Gate /worker* and /api/worker* behind an explicit env flag — off by
+  // default returns a bare 404 (does not even reveal the route exists). Whoever needs
+  // it sets WORKER_TIMESHEETS_ENABLED=true in that environment. The CCA Trainer
+  // (public/neoma/cca-trainer.html) is a separate area and is unaffected.
+  const path = request.nextUrl.pathname
+  const isTimesheetRoute = path === '/worker' || path.startsWith('/worker/') || path.startsWith('/api/worker')
+  if (isTimesheetRoute && process.env.WORKER_TIMESHEETS_ENABLED !== 'true') {
+    return new NextResponse('Not Found', { status: 404 })
+  }
+
   // Note: HTTPS redirect is handled by Railway's edge proxy.
   // Doing it here breaks Railway's internal healthcheck (HTTP with x-forwarded-proto: http).
 
