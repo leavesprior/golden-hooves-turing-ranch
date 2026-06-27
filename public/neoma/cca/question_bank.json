@@ -923,7 +923,7 @@
         "Compress each log with a smaller model before passing it on"
       ],
       "answer": 2,
-      "why": "Passing full logs makes token cost scale roughly exponentially and offers no crash recovery. Decoupling state into a shared store lets later agents retrieve only what's relevant and survives mid-pipeline crashes. A bigger window just delays the wall; daisy-chaining the last log still loses earlier findings and attribution; compression is lossy and still grows.",
+      "why": "Passing every prior log to every subagent makes total token cost scale quadratically (O(n²)) and offers no crash recovery. Decoupling state into a shared store lets later agents retrieve only what's relevant and survives mid-pipeline crashes. A bigger window just delays the wall; daisy-chaining the last log still loses earlier findings and attribution; compression is lossy and still grows.",
       "distractor_why": {
         "A": "a bigger context window just delays the wall — token cost still scales with every prior log and a mid-pipeline crash still loses everything.",
         "B": "daisy-chaining only the last subagent's log drops earlier findings and their attribution, and still offers no crash recovery.",
@@ -1156,16 +1156,16 @@
       "ts": "2.3",
       "concept": "PreToolUse capability ceiling",
       "difficulty": "medium",
-      "source": "Claude Code course M7.4 (hooks: PreToolUse exit 1 = block); GoBot hard-limits",
+      "source": "Claude Code course M7.4 (hooks: PreToolUse exit 2 = block); GoBot hard-limits",
       "q": "You want a hard, code-level guarantee that an agent can never run a destructive shell command (rm -rf) regardless of what the model decides. Which mechanism gives that guarantee?",
       "choices": [
         "A CLAUDE.md rule saying 'never run rm -rf'",
-        "A PreToolUse hook matching the Bash tool that inspects the command and exits 1 (blocks) when it matches the destructive pattern",
+        "A PreToolUse hook matching the Bash tool that inspects the command and exits 2 (blocks) when it matches the destructive pattern",
         "A few-shot example showing the agent declining rm -rf",
         "Telling the agent at runtime to be careful"
       ],
       "answer": 1,
-      "why": "A PreToolUse hook can block a tool call before it executes (exit code 1 = block) — a deterministic code-level rail that overrides model autonomy. CLAUDE.md rules, few-shot, and runtime reminders are all probabilistic prompt guidance with non-zero failure.",
+      "why": "A PreToolUse hook can block a tool call before it executes (exit code 2 = block; exit 1 is a non-blocking error) — a deterministic code-level rail that overrides model autonomy. CLAUDE.md rules, few-shot, and runtime reminders are all probabilistic prompt guidance with non-zero failure.",
       "distractor_why": {
         "A": "a CLAUDE.md rule saying 'never run rm -rf' is prompt guidance with non-zero failure — it can't physically stop the command the way a code-level hook can.",
         "C": "a few-shot example of declining rm -rf nudges behaviour but doesn't guarantee it — the model can still issue the destructive command.",
@@ -1332,16 +1332,16 @@
       "ts": "3.3",
       "concept": "hook events and matchers",
       "difficulty": "hard",
-      "source": "Claude Code M7.4 (hooks: Event+Matcher+Action; PreToolUse/PostToolUse/UserPromptSubmit/Stop; exit 1 blocks)",
+      "source": "Claude Code M7.4 (hooks: Event+Matcher+Action; PreToolUse/PostToolUse/UserPromptSubmit/Stop; exit 2 blocks)",
       "q": "You want to BLOCK a web search whenever the query contains an outdated year before the tool runs. Which hook configuration is correct?",
       "choices": [
         "A PostToolUse hook on Stop that rewrites the result",
-        "A PreToolUse hook matching WebSearch|WebFetch whose script exits 1 (block) when the query contains the bad year, with a message telling Claude to use the current year",
+        "A PreToolUse hook matching WebSearch|WebFetch whose script exits 2 (block) when the query contains the bad year, with a message telling Claude to use the current year",
         "A UserPromptSubmit hook that deletes the user's message",
         "A Stop hook that retries the whole turn"
       ],
       "answer": 1,
-      "why": "Hooks are Event + Matcher + Action. To block BEFORE a tool runs you use PreToolUse with a matcher (WebSearch|WebFetch); exit code 1 blocks the call and the message guides Claude. PostToolUse fires after execution; UserPromptSubmit injects context (deleting the user message is wrong); Stop fires on finish.",
+      "why": "Hooks are Event + Matcher + Action. To block BEFORE a tool runs you use PreToolUse with a matcher (WebSearch|WebFetch); exit code 2 blocks the call (exit 1 is a non-blocking error) and the message guides Claude. PostToolUse fires after execution; UserPromptSubmit injects context (deleting the user message is wrong); Stop fires on finish.",
       "distractor_why": {
         "A": "a PostToolUse hook on Stop fires after the tool already ran (and Stop is a different event) — it can't BLOCK a search before it executes.",
         "C": "a UserPromptSubmit hook deleting the user's message is wrong and destructive — you want to block the tool call, not erase the user's input.",

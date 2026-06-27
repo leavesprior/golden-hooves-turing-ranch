@@ -43,7 +43,7 @@ function save(){localStorage.setItem("cca_stat_"+USER,JSON.stringify(STAT));}
 function profiles(){try{return JSON.parse(localStorage.getItem("cca_profiles")||"[]")}catch(e){return[]}}
 function rec(id,ok,remark){const s=STAT[id]||{seen:0,correct:0,wrong:0,remark:""};s.seen++;ok?s.correct++:s.wrong++;s.last=Date.now();if(remark)s.remark=remark;STAT[id]=s;save();}
 // readiness: per-domain mastery (correct ratio over seen, untested=0), weighted
-function readiness(){let R=0,dm={},tested=0,total=QS.length;const byd={};QS.forEach(q=>{(byd[q.domain]=byd[q.domain]||[]).push(q);});for(let d=1;d<=5;d++){const qs=byd[d]||[];let sumM=0,cnt=0;qs.forEach(q=>{const s=STAT[q.id];cnt++;if(s&&s.seen){tested++;sumM+=Math.round(100*s.correct/s.seen);}});dm[d]=cnt?Math.round(sumM/cnt):0;R+=dm[d]*DOMW[d]/100;}return{R:Math.round(R),dm,tested,total};}
+function readiness(){let R=0,dm={},tested=0,total=QS.filter(q=>typeof q.domain==='number'&&q.domain>=1&&q.domain<=5).length;const byd={};QS.forEach(q=>{(byd[q.domain]=byd[q.domain]||[]).push(q);});for(let d=1;d<=5;d++){const qs=byd[d]||[];let sumM=0,cnt=0;qs.forEach(q=>{const s=STAT[q.id];cnt++;if(s&&s.seen){tested++;sumM+=Math.round(100*s.correct/s.seen);}});dm[d]=cnt?Math.round(sumM/cnt):0;R+=dm[d]*DOMW[d]/100;}return{R:Math.round(R),dm,tested,total};}
 function gauge(){const{R,dm,tested,total}=readiness();const v=verdict(R,dm,tested,total);return `<div class="card"><div class="row sb"><b>Exam readiness</b><span class="pill">${tested}/${total} tested</span></div>
   <div style="margin:8px 0"><div class="bar"><i style="width:${R}%"></i></div></div>
   <div class="row sb"><span class="scorebig">${R}%</span><span class="muted">≈ ${R*10}/1000 practice · ${v.icon} ${v.label}</span></div>
