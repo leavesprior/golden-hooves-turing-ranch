@@ -676,16 +676,16 @@
       "q": "How many questions and how long is the CCA exam, and what happens if you leave a question blank?",
       "choices": [
         "40 Q / 90 min; blanks are skipped",
-        "60 Q / 120 min; a blank counts as a FAIL (no penalty for guessing)",
+        "60 Q / 120 min; an unanswered question is scored as wrong (no penalty for guessing)",
         "100 Q / 180 min; blanks deduct points",
         "60 Q / 60 min; blanks are neutral"
       ],
       "answer": 1,
-      "why": "60 MCQ in 120 min, rapid fire. No penalty for guessing, but a blank counts as a fail — never leave blanks.",
+      "why": "Multiple-choice; no penalty for guessing, and unanswered questions are scored as incorrect (per Anthropic's official exam guide) — so never leave blanks. NOTE: the 60-question / 120-minute figures are community-reported, not stated in Anthropic's published guide; treat them as approximate. The scoring rule (blank = wrong, no guessing penalty) IS official.",
       "distractor_why": {
-        "A": "40 Q / 90 min with blanks skipped is a plausible-looking exam shape, but the CCA is 60 Q / 120 min and a blank counts as a fail — these numbers are simply wrong.",
-        "C": "100 Q / 180 min with blank penalties misstates both the count and the scoring — there's no point deduction for guessing, only the blank-equals-fail rule.",
-        "D": "60 Q is right but 60 min is half the real 120-minute window, and blanks are NOT neutral — a blank counts as a fail."
+        "A": "40 Q / 90 min with blanks skipped is a plausible-looking exam shape, but blanks are scored as wrong (not skipped) and these numbers don't match the commonly-reported 60 Q / 120 min.",
+        "C": "100 Q / 180 min with blank penalties misstates the scoring — there's no point deduction for guessing; unanswered questions are simply scored as incorrect.",
+        "D": "blanks are NOT neutral — an unanswered question is scored as wrong; and 60 min understates the commonly-reported 120-minute window."
       }
     },
     {
@@ -703,11 +703,11 @@
         "Score 80% once"
       ],
       "answer": 1,
-      "why": "Take the practice exam repeatedly until you score 900/1000, only then sit the real one (one attempt).",
+      "why": "The official minimum passing score is 720/1000 (per Anthropic's exam guide). The practice strategy is to consistently score WELL ABOVE that — around 900/1000 — before sitting, so your real attempt has margin. (Retakes are commonly reported at $99 per attempt, so retaking is possible but worth avoiding.)",
       "distractor_why": {
-        "A": "passing once at 720/1000 sets the bar far too low — the guidance is to hit 900/1000 repeatedly before sitting the single real attempt.",
-        "C": "just reading the guide skips the practice exam entirely — Andrew's warning is the MC wording makes you doubt what you know, so you must drill it.",
-        "D": "scoring 80% once is below the 900/1000 (90%) repeatable bar and ignores that you get essentially one real attempt."
+        "A": "720/1000 is the official pass bar, but clearing it just once in practice is a thin margin — practice consistently above it (~900) before you sit.",
+        "C": "just reading the guide skips the practice exam entirely — the MC wording is designed to make you doubt what you know, so you must drill it.",
+        "D": "scoring 80% once is below a safe practice margin (~900/1000); build consistency before sitting rather than relying on a single near-pass."
       }
     },
     {
