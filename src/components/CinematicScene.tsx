@@ -26,6 +26,7 @@ export default function CinematicScene({
   rayColor = 0xffe6a8,
   weather = 'none',
   timeOfDay = 'day',
+  fit = 'fixed',
 }: {
   src: string
   width?: number
@@ -34,6 +35,8 @@ export default function CinematicScene({
   rayColor?: number
   weather?: Weather
   timeOfDay?: TimeOfDay
+  /** 'fixed' = canvas at its natural width/height (gallery). 'cover' = fill+crop the parent (in-game backdrop). */
+  fit?: 'fixed' | 'cover'
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
 
@@ -53,6 +56,15 @@ export default function CinematicScene({
       if (destroyed) { app.destroy(true); return }
       canvasEl = app.canvas
       hostRef.current!.appendChild(app.canvas)
+
+      // In 'cover' mode the canvas fills + crops its parent (responsive in-game
+      // backdrop, matching the old <img object-cover>); 'fixed' keeps natural size.
+      if (fit === 'cover') {
+        app.canvas.style.width = '100%'
+        app.canvas.style.height = '100%'
+        app.canvas.style.objectFit = 'cover'
+        app.canvas.style.display = 'block'
+      }
 
       // Respect prefers-reduced-motion: compose the graded still painting, no motion.
       const reduce = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -266,5 +278,5 @@ export default function CinematicScene({
     }
   }, [src, width, height, fireflies, rayColor, weather, timeOfDay])
 
-  return <div ref={hostRef} style={{ width: '100%', lineHeight: 0 }} />
+  return <div ref={hostRef} style={fit === 'cover' ? { width: '100%', height: '100%', lineHeight: 0, overflow: 'hidden' } : { width: '100%', lineHeight: 0 }} />
 }

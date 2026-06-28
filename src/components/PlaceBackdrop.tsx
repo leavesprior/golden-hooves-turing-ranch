@@ -7,6 +7,35 @@
 // safe to drop into any game's location view.
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
+import type { Weather, TimeOfDay } from './CinematicScene'
+
+const CinematicScene = dynamic(() => import('./CinematicScene'), { ssr: false })
+
+// Living-painting mode is OFF in production by default — the static <img> below is
+// the shipped, luster-preserving render. Set NEXT_PUBLIC_CINEMATIC_SCENES=1 (e.g.
+// in .env.local) to bring backdrops alive on the LOCAL testing build, or pass
+// cinematic={true} per call to pilot a single scene. Live game stays unchanged.
+const CINEMATIC_ENABLED = process.env.NEXT_PUBLIC_CINEMATIC_SCENES === '1'
+
+// Per-place mood (weather + time-of-day), keyed by the resolved art slug. Anything
+// unlisted falls back to a calm daylit scene with warm rays.
+const SCENE_MOOD: Record<string, { weather?: Weather; timeOfDay?: TimeOfDay; rayColor?: number; fireflies?: boolean }> = {
+  ch3_donner_pass: { weather: 'snow', timeOfDay: 'day', rayColor: 0xbcdfff, fireflies: false },
+  ch3_carson_trail: { weather: 'snow', timeOfDay: 'dawn', rayColor: 0xcfe4ff, fireflies: false },
+  volcano: { weather: 'embers', timeOfDay: 'night', rayColor: 0xffe2b0, fireflies: false },
+  vol_st_george: { weather: 'embers', timeOfDay: 'night', rayColor: 0xffd29a, fireflies: false },
+  ch5_ghost_town: { weather: 'embers', timeOfDay: 'night', rayColor: 0xffc890, fireflies: false },
+  ch5_hydraulic_scar: { weather: 'rain', timeOfDay: 'dusk', rayColor: 0xc8d6e6, fireflies: false },
+  mh_hotel_leger: { weather: 'embers', timeOfDay: 'night', rayColor: 0xffce9a, fireflies: true },
+  welcome_gate: { timeOfDay: 'dusk', rayColor: 0xffe6a8, fireflies: true },
+  bobr_cabin: { timeOfDay: 'dusk', rayColor: 0xffdca0, fireflies: true },
+  kennedy_mine: { timeOfDay: 'dusk', rayColor: 0xffd28a, fireflies: false },
+  sa_courthouse: { timeOfDay: 'dusk', rayColor: 0xffd9a6, fireflies: false },
+  big_trees: { timeOfDay: 'dawn', rayColor: 0xd8f0b0, fireflies: true },
+  forester_trail: { timeOfDay: 'dawn', rayColor: 0xcdeaa0, fireflies: true },
+  natural_bridges: { timeOfDay: 'dawn', rayColor: 0xbfeecf, fireflies: true },
+}
 
 const PLACE_ART: Record<string, string> = {
   // --- Where in Time eras (custom-generated) ---
@@ -39,10 +68,37 @@ const PLACE_ART: Record<string, string> = {
   ch5_ghost_town: 'ch5_ghost_town', ch5_hydraulic_scar: 'ch5_hydraulic_scar',
 }
 
-export function PlaceBackdrop({ id, className = '' }: { id: string; className?: string }) {
+export function PlaceBackdrop({
+  id,
+  className = '',
+  cinematic,
+}: {
+  id: string
+  className?: string
+  /** Override the global flag for a single scene: true = force living painting, false = force static. */
+  cinematic?: boolean
+}) {
   const [failed, setFailed] = useState(false)
   const art = PLACE_ART[id]
   if (!art || failed) return null
+
+  const useCinematic = cinematic ?? CINEMATIC_ENABLED
+  if (useCinematic) {
+    const mood = SCENE_MOOD[art] ?? {}
+    return (
+      <div aria-hidden className={`w-full overflow-hidden ${className}`}>
+        <CinematicScene
+          src={`/place-art/${art}.png`}
+          fit="cover"
+          weather={mood.weather}
+          timeOfDay={mood.timeOfDay}
+          rayColor={mood.rayColor}
+          fireflies={mood.fireflies ?? false}
+        />
+      </div>
+    )
+  }
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
