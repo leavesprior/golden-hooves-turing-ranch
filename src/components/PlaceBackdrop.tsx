@@ -6,7 +6,7 @@
 // public/place-art/. Renders nothing if a location has no art (graceful), so it's
 // safe to drop into any game's location view.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { Weather, TimeOfDay } from './CinematicScene'
 
@@ -79,15 +79,35 @@ export function PlaceBackdrop({
   cinematic?: boolean
 }) {
   const [failed, setFailed] = useState(false)
+  // Scene-change fade: when the resolved art changes, the cinematic backdrop
+  // dissolves in (covers the Pixi rebuild flash → a real "scene transition"
+  // feel). Reduced-motion users skip straight to shown. Hooks run before any
+  // early return to keep hook order stable.
+  const [shown, setShown] = useState(false)
   const art = PLACE_ART[id]
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setShown(true)
+      return
+    }
+    setShown(false)
+    let r2 = 0
+    const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setShown(true)) })
+    return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
+  }, [art])
   if (!art || failed) return null
 
   const useCinematic = cinematic ?? CINEMATIC_ENABLED
   if (useCinematic) {
     const mood = SCENE_MOOD[art] ?? {}
     return (
-      <div aria-hidden className={`w-full overflow-hidden ${className}`}>
+      <div
+        aria-hidden
+        className={`w-full overflow-hidden bg-black ${className}`}
+        style={{ opacity: shown ? 1 : 0, transition: 'opacity 650ms ease-out' }}
+      >
         <CinematicScene
+          key={art}
           src={`/place-art/${art}.png`}
           fit="cover"
           weather={mood.weather}
