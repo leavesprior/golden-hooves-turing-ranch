@@ -42,6 +42,7 @@ export default function CinematicScene({
     let app: any = null
     let onMove: ((e: PointerEvent) => void) | null = null
     let canvasEl: HTMLCanvasElement | null = null
+    let io: IntersectionObserver | null = null
 
     ;(async () => {
       const PIXI = await import('pixi.js')
@@ -52,6 +53,9 @@ export default function CinematicScene({
       if (destroyed) { app.destroy(true); return }
       canvasEl = app.canvas
       hostRef.current!.appendChild(app.canvas)
+
+      // Respect prefers-reduced-motion: compose the graded still painting, no motion.
+      const reduce = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
       // --- helper: radial-gradient texture from an offscreen canvas ---
       const radial = (size: number, stops: [number, string][]) => {
@@ -192,7 +196,7 @@ export default function CinematicScene({
       let t = 0
       const target = { x: 0, y: 0 }
       const cur = { x: 0, y: 0 }
-      app.ticker.add((tk: any) => {
+      if (!reduce) app.ticker.add((tk: any) => {
         const dt = tk.deltaMS / 1000; t += dt
         // pointer parallax easing
         cur.x += (target.x - cur.x) * Math.min(1, dt * 3)
@@ -236,16 +240,27 @@ export default function CinematicScene({
         }
       })
 
-      onMove = (e: PointerEvent) => {
-        const rect = app.canvas.getBoundingClientRect()
-        target.x = ((e.clientX - rect.left) / rect.width - 0.5) * 2
-        target.y = ((e.clientY - rect.top) / rect.height - 0.5) * 2
+      if (!reduce) {
+        onMove = (e: PointerEvent) => {
+          const rect = app.canvas.getBoundingClientRect()
+          target.x = ((e.clientX - rect.left) / rect.width - 0.5) * 2
+          target.y = ((e.clientY - rect.top) / rect.height - 0.5) * 2
+        }
+        app.canvas.addEventListener('pointermove', onMove)
+
+        // Pause the render loop when the scene scrolls offscreen (GPU/battery).
+        if (typeof IntersectionObserver !== 'undefined') {
+          io = new IntersectionObserver((entries) => {
+            for (const e of entries) { if (e.isIntersecting) app.ticker.start(); else app.ticker.stop() }
+          }, { threshold: 0.05 })
+          io.observe(hostRef.current!)
+        }
       }
-      app.canvas.addEventListener('pointermove', onMove)
     })()
 
     return () => {
       destroyed = true
+      if (io) io.disconnect()
       if (canvasEl && onMove) canvasEl.removeEventListener('pointermove', onMove)
       if (app) { try { app.destroy(true, { children: true }) } catch { /* noop */ } }
     }
