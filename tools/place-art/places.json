@@ -259,6 +259,22 @@
       "note": "L&H 1860-70 'Main Street from the St. George Hotel' (calisphere kt6k40193z). St George Hotel clean Maps match."
     },
     {
+      "id": "volcano_general_store",
+      "name": "The Volcano General Store (the Stone Store, est. 1852)",
+      "address": "16146 Main St, Volcano, CA 95689",
+      "latlng": [
+        38.4424,
+        -120.6307
+      ],
+      "year": 1852,
+      "games": [
+        "where-in-time"
+      ],
+      "prompt": "wide establishing shot of a two-story Gold Rush general store built of warm honey-colored native limestone blocks, round brick-arched doorway and windows with iron shutters, a covered wooden porch and verandah over a plank board sidewalk, gabled shingle roof, hand-painted sign, on the dirt main street of Volcano California amid oak-dotted Sierra foothills, warm golden afternoon sunlight, blue sky",
+      "historical_photo": "https://tile.loc.gov/storage-services/service/pnp/habshaer/ca/ca0000/ca0053/photos/014069pr.jpg",
+      "note": "The real Stone Store (Klauber & Mandelbaum, 1852), CHL #29 Volcano, now Sizemore Country Store. HABS 1934 ref 014069pr. GEN: reference-LESS txt2img (img2img from the tight grayscale HABS close-up went gray/incoherent; --aged reinforces grayscale). seed 1852."
+    },
+    {
       "id": "vol_st_george",
       "name": "St. George Hotel",
       "address": "16104 Main St, Volcano, CA 95689",
