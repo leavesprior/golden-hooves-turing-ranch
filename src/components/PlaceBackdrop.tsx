@@ -23,8 +23,11 @@ const CINEMATIC_ENABLED = process.env.NEXT_PUBLIC_CINEMATIC_SCENES === '1'
 const SCENE_MOOD: Record<string, { weather?: Weather; timeOfDay?: TimeOfDay; rayColor?: number; fireflies?: boolean }> = {
   ch3_donner_pass: { weather: 'snow', timeOfDay: 'day', rayColor: 0xbcdfff, fireflies: false },
   ch3_carson_trail: { weather: 'snow', timeOfDay: 'dawn', rayColor: 0xcfe4ff, fireflies: false },
-  volcano: { weather: 'embers', timeOfDay: 'night', rayColor: 0xffe2b0, fireflies: false },
-  vol_st_george: { weather: 'embers', timeOfDay: 'night', rayColor: 0xffd29a, fireflies: false },
+  // Volcano, CA is a Sierra-foothill town (the name is for a crater-like bowl, not
+  // volcanism) — Mediterranean climate, so a warm golden dusk, not embers.
+  volcano: { timeOfDay: 'dusk', rayColor: 0xffe2b0, fireflies: false },
+  volcano_general_store: { timeOfDay: 'day', rayColor: 0xffe9c4, fireflies: false },
+  vol_st_george: { timeOfDay: 'night', rayColor: 0xbcd0ff, fireflies: false }, // the "haunted" St George Hotel — moody night, no embers
   ch5_ghost_town: { weather: 'embers', timeOfDay: 'night', rayColor: 0xffc890, fireflies: false },
   ch5_hydraulic_scar: { weather: 'rain', timeOfDay: 'dusk', rayColor: 0xc8d6e6, fireflies: false },
   mh_hotel_leger: { weather: 'embers', timeOfDay: 'night', rayColor: 0xffce9a, fireflies: true },
@@ -44,7 +47,7 @@ const PLACE_ART: Record<string, string> = {
   sandy_gulch: 'sandy_gulch', harris_ranch: 'harris_ranch', vol_st_george: 'vol_st_george',
   mh_hotel_leger: 'mh_hotel_leger', sa_courthouse: 'sa_courthouse', ace_angels_hotel: 'ace_angels_hotel',
   // --- Gold Country Explorer ---
-  volcano: 'volcano', angels_camp: 'angels_camp', west_point: 'west_point',
+  volcano: 'volcano', volcano_general_store: 'volcano_general_store', angels_camp: 'angels_camp', west_point: 'west_point',
   mokelumne_hill: 'mokelumne_hill', san_andreas: 'san_andreas', bobr_ranch: 'bobr_cabin',
   nevada_city: 'nevada_city', grass_valley: 'grass_valley',
   angels_camp_expanded: 'ace_angels_hotel', mariposa: 'mariposa',

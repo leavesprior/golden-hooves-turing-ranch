@@ -179,7 +179,7 @@ const VOLCANO: TownInvestigation = {
     {
       id: 'general_store',
       place: 'The Volcano General Store (est. 1852)',
-      art: 'volcano',
+      art: 'volcano_general_store',
       witness: { name: 'Charles Burleson', role: 'storekeeper, the 1852 general store' },
       prompt:
         'Vane bought a winter\'s outfit on credit, signing the ledger as a "founding subscriber" of the town\'s proudest institution — a man of standing, good for the debt. To make that standing look real, he needed his name written into a SUBSCRIPTION book that the whole district respected. Where in Volcano did the gentry put their names down to belong?',
