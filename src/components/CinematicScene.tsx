@@ -4,16 +4,17 @@ import { useEffect, useRef } from 'react'
 
 /**
  * CinematicScene — turns a static 32/64-bit place-art image into a LIVING painting
- * (Lunar / Phantasy-Star-IV cutscene feel) using the game's existing Pixi.js:
- *   • slow Ken-Burns breathe + drift
- *   • pointer parallax (foreground atmosphere moves more than the art = depth)
- *   • volumetric god-rays from the sun
- *   • drifting warm dust motes + dusk fireflies
- *   • soft sun-glow + vignette + gentle light pulse
+ * (Lunar / Phantasy-Star-IV cutscene feel).
+ *
+ * The base photo is a real <img> (always renders, crisp + pixelated) and Pixi.js
+ * draws ONLY the atmosphere on a TRANSPARENT canvas on top:
+ *   • slow Ken-Burns breathe + drift (CSS transform on the <img>)
+ *   • pointer parallax (atmosphere moves more than the art = depth)
+ *   • volumetric god-rays · drifting dust · dusk fireflies · sun-glow · vignette
  *   • per-place WEATHER (snow / rain / embers) + TIME-OF-DAY color grade
  *
- * Asset-free beyond the base image; client-only (dynamic import of pixi.js). The
- * point is to prove the "alive cinematic" direction on real art before scaling.
+ * Atmosphere is asset-free (procedural textures); the photo never depends on
+ * Pixi's loader, so the picture shows even if WebGL/Pixi is slow or unavailable.
  */
 export type Weather = 'none' | 'snow' | 'rain' | 'embers'
 export type TimeOfDay = 'day' | 'dawn' | 'dusk' | 'night'
@@ -35,39 +36,47 @@ export default function CinematicScene({
   rayColor?: number
   weather?: Weather
   timeOfDay?: TimeOfDay
-  /** 'fixed' = canvas at its natural width/height (gallery). 'cover' = fill+crop the parent (in-game backdrop). */
+  /** 'fixed' = sized by its natural aspect ratio (gallery). 'cover' = fill+crop the parent (in-game backdrop). */
   fit?: 'fixed' | 'cover'
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
 
   useEffect(() => {
     let destroyed = false
     let app: any = null
     let onMove: ((e: PointerEvent) => void) | null = null
-    let canvasEl: HTMLCanvasElement | null = null
+    let hostEl: HTMLDivElement | null = hostRef.current
     let io: IntersectionObserver | null = null
 
     ;(async () => {
-      const PIXI = await import('pixi.js')
-      if (destroyed) return
-
-      app = new PIXI.Application()
-      await app.init({ width, height, antialias: true, background: '#120c06', resolution: 1 })
-      if (destroyed) { app.destroy(true); return }
-      canvasEl = app.canvas
-      hostRef.current!.appendChild(app.canvas)
-
-      // In 'cover' mode the canvas fills + crops its parent (responsive in-game
-      // backdrop, matching the old <img object-cover>); 'fixed' keeps natural size.
-      if (fit === 'cover') {
-        app.canvas.style.width = '100%'
-        app.canvas.style.height = '100%'
-        app.canvas.style.objectFit = 'cover'
-        app.canvas.style.display = 'block'
+      let PIXI: any
+      try {
+        PIXI = await import('pixi.js')
+      } catch {
+        return // photo <img> still shows; just no atmosphere
       }
+      if (destroyed || !hostRef.current) return
 
-      // Respect prefers-reduced-motion: compose the graded still painting, no motion.
       const reduce = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+      try {
+        app = new PIXI.Application()
+        await app.init({ width, height, antialias: true, backgroundAlpha: 0, resolution: 1 })
+      } catch {
+        return
+      }
+      if (destroyed || !hostRef.current) { try { app.destroy(true) } catch { /* noop */ } ; return }
+
+      // Transparent canvas overlaid exactly on the <img> beneath it.
+      const canvas = app.canvas as HTMLCanvasElement
+      canvas.style.position = 'absolute'
+      canvas.style.inset = '0'
+      canvas.style.width = '100%'
+      canvas.style.height = '100%'
+      canvas.style.objectFit = 'cover'
+      canvas.style.pointerEvents = 'none'
+      hostRef.current.appendChild(canvas)
 
       // --- helper: radial-gradient texture from an offscreen canvas ---
       const radial = (size: number, stops: [number, string][]) => {
@@ -91,16 +100,6 @@ export default function CinematicScene({
         g.globalCompositeOperation = 'destination-in'; g.fillStyle = side; g.fillRect(0, 0, 64, 256)
         return PIXI.Texture.from(c)
       })()
-
-      // ── Base art (cover-fit with slight overscan so drift never shows edges) ──
-      const tex = await PIXI.Assets.load(src)
-      if (destroyed) { app.destroy(true); return }
-      const base = new PIXI.Sprite(tex)
-      base.anchor.set(0.5)
-      const baseScale = Math.max(width / tex.width, height / tex.height) * 1.08
-      base.scale.set(baseScale)
-      base.x = width / 2; base.y = height / 2
-      app.stage.addChild(base)
 
       // ── Atmosphere layers (parallax further than the art) ──
       const atmo = new PIXI.Container(); app.stage.addChild(atmo)
@@ -182,10 +181,10 @@ export default function CinematicScene({
 
       // ── time-of-day color grade (multiply tint + additive light + vignette depth) ──
       const GRADE: Record<TimeOfDay, { mult: number; multA: number; glow: number; glowA: number; vig: number }> = {
-        day:   { mult: 0xffffff, multA: 0.0,  glow: 0xfff0d0, glowA: 0.0,  vig: 0.85 },
-        dawn:  { mult: 0xffd9d0, multA: 0.22, glow: 0xff9d6a, glowA: 0.18, vig: 0.80 },
-        dusk:  { mult: 0xffcaa0, multA: 0.26, glow: 0xff7e3c, glowA: 0.22, vig: 0.90 },
-        night: { mult: 0x3b4a86, multA: 0.42, glow: 0x6a86c0, glowA: 0.10, vig: 0.95 },
+        day:   { mult: 0xffffff, multA: 0.0,  glow: 0xfff0d0, glowA: 0.0,  vig: 0.80 },
+        dawn:  { mult: 0xffd9d0, multA: 0.20, glow: 0xff9d6a, glowA: 0.16, vig: 0.78 },
+        dusk:  { mult: 0xffcaa0, multA: 0.24, glow: 0xff7e3c, glowA: 0.20, vig: 0.86 },
+        night: { mult: 0x3b4a86, multA: 0.40, glow: 0x6a86c0, glowA: 0.10, vig: 0.92 },
       }
       const grade = GRADE[timeOfDay] ?? GRADE.day
       if (grade.multA > 0) {
@@ -200,29 +199,32 @@ export default function CinematicScene({
       }
 
       // vignette (dark edges — deepens toward night)
-      const vig = new PIXI.Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.62, 'rgba(0,0,0,0)'], [1, `rgba(15,8,2,${grade.vig})`]]))
+      const vig = new PIXI.Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.6, 'rgba(0,0,0,0)'], [1, `rgba(15,8,2,${grade.vig})`]]))
       vig.width = width * 1.5; vig.height = height * 1.5; vig.anchor.set(0.5); vig.x = width / 2; vig.y = height / 2
       app.stage.addChild(vig)
 
-      // ── animation ──
+      // ── animation: Ken-Burns drives the <img> (CSS), parallax drives atmosphere ──
+      const img = imgRef.current
+      const OVERSCAN = 1.08
+      if (img) img.style.transform = `scale(${OVERSCAN})` // base overscan so drift never shows edges
       let t = 0
       const target = { x: 0, y: 0 }
       const cur = { x: 0, y: 0 }
       if (!reduce) app.ticker.add((tk: any) => {
         const dt = tk.deltaMS / 1000; t += dt
-        // pointer parallax easing
         cur.x += (target.x - cur.x) * Math.min(1, dt * 3)
         cur.y += (target.y - cur.y) * Math.min(1, dt * 3)
-        // Ken-Burns breathe + drift
-        const breathe = 1 + Math.sin(t * 0.18) * 0.025
-        base.scale.set(baseScale * breathe)
-        base.x = width / 2 + Math.sin(t * 0.13) * 10 + cur.x * 12
-        base.y = height / 2 + Math.cos(t * 0.11) * 7 + cur.y * 8
+        // Ken-Burns breathe + drift on the photo itself
+        if (img) {
+          const breathe = OVERSCAN * (1 + Math.sin(t * 0.18) * 0.02)
+          const dx = Math.sin(t * 0.13) * 0.8 + cur.x * 1.0
+          const dy = Math.cos(t * 0.11) * 0.6 + cur.y * 0.7
+          img.style.transform = `scale(${breathe}) translate(${dx}%, ${dy}%)`
+        }
+        // atmosphere parallax (moves more than the art = depth)
         atmo.x = cur.x * 34; atmo.y = cur.y * 24
-        // rays shimmer
         for (const r of rayList) { r.s.alpha = r.base + Math.sin(t * 0.6 + r.ph) * 0.03 }
         glow.alpha = 0.85 + Math.sin(t * 0.5) * 0.12
-        // dust drift + wrap
         for (const d of dust) {
           d.s.x += (d.vx + Math.sin(t * d.sp + d.ph) * 4) * dt
           d.s.y += d.vy * dt
@@ -230,13 +232,11 @@ export default function CinematicScene({
           if (d.s.y < -20) { d.s.y = height + 20; d.s.x = Math.random() * width }
           if (d.s.x < -20) d.s.x = width + 20; if (d.s.x > width + 20) d.s.x = -20
         }
-        // fireflies wander + pulse
         for (const f of flies) {
           f.s.x = f.ox + Math.sin(t * f.sp + f.ph) * f.rx
           f.s.y = f.oy + Math.cos(t * f.sp * 0.8 + f.ph) * f.ry
           f.s.alpha = 0.25 + (Math.sin(t * 2.2 + f.ph) * 0.5 + 0.5) * 0.7
         }
-        // weather: snow sways down, rain streaks down, embers rise + glow
         for (const p of wx) {
           if (p.kind === 'snow') {
             p.s.y += p.vy * dt; p.s.x += Math.sin(t * p.sp + p.ph) * p.sway * dt
@@ -252,20 +252,20 @@ export default function CinematicScene({
         }
       })
 
-      if (!reduce) {
+      if (!reduce && hostRef.current) {
         onMove = (e: PointerEvent) => {
-          const rect = app.canvas.getBoundingClientRect()
+          const rect = hostRef.current!.getBoundingClientRect()
           target.x = ((e.clientX - rect.left) / rect.width - 0.5) * 2
           target.y = ((e.clientY - rect.top) / rect.height - 0.5) * 2
         }
-        app.canvas.addEventListener('pointermove', onMove)
+        hostRef.current.addEventListener('pointermove', onMove)
+        hostEl = hostRef.current
 
-        // Pause the render loop when the scene scrolls offscreen (GPU/battery).
         if (typeof IntersectionObserver !== 'undefined') {
           io = new IntersectionObserver((entries) => {
             for (const e of entries) { if (e.isIntersecting) app.ticker.start(); else app.ticker.stop() }
           }, { threshold: 0.05 })
-          io.observe(hostRef.current!)
+          io.observe(hostRef.current)
         }
       }
     })()
@@ -273,10 +273,39 @@ export default function CinematicScene({
     return () => {
       destroyed = true
       if (io) io.disconnect()
-      if (canvasEl && onMove) canvasEl.removeEventListener('pointermove', onMove)
+      if (hostEl && onMove) hostEl.removeEventListener('pointermove', onMove)
       if (app) { try { app.destroy(true, { children: true }) } catch { /* noop */ } }
     }
   }, [src, width, height, fireflies, rayColor, weather, timeOfDay])
 
-  return <div ref={hostRef} style={fit === 'cover' ? { width: '100%', height: '100%', lineHeight: 0, overflow: 'hidden' } : { width: '100%', lineHeight: 0 }} />
+  return (
+    <div
+      ref={hostRef}
+      style={
+        fit === 'cover'
+          ? { position: 'relative', width: '100%', height: '100%', overflow: 'hidden', background: '#120c06', lineHeight: 0 }
+          : { position: 'relative', width: '100%', aspectRatio: `${width} / ${height}`, overflow: 'hidden', background: '#120c06', lineHeight: 0 }
+      }
+    >
+      {/* The photo — always renders, independent of Pixi/WebGL. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={imgRef}
+        src={src}
+        alt=""
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          imageRendering: 'pixelated',
+          transformOrigin: 'center',
+          willChange: 'transform',
+        }}
+      />
+      {/* Pixi atmosphere canvas is appended here, absolutely positioned over the photo. */}
+    </div>
+  )
 }
