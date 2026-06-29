@@ -84,8 +84,13 @@ function TravelScreen() {
   const [hiredGuide, setHiredGuide] = useState<HireableGuide | null>(null)
   const [guideRemainingLandmarks, setGuideRemainingLandmarks] = useState(0)
 
-  // Shared state: solved puzzles and visited historical characters
-  const [solvedPuzzles, setSolvedPuzzles] = useState<string[]>([])
+  // Shared state: solved puzzles and visited historical characters.
+  // 2026-06-21: solved puzzles are now PERSISTED (was a silent data-loss bug — progress
+  // vanished on reload). Lazy-init from localStorage; written on each solve below.
+  const [solvedPuzzles, setSolvedPuzzles] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    try { const r = localStorage.getItem('bobr_town_puzzles_solved'); const a = r ? JSON.parse(r) : []; return Array.isArray(a) ? a : [] } catch { return [] }
+  })
   const [visitedHistoricalIds, setVisitedHistoricalIds] = useState<string[]>([])
 
   const handleHireGuide = useCallback((guide: HireableGuide) => {
@@ -113,7 +118,11 @@ function TravelScreen() {
         guideRemainingLandmarks={guideRemainingLandmarks}
         onHireGuide={handleHireGuide}
         solvedPuzzles={solvedPuzzles}
-        onPuzzleSolved={(id) => setSolvedPuzzles(prev => [...prev, id])}
+        onPuzzleSolved={(id) => setSolvedPuzzles(prev => {
+          const next = prev.includes(id) ? prev : [...prev, id]
+          try { localStorage.setItem('bobr_town_puzzles_solved', JSON.stringify(next)) } catch { /* fail-open */ }
+          return next
+        })}
         visitedHistoricalIds={visitedHistoricalIds}
         onHistoricalVisited={(id) => setVisitedHistoricalIds(prev => [...prev, id])}
       />

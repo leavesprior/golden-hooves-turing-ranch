@@ -643,6 +643,25 @@ export default function AdventurePage() {
               </div>
             </div>
 
+            {/* WHERE IN TIME — temporal chase, playable now (discovery fix). Was only
+                reachable from /hub and /prologue; players starting at /adventure had no
+                path to it. */}
+            <div className="border-2 border-[var(--pixel-gold-mid)] bg-gradient-to-b from-[var(--pixel-gold-mid)]/15 to-transparent p-3 text-center">
+              <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
+                ⏳ Where in Time is Cyrus Vane?
+              </p>
+              <p className="font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)] mt-2">
+                A chase across the eras — read the clues, narrow the century, and catch
+                the Tare before he slips through time. A separate deduction game from the
+                main campaign.
+              </p>
+              <div className="mt-3 flex justify-center">
+                <PixelButton href="/adventure/where-in-time" variant="gold" size="sm">
+                  Begin the Chase
+                </PixelButton>
+              </div>
+            </div>
+
             {/* Karma carry-forward badge */}
             {karmaImported && karmaAlignment && (
               <div className="bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-mid)] p-3 text-center">

@@ -45,7 +45,9 @@ export function TownInvestigation({ investigation }: { investigation: TownCase }
     const next = leads - PRESS_COST
     setPressed(true)
     setLeads(next)
-    if (next <= 0) setPhase('cold')
+    // Allow leads to reach exactly 0 so the hard clue (paid for by this press)
+    // still renders; only go cold once leads would go negative.
+    if (next < 0) setPhase('cold')
   }
 
   function choose(id: string) {

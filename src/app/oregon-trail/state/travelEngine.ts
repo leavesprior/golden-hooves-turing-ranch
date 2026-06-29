@@ -336,7 +336,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
       daysOnTrail: prev.daysOnTrail + 1,
       phase: 'event',
       currentEvent: event,
-      weather: getRandomWeather(prev.distance),
+      weather: getRandomWeather(newDistance),
       scarcityDays: newScarcityDays,
       partyBonuses: newBonuses,
       compositionBonusNames: activeComps.map(c => c.name),

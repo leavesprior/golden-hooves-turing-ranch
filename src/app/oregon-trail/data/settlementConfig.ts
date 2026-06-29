@@ -664,6 +664,27 @@ export function calculateNetWorth(
   return Math.floor(total);
 }
 
+/**
+ * Livestock unifier (read-only).
+ *
+ * Horses live in TWO siloed stores: the Ranch game tracks all livestock in
+ * `bobr_ranch_state.livestock` (summed by ranch.getTotalLivestock()), while
+ * the Settlement game tracks horses bought at the Livery in
+ * `oregon_trail_settlement.horses` (settlement `state.horses`). These are
+ * separate inventories, so horses raised in the Settlement game were invisible
+ * to the Rancher ending, which only read the ranch total.
+ *
+ * This combines both counts for ending decisions WITHOUT mutating either store
+ * (net worth already counts both; this brings the ending in line). The two are
+ * distinct inventories, so summing does not double-count.
+ */
+export function getUnifiedLivestockCount(
+  ranchLivestock: number,
+  settlementHorses: number
+): number {
+  return Math.max(0, ranchLivestock || 0) + Math.max(0, settlementHorses || 0)
+}
+
 export function determineEnding(
   propertyTier: PropertyTier,
   daysInSettlement: number,
