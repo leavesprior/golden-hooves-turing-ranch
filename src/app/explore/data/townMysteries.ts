@@ -90,7 +90,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'vc_1',
         attractionId: 'vol_st_george',
-        text: 'A faded letter behind the hotel bar reads: "The package arrives by mule train Thursday. Tell no one. —Union League"',
+        text: 'A faded letter behind the hotel bar reads: "The package arrives by hearse Thursday. Tell no one. —Volcano Blues"',
         discoveryText: 'You notice something tucked behind a portrait in the lobby...',
         required: true,
         order: 1,
@@ -114,7 +114,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'vc_4',
         attractionId: 'vol_cemetery',
-        text: 'A headstone reads: "Capt. Edward Byrne, Union League of Volcano, 1824-1891. He kept the secret."',
+        text: 'A headstone reads: "Capt. Edward Byrne, Volcano Blues militia, 1824-1891. He kept the secret."',
         discoveryText: 'Walking among the headstones, one epitaph is unusually specific...',
         required: true,
         order: 4,
@@ -123,17 +123,17 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     deduction: {
       question: 'Who organized the secret transport of Old Abe to Volcano?',
       options: [
-        { id: 'a', text: 'Confederate sympathizers hiding weapons', correct: false, response: 'No — the cannon was brought BY Union supporters, not against them. The Confederates never knew about it.' },
-        { id: 'b', text: 'The Union League, a secret pro-Union society', correct: true, response: 'Correct! The Union League of Volcano secretly transported Old Abe to defend the gold shipments from Confederate raiders. The cannon was never needed — its mere presence was deterrent enough.' },
-        { id: 'c', text: 'A traveling arms dealer from San Francisco', correct: false, response: 'Close, but no. The cannon was a community effort by local Union loyalists, not a commercial transaction.' },
+        { id: 'a', text: 'Confederate sympathizers hiding weapons', correct: false, response: 'No — the cannon was brought BY Union supporters to deter the local Confederate faction (the Knights of the Golden Circle), not by them.' },
+        { id: 'b', text: 'The Volcano Blues, the local Union militia', correct: true, response: 'Correct! The Volcano Blues — the town\'s Union militia — smuggled Old Abe in by hearse to deter the Knights of the Golden Circle from seizing gold-country gold for the Confederacy. Its mere presence was deterrent enough.' },
+        { id: 'c', text: 'A traveling arms dealer from San Francisco', correct: false, response: 'Close, but no. The cannon was spared from the Benicia armory at the militia\'s request — not a commercial transaction.' },
         { id: 'd', text: 'The U.S. Army garrison at Fort Miller', correct: false, response: 'The Army was spread thin. Old Abe was a grassroots effort by Volcano\'s own citizens.' },
       ],
       minCluesRequired: 2,
     },
     xpReward: 75,
     badgeId: 'mystery_volcano',
-    solvedText: 'The mystery of Old Abe is solved! The Union League\'s secret mission kept Gold Country loyal.',
-    historicalNote: 'Old Abe, a brass cannon, was indeed smuggled into Volcano by the Union League in 1862. It was never fired in anger but served as a powerful symbol of Union loyalty in the gold country. The cannon still sits in Volcano today.',
+    solvedText: 'The mystery of Old Abe is solved! The Volcano Blues\' secret mission kept Gold Country loyal.',
+    historicalNote: 'Old Abe — an 800-lb 6-pounder brass cannon (cast by Cyrus Alger & Co. of Boston in 1837) — was spared from the Benicia armory and smuggled into Volcano by hearse by the "Volcano Blues" Union militia during the Civil War (c. 1862–63), to deter the local Confederate faction known as the Knights of the Golden Circle from seizing gold shipments for the South. Accounts conflict on whether it was ever discharged — most say its mere presence was deterrent enough, though some local tradition holds it was fired once down Main Street. It still sits in Volcano today, on its original wooden carriage.',
   },
 
   // === ANGELS CAMP ===
@@ -272,7 +272,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'mh_2',
         attractionId: 'mh_courthouse',
-        text: 'Court records show the 17th murder was of a Mexican miner named Dr. Concha — the camp\'s only doctor. After his death, the miners realized they needed him alive.',
+        text: 'Local legend holds the 17th killing took the camp\'s only doctor — and that losing him is what finally shocked the miners into organizing. (The surviving court records credit a vigilance committee; the doctor is the story the Hill still tells.)',
         discoveryText: 'Dusty court records in the old courthouse tell a dark story...',
         required: true,
         order: 2,
@@ -280,7 +280,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'mh_3',
         attractionId: 'mh_cemetery',
-        text: 'A gravestone reads: "Dr. Raphael Concha, Healer. His death cured the killing fever." The only headstone with flowers still laid.',
+        text: 'A weathered gravestone the locals still tend reads: "The Healer. His death cured the killing fever." The only headstone with flowers laid — a legend kept, whether or not any register ever named him.',
         discoveryText: 'One grave in the overcrowded cemetery stands apart from the rest...',
         required: true,
         order: 3,
@@ -299,7 +299,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       options: [
         { id: 'a', text: 'The sheriff caught and hanged the serial killer', correct: false, response: 'There was no single killer. The murders were separate incidents — claim disputes, gambling feuds, and racial violence.' },
         { id: 'b', text: 'The army arrived and imposed martial law', correct: false, response: 'The U.S. Army had no presence in Mokelumne Hill. The miners governed themselves — for better or worse.' },
-        { id: 'c', text: 'The town\'s only doctor was murdered, and miners realized they needed to stop', correct: true, response: 'Correct! The 17th murder was Dr. Concha, the only physician for miles. The miners realized that without a doctor, the next gunshot wound or mining accident could kill any of them. A vigilance committee formed, and the killing stopped.' },
+        { id: 'c', text: 'The camp organized a vigilance committee — legend says losing their only doctor was the final shock', correct: true, response: 'Correct — by the documented record, a vigilance committee formed in December 1851 and the killing stopped. The Hill\'s enduring legend supplies the catalyst: that the spree took the camp\'s only doctor, and losing him is what finally shocked the miners into order. The committee is history; the doctor is the story the town keeps.' },
         { id: 'd', text: 'A massive flood washed away the mining camp', correct: false, response: 'Mokelumne Hill survived floods, fires, and worse. It was the loss of their doctor that changed everything.' },
       ],
       minCluesRequired: 3,
@@ -307,7 +307,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     xpReward: 150,
     badgeId: 'mystery_mokehill',
     solvedText: 'The grim tale of Murder Capital is solved. Sometimes it takes losing what you need to appreciate what you had.',
-    historicalNote: 'Mokelumne Hill\'s violent 1851 period is documented in multiple Gold Rush era accounts. While the exact details vary, the town did experience extraordinary violence during the mining boom, driven by claim jumping, ethnic tensions, and lawlessness before vigilance committees brought order.',
+    historicalNote: 'Mokelumne Hill\'s violent 1851 period — a reputed killing a week for seventeen weeks — is documented in multiple Gold Rush accounts, and a vigilance committee is what the record credits with ending it. The "town\'s only doctor" said to have died as the 17th victim is local legend rather than established fact (and is not to be confused with the Chilean Dr. Concha of Mok Hill\'s separate 1849 claim-war), so this mystery is told as the camp\'s enduring story, not court record.',
   },
 
   // === SAN ANDREAS ===
@@ -315,7 +315,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     id: 'sanandreas_bart',
     townId: 'san_andreas',
     title: 'The Gentleman Bandit\'s Double Life',
-    briefing: 'When Black Bart was finally arrested in San Andreas in 1883, detectives discovered something shocking: he had been living openly in San Francisco as respectable mining consultant "Charles E. Bolton" for years. How did a wanted man hide in plain sight — and who helped him do it?',
+    briefing: 'When Black Bart was finally caught in 1883 — arrested in San Francisco after detectives traced a laundry mark on a handkerchief he dropped at a Calaveras County stage robbery, then brought to San Andreas to answer for it — they discovered something shocking: he had been living openly in San Francisco as respectable mining consultant "Charles E. Bolton" for years. How did a wanted man hide in plain sight — and who helped him do it?',
     era: '1883',
     difficulty: 'medium',
     clues: [
@@ -489,14 +489,14 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     id: 'moaningcavern_bones',
     townId: 'moaning_cavern',
     title: 'The Ancient Dead of Moaning Cavern',
-    briefing: 'When Gold Rush miners enlarged the entrance to Moaning Cavern in 1851 to mine guano, they made a grim discovery: ancient human bones at the bottom of a 180-foot shaft, some more than 12,000 years old. Who were these people? And how did their bones end up at the bottom of an inaccessible vertical pit?',
+    briefing: 'When Gold Rush–era explorers entered Moaning Cavern around 1851, they made a grim discovery: ancient human bones at the bottom of a 180-foot shaft, the largest single natural vertical cavern in California. Who were these people? And how did their bones end up at the bottom of an inaccessible vertical pit?',
     era: '1851',
     difficulty: 'hard',
     clues: [
       {
         id: 'mcb_1',
         attractionId: 'mc_main_chamber',
-        text: 'A museum placard reads: "Paleontological excavation 1922 — Dr. William Sinclair, UC Berkeley: recovered 13+ sets of human remains, all pre-Columbian. Ages ranged from adolescent to elder. Carbon dating (1970s): 8,000-13,000 BP. This is among the oldest human remains found in California."',
+        text: 'A museum placard reads: "Excavations 1951–1952 — Phil C. Orr, Santa Barbara Museum of Natural History: recovered the remains of dozens of individuals, ages adolescent to elder. Orr estimated some at ~12,000 years using sinter-thickness (\'speleological\') dating; later radiocarbon work has questioned those ages, but the remains are still among the oldest known in California."',
         discoveryText: 'In the main chamber, geological and historical placards line the walls...',
         required: true,
         order: 1,
@@ -527,10 +527,10 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       },
     ],
     deduction: {
-      question: 'How did 13+ ancient human skeletons end up at the bottom of an inaccessible vertical pit?',
+      question: 'How did dozens of ancient human skeletons end up at the bottom of an inaccessible vertical pit?',
       options: [
-        { id: 'a', text: 'They were carried down by ancient people using primitive rope systems', correct: false, response: 'The bones were found scattered, not arranged — suggesting falls, not deliberate placement. And carbon dating puts them at 8,000-13,000 years ago, far predating any evidence of rope technology in the region.' },
-        { id: 'b', text: 'They fell accidentally through a smaller prehistoric entrance in the dark', correct: true, response: 'Correct! The geological evidence is compelling: the original entrance was much smaller, and the "moaning" sound would have been louder and more eerie, possibly luring curious individuals. In the dark, the vertical shaft would have been invisible. Over thousands of years, multiple people — possibly cave explorers or those drawn by the mysterious sound — fell to their deaths. The remains span 5,000+ years, suggesting repeated accidental tragedies.' },
+        { id: 'a', text: 'They were carried down by ancient people using primitive rope systems', correct: false, response: 'The bones were found scattered, not arranged — suggesting falls, not deliberate placement, and predating any evidence of rope-lowering technology in the region.' },
+        { id: 'b', text: 'They fell accidentally through a smaller prehistoric entrance in the dark', correct: true, response: 'Correct! The geological evidence is compelling: the original entrance was much smaller, and the "moaning" sound would have been louder and more eerie, possibly luring curious individuals. In the dark, the vertical shaft would have been invisible. Over a very long span, multiple people — possibly cave explorers or those drawn by the mysterious sound — fell to their deaths, leaving remains that accumulated across many generations.' },
         { id: 'c', text: 'They were deliberately thrown in as human sacrifice victims', correct: false, response: 'Possible but not the leading theory. The skeletal remains show no evidence of pre-mortem trauma suggesting ritual killing, and the age span of the victims (adolescent to elder) argues against a targeted sacrifice program.' },
         { id: 'd', text: 'They climbed in voluntarily and became trapped', correct: false, response: 'At 180 feet deep, with no footholds, entrapment would mean death by thirst/starvation, not the sudden-impact injuries archaeologists found.' },
       ],
@@ -538,8 +538,8 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     },
     xpReward: 150,
     badgeId: 'mystery_moaning_cavern',
-    solvedText: 'The ancient dead of Moaning Cavern reveal 13,000 years of human curiosity — and its cost.',
-    historicalNote: 'Moaning Cavern near Vallecito, California contains one of the oldest documented human remains in North America. The 180-foot vertical pit has yielded skeletal material carbon-dated to between 8,000 and 13,000 years ago. The cave was used as a guano mine during the Gold Rush before its paleontological significance was understood. Today it operates as a show cave and adventure attraction with rappelling available.',
+    solvedText: 'The ancient dead of Moaning Cavern reveal millennia of human curiosity — and its cost.',
+    historicalNote: 'Moaning Cavern near Vallecito, California contains some of the oldest documented human remains in California. In 1951–1952 Phil C. Orr of the Santa Barbara Museum of Natural History excavated the remains of dozens of individuals from the floor of the 180-foot main chamber, which his sinter-thickness ("speleological") dating placed at roughly 12,000 years old; later radiocarbon redating has called those exact ages into question, but the assemblage remains archaeologically significant. The remains are housed at the Santa Barbara Museum of Natural History. Today the cave operates as a show cave and adventure attraction with rappelling available.',
   },
 
   // === KENNEDY / ARGONAUT — the 1922 Argonaut fire (CHL #786) ===
@@ -604,58 +604,58 @@ export const TOWN_MYSTERIES: TownMystery[] = [
   {
     id: 'ironstone_cavallo',
     townId: 'ironstone_vineyards',
-    title: 'The Cavallo Nugget Mystery',
-    briefing: 'In 1992, workers at Ironstone Vineyards in Murphys uncovered the largest crystalline gold specimen ever found in California — a 44-pound leaf-gold formation now called the "Cavallo Nugget." But old-timers say it wasn\'t the first time gold was found there. And a hidden cellar beneath the winery holds clues to why that earlier discovery was never reported.',
+    title: 'The Crown Jewel\'s True Home',
+    briefing: 'Ironstone Vineyards in Murphys displays "Ironstone\'s Crown Jewel" — the largest crystalline gold-leaf specimen ever found in California. Visitors assume it was dug up here. But where was it really found, and how did it come to rest in the winery\'s Heritage Museum? Read the displays carefully.',
     era: '1992',
     difficulty: 'medium',
     clues: [
       {
         id: 'ic_1',
         attractionId: 'iv_heritage_museum',
-        text: 'The Heritage Museum displays the Cavallo Nugget — 44 pounds of crystalline leaf gold, valued at over $1.5 million. The display notes it was found during vineyard excavation in 1992, just 6 feet below the surface. A geologist\'s note: "Formation like this doesn\'t form alone. Where there is one, there are usually others nearby."',
-        discoveryText: 'In the Heritage Museum, the magnificent Cavallo Nugget is on display...',
+        text: 'The Heritage Museum displays Ironstone\'s Crown Jewel — a 44-pound mass of crystalline leaf gold, the largest of its kind found in California. The label notes it was unearthed on December 24, 1992 — but reading closely, NOT at Ironstone: the find was made at a working hard-rock mine over in Jamestown, in neighboring Tuolumne County.',
+        discoveryText: 'In the Heritage Museum, the magnificent Crown Jewel is on display...',
         required: true,
         order: 1,
       },
       {
         id: 'ic_2',
-        attractionId: 'iv_underground_cavern',
-        text: 'The underground cavern tour reveals the natural cave system beneath the winery. A tour guide\'s placard: "This cavern was used for wine storage as far back as the 1880s. When Kautz family purchased the property in the 1970s, they found evidence of earlier occupation — including a bricked-up alcove that contained rusted mining tools and an unmarked glass jar."',
-        discoveryText: 'Deep in the underground cavern, a placard tells the story of what was found here...',
+        attractionId: 'iv_tasting_room',
+        text: 'A framed provenance card in the tasting room: "The Sonora Mining Corporation\'s crew struck the specimen in their Jamestown pit on Christmas Eve, 1992. It was the Kautz family — founders of Ironstone — who recognized its rarity and acquired it in 1994 to keep it in the Mother Lode and on public view, rather than see it broken up for its gold value."',
+        discoveryText: 'In the historic tasting room, a provenance card explains how the Crown Jewel arrived...',
         required: true,
         order: 2,
       },
       {
         id: 'ic_3',
-        attractionId: 'iv_tasting_room',
-        text: 'A framed document in the tasting room: a 1923 Prohibition-era permit for "medicinal wine storage." The property was then owned by the Bellotti family, who also ran a small dairy. Scrawled in the margin: "Do NOT excavate near the old oak root system." No explanation given.',
-        discoveryText: 'In the historic tasting room, framed documents from the Prohibition era line the walls...',
+        attractionId: 'iv_underground_cavern',
+        text: 'The underground cavern (a real wine-aging cave) has its own history placard: "Ironstone\'s caverns store wine, not gold. The Crown Jewel is displayed upstairs in a vault because of its value — about nine pounds of pure gold within the 44-pound crystalline mass — not because it was found in these rocks."',
+        discoveryText: 'Deep in the wine cavern, a placard clears up a common misconception...',
         required: true,
         order: 3,
       },
       {
         id: 'ic_4',
         attractionId: 'iv_concert_grounds',
-        text: 'The concert grounds sit atop a filled-in hydraulic mining cut from the 1880s. A geological survey marker reads: "This area was subject to extensive placer and drift mining 1875-1895. All mineral rights reverted to state 1921." If earlier owners found gold here, state mineral rights law would have required them to report — and surrender — the find.',
-        discoveryText: 'A geological marker near the concert stage reveals the ground\'s history...',
+        text: 'A geology marker by the concert grounds: "Crystalline leaf gold like the Crown Jewel forms in quartz veins in hard rock — the kind worked at deep mines like Jamestown\'s, not the placer and vineyard soils here. That a specimen this large survived intact, uncrushed by a stamp mill, is what makes it priceless."',
+        discoveryText: 'A geology marker near the stage explains why such a specimen is so rare...',
         required: false,
         order: 4,
       },
     ],
     deduction: {
-      question: 'Why was an earlier gold discovery at the Ironstone property likely never officially reported?',
+      question: 'Where was Ironstone\'s Crown Jewel actually found, and how did it reach the winery?',
       options: [
-        { id: 'a', text: 'The previous owners were unaware they had found gold', correct: false, response: 'The bricked-up alcove with mining tools and the explicit warning "Do NOT excavate near the old oak" suggests deliberate concealment — not ignorance.' },
-        { id: 'b', text: 'California mineral rights law required discovered gold to be surrendered to the state', correct: true, response: 'Correct! After California\'s 1921 mineral rights statute, any gold found on private property technically belonged to the state — a fact widely known and widely ignored by small landowners. The Bellotti family\'s Prohibition-era note warning against excavation near the oak tree, combined with the bricked-up mining tools, strongly suggests an earlier find was quietly concealed and pocketed. When the Cavallo Nugget was found in 1992, Ironstone retained it because mineral rights law had changed.' },
-        { id: 'c', text: 'They sold the gold secretly to avoid taxation during the Depression', correct: false, response: 'Possible, but tax evasion alone wouldn\'t explain the sealed alcove and the warning note not to excavate — that suggests concealing the location, not just the sale.' },
-        { id: 'd', text: 'The gold was actually planted as a tourist attraction stunt', correct: false, response: 'The Cavallo Nugget has been independently authenticated as a genuine natural formation by multiple geological institutions. It is the real thing.' },
+        { id: 'a', text: 'Dug up at Ironstone Vineyards during a 1992 vineyard excavation', correct: false, response: 'A natural assumption from where it\'s displayed — but the displays are clear: it was NOT found at Ironstone. The vineyard soils aren\'t the hard-rock quartz this crystalline gold forms in.' },
+        { id: 'b', text: 'Unearthed at a Jamestown mine in 1992 and later acquired by the Kautz family for display', correct: true, response: 'Correct! Ironstone\'s Crown Jewel was struck by the Sonora Mining Corporation\'s crew at their Jamestown pit (Tuolumne County) on December 24, 1992. The Kautz family, founders of Ironstone, bought it in 1994 so this once-in-a-lifetime crystalline specimen would stay in the Mother Lode and on public view instead of being melted for its gold. It\'s displayed at Ironstone — but it was born in the rock at Jamestown.' },
+        { id: 'c', text: 'Surrendered to the state under a 1921 mineral-rights law, then returned', correct: false, response: 'There is no such California law — gold found on private land belongs to the mineral-rights holder, not the state. The Crown Jewel\'s story is a straightforward find-and-purchase, no confiscation involved.' },
+        { id: 'd', text: 'It is a replica; the original is in a museum elsewhere', correct: false, response: 'It is the genuine specimen, authenticated as the largest crystalline gold-leaf mass found in California — displayed at Ironstone\'s Heritage Museum.' },
       ],
       minCluesRequired: 2,
     },
     xpReward: 100,
     badgeId: 'mystery_ironstone_vineyards',
-    solvedText: 'The Ironstone property held its golden secret for decades. The Cavallo Nugget may not have been the first — just the first reported.',
-    historicalNote: 'The Cavallo Nugget, found at Ironstone Vineyards in 1992, is the largest crystalline gold leaf specimen ever found in California, weighing 44 pounds (equivalent to about 9 pounds of pure gold). Ironstone Vineyards in Murphys, established by the Kautz family, is one of the Sierra Foothills\' most prominent wineries and features a Heritage Museum, underground cavern, and regular concerts. Gold was extensively mined throughout the Calaveras County area from the 1850s onward.',
+    solvedText: 'Ironstone\'s Crown Jewel was born in the rock at Jamestown in 1992 — and saved from the smelter by the Kautz family, who brought it home to the Mother Lode.',
+    historicalNote: 'Ironstone\'s Crown Jewel — the largest crystalline gold-leaf specimen found in California (about 44 pounds, ~9 pounds pure gold) — was unearthed at the Sonora Mining Corporation\'s mine in Jamestown (Tuolumne County) on December 24, 1992. The Kautz family, founders of Ironstone Vineyards in Murphys, acquired it in 1994 and display it in the winery\'s Heritage Museum. (It is sometimes loosely called the "Cavallo Nugget," but its proper name is Ironstone\'s Crown Jewel, and it was not found at the vineyard.) Ironstone features the Heritage Museum, a wine-aging cavern, and concert grounds.',
   },
 
   // === JACKSON ===
@@ -1003,7 +1003,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     xpReward: 150,
     badgeId: 'mystery_pelton_wheel',
     solvedText: 'The Lost Pelton Wheel may still be waiting behind brick in a hotel cellar — the forgotten prototype that powered the modern world.',
-    historicalNote: 'Lester Allan Pelton (1829-1908) developed the Pelton water wheel in Nevada City and Camptonville, California in the late 1870s. His split-bucket design achieved 90% efficiency — a dramatic improvement over previous water wheels — and became the foundation of hydroelectric power generation. Pelton won a critical patent case in 1889, and the Pelton Water Wheel Company (later absorbed by General Electric) manufactured wheels used in power plants worldwide. The original prototype has never been conclusively located.',
+    historicalNote: 'Lester Allan Pelton (1829-1908) developed the Pelton water wheel in Nevada City and Camptonville, California in the late 1870s. His split-bucket design achieved roughly 90% efficiency — a dramatic improvement over previous water wheels — and became a foundation of hydroelectric power generation. Pelton received U.S. Patent 233,692 on October 26, 1880; the Pelton Water Wheel Company he co-founded in San Francisco in 1888 (acquired by Baldwin-Lima-Hamilton in 1955, operating thereafter as its Pelton Division) manufactured wheels used in power plants worldwide. The original prototype has never been conclusively located.',
   },
 
   // === GRASS VALLEY — Empire's Hidden Vault ===
@@ -1061,7 +1061,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     xpReward: 150,
     badgeId: 'mystery_empire_vault',
     solvedText: 'The Empire\'s Hidden Vault lies flooded and sealed on Level 4 — 400 ounces of gold, waiting in the dark since 1869.',
-    historicalNote: 'The Empire Mine in Grass Valley experienced several labor disputes during its 106-year history (1850-1956). The mine\'s 367 miles of tunnels descend to 5,912 feet, with many lower levels permanently flooded after closure. The mine produced an estimated 5.8 million ounces of gold — worth over $11 billion at modern prices. It is now a California State Historic Park. Whether any hidden vault exists on Level 4 has never been conclusively determined, as the lower levels remain inaccessible.',
+    historicalNote: 'The Empire Mine in Grass Valley experienced several labor disputes during its 106-year history (1850-1956). The mine\'s 367 miles of tunnels descend along inclined shafts to roughly 11,000 feet — nearly a vertical mile — with many lower levels permanently flooded after closure. The mine produced an estimated 5.8 million ounces of gold — worth over $11 billion at modern prices. It is now a California State Historic Park. Whether any hidden vault exists on Level 4 has never been conclusively determined, as the lower levels remain inaccessible.',
   },
 
   // === ANGELS CAMP (Old Town) — Twain's Lost Notebook ===

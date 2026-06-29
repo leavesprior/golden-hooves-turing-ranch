@@ -32,11 +32,18 @@ export interface BlockchainError {
 
 // Default agent ID for Oregon Trail game
 const DEFAULT_AGENT_ID = 'bobr_oregon_trail'
-const BLOCKCHAIN_BASE_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? '' // In production, blockchain is not available - use offline mode
-  : 'http://localhost:8131'
+// 2026-06-21: this legacy client targeted a dev EVM service on :8131. The real karma
+// path is now the server-authoritative /api/karma/* ledger (karmaServerSync.ts), so the
+// browser never needs :8131 — and in dev the doomed fetches were tripping CSP
+// (connect-src 'self') and spewing console errors on the karma-market page. Default to
+// OFFLINE in every environment; opt back into the dev chain only via an explicit flag.
+const ENABLE_DEV_CHAIN =
+  typeof window !== 'undefined' &&
+  window.location.hostname === 'localhost' &&
+  process.env.NEXT_PUBLIC_ENABLE_KARMA_DEV_CHAIN === '1'
+const BLOCKCHAIN_BASE_URL = ENABLE_DEV_CHAIN ? 'http://localhost:8131' : '' // '' => offline mode
 const API_TIMEOUT_MS = 500
-const IS_PRODUCTION = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+const IS_PRODUCTION = !ENABLE_DEV_CHAIN // offline everywhere unless the dev-chain flag is on
 
 /**
  * Timeout wrapper for fetch requests

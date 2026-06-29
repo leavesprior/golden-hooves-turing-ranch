@@ -21,12 +21,18 @@ import {
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 const REQUEST_TIMEOUT = 60000; // 60 seconds for generation
 
-// Proxy mode: route through server-side API routes
-// Auto-detect production: if we're not on localhost, always use proxy mode
-const isProxyMode = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_LLM_MODE === 'proxy')
-  || (typeof window !== 'undefined' && window.location.hostname !== 'localhost');
+// Proxy mode: route LLM through server-side API routes (/api/llm/*).
+// 2026-06-21: a direct browser→localhost:11434 fetch is ALWAYS blocked by CSP
+// (connect-src 'self'), so it only ever produced console errors on /oregon-trail and
+// fell back anyway. The browser therefore ALWAYS uses the server proxy (which reaches
+// Ollama via LLM_OLLAMA_URL). The NEXT_PUBLIC_LLM_MODE=direct path is honored only in a
+// non-browser (server/node) context, where 11434 is reachable and not CSP-gated.
+const inBrowser = typeof window !== 'undefined';
+const isProxyMode = inBrowser
+  ? true
+  : (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_LLM_MODE !== 'direct');
 
-// Only define direct Ollama URL in local dev - avoids http:// string in production bundles
+// Only construct the direct localhost URL in the (non-browser) direct path.
 const OLLAMA_BASE_URL = isProxyMode ? '' : 'http://localhost:11434';
 
 class OllamaService {
