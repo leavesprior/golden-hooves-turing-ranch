@@ -309,15 +309,20 @@
         return ['office',drawOffice];
       }
       const META={ranch:["Pryor's Back of Beyond — 160 acres, two lakes, golden oak.","West Point Ranch"],columbia:["Columbia boomtown — brick, green shutters, stagecoach dust.","Columbia"],mokehill:["Mokelumne Hill — rhyolite stone, iron shutters, old ghosts.","Mokelumne Hill"],bearvalley:["Bear Valley — 7,000 ft of pine, granite and snow.","Bear Valley"],river:["The Karmic River — cross with respect or pay the toll.","Mokelumne Ford"],mine:["Hydraulic scar — the mountain stripped to bone.","Mine Ruins"],angels:["Angels Camp — Twain's frog, Black Bart's road.","Angels Camp"],murphys:["Murphys — Queen of the Sierra, iron balconies, shade.","Murphys"],lookout:["Eagle Point — Sierra east, Valley west, Diablo beyond.","Eagle Point"],map:["ACME tracks the suspect across the Mother Lode.","Trail Map"],battle:["The witness remembers your trail. Attack or speak?","Encounter"],office:["Geography fact: this country has 17,508 islands.","Assay Office"],vane:["Cyrus Vane, 'the Tare' — the scar that threads every con.","Cyrus Vane"]};
-      function renderScene(ctx:any,w:number,h:number,loc:string,st:any,logArr:any){
+      function renderScene(ctx:any,w:number,h:number,loc:string,st:any,logArr:any,opts:any){
         _st = st;
         b.clearRect(0,0,IW,IH);
         const r=rng(0xB0B); // stable seed (deterministic scatter)
         const ps=pickScene(loc); ps[1](st,r,loc);
         ctx.imageSmoothingEnabled=false;
         ctx.drawImage(buf,0,0,IW,IH,0,0,w,h);
-        const m=META[ps[0]]||['',loc];
-        drawHUD(ctx,w,h,st,loc,logArr,m[0],m[1]);
+        // HUD (clue/river stats, inventory grid, LOC label) is part of the in-game
+        // view, not decorative backdrops. Opt out with { hud:false }; default = on,
+        // so existing callers (e.g. /pixel-preview) are unchanged.
+        if(!opts || opts.hud!==false){
+          const m=META[ps[0]]||['',loc];
+          drawHUD(ctx,w,h,st,loc,logArr,m[0],m[1]);
+        }
       }
       return { handles:function(){ return true; }, renderScene:renderScene,
         scenes:['ranch','columbia','mokehill','bearvalley','river','mine','angels','murphys','lookout','map','battle','office'] };

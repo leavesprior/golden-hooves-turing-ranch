@@ -7,7 +7,22 @@
 // safe to drop into any game's location view.
 
 import { useState } from 'react'
-import PixelScene from '@/components/PixelScene'
+import dynamic from 'next/dynamic'
+
+// Lazy-load the DB32 renderer so its ~320-LOC code is NOT pulled into the client
+// bundle on the default (flag-OFF) build — it only loads when the flag-ON branch
+// actually renders. ssr:false is fine: the renderer is canvas/client-only.
+const PixelScene = dynamic(() => import('@/components/PixelScene'), { ssr: false })
+
+// Caller classNames carry img-only utilities (object-top/cover/contain) that are
+// meaningless on a wrapper <div>. Strip them for the pixel wrapper while keeping
+// layout-relevant classes (h-*, rounded, border, etc.).
+function stripObjectUtils(cn: string): string {
+  return cn
+    .split(/\s+/)
+    .filter((c) => c && !/^object-/.test(c))
+    .join(' ')
+}
 
 const PLACE_ART: Record<string, string> = {
   // --- Where in Time eras (custom-generated) ---
@@ -72,22 +87,32 @@ const DB32_SCENE_BY_PLACE: Record<string, Db32SceneKey> = {
 
 export function PlaceBackdrop({ id, className = '' }: { id: string; className?: string }) {
   const [failed, setFailed] = useState(false)
+  const [pixelFailed, setPixelFailed] = useState(false)
 
   // Flag-gated DB32 scene (opt-in). When OFF (default) this branch is skipped
-  // entirely and the code below runs byte-for-byte as before.
-  if (PIXEL_SCENES_ON) {
+  // entirely and the code below runs byte-for-byte as before. If the renderer
+  // can't draw, pixelFailed flips and we fall through to the PNG/null path.
+  if (PIXEL_SCENES_ON && !pixelFailed) {
     const db32 = DB32_SCENE_BY_PLACE[id]
     if (db32) {
       // Fill the same box the <img> occupied: the wrapper carries the caller's
-      // className (height/border/rounding) + w-full + overflow-hidden, and the
-      // canvas is absolutely positioned to cover it (object-cover equivalent).
+      // layout className (height/border/rounding) + w-full + overflow-hidden
+      // (object-* utils stripped — they only apply to replaced elements). The
+      // canvas covers the box WITHOUT distortion via object-cover (the 16:9
+      // canvas is center-cropped to non-16:9 boxes like h-44/h-28), and the HUD
+      // is suppressed since this is a decorative backdrop, not the game view.
       return (
-        <div className={`relative w-full overflow-hidden [image-rendering:pixelated] ${className}`}>
+        <div
+          className={`relative w-full overflow-hidden [image-rendering:pixelated] ${stripObjectUtils(className)}`}
+        >
           <PixelScene
             loc={db32}
+            hud={false}
             width={640}
             height={360}
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+            onError={() => setPixelFailed(true)}
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
           />
         </div>
       )

@@ -20,6 +20,8 @@ export default function PixelScene({
   height = 360,
   className = '',
   style,
+  hud = true,
+  onError,
 }: {
   loc: string
   state?: unknown
@@ -27,18 +29,26 @@ export default function PixelScene({
   height?: number
   className?: string
   style?: CSSProperties
+  /** Draw the in-game HUD (stats/inventory/LOC). Default true so /pixel-preview is unchanged. */
+  hud?: boolean
+  /** Called if the canvas/renderer can't draw, so a caller can fall back. */
+  onError?: () => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<ReturnType<typeof createDB32Renderer> | null>(null)
 
   useEffect(() => {
-    if (!rendererRef.current) rendererRef.current = createDB32Renderer()
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    rendererRef.current.renderScene(ctx, width, height, loc, state ?? {}, [])
-  }, [loc, state, width, height])
+    try {
+      if (!rendererRef.current) rendererRef.current = createDB32Renderer()
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { onError?.(); return }
+      rendererRef.current.renderScene(ctx, width, height, loc, state ?? {}, [], { hud })
+    } catch {
+      onError?.()
+    }
+  }, [loc, state, width, height, hud, onError])
 
   return (
     <canvas
