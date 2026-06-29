@@ -7,6 +7,7 @@
 // safe to drop into any game's location view.
 
 import { useState } from 'react'
+import PixelScene from '@/components/PixelScene'
 
 const PLACE_ART: Record<string, string> = {
   // --- Where in Time eras (custom-generated) ---
@@ -39,8 +40,60 @@ const PLACE_ART: Record<string, string> = {
   ch5_ghost_town: 'ch5_ghost_town', ch5_hydraulic_scar: 'ch5_hydraulic_scar',
 }
 
+// --- DB32 32/64-bit pixel-art scenes (opt-in, flag-gated) -------------------
+// The DB32 renderer (src/lib/pixelArt/db32Renderer.ts, previewed at
+// /pixel-preview) understands these 13 authored Gold Country scene keys.
+type Db32SceneKey =
+  | 'ranch' | 'columbia' | 'mokehill' | 'bearvalley' | 'river' | 'mine'
+  | 'angels' | 'murphys' | 'lookout' | 'map' | 'battle' | 'office' | 'vane'
+
+// Flag, OFF by default → ZERO visual change until enabled. Same convention as
+// NEXT_PUBLIC_WIT_RANDOMIZE / NEXT_PUBLIC_ENABLE_KARMA_DEV_CHAIN elsewhere.
+const PIXEL_SCENES_ON =
+  process.env.NEXT_PUBLIC_PIXEL_SCENES === '1' ||
+  process.env.NEXT_PUBLIC_PIXEL_SCENES === 'true'
+
+// Place id (a PLACE_ART key) -> a DB32 scene that genuinely depicts that place.
+// Partial coverage by design: places without a faithful scene match are left on
+// their existing PNG (no entry here = unchanged).
+const DB32_SCENE_BY_PLACE: Record<string, Db32SceneKey> = {
+  // Pryor / BOBR ranch + cabin (the "Back of Beyond" homestead)
+  bobr_ranch: 'ranch', bobr_cabin: 'ranch', ch4_ranch_site: 'ranch', ch5_ranch_house: 'ranch',
+  // Angels Camp (Twain's jumping frog) + its hotel
+  angels_camp: 'angels', ch3_angels_camp: 'angels', ace_angels_hotel: 'angels',
+  angels_camp_expanded: 'angels', ch3_jumping_frog: 'angels',
+  // Murphys ("Queen of the Sierra") + Ironstone vineyards nearby
+  murphys: 'murphys', ch3_murphys: 'murphys', ironstone_vineyards: 'murphys',
+  // Mokelumne Hill (rhyolite stone town) + Hotel Leger
+  mokelumne_hill: 'mokehill', ch4_mokelumne_hill: 'mokehill', mh_hotel_leger: 'mokehill',
+  // Kennedy Mine + the hydraulic scar
+  kennedy_mine: 'mine', ch5_hydraulic_scar: 'mine',
+}
+
 export function PlaceBackdrop({ id, className = '' }: { id: string; className?: string }) {
   const [failed, setFailed] = useState(false)
+
+  // Flag-gated DB32 scene (opt-in). When OFF (default) this branch is skipped
+  // entirely and the code below runs byte-for-byte as before.
+  if (PIXEL_SCENES_ON) {
+    const db32 = DB32_SCENE_BY_PLACE[id]
+    if (db32) {
+      // Fill the same box the <img> occupied: the wrapper carries the caller's
+      // className (height/border/rounding) + w-full + overflow-hidden, and the
+      // canvas is absolutely positioned to cover it (object-cover equivalent).
+      return (
+        <div className={`relative w-full overflow-hidden [image-rendering:pixelated] ${className}`}>
+          <PixelScene
+            loc={db32}
+            width={640}
+            height={360}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+          />
+        </div>
+      )
+    }
+  }
+
   const art = PLACE_ART[id]
   if (!art || failed) return null
   return (

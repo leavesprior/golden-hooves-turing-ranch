@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import { createDB32Renderer } from '@/lib/pixelArt/db32Renderer'
 
 /**
@@ -19,12 +19,14 @@ export default function PixelScene({
   width = 640,
   height = 360,
   className = '',
+  style,
 }: {
   loc: string
   state?: unknown
   width?: number
   height?: number
   className?: string
+  style?: CSSProperties
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<ReturnType<typeof createDB32Renderer> | null>(null)
@@ -44,7 +46,7 @@ export default function PixelScene({
       width={width}
       height={height}
       className={className}
-      style={{ imageRendering: 'pixelated', width: '100%', height: 'auto', display: 'block' }}
+      style={{ imageRendering: 'pixelated', width: '100%', height: 'auto', display: 'block', ...style }}
     />
   )
 }
