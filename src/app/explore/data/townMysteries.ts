@@ -562,7 +562,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'kd_2',
         attractionId: 'km_museum',
-        text: 'Investigation records, archived here: the trapped men retreated to a crosscut and built bulkheads of timber, rock, and mud-soaked clothing to wall out the smoke. A miner named Fessel scratched a message in carbide-lamp soot on the rock — "gas getting strong, 3 o\'clock... 4 o\'clock." They were never reached by the fire. All 47 died of carbon-monoxide gas within hours, behind the walls they raised with their own hands.',
+        text: 'Investigation records, archived here: the trapped men retreated to a crosscut and built bulkheads of timber, rock, and mud-soaked clothing to wall out the smoke. A miner named Fessel scratched a message in carbide-lamp soot on the rock — "gas getting strong, 3 o\'clock." They were never reached by the fire. All 47 died of carbon-monoxide gas within hours, behind the walls they raised with their own hands.',
         discoveryText: 'In the Kennedy Mine museum, the original disaster records are archived...',
         required: true,
         order: 2,
@@ -578,7 +578,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'kd_4',
         attractionId: 'km_memorial',
-        text: 'The memorial carries names from thirteen nations — some seventeen Italians, eleven Serbs, Spaniards and others who had come to work the deep rock. The eleven Serbian miners rest at St. Sava, the oldest Serbian Orthodox church in America. Investigators argued for years over what started the fire — a short in the 2,300-volt shaft line, or arson — but no cause was ever proven, and no one was ever charged.',
+        text: 'The memorial carries names from thirteen nations — some seventeen Italians, eleven Serbs, Spaniards and others who had come to work the deep rock. The eleven Serbian miners rest at St. Sava, the oldest Serbian Orthodox church in America. Investigators argued for years over what started the fire — a short in the shaft\'s electrical line, or arson — but no cause was ever proven, and no one was ever charged.',
         discoveryText: 'At the miners\' memorial, an attached historical analysis gives context...',
         required: false,
         order: 4,
