@@ -489,7 +489,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     id: 'moaningcavern_bones',
     townId: 'moaning_cavern',
     title: 'The Ancient Dead of Moaning Cavern',
-    briefing: 'When Gold Rush–era explorers entered Moaning Cavern around 1851, they made a grim discovery: ancient human bones at the bottom of a 180-foot shaft, the largest single natural vertical cavern in California. Who were these people? And how did their bones end up at the bottom of an inaccessible vertical pit?',
+    briefing: 'When Gold Rush–era explorers entered Moaning Cavern around 1851, they made a grim discovery: ancient human bones at the bottom of a 165-foot shaft, the largest single natural vertical cavern in California. Who were these people? And how did their bones end up at the bottom of an inaccessible vertical pit?',
     era: '1851',
     difficulty: 'hard',
     clues: [
@@ -532,14 +532,14 @@ export const TOWN_MYSTERIES: TownMystery[] = [
         { id: 'a', text: 'They were carried down by ancient people using primitive rope systems', correct: false, response: 'The bones were found scattered, not arranged — suggesting falls, not deliberate placement, and predating any evidence of rope-lowering technology in the region.' },
         { id: 'b', text: 'They fell accidentally through a smaller prehistoric entrance in the dark', correct: true, response: 'Correct! The geological evidence is compelling: the original entrance was much smaller, and the "moaning" sound would have been louder and more eerie, possibly luring curious individuals. In the dark, the vertical shaft would have been invisible. Over a very long span, multiple people — possibly cave explorers or those drawn by the mysterious sound — fell to their deaths, leaving remains that accumulated across many generations.' },
         { id: 'c', text: 'They were deliberately thrown in as human sacrifice victims', correct: false, response: 'Possible but not the leading theory. The skeletal remains show no evidence of pre-mortem trauma suggesting ritual killing, and the age span of the victims (adolescent to elder) argues against a targeted sacrifice program.' },
-        { id: 'd', text: 'They climbed in voluntarily and became trapped', correct: false, response: 'At 180 feet deep, with no footholds, entrapment would mean death by thirst/starvation, not the sudden-impact injuries archaeologists found.' },
+        { id: 'd', text: 'They climbed in voluntarily and became trapped', correct: false, response: 'At 165 feet deep, with no footholds, entrapment would mean death by thirst/starvation, not the sudden-impact injuries archaeologists found.' },
       ],
       minCluesRequired: 3,
     },
     xpReward: 150,
     badgeId: 'mystery_moaning_cavern',
     solvedText: 'The ancient dead of Moaning Cavern reveal millennia of human curiosity — and its cost.',
-    historicalNote: 'Moaning Cavern near Vallecito, California contains some of the oldest documented human remains in California. In 1951–1952 Phil C. Orr of the Santa Barbara Museum of Natural History excavated the remains of dozens of individuals from the floor of the 180-foot main chamber, which his sinter-thickness ("speleological") dating placed at roughly 12,000 years old; later radiocarbon redating has called those exact ages into question, but the assemblage remains archaeologically significant. The remains are housed at the Santa Barbara Museum of Natural History. Today the cave operates as a show cave and adventure attraction with rappelling available.',
+    historicalNote: 'Moaning Cavern near Vallecito, California contains some of the oldest documented human remains in California. In 1951–1952 Phil C. Orr of the Santa Barbara Museum of Natural History excavated the remains of dozens of individuals from the floor of the 165-foot main chamber, which his sinter-thickness ("speleological") dating placed at roughly 12,000 years old; later radiocarbon redating has called those exact ages into question, but the assemblage remains archaeologically significant. The remains are housed at the Santa Barbara Museum of Natural History. Today the cave operates as a show cave and adventure attraction with rappelling available.',
   },
 
   // === KENNEDY / ARGONAUT — the 1922 Argonaut fire (CHL #786) ===
