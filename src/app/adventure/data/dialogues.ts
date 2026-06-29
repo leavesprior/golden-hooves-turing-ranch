@@ -238,9 +238,73 @@ const ch1_hooded_figure: Dialogue = {
           requirement: { stat: 'Shrewdness', dc: 12 },
         },
         {
+          id: 'the_job',
+          text: 'I hear you know where a man can lay hands on supplies — no questions asked.',
+          nextNodeId: 'heist_plan',
+        },
+        {
           id: 'ignore',
           text: 'Walk past without engaging.',
           nextNodeId: undefined,
+        },
+      ],
+    },
+    {
+      id: 'heist_plan',
+      text: '"The Army storehouse at Fort Kearny is fat with crates — flour, pork, powder. The quartermaster\'s a drunk and the lock\'s a joke." The figure spreads a crude map in the dirt. "Two ways in. Over the wall quiet, or talk your way past the guard. Either suits a bigger play I\'ve got brewing with the Pawnee."',
+      speaker: 'The Hooded Figure',
+      options: [
+        {
+          id: 'over_the_wall',
+          text: '[Agility DC 14] Go over the wall after dark.',
+          nextNodeId: 'inside',
+          requirement: { stat: 'Agility', dc: 14 },
+          effects: { questProgress: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_out_2' } },
+        },
+        {
+          id: 'pawnee_angle',
+          text: '[Shrewdness DC 12] That bigger play — the worthless goods you want passed off as treasure to the Pawnee.',
+          nextNodeId: undefined,
+          requirement: { stat: 'Shrewdness', dc: 12 },
+          karmaTag: 'chaotic',
+          effects: {
+            questProgress: { questId: 'ch1_pawnee_treaty', objectiveId: 'ch1_pt_trick_2' },
+            xp: 15,
+          },
+        },
+        {
+          id: 'walk_away_job',
+          text: 'Not my kind of work.',
+          nextNodeId: undefined,
+        },
+      ],
+    },
+    {
+      id: 'inside',
+      text: 'You drop into the storehouse yard without a sound. Moonlight cuts across stacked crates branded with the Army quartermaster\'s seal. A sentry snores against the far post.',
+      speaker: 'The Hooded Figure',
+      options: [
+        {
+          id: 'grab',
+          text: 'Shoulder a crate of replacement supplies and slip back out.',
+          nextNodeId: 'getaway',
+          effects: { questProgress: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_out_3' } },
+        },
+      ],
+    },
+    {
+      id: 'getaway',
+      text: 'Crate on your shoulder, you melt back into the dark. The wagon train is a half mile off, fires low. No one the wiser — yet.',
+      options: [
+        {
+          id: 'deliver',
+          text: 'Deliver the stolen Army crates to the wagon train.',
+          nextNodeId: undefined,
+          karmaTag: 'chaotic',
+          effects: {
+            questProgress: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_out_4' },
+            xp: 20,
+          },
         },
       ],
     },
@@ -373,6 +437,31 @@ const ch1_chief_talking_bear: Dialogue = {
           text: 'Do your people know where to find gold?',
           nextNodeId: 'disappointed',
         },
+        {
+          id: 'present_fair',
+          text: '[Diplomacy DC 10] I bring medicine and iron tools, offered honestly.',
+          nextNodeId: 'forgiven',
+          requirement: { stat: 'Diplomacy', dc: 10 },
+          karmaTag: 'good',
+          effects: {
+            questProgress: { questId: 'ch1_pawnee_treaty', objectiveId: 'ch1_pt_fair_4' },
+            karma: { good: 10 },
+            reputation: { faction: 'natives', delta: 15 },
+            xp: 30,
+          },
+        },
+        {
+          id: 'present_fake',
+          text: '[Luck DC 14] Present the "valuables" and pray he doesn\'t look too close.',
+          nextNodeId: 'banished',
+          requirement: { stat: 'Luck', dc: 14 },
+          karmaTag: 'evil',
+          effects: {
+            questProgress: { questId: 'ch1_pawnee_treaty', objectiveId: 'ch1_pt_trick_3' },
+            karma: { good: -15 },
+            xp: 15,
+          },
+        },
       ],
     },
     {
@@ -483,6 +572,176 @@ const ch1_chief_talking_bear: Dialogue = {
           text: 'Leave quickly.',
           nextNodeId: undefined,
           effects: { flag: 'banished_from_pawnee' },
+        },
+      ],
+    },
+  ],
+}
+
+const ch1_silas_crooke: Dialogue = {
+  id: 'ch1_silas_crooke',
+  npcId: 'ch1_toll_collector',
+  npcName: 'Silas Crooke',
+  chapter: 1,
+  title: 'The Toll at Platte Bridge',
+  nodes: [
+    {
+      id: 'start',
+      text: 'A lean man in a patched duster leans on a crooked tollgate, picking his teeth with a knife. "Bridge is a dime a wagon. Don\'t matter if you like it." His eyes keep darting to a tarp-covered heap behind the toll shack.',
+      speaker: 'Silas Crooke',
+      options: [
+        {
+          id: 'press_lie',
+          text: '[Shrewdness DC 12] "You said you saw nothing the night the supplies vanished. Then why is your tarp stacked with flour sacks?"',
+          nextNodeId: 'caught',
+          requirement: { stat: 'Shrewdness', dc: 12 },
+          effects: { questProgress: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_law_4' } },
+        },
+        {
+          id: 'reason_with',
+          text: '[Diplomacy DC 10] "Nobody steals from starving families for sport. What drove you to it?"',
+          nextNodeId: 'confession',
+          requirement: { stat: 'Diplomacy', dc: 10 },
+          effects: { questProgress: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_dip_3' } },
+        },
+        {
+          id: 'examine_raiders',
+          text: '[Expertise DC 12] Study the painted hides and feathered gear half-hidden under the tarp.',
+          nextNodeId: 'disguises',
+          requirement: { stat: 'Expertise', dc: 12 },
+          effects: { questProgress: { questId: 'ch1_pawnee_treaty', objectiveId: 'ch1_pt_enemy_3' } },
+        },
+        {
+          id: 'pay_toll',
+          text: 'Pay the dime and move along.',
+          nextNodeId: undefined,
+        },
+      ],
+    },
+    {
+      id: 'caught',
+      text: 'Crooke\'s knife stills. "Now hold on—" But the lie is already dead in his mouth. The flour sacks bear Captain Shaw\'s wagon-train brand, plain as day.',
+      speaker: 'Silas Crooke',
+      options: [
+        {
+          id: 'seize',
+          text: 'Pull back the tarp and recover the supplies from his cache.',
+          nextNodeId: undefined,
+          karmaTag: 'lawful',
+          effects: {
+            questProgress: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_law_5' },
+            karma: { lawful: 10, good: 5 },
+            xp: 30,
+          },
+        },
+      ],
+    },
+    {
+      id: 'confession',
+      text: '"My girl\'s got the fever in a wagon two miles back, and the company doctor wanted coin I don\'t have." He won\'t meet your eye. "Took the medicine and the food so she\'d last to Laramie. I ain\'t proud."',
+      speaker: 'Silas Crooke',
+      options: [
+        {
+          id: 'split',
+          text: 'Let him keep enough medicine to save his daughter — the rest goes back to the train.',
+          nextNodeId: undefined,
+          karmaTag: 'good',
+          effects: {
+            questProgress: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_dip_4' },
+            karma: { good: 10 },
+            xp: 25,
+          },
+        },
+      ],
+    },
+    {
+      id: 'disguises',
+      text: 'These are no Pawnee relics. The "war paint" is store-bought rouge, the feathers are dyed chicken plumes, and one hide still carries a Kansas City tannery stamp. Someone has been dressing up as Pawnee to raid the wagon trains.',
+      speaker: 'Silas Crooke',
+      options: [
+        {
+          id: 'collect',
+          text: 'Collect the fake Pawnee costume as evidence for Chief Talking Bear.',
+          nextNodeId: undefined,
+          effects: {
+            questProgress: { questId: 'ch1_pawnee_treaty', objectiveId: 'ch1_pt_enemy_4' },
+            xp: 20,
+          },
+        },
+      ],
+    },
+  ],
+}
+
+const ch1_lt_woodbury: Dialogue = {
+  id: 'ch1_lt_woodbury',
+  npcId: 'ch1_commander',
+  npcName: 'Lt. Daniel Woodbury',
+  chapter: 1,
+  title: 'The Officer at Fort Kearny',
+  nodes: [
+    {
+      id: 'start',
+      text: 'A young lieutenant in a dust-grey coat looks up from a field desk littered with requisition forms. "The wagon-train theft. Bad business. I haven\'t the men to spare for it, but if you mean to look — look properly."',
+      speaker: 'Lt. Woodbury',
+      options: [
+        {
+          id: 'search_camp',
+          text: '[Expertise DC 10] Kneel and read the ground around the looted wagons for tracks.',
+          nextNodeId: 'tracks',
+          requirement: { stat: 'Expertise', dc: 10 },
+          effects: { questProgress: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_law_2' } },
+        },
+        {
+          id: 'leave_woodbury',
+          text: 'Thank him and go.',
+          nextNodeId: undefined,
+        },
+      ],
+    },
+    {
+      id: 'tracks',
+      text: 'A single set of wheel ruts cuts away from camp, riding heavy — loaded down. They run due west, toward the Platte Bridge crossing. "That\'s Silas Crooke\'s toll road," Woodbury murmurs. "Start there."',
+      speaker: 'Lt. Woodbury',
+      options: [
+        {
+          id: 'to_bridge',
+          text: 'Follow the ruts toward Platte Bridge.',
+          nextNodeId: undefined,
+          effects: { xp: 15, flag: 'ch1_tracks_found' },
+        },
+      ],
+    },
+  ],
+}
+
+const ch1_ezra_finch: Dialogue = {
+  id: 'ch1_ezra_finch',
+  npcId: 'ch1_merchant',
+  npcName: 'Ezra Finch',
+  chapter: 1,
+  title: 'The Independence Outfitter',
+  nodes: [
+    {
+      id: 'start',
+      text: 'Ezra Finch\'s outfitting store smells of gun oil, dried apples, and tallow. The merchant peers over wire spectacles. "Headed to trade with the Pawnee, are you? Then you\'ll want goods worth a chief\'s respect — not trinkets."',
+      speaker: 'Ezra Finch',
+      options: [
+        {
+          id: 'buy_trade_goods',
+          text: 'Buy medicine and iron tools for the Pawnee.',
+          nextNodeId: undefined,
+          karmaTag: 'good',
+          effects: {
+            questProgress: { questId: 'ch1_pawnee_treaty', objectiveId: 'ch1_pt_fair_2' },
+            gold: -20,
+            xp: 15,
+          },
+        },
+        {
+          id: 'browse',
+          text: 'Just browsing.',
+          nextNodeId: undefined,
         },
       ],
     },
@@ -2784,6 +3043,9 @@ export const DIALOGUES: Dialogue[] = [
   ch1_shaw_intro,
   ch1_hooded_figure,
   ch1_chief_talking_bear,
+  ch1_silas_crooke,
+  ch1_lt_woodbury,
+  ch1_ezra_finch,
   // Chapter 2
   ch2_big_mae,
   ch2_master_crane,
