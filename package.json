@@ -11,7 +11,7 @@
     "start": "next start",
     "lint:reward-guard": "node scripts/no-valuable-client-mint.mjs",
     "lint": "npm run lint:reward-guard && eslint",
-    "test": "tsx src/lib/markerSession.test.ts && tsx \"src/app/(api-routes)/api/neoma/data/voiceJudge.test.ts\" && tsx src/lib/townProgress.test.ts && tsx src/app/adventure/where-in-time/whereInTimeData.test.ts"
+    "test": "tsx src/lib/markerSession.test.ts && tsx \"src/app/(api-routes)/api/neoma/data/voiceJudge.test.ts\" && tsx src/lib/townProgress.test.ts && tsx src/app/adventure/where-in-time/whereInTimeData.test.ts && tsx src/app/adventure/data/questEngine.test.ts"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",
