@@ -1306,7 +1306,7 @@ export const dialogues: Record<string, DialogueNode> = {
   ch2_cemetery: {
     id: 'ch2_cemetery',
     speaker: 'narrator',
-    text: 'The old cemetery overlooks the town. Weathered headstones mark the resting places of miners, merchants, and dreamers. One catches your eye: "Here lies J.W. Marshall - He Found Gold, But Not Peace. 1810-1885"',
+    text: 'The old cemetery overlooks the town. Weathered headstones mark the resting places of miners, merchants, and dreamers. One catches your eye: a forty-niner\'s grave, the name long worn away by weather, the epitaph still just legible: "He Found Gold, But Not Peace."',
     choices: [
       { text: 'Pay respects quietly', nextNode: 'ch2_cemetery_respect', effect: { stat: 'wisdom', change: 1 } },
       { text: 'Search for other notable graves', nextNode: 'ch2_cemetery_search' },
@@ -1374,7 +1374,7 @@ export const dialogues: Record<string, DialogueNode> = {
   ch3_storyteller_2: {
     id: 'ch3_storyteller_2',
     speaker: 'storyteller',
-    text: "Thirteen years from now, a young writer named Clemens will hear this very tale and make it famous. They'll call him Mark Twain. Here - take this frog charm. For luck.",
+    text: "There's a young writer named Clemens hanging round the bar — mark my words, he'll make this very tale famous. They'll call him Mark Twain. Here - take this frog charm. For luck.",
     giveItem: { id: 'frog_charm', name: 'Jumping Frog Charm', icon: '🐸', description: 'A bronze frog charm from Angels Camp - a reminder that luck leaps when you least expect it' },
   },
   ch3_frog_contest: {
