@@ -109,6 +109,11 @@ export function TareTrail() {
           )
         })}
       </div>
+
+      {/* Whole-game continuity callout (additive from 2026-06 continuity audit) */}
+      <div className="mt-4 border border-[var(--pixel-gold-dark)]/50 bg-black/30 p-2 text-[9px] leading-snug text-[var(--pixel-ui-text)]/70">
+        The Tare slips through five eras on this one piece of land: 1849 Gold Rush (assayer), 1960s Forester&apos;s Trail, 1982 Ranch Begin, the present Back of Beyond, and a future only real stewardship can write. Every honest record — milled oak, tally books, frog counts, your QR presence — is what he cannot forge. Complete the trail across Quest, Where-in-Time, Explore, and the Ranch to close the case for good.
+      </div>
     </div>
   )
 }
