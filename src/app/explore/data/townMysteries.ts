@@ -542,19 +542,19 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     historicalNote: 'Moaning Cavern near Vallecito, California contains one of the oldest documented human remains in North America. The 180-foot vertical pit has yielded skeletal material carbon-dated to between 8,000 and 13,000 years ago. The cave was used as a guano mine during the Gold Rush before its paleontological significance was understood. Today it operates as a show cave and adventure attraction with rappelling available.',
   },
 
-  // === KENNEDY MINE ===
+  // === KENNEDY / ARGONAUT — the 1922 Argonaut fire (CHL #786) ===
   {
     id: 'kennedy_disaster',
     townId: 'kennedy_mine',
-    title: 'The Bulkhead Decision',
-    briefing: 'In 1922, the Kennedy Mine in Jackson suffered one of California\'s deadliest mine disasters — 47 men died when lower levels flooded. But a coroner\'s inquest uncovered something troubling: management had been warned about the failing bulkhead weeks before the flood. Why was the warning ignored?',
+    title: 'The Argonaut Fire',
+    briefing: 'Just over the hill from the Kennedy headframe stood the Argonaut — its twin in California Historical Landmark No. 786. Shortly before midnight on August 27, 1922, fire broke out in the Argonaut\'s single shaft, and 47 men working the deep levels were cut off from their only way to the surface. They were never touched by flame. So how did they die — and why did it take three weeks to reach them?',
     era: '1922',
     difficulty: 'hard',
     clues: [
       {
         id: 'kd_1',
         attractionId: 'km_headframe',
-        text: 'The Kennedy Mine headframe towers over the site. A placard reads: "At 5,912 feet, the Kennedy was the deepest gold mine in the United States. The lower levels below 3,000 feet required massive pumping systems to stay dry. Pump failure meant flooding within hours."',
+        text: 'The headframe marks a shaft that plunged nearly a mile straight down — and like its neighbor the Argonaut, it had one true way out. A marker explains: "When fire filled the Argonaut shaft on the night of August 27, 1922, the men on the deep levels had no second exit. The single hoisting shaft that carried them to work each day became the one road they could not take home."',
         discoveryText: 'Standing at the famous headframe, you read the interpretive marker...',
         required: true,
         order: 1,
@@ -562,42 +562,42 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'kd_2',
         attractionId: 'km_museum',
-        text: 'Coroner\'s inquest document: "Witness Thomas Mahoney, shift foreman, testified: \'I submitted a written report on February 15, 1922 noting the No. 4 bulkhead showed seepage and required immediate reinforcement. No action was taken.\' The flood occurred February 28, 1922."',
-        discoveryText: 'In the Kennedy Mine museum, the original inquest documents are archived...',
+        text: 'Investigation records, archived here: the trapped men retreated to a crosscut and built bulkheads of timber, rock, and mud-soaked clothing to wall out the smoke. A miner named Fessel scratched a message in carbide-lamp soot on the rock — "gas getting strong, 3 o\'clock... 4 o\'clock." They were never reached by the fire. All 47 died of carbon-monoxide gas within hours, behind the walls they raised with their own hands.',
+        discoveryText: 'In the Kennedy Mine museum, the original disaster records are archived...',
         required: true,
         order: 2,
       },
       {
         id: 'kd_3',
         attractionId: 'km_tailings_wheels',
-        text: 'The enormous tailings wheels — used to lift waste rock — still stand. A historical note: "Mine management had contracted for new pump equipment in January 1922, but delivery was delayed. Rather than halt operations, management continued working the lower levels. The 47 men who died were all working below the 2,800-foot level."',
-        discoveryText: 'At the tailings wheels exhibit, operational records reveal the timeline...',
+        text: 'With the Argonaut shaft still burning and impassable, rescuers turned to THIS mine. Crews reopened the Kennedy\'s long-abandoned drift — some 3,600 feet of caved timber and mud — and blasted a 60-foot crosscut through solid greenstone to break into the Argonaut workings. The digging took three weeks. On September 18, 1922, a canary lowered behind the miners\' bulkhead died at once: the gas had won long before any rescuer could arrive.',
+        discoveryText: 'At the tailings wheels exhibit, the rescue records reveal the timeline...',
         required: true,
         order: 3,
       },
       {
         id: 'kd_4',
         attractionId: 'km_memorial',
-        text: 'The memorial plaque lists 47 names. Of them, 35 were immigrants — Irish, Welsh, Italian, and Cornish miners. A labor historian\'s note attached: "The coroner\'s jury returned a verdict of \'accidental death\' but recommended criminal negligence charges. No charges were ever filed. The mine reopened three months later."',
+        text: 'The memorial carries names from thirteen nations — some seventeen Italians, eleven Serbs, Spaniards and others who had come to work the deep rock. The eleven Serbian miners rest at St. Sava, the oldest Serbian Orthodox church in America. Investigators argued for years over what started the fire — a short in the 2,300-volt shaft line, or arson — but no cause was ever proven, and no one was ever charged.',
         discoveryText: 'At the miners\' memorial, an attached historical analysis gives context...',
         required: false,
         order: 4,
       },
     ],
     deduction: {
-      question: 'Why was the foreman\'s warning about the failing bulkhead ignored before the 1922 Kennedy Mine flood?',
+      question: 'The Argonaut shaft was on fire and impassable. How did rescuers finally reach the 47 trapped miners?',
       options: [
-        { id: 'a', text: 'The warning report was lost in administrative confusion', correct: false, response: 'The foreman testified he submitted a written report. "Lost paperwork" was the company\'s defense — but the coroner\'s inquest found the claim unconvincing given that senior management also toured the lower levels that week.' },
-        { id: 'b', text: 'Management prioritized production over safety while waiting for delayed pump equipment', correct: true, response: 'Correct! The inquest evidence points clearly to a production-over-safety decision. New pumps had been ordered but not delivered. Halting operations to fix the bulkhead would have cost weeks of production. Mine management chose to continue working the lower levels and hoped the bulkhead would hold. It did not. The coroner\'s jury recommended criminal negligence charges, but none were filed — a pattern tragically common in early 20th century mining disasters.' },
-        { id: 'c', text: 'The foreman exaggerated the danger to force a pay raise negotiation', correct: false, response: 'The foreman lost colleagues in the flood and testified under oath at a coroner\'s inquest. No evidence of ulterior motive — and the bulkhead\'s failure proved his warning accurate.' },
-        { id: 'd', text: 'The mine was sabotaged by labor union organizers', correct: false, response: 'The IWW was active in California mining at this time, but no evidence of sabotage was found. The failure was mechanical and foreseeable, not caused by human intervention.' },
+        { id: 'a', text: 'They tunneled across from the neighboring Kennedy mine — clearing its old drift and blasting a short connecting crosscut', correct: true, response: 'Correct! The Argonaut\'s only shaft was full of fire and gas, so rescuers reopened the adjacent Kennedy mine\'s abandoned 3,600-foot drift and blasted a 60-foot crosscut through solid greenstone to reach the Argonaut workings — three weeks of digging. When they broke through on September 18, 1922, a canary died instantly in the air behind the men\'s bulkhead. The 47 had been gone for weeks, killed by carbon monoxide within hours of the fire. The single-exit shaft was the fatal flaw, and the disaster helped push mine-safety reform forward.' },
+        { id: 'b', text: 'They drilled a brand-new vertical rescue shaft straight down from the surface', correct: false, response: 'A logical idea, but far too slow — sinking a new deep shaft would take many months. The actual rescue went sideways, not down: crews tunneled across from the neighboring Kennedy mine.' },
+        { id: 'c', text: 'They pumped out the floodwater until the men could walk back to the shaft', correct: false, response: 'There was no flood. This was a FIRE, not a flood — the men died of gas, not water. The shaft was impassable because it was burning, and rescuers had to tunnel in from the Kennedy mine next door.' },
+        { id: 'd', text: 'They lowered a rescue cage down the burning Argonaut shaft', correct: false, response: 'Impossible while the shaft was on fire and choked with gas — that was exactly why it could not be used. The only way in was a crosscut driven from the neighboring Kennedy mine.' },
       ],
       minCluesRequired: 3,
     },
     xpReward: 150,
     badgeId: 'mystery_kennedy_mine',
-    solvedText: 'The 47 names on the Kennedy Mine memorial represent a preventable tragedy — a warning ignored for profit.',
-    historicalNote: 'The Kennedy Mine in Jackson, California was the deepest gold mine in the United States at 5,912 feet. The February 1922 flood killed 47 miners when a bulkhead failed in the lower levels, flooding the shaft faster than men could escape. The mine had operated continuously since 1856 and produced over $34 million in gold. It closed permanently in 1942 due to wartime restrictions. The headframe and tailings wheels are preserved as California historical landmarks.',
+    solvedText: 'The 47 men of the Argonaut died behind a wall they built themselves, beyond the reach of a rescue that came through the mountain three weeks too late. Their loss helped force the mine-safety reforms that followed.',
+    historicalNote: 'The Argonaut Mine disaster of August 27, 1922, in Jackson, Amador County, killed 47 miners — the worst gold-mining disaster in California history. Fire broke out in the Argonaut\'s single shaft near midnight; the men on the deep levels, cut off from their only exit, built bulkheads in a crosscut and died of carbon-monoxide gas within hours. Because the burning shaft was the mine\'s only entrance, rescuers spent about three weeks reopening the neighboring Kennedy mine\'s drift and blasting a crosscut to reach them, breaking through on September 18, 1922. The cause of the fire — an electrical short or arson — was never determined, and no one was charged. The Argonaut and Kennedy mines together are California Historical Landmark No. 786. (Sources differ on the exact depth, citing 3,500 to 4,650 feet; the men were found behind their bulkhead in a crosscut near the 4,350-foot level.)',
   },
 
   // === IRONSTONE VINEYARDS ===
