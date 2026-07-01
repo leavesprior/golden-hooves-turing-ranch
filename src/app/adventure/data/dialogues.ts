@@ -2776,6 +2776,105 @@ const ch5_chamber_final: Dialogue = {
 }
 
 // ============================================================
+// Chapter 4 — Flavor: the National Hotel Saloon (Old Town Jackson)
+// ============================================================
+
+const ch4_national_barkeep: Dialogue = {
+  id: 'ch4_national_barkeep',
+  npcId: 'ch4_national_barkeep',
+  npcName: 'Gus Belloni',
+  chapter: 4,
+  title: 'Tall Tales at the National',
+  nodes: [
+    {
+      id: 'start',
+      text: '"Welcome to the National — oldest bar in the state still pouring, or near enough." Gus runs a rag along the carved back-bar and nods at the spotted mirror behind him. "That glass has watched senators, stagecoach robbers, and one fella I could tell you stories about. Rebuilt this whole room after the \'62 fire, and I swear the ghost came back with the furniture. What\'ll it be — a drink, or a yarn?"',
+      speaker: 'Gus Belloni',
+      options: [
+        {
+          id: 'the_duke',
+          text: 'Who\'s the fella you could tell stories about?',
+          nextNodeId: 'duke_tale',
+        },
+        {
+          id: 'the_ghost',
+          text: 'You said a ghost came back with the furniture?',
+          nextNodeId: 'ghost_lore',
+        },
+        {
+          id: 'call_bluff',
+          text: '[Shrewdness DC 8] That mirror\'s the only thing here older than your tall tales, Gus.',
+          nextNodeId: 'barkeep_grin',
+          requirement: { stat: 'Shrewdness', dc: 8 },
+        },
+        {
+          id: 'leave',
+          text: 'Just the drink. Much obliged.',
+          nextNodeId: undefined,
+          effects: { xp: 5 },
+        },
+      ],
+    },
+    {
+      id: 'duke_tale',
+      text: '"Now this is a tall tale, mind — I heard it, I didn\'t swear it on a Bible." Gus leans in. "They say one day a big moving-picture cowboy comes through here, the Duke they\'ll call him, and sits at that very table playing poker till the sun\'s a rumor. Loses a fortune he hasn\'t got, and settles the debt in furniture — a whole room of it, hauled up the stairs. Room 201, still called the Duke\'s room to this day. Half of what you\'re leaning on, he lost fair and square." He winks. "Or so the boys tell it."',
+      speaker: 'Gus Belloni',
+      options: [
+        {
+          id: 'duke_room',
+          text: 'And the furniture\'s still up in Room 201?',
+          nextNodeId: 'duke_room_reply',
+        },
+        {
+          id: 'ghost_pivot',
+          text: 'You mentioned a ghost, too.',
+          nextNodeId: 'ghost_lore',
+        },
+      ],
+    },
+    {
+      id: 'duke_room_reply',
+      text: '"Every stick. Go on up and look — carved bedstead, a wardrobe you could bury a man in. Guests ask for 201 special." He grins. "Whether the Duke ever set foot in it, well. A story that good pays its own bar tab."',
+      speaker: 'Gus Belloni',
+      options: [
+        {
+          id: 'good_yarn',
+          text: 'Best five-cent story in the county. My compliments.',
+          nextNodeId: undefined,
+          effects: { xp: 15, flag: 'heard_duke_legend' },
+        },
+      ],
+    },
+    {
+      id: 'ghost_lore',
+      text: '"Lady in a long dress, second-floor landing. Cold spot on the stairs even in August. Glasses that slide off the back-bar when nobody\'s near \'em." Gus taps the brass foot-rail with his boot. "I don\'t mind her. She never stiffs me on a tab. But new folks in the Duke\'s room don\'t always sleep through the night."',
+      speaker: 'Gus Belloni',
+      options: [
+        {
+          id: 'ghost_thanks',
+          text: 'I\'ll keep a candle lit. Thanks, Gus.',
+          nextNodeId: undefined,
+          effects: { xp: 10, flag: 'heard_national_ghost' },
+        },
+      ],
+    },
+    {
+      id: 'barkeep_grin',
+      text: 'Gus laughs, a big open bark of it, and sets a second glass down without asking. "Sharp one. Course it\'s a tall tale — that\'s what a saloon\'s FOR, friend. Man wants the truth, he goes to the courthouse. Man wants a good night, he comes to me." He slides the glass over. "On the house, for not believing a word."',
+      speaker: 'Gus Belloni',
+      options: [
+        {
+          id: 'toast',
+          text: 'To tall tales, then.',
+          nextNodeId: undefined,
+          effects: { xp: 20, gold: 0, flag: 'heard_duke_legend' },
+        },
+      ],
+    },
+  ],
+}
+
+// ============================================================
 // Dialogue Registry
 // ============================================================
 
@@ -2798,6 +2897,7 @@ export const DIALOGUES: Dialogue[] = [
   ch4_big_jim,
   ch4_walt_henderson,
   ch4_samuel_clemson,
+  ch4_national_barkeep,
   // Chapter 5
   ch5_tobias_journal,
   ch5_barn_spirit,

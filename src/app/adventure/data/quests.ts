@@ -1544,6 +1544,194 @@ const CH4_QUEST_WATER_RIGHTS: Quest = {
   ],
 }
 
+const CH4_QUEST_KENNEDY_FIRE: Quest = {
+  id: 'ch4_kennedy_mine_fire',
+  chapter: 4,
+  title: 'The Kennedy Mine Fire',
+  description:
+    'Fire has broken out in the shaft of the Argonaut, the deep mine on the ridge above Jackson, sealing ' +
+    'forty-seven men more than four thousand feet down — Italians, Spaniards, and Serbs who came for gold and ' +
+    'stayed for wages. The shaft is impassable, so Captain Sabatini\'s crews are driving a cross-cut through the ' +
+    'rock from the rival Kennedy next door, three weeks of digging against the gas. No one can yet say what lit ' +
+    'the timbers, and the owners already call it "incendiarism." Sabatini wants the truth — not a scapegoat, ' +
+    'and not a fairy tale. Whatever the answer, the forty-seven deserve better than a cartoon villain.',
+  giver: 'ch4_rescue_captain', // Captain Vittorio Sabatini
+  giverLocation: 'ch4_kennedy_mine',
+  paths: [
+    // === PATH A: The Cold Truth (evidence — electrical / oil-soaked timber) ===
+    {
+      id: 'ch4_kennedy_cold_truth',
+      name: 'The Cold Truth',
+      description:
+        'No arson, no conspiracy — just electricity, rotten oil-soaked timber, and years of neglect. ' +
+        'Follow the evidence to the unglamorous cause and give the dead an honest answer instead of a satisfying one.',
+      objectives: [
+        {
+          id: 'ch4_kf_cold_1',
+          description: 'Examine the burned shaft timbers at the Kennedy & Argonaut Mines — note how they reek of lamp oil (Expertise check)',
+          type: 'skill_check',
+          target: 'ch4_kennedy_mine',
+          stat: 'Expertise',
+          dc: 12,
+        },
+        {
+          id: 'ch4_kf_cold_2',
+          description: 'Question Angus Petrie, the mine electrician, about the 2,300-volt line running down the shaft',
+          type: 'talk',
+          target: 'ch4_mine_electrician',
+        },
+        {
+          id: 'ch4_kf_cold_3',
+          description: 'Work out whether a short in the power line or the oil-soaked timber caught first (Shrewdness check)',
+          type: 'skill_check',
+          target: 'ch4_kennedy_mine',
+          stat: 'Shrewdness',
+          dc: 14,
+        },
+        {
+          id: 'ch4_kf_cold_4',
+          description: 'Recover the ignored safety-inspection records from the Jackson courthouse',
+          type: 'clue',
+          target: 'argonaut_safety_records',
+        },
+        {
+          id: 'ch4_kf_cold_5',
+          description: 'Give Captain Sabatini the sober conclusion — a short and rotten timber, not a villain',
+          type: 'talk',
+          target: 'ch4_rescue_captain',
+        },
+      ],
+      reward: {
+        xp: 110,
+        gold: 15,
+        karma: { lawful: 15, good: 10 },
+        reputation: [
+          { faction: 'pinkerton', amount: 15 },
+          { faction: 'settlers', amount: 15 },
+        ],
+        setFlag: 'ch4_kennedy_truth_electrical',
+      },
+      failureConsequence: {
+        reputation: [{ faction: 'settlers', amount: -5 }],
+        karma: { lawful: -3 },
+      },
+    },
+
+    // === PATH B: The Sensational Accusation (arson / labor sabotage / rival feud) ===
+    {
+      id: 'ch4_kennedy_accusation',
+      name: 'The Sensational Accusation',
+      description:
+        'The owners cry incendiarism; the town whispers the Wobblies did it over the wage cut, or that the ' +
+        'old Kennedy feud finally turned to murder. An accusation sells papers and soothes the grieving — ' +
+        'but name the wrong man and you bury an innocent alongside the forty-seven.',
+      objectives: [
+        {
+          id: 'ch4_kf_acc_1',
+          description: 'Hear out superintendent Harlan Voss\'s claim that the fire was deliberately set',
+          type: 'talk',
+          target: 'ch4_mine_owner',
+        },
+        {
+          id: 'ch4_kf_acc_2',
+          description: 'Weigh the arson story against the owners\' own record of neglect (Shrewdness check)',
+          type: 'skill_check',
+          target: 'ch4_kennedy_mine',
+          stat: 'Shrewdness',
+          dc: 12,
+        },
+        {
+          id: 'ch4_kf_acc_3',
+          description: 'Chase the wage-war rumor blaming the I.W.W. organizers down in Jackson',
+          type: 'travel',
+          target: 'ch4_jackson',
+        },
+        {
+          id: 'ch4_kf_acc_4',
+          description: 'Decide who to name to the newspapers — an insider, the union men, the rival Kennedy, or no one at all',
+          type: 'choice',
+          target: 'name_the_arsonist',
+        },
+      ],
+      reward: {
+        xp: 85,
+        gold: 40,
+        karma: { lawful: -5, good: -10 },
+        reputation: [
+          { faction: 'outlaws', amount: 10 },
+          { faction: 'settlers', amount: -5 },
+        ],
+        setFlag: 'ch4_kennedy_accusation_made',
+      },
+      failureConsequence: {
+        reputation: [
+          { faction: 'settlers', amount: -15 },
+          { faction: 'pinkerton', amount: -10 },
+        ],
+        karma: { lawful: -10, good: -10 },
+      },
+    },
+
+    // === PATH C: Honor the Dead (recover the bulkhead message & the names) ===
+    {
+      id: 'ch4_kennedy_honor',
+      name: 'Honor the Dead',
+      description:
+        'The cause may never be known, but the men can be. Reach the bulkhead they built against the gas, ' +
+        'recover the message they chalked in their last hours, and carry the forty-seven names back into the light.',
+      objectives: [
+        {
+          id: 'ch4_kf_hon_1',
+          description: 'Descend the Kennedy cross-cut toward the sealed Argonaut drift',
+          type: 'travel',
+          target: 'ch4_kennedy_mine',
+        },
+        {
+          id: 'ch4_kf_hon_2',
+          description: 'Work through the gas-fouled tunnel to the miners\' bulkhead (Durability check)',
+          type: 'skill_check',
+          target: 'ch4_kennedy_mine',
+          stat: 'Durability',
+          dc: 14,
+        },
+        {
+          id: 'ch4_kf_hon_3',
+          description: 'Recover the farewell the trapped men chalked on the timber',
+          type: 'item',
+          target: 'chalked_farewell_message',
+        },
+        {
+          id: 'ch4_kf_hon_4',
+          description: 'Bring the message and the roll of names to the widow Draga Vukovic at the mine head',
+          type: 'talk',
+          target: 'ch4_widow',
+        },
+        {
+          id: 'ch4_kf_hon_5',
+          description: 'Read the forty-seven names aloud at St. Sava\'s church in Jackson',
+          type: 'choice',
+          target: 'read_the_names',
+        },
+      ],
+      reward: {
+        xp: 130,
+        gold: 5,
+        karma: { lawful: 10, good: 25 },
+        reputation: [
+          { faction: 'settlers', amount: 25 },
+          { faction: 'pinkerton', amount: 5 },
+        ],
+        setFlag: 'ch4_kennedy_honored',
+        item: 'argonaut_memorial_roll',
+      },
+      failureConsequence: {
+        reputation: [{ faction: 'settlers', amount: -5 }],
+        karma: { good: -5 },
+      },
+    },
+  ],
+}
+
 // ============================================
 // CHAPTER 5: THE TREASURE & LEGACY
 // ============================================
@@ -1823,6 +2011,7 @@ export const QUESTS: Quest[] = [
   // Chapter 4: Building the Ranch
   CH4_QUEST_LAND_FRAUD,
   CH4_QUEST_WATER_RIGHTS,
+  CH4_QUEST_KENNEDY_FIRE,
   // Chapter 5: The Treasure
   CH5_QUEST_TOBIAS_LEGACY,
   CH5_QUEST_FINAL_CHOICE,
