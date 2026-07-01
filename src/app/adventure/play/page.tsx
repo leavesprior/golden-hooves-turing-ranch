@@ -1010,6 +1010,10 @@ function AdventureContent() {
     questStatesRef.current = adventureState?.questStates ?? null
   }, [adventureState?.questStates])
 
+  // A quest's true-history epilogue, surfaced as the distinct HONEST RECORD panel
+  // on completion (NOT through the unreliable narrator).
+  const [honestRecord, setHonestRecord] = useState<string | null>(null)
+
   // Apply a completed quest path's reward through the EXISTING reward paths.
   const applyQuestCompletions = useCallback((completed: { quest: Quest; path: QuestPath }[]) => {
     for (const { quest, path } of completed) {
@@ -1024,6 +1028,8 @@ function AdventureContent() {
       if (r.karma?.good && r.karma.good > 0) earnNeutral(r.karma.good, `Quest karma: ${quest.title}`)
       r.reputation?.forEach(rep => modifyReputation(rep.faction, rep.amount, `Quest: ${quest.title}`))
       narratorComment(`Quest complete: ${quest.title} — ${path.name}. (+${r.xp} XP)`, 'observation')
+      // The honest record stands apart from the narrator's voice — plainly true.
+      if (quest.trueHistory) setHonestRecord(quest.trueHistory)
     }
   }, [handleAddXP, earnNeutral, modifyReputation, narratorComment])
 
@@ -1918,6 +1924,45 @@ function AdventureContent() {
           cluesAnswered={adventureState.cluesAnswered}
           onUseHint={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
         />
+      )}
+
+      {/* The Honest Record — true-history epilogue, apart from the narrator's voice */}
+      {honestRecord && (
+        <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
+          <div className="max-w-xl w-full bg-[#14100c] border-2 border-amber-800/50 rounded-lg p-6 shadow-2xl">
+            <p className="text-amber-500/80 text-[11px] font-mono tracking-widest text-center mb-4">
+              THE HONEST RECORD
+            </p>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {honestRecord.split('\n\n').map((para, i, arr) => {
+                const isFirst = i === 0
+                const isLast = i === arr.length - 1
+                return (
+                  <p
+                    key={i}
+                    className={
+                      isFirst
+                        ? 'text-amber-200/90 text-sm leading-relaxed italic text-center'
+                        : isLast
+                          ? 'text-amber-300/90 text-sm leading-relaxed italic text-center pt-1'
+                          : 'text-stone-300 text-sm leading-relaxed'
+                    }
+                  >
+                    {para}
+                  </p>
+                )
+              })}
+            </div>
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={() => setHonestRecord(null)}
+                className="px-5 py-2 border border-amber-800/60 text-amber-200/90 text-sm rounded hover:bg-amber-900/20 transition-colors"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Cloud Save Passphrase Modal */}

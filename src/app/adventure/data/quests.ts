@@ -56,6 +56,10 @@ export interface Quest {
     flag?: string
     minReputation?: { faction: FactionId; level: number }
   }
+  // Optional "true-history" epilogue shown as a distinct HONEST RECORD panel on
+  // completion (NOT through the unreliable narrator) — turns a fiction rooted in
+  // real events into learning. See ch4_kennedy_mine_fire.
+  trueHistory?: string
 }
 
 // ============================================
@@ -1557,6 +1561,23 @@ const CH4_QUEST_KENNEDY_FIRE: Quest = {
     'and not a fairy tale. Whatever the answer, the forty-seven deserve better than a cartoon villain.',
   giver: 'ch4_rescue_captain', // Captain Vittorio Sabatini
   giverLocation: 'ch4_kennedy_mine',
+  // Shown as the HONEST RECORD panel after any path completes. Fact-checked against
+  // the Kennedy Mine Foundation centennial record; honors the 47 collectively and
+  // keeps the fictional culprit wholly separate from the real dead.
+  trueHistory:
+    'What you just solved is a story. What follows is not.\n\n' +
+    'On the night of August 27, 1922, forty-seven miners were trapped by fire in the ' +
+    'Argonaut Mine beneath Jackson, California — men born in thirteen countries, come to ' +
+    'dig gold in a land not yet their own. The flames never reached them. Behind a wall ' +
+    'they built from timber and mud and their own clothing, they died of the gas, waiting. ' +
+    'One of them marked the hours in lamp-smoke on the rock: three o’clock, the gas ' +
+    'getting strong; then four.\n\n' +
+    'For nearly three weeks, the Argonaut and the neighboring Kennedy Mine — rivals who had ' +
+    'feuded for years — set their quarrel aside and dug toward them together. They came too late.\n\n' +
+    'No inquiry ever proved how the fire began; the real mystery was never solved. But the law ' +
+    'it forced — a second way out, joining the two mines — saved other miners from another fire ' +
+    'six years later. The forty-seven are still remembered in the cemeteries above the shaft.\n\n' +
+    'Rest easy, all forty-seven.',
   paths: [
     // === PATH A: The Cold Truth (evidence — electrical / oil-soaked timber) ===
     {
