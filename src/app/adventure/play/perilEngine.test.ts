@@ -5,7 +5,8 @@
 
 import {
   initPeril, inflict, tick, treatWithMedicine, rest, isDead, successorLegacy,
-  maxVitalityForDurability, describeCondition, DEFAULT_PERIL_CONFIG as CFG,
+  maxVitalityForDurability, describeCondition, stabilize, isDying,
+  DEFAULT_PERIL_CONFIG as CFG, CLASSIC_PERIL_CONFIG as CLASSIC,
 } from './perilEngine'
 
 let failures = 0
@@ -71,6 +72,43 @@ check('four rest days clear a grave + mild pair', healed.conditions.length === 0
 
 // --- medicine no-ops on an absent condition ---
 check('medicine on an absent condition is a no-op', treatWithMedicine(fresh, 'fever').conditions.length === 0)
+
+// --- graded dying / stabilization window (Grok's highest-leverage change) ---
+// Drive a character to 0 and confirm they enter the dying window, NOT death.
+let brink = inflict(initPeril(8), 'dysentery', 3) // grave, drains 18/tick
+while (brink.vitality > 0 && !brink.dying) brink = tick(brink)
+check('reaching 0 vitality opens the dying window, not instant death', brink.dying && brink.alive && !isDead(brink))
+check('isDying reflects the bleeding-out state', isDying(brink))
+check('dying reserve is seeded from config', brink.dyingReserve === CFG.dyingReserve)
+
+// A successful field-medicine check stabilizes: back to fragile-but-conscious.
+const saved = stabilize(brink, true)
+check('a successful stabilize pulls you out of dying', !saved.dying && saved.alive && !isDying(saved))
+check('stabilize restores to the fragile footing', saved.vitality === CFG.stabilizeVitalityRestore)
+check('the underlying condition still needs treating after stabilize', saved.conditions.some(c => c.id === 'dysentery'))
+
+// A failed check is a no-op; ignored, the reserve bleeds out to true death.
+check('a failed stabilize is a no-op (still dying)', stabilize(brink, false).dying === true)
+check('stabilize on a healthy character is a no-op', stabilize(fresh, true) === fresh)
+let bleeding = brink
+let dyingTicks = 0
+while (!isDead(bleeding) && dyingTicks < 20) { bleeding = tick(bleeding); dyingTicks++ }
+check('an unstabilized dying character eventually bleeds out', isDead(bleeding))
+check('but the dying window lasts more than one tick (a real chance to act)', dyingTicks >= 2,
+  `bled out after ${dyingTicks} dying ticks`)
+
+// Medicine and rest are the other two ways out of the brink.
+const dosed = treatWithMedicine(brink, 'dysentery')
+check('a medicine dose guarantees a save from dying', !dosed.dying && dosed.alive && dosed.vitality > 0)
+const camped = rest(brink, 2)
+check('camp rest pulls a dying character back', !camped.dying && camped.alive && camped.vitality > 0)
+
+// --- Classic (hard) mode is genuinely spicier ---
+check('classic mode drains faster than soft', CLASSIC.drainPerSeverityPerTick > CFG.drainPerSeverityPerTick)
+check('classic mode has a thinner dying window', CLASSIC.dyingReserve < CFG.dyingReserve)
+let cBrink = inflict(initPeril(8, CLASSIC), 'dysentery', 3)
+while (cBrink.vitality > 0 && !cBrink.dying) cBrink = tick(cBrink, CLASSIC)
+check('classic dying bleeds out in ~1 tick', isDead(tick(cBrink, CLASSIC)))
 
 // --- successor legacy ---
 const legacy = successorLegacy('Tobias Vane', 200)

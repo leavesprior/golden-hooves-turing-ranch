@@ -30,6 +30,14 @@ export interface PerilState {
   maxVitality: number
   conditions: Condition[]
   alive: boolean
+  // "Bleeding out" — the graded dying window between hurt and dead (3.5's dying
+  // state: 0 HP is not −10 HP). While dying the character is still `alive` but
+  // unconscious and losing a small reserve each tick; a field-medicine check
+  // (stabilize) or rest/medicine can pull them back before the reserve runs out.
+  dying: boolean
+  // Remaining "bleed out" buffer while dying (mirrors the −1..−9 window before
+  // −10 = dead). Only meaningful when `dying` is true; 0 otherwise.
+  dyingReserve: number
 }
 
 // Mitigations derived from the character's advantages/flaws (see advantages.ts:
@@ -47,16 +55,24 @@ export interface PerilConfig {
   restVitalityPerDay: number     // vitality regained per camp day rested
   extraRestBonus: number         // additional per-day regen with the extraRest mitigation
   medicineSeverityReduction: number // severity levels a single dose of medicine removes
+  // --- Graded dying / stabilization window (3.5's dying-then-stabilize model) ---
+  dyingReserve: number           // "bleed out" buffer when vitality first hits 0 (like the −1..−9 window)
+  dyingBleedPerTick: number      // reserve lost each tick while dying and unstabilized
+  stabilizeVitalityRestore: number // vitality a successful field-medicine check pulls you back to
   // Legacy carried to a successor on death (fractions of the deceased's totals).
   successorGoldFraction: number
   successorReputationFraction: number
 }
 
-// Survivable-not-brutal defaults. A single SERIOUS (sev 2) condition drains
-// 12 vitality/tick → ~8 untreated ticks from full before death: ample time to
-// reach camp. One dose of medicine cures a serious condition; a couple of rest
-// days refill vitality. Death requires actively ignoring conditions AND skipping
-// recovery. All lethality lives here — tune in ONE place.
+// Survivable-not-brutal defaults ("Soft" mode — the default, tuned for casual
+// players / vacation-rental guests). A single SERIOUS (sev 2) condition drains
+// 12 vitality/tick → ~8 untreated ticks from full before you even reach the
+// brink: ample time to reach camp. Reaching 0 does NOT kill outright — it opens
+// a dying window (dyingReserve/dyingBleedPerTick ≈ 3 more ticks) during which a
+// field-medicine check, medicine, or rest can save you. One dose of medicine
+// cures a serious condition; a couple of rest days refill vitality. Death
+// requires ignoring conditions, failing the stabilize, AND skipping recovery.
+// All lethality lives here — tune in ONE place.
 export const DEFAULT_PERIL_CONFIG: PerilConfig = {
   baseMaxVitality: 100,
   vitalityPerDurability: 10,
@@ -64,6 +80,29 @@ export const DEFAULT_PERIL_CONFIG: PerilConfig = {
   restVitalityPerDay: 25,
   extraRestBonus: 10,
   medicineSeverityReduction: 2,
+  dyingReserve: 12,
+  dyingBleedPerTick: 4,
+  stabilizeVitalityRestore: 15,
+  successorGoldFraction: 0.5,
+  successorReputationFraction: 0.25,
+}
+
+// "Classic" mode — for nostalgic players who want the brutal Oregon-Trail / lethal
+// 3.5 feel. Faster drain, weaker medicine (a dose only knocks a condition one level,
+// never a full clear), slower rest, and a razor-thin dying window that bleeds out in
+// ~1 tick. Same mechanics, spicier numbers — expose as a difficulty toggle at
+// character creation. Death is a real threat here; the heir/Legacy loop is the
+// safety net, not the stabilize check.
+export const CLASSIC_PERIL_CONFIG: PerilConfig = {
+  baseMaxVitality: 100,
+  vitalityPerDurability: 10,
+  drainPerSeverityPerTick: 9,
+  restVitalityPerDay: 18,
+  extraRestBonus: 8,
+  medicineSeverityReduction: 1,
+  dyingReserve: 6,
+  dyingBleedPerTick: 6,
+  stabilizeVitalityRestore: 8,
   successorGoldFraction: 0.5,
   successorReputationFraction: 0.25,
 }
@@ -78,7 +117,7 @@ export function maxVitalityForDurability(durability: number, cfg: PerilConfig = 
 /** Fresh peril state at full health for a character of the given Durability. */
 export function initPeril(durability: number, cfg: PerilConfig = DEFAULT_PERIL_CONFIG): PerilState {
   const max = maxVitalityForDurability(durability, cfg)
-  return { vitality: max, maxVitality: max, conditions: [], alive: true }
+  return { vitality: max, maxVitality: max, conditions: [], alive: true, dying: false, dyingReserve: 0 }
 }
 
 const DISEASE: ReadonlySet<ConditionId> = new Set<ConditionId>(['fever', 'dysentery'])
@@ -115,16 +154,52 @@ export function inflict(
 }
 
 /**
- * Advance one travel/day tick: every untreated condition drains vitality by its
- * severity. Death (alive=false, vitality clamped to 0) only if vitality reaches
- * 0 — i.e. conditions were left untended across enough ticks. Pure.
+ * Advance one travel/day tick.
+ *
+ * Healthy → hurt: every untreated condition drains vitality by its severity.
+ * Hurt → dying: when vitality first reaches 0 the character does NOT die — they
+ *   enter the dying/"bleeding out" window (alive, unconscious) with a reserve.
+ * Dying → dead: while dying, the reserve bleeds by dyingBleedPerTick each tick;
+ *   only when the reserve is exhausted is the character truly dead. This is the
+ *   graded 3.5 dying window — a stabilize check, medicine, or rest can save them
+ *   before then. Pure.
  */
 export function tick(state: PerilState, cfg: PerilConfig = DEFAULT_PERIL_CONFIG): PerilState {
   if (!state.alive) return state
+
+  // Already bleeding out: drain the reserve, not vitality (you're at 0).
+  if (state.dying) {
+    const dyingReserve = state.dyingReserve - cfg.dyingBleedPerTick
+    if (dyingReserve <= 0) return { ...state, dyingReserve: 0, vitality: 0, alive: false, dying: false }
+    return { ...state, dyingReserve }
+  }
+
   const drain = state.conditions.reduce((sum, c) => sum + c.severity * cfg.drainPerSeverityPerTick, 0)
   const vitality = state.vitality - drain
-  if (vitality <= 0) return { ...state, vitality: 0, alive: false }
+  // Crossing 0 opens the dying window rather than killing outright.
+  if (vitality <= 0) return { ...state, vitality: 0, dying: true, dyingReserve: cfg.dyingReserve }
   return { ...state, vitality }
+}
+
+/**
+ * Attempt to stabilize a dying character — the field-medicine moment at the brink.
+ * PURE: the check itself (Expertise as the primary "Heal" analog, with Shrewdness/
+ * Luck assist or a raw Durability roll — vs a DC) is rolled at the CALL SITE, like
+ * every other RNG in this module; the caller passes the outcome as `success`.
+ * On success the character is pulled back to a fragile-but-conscious footing
+ * (stabilizeVitalityRestore) with their conditions still to treat — buying the
+ * moment to reach medicine or camp. On failure (or if not dying) it's a no-op and
+ * the next tick keeps bleeding.
+ */
+export function stabilize(state: PerilState, success: boolean, cfg: PerilConfig = DEFAULT_PERIL_CONFIG): PerilState {
+  if (!state.alive || !state.dying || !success) return state
+  const vitality = Math.min(state.maxVitality, cfg.stabilizeVitalityRestore)
+  return { ...state, dying: false, dyingReserve: 0, vitality }
+}
+
+/** True while the character is bleeding out — unconscious but not yet dead. */
+export function isDying(state: PerilState): boolean {
+  return state.alive && state.dying
 }
 
 /**
@@ -137,13 +212,18 @@ export function treatWithMedicine(
   cfg: PerilConfig = DEFAULT_PERIL_CONFIG,
 ): PerilState {
   if (!state.alive) return state
+  // A dose administered to a bleeding-out character pulls them back — a guaranteed
+  // but dose-costly alternative to gambling on the stabilize check.
+  const revive = state.dying
+    ? { dying: false, dyingReserve: 0, vitality: Math.min(state.maxVitality, cfg.stabilizeVitalityRestore) }
+    : {}
   const target = state.conditions.find(c => c.id === id)
-  if (!target) return state
+  if (!target) return { ...state, ...revive }
   const nextSeverity = target.severity - cfg.medicineSeverityReduction
   const conditions = nextSeverity <= 0
     ? state.conditions.filter(c => c.id !== id)
     : state.conditions.map(c => (c.id === id ? { ...c, severity: clampSeverity(nextSeverity) } : c))
-  return { ...state, conditions }
+  return { ...state, ...revive, conditions }
 }
 
 /**
@@ -160,6 +240,8 @@ export function rest(
 ): PerilState {
   if (!state.alive || days <= 0) return state
   const perDay = cfg.restVitalityPerDay + (mit.extraRest ? cfg.extraRestBonus : 0)
+  // Camp rest also pulls a bleeding-out character back from the brink (a companion
+  // tends them through the night) — clear the dying flag before restoring vitality.
   let vitality = Math.min(state.maxVitality, state.vitality + perDay * days)
   let conditions = state.conditions.map(c => ({ ...c }))
   for (let d = 0; d < days && conditions.length > 0; d++) {
@@ -170,7 +252,7 @@ export function rest(
     conditions[0].severity = (conditions[0].severity - 1) as Severity
     conditions = conditions.filter(c => c.severity > 0)
   }
-  return { ...state, vitality, conditions }
+  return { ...state, vitality, conditions, dying: false, dyingReserve: 0 }
 }
 
 export function isDead(state: PerilState): boolean {
