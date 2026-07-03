@@ -66,12 +66,22 @@ import {
   type QuestSaveState,
   type QuestUpdateResult,
 } from '@/app/adventure/play/questEngine'
+import {
+  initPeril, inflict, tick as perilTick, treatWithMedicine, rest as perilRest,
+  describeCondition, successorLegacy,
+  type PerilState, type PerilMitigations, type ConditionId,
+} from '@/app/adventure/play/perilEngine'
+
+// Survivable illness/injury/death loop — OFF by default; enable with
+// NEXT_PUBLIC_PERIL=1. Gated because the mechanic changes how the game feels and
+// the death→successor framing is still being tuned (see PERIL_DESIGN.md).
+const PERIL_ON = process.env.NEXT_PUBLIC_PERIL === '1'
 
 // ============================================
 // ADVENTURE STATE
 // ============================================
 
-type AdventurePhase = 'loading' | 'exploring' | 'at_location' | 'traveling' | 'camp' | 'chapter_complete'
+type AdventurePhase = 'loading' | 'exploring' | 'at_location' | 'traveling' | 'camp' | 'chapter_complete' | 'perished'
 
 // Per-quest progress, persisted inside AdventureState. Objectives complete via
 // cheap hooks into existing handlers (talk / travel / clue answered / dialogue
@@ -98,6 +108,8 @@ interface AdventureState {
   questStates: Record<string, QuestSaveState>
   // Inventory of acquired item-ids (satisfies 'item'-type quest objectives)
   acquiredItems: string[]
+  // Survivability state (NEXT_PUBLIC_PERIL). Optional so pre-peril saves load.
+  peril?: PerilState
 }
 
 const SAVE_KEY = 'bobr_adventure_state'
@@ -133,6 +145,7 @@ function loadAdventureState(): AdventureState | null {
       dialogueFlags: parsed.dialogueFlags ?? [],
       questStates: parsed.questStates ?? {},
       acquiredItems: parsed.acquiredItems ?? [],
+      peril: parsed.peril, // re-initialised from Durability by an effect if PERIL_ON
     }
   } catch {
     return null
@@ -183,6 +196,7 @@ function createNewAdventureState(): AdventureState {
     dialogueFlags: [],
     questStates: {},
     acquiredItems: [],
+    peril: PERIL_ON ? initPeril(8) : undefined,
   }
 }
 
@@ -1003,6 +1017,38 @@ function AdventureContent() {
     fireQuestEvent({ kind: 'item', target: itemId })
   }, [fireQuestEvent])
 
+  // === PERIL (survivability — NEXT_PUBLIC_PERIL) ===
+  // Mitigations come from the character's picks: Iron Constitution → disease
+  // immunity, Trail Hardened → travel perils land one lighter (matches the
+  // advantage specialAbility text in advantages.ts).
+  const perilMit = useCallback((): PerilMitigations => {
+    try {
+      const picks: string[] = JSON.parse(localStorage.getItem('bobr_adventure_picks') || '{}').picks ?? []
+      return {
+        immuneToDisease: picks.includes('iron_constitution'),
+        trailHardened: picks.includes('trail_hardened'),
+      }
+    } catch {
+      return {}
+    }
+  }, [])
+
+  // Apply a pure peril mutation; if it kills the character, flip to the death phase.
+  const applyPeril = useCallback((fn: (p: PerilState) => PerilState) => {
+    setAdventureState(prev => {
+      if (!prev?.peril) return prev
+      const peril = fn(prev.peril)
+      return { ...prev, peril, phase: !peril.alive ? 'perished' : prev.phase }
+    })
+  }, [])
+
+  // Initialise peril from the character's Durability once both are loaded.
+  useEffect(() => {
+    if (!PERIL_ON || !adventureState || adventureState.peril || !charState.character) return
+    const dur = charState.character.stats.Durability
+    setAdventureState(prev => (prev && !prev.peril ? { ...prev, peril: initPeril(dur) } : prev))
+  }, [adventureState, charState.character])
+
   // Activate a quest (from a dialogue questStart effect, or by talking to its
   // giver). Idempotent — already-active/completed quests are untouched.
   const activateQuest = useCallback((questId: string) => {
@@ -1226,6 +1272,25 @@ function AdventureContent() {
       if (allyBonus.description) narratorComment(allyBonus.description, 'observation')
     }
 
+    // Peril: a failed trail encounter inflicts a condition; every leg ticks the
+    // journey's toll on anything untreated. Careful players reach camp and heal;
+    // heedless ones spiral. (NEXT_PUBLIC_PERIL — no-op otherwise.)
+    if (PERIL_ON) {
+      const n = `${travelEncounter.name} ${travelEncounter.description ?? ''}`.toLowerCase()
+      const cond: ConditionId = /snake/.test(n) ? 'snakebite'
+        : /(water|fever|sick|chol|dysent|ill)/.test(n) ? 'fever'
+        : 'injury'
+      const mit = perilMit()
+      applyPeril(p => {
+        let next = p
+        if (!success) {
+          next = inflict(next, cond, 2, mit)
+          narratorComment(`The trail exacts its price — you've taken ${cond === 'injury' ? 'a hurt' : cond}. Tend it at camp.`, 'observation')
+        }
+        return perilTick(next)
+      })
+    }
+
     // Always clear the encounter overlay first
     setTravelEncounter(null)
     // Only continue travel if a destination was set (map-click path). Random
@@ -1236,7 +1301,7 @@ function AdventureContent() {
       setTravelDestination(null)
       handleTravelTo(destId, true)
     }
-  }, [travelEncounter, travelDestination, addExperience, earnNeutral, narratorComment, handleTravelTo])
+  }, [travelEncounter, travelDestination, addExperience, earnNeutral, narratorComment, handleTravelTo, perilMit, applyPeril])
 
   // Resolve confrontation encounter
   const handleConfrontationEnd = useCallback((result: ConfrontationResult) => {
@@ -1435,6 +1500,13 @@ function AdventureContent() {
     if (result.healthChange) {
       // Apply health change via Durability stat modification (positive = heal, negative = damage)
       modifyStat('Durability', result.healthChange > 0 ? 1 : -1)
+      // Peril: a healing camp activity is a day of recovery — regain vitality and
+      // ease the worst condition (the "medicine + time" loop). A harmful one ticks.
+      if (PERIL_ON) {
+        applyPeril(p => (result.healthChange > 0
+          ? perilRest(p, Math.max(1, Math.round(result.healthChange / 15)), perilMit())
+          : perilTick(p)))
+      }
     }
     if (result.statChange) {
       modifyStat(result.statChange.stat, result.statChange.amount)
@@ -1454,7 +1526,7 @@ function AdventureContent() {
         })
       }
     }
-  }, [addExperience, earnNeutral, modifyStat, modifyReputation, adventureState, updateState])
+  }, [addExperience, earnNeutral, modifyStat, modifyReputation, adventureState, updateState, applyPeril, perilMit])
 
   // === CAMP COMPLETE ===
   const handleCampComplete = useCallback(() => {
@@ -1694,6 +1766,22 @@ function AdventureContent() {
           </div>
           <div className="flex items-center gap-4">
             <ReputationDisplay />
+            {PERIL_ON && adventureState.peril && (
+              <div
+                className="flex items-center gap-1"
+                title={adventureState.peril.conditions.map(describeCondition).join(', ') || 'hale and whole'}
+              >
+                <span className="text-sm">{'❤️'}</span>
+                <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)]">
+                  {adventureState.peril.vitality}/{adventureState.peril.maxVitality}
+                </span>
+                {adventureState.peril.conditions.length > 0 && (
+                  <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-fire-red)]" title={adventureState.peril.conditions.map(describeCondition).join(', ')}>
+                    {'⚠'}{adventureState.peril.conditions.length}
+                  </span>
+                )}
+              </div>
+            )}
             {adventureState.recruitedAllies.length > 0 && (
               <div className="flex items-center gap-1" title={adventureState.recruitedAllies.map(a => a.enemyName).join(', ')}>
                 {adventureState.recruitedAllies.map(ally => (
@@ -1715,6 +1803,37 @@ function AdventureContent() {
           </div>
         </div>
       </div>
+
+      {/* Death → successor (NEXT_PUBLIC_PERIL). DEFAULT framing — the specific
+          heir narrative is Leif's call (see PERIL_DESIGN.md); this is a sensible
+          placeholder so the loop is complete and testable. */}
+      {PERIL_ON && adventureState.phase === 'perished' && adventureState.peril && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <div className="max-w-md border-4 border-[var(--pixel-fire-red)] bg-[var(--pixel-bg-mid)] p-6 text-center space-y-3">
+            <h2 className="font-[var(--font-pixel)] text-[16px] text-[var(--pixel-fire-red)]">THE TRAIL CLAIMS ITS OWN</h2>
+            <p className="font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)]">
+              {charState.character?.name ?? 'The prospector'} has fallen on the trail. Their journey ends here — but the Mother Lode remembers, and the Legacy endures.
+            </p>
+            <p className="font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-gold-light)]">
+              An heir takes up the reins, inheriting {successorLegacy(charState.character?.name ?? 'the fallen', balance.neutral).inheritedGold} in gold and the family name.
+            </p>
+            <button
+              onClick={() => {
+                const legacy = successorLegacy(charState.character?.name ?? 'the fallen', balance.neutral)
+                try {
+                  localStorage.setItem('bobr_adventure_legacy', JSON.stringify(legacy))
+                  localStorage.removeItem('bobr_ot_character')
+                  localStorage.removeItem('bobr_adventure_state')
+                } catch { /* storage unavailable */ }
+                router.push('/adventure/character-creation')
+              }}
+              className="font-[var(--font-pixel)] text-[12px] px-4 py-2 border-2 border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)] text-[var(--pixel-gold-light)]"
+            >
+              Take up the trail as their heir
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-4 py-4">
