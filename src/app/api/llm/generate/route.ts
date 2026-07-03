@@ -1,4 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimitOk, clientIpFrom } from '@/lib/markerSession'
+
+// Abuse limits — this route proxies to an LLM (local Ollama today, billed
+// OpenRouter the moment a key is set), so an unbounded/unauthenticated caller is
+// a cost/DoS hole. Cap the inputs and rate-limit per IP.
+const MAX_PROMPT_CHARS = 4000
+const MAX_SYSTEM_CHARS = 2000
+const MAX_TOKENS_CAP = 512
+const MAX_CONTEXT_LEN = 4096
+
+const clampInt = (v: unknown, min: number, max: number, fallback: number): number => {
+  const n = typeof v === 'number' && Number.isFinite(v) ? Math.trunc(v) : fallback
+  return Math.min(max, Math.max(min, n))
+}
+const clampNum = (v: unknown, min: number, max: number, fallback: number): number => {
+  const n = typeof v === 'number' && Number.isFinite(v) ? v : fallback
+  return Math.min(max, Math.max(min, n))
+}
 
 /**
  * Server-side LLM proxy route
@@ -125,10 +143,48 @@ async function getOllamaModel(): Promise<string | null> {
 }
 
 export async function POST(request: NextRequest) {
-  const body: GenerateRequestBody = await request.json()
+  // Same-origin guard: reject a cross-site browser caller (the open-proxy vector).
+  // A present Origin whose host differs from ours is blocked; non-browser callers
+  // that omit Origin still pass (they can't be CSRF'd).
+  const origin = request.headers.get('origin')
+  if (origin) {
+    try {
+      if (new URL(origin).host !== request.headers.get('host')) {
+        return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+      }
+    } catch {
+      return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+    }
+  }
 
-  if (!body.prompt) {
+  // Per-IP rate limit (shared token-bucket helper).
+  const ip = clientIpFrom(request.headers)
+  if (!rateLimitOk(ip)) {
+    return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  }
+
+  // Parse defensively — a malformed body must be a 400, not an unhandled 500.
+  let raw: Partial<GenerateRequestBody>
+  try {
+    raw = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'invalid_json' }, { status: 400 })
+  }
+
+  const prompt = typeof raw.prompt === 'string' ? raw.prompt.slice(0, MAX_PROMPT_CHARS) : ''
+  if (!prompt.trim()) {
     return NextResponse.json({ error: 'prompt is required' }, { status: 400 })
+  }
+
+  // Clamp every attacker-controlled field so cost/compute can't be run up.
+  const body: GenerateRequestBody = {
+    prompt,
+    system: typeof raw.system === 'string' ? raw.system.slice(0, MAX_SYSTEM_CHARS) : undefined,
+    context: Array.isArray(raw.context)
+      ? raw.context.slice(0, MAX_CONTEXT_LEN).filter((n): n is number => typeof n === 'number' && Number.isFinite(n))
+      : undefined,
+    temperature: clampNum(raw.temperature, 0, 2, 0.7),
+    maxTokens: clampInt(raw.maxTokens, 1, MAX_TOKENS_CAP, 256),
   }
 
   // Try Ollama first
