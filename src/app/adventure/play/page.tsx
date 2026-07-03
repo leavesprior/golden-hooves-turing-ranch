@@ -59,6 +59,13 @@ import { DialogueView } from '@/components/adventure/DialogueView'
 import { QuestLog, type QuestLogEntry, type QuestStatus } from '@/components/adventure/QuestLog'
 import { getDialoguesForNpc, type Dialogue, type DialogueEffect } from '@/app/adventure/data/dialogues'
 import { QUESTS, type Quest, type QuestPath } from '@/app/adventure/data/quests'
+import {
+  questEventProgress,
+  questObjectiveProgress,
+  type QuestEvent,
+  type QuestSaveState,
+  type QuestUpdateResult,
+} from '@/app/adventure/play/questEngine'
 
 // ============================================
 // ADVENTURE STATE
@@ -70,12 +77,6 @@ type AdventurePhase = 'loading' | 'exploring' | 'at_location' | 'traveling' | 'c
 // cheap hooks into existing handlers (talk / travel / clue answered / dialogue
 // questProgress effects); a quest completes when every non-optional objective
 // of one of its paths is done.
-interface QuestSaveState {
-  status: 'active' | 'completed'
-  completedObjectives: string[]
-  completedPathId?: string
-}
-
 interface AdventureState {
   chapter: number
   currentLocationId: string
@@ -95,6 +96,8 @@ interface AdventureState {
   // Dialogue/quest progression (added with the dialogue+quest wiring)
   dialogueFlags: string[]
   questStates: Record<string, QuestSaveState>
+  // Inventory of acquired item-ids (satisfies 'item'-type quest objectives)
+  acquiredItems: string[]
 }
 
 const SAVE_KEY = 'bobr_adventure_state'
@@ -105,9 +108,20 @@ function loadAdventureState(): AdventureState | null {
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw)
-    // Migrate older saves missing new fields
+    if (!parsed || typeof parsed !== 'object') return null
+    // Migrate older saves missing new fields. Core fields get defensive defaults
+    // too: a save truncated/corrupted mid-write could otherwise leave them
+    // undefined and crash the first .filter/.includes/comparison on load.
     return {
       ...parsed,
+      chapter: parsed.chapter ?? 1,
+      currentLocationId: parsed.currentLocationId ?? 'ch1_independence',
+      discoveredLocationIds: parsed.discoveredLocationIds ?? [],
+      visitedLocationIds: parsed.visitedLocationIds ?? [],
+      phase: parsed.phase ?? 'exploring',
+      unlockedSkillNodes: parsed.unlockedSkillNodes ?? [],
+      skillPoints: parsed.skillPoints ?? 0,
+      totalXP: parsed.totalXP ?? 0,
       // Reset playStartTime on each load so the Reward Tracker measures THIS
       // session's active time, not total elapsed real-time across days/weeks.
       playStartTime: Date.now(),
@@ -118,6 +132,7 @@ function loadAdventureState(): AdventureState | null {
       recruitedAllies: parsed.recruitedAllies ?? [],
       dialogueFlags: parsed.dialogueFlags ?? [],
       questStates: parsed.questStates ?? {},
+      acquiredItems: parsed.acquiredItems ?? [],
     }
   } catch {
     return null
@@ -167,101 +182,7 @@ function createNewAdventureState(): AdventureState {
     recruitedAllies: [],
     dialogueFlags: [],
     questStates: {},
-  }
-}
-
-// ============================================
-// QUEST ENGINE (pure helpers — no side effects)
-// ============================================
-
-type QuestEvent =
-  | { kind: 'talk' | 'travel' | 'clue'; target: string }
-  | { kind: 'skill_check'; target: string; stat: StatName; dc: number }
-
-interface QuestUpdateResult {
-  next: Record<string, QuestSaveState>
-  completed: { quest: Quest; path: QuestPath }[]
-  progressed: boolean
-}
-
-/** Check whether a path is fully complete (all non-optional objectives done). */
-function isPathComplete(path: QuestPath, completedIds: Set<string>): boolean {
-  return path.objectives.filter(o => !o.optional).every(o => completedIds.has(o.id))
-}
-
-/**
- * Mark matching objectives complete across all active quests for a game event,
- * then detect quest completion. Pure: returns new questStates + completions.
- */
-function questEventProgress(
-  questStates: Record<string, QuestSaveState>,
-  event: QuestEvent,
-): QuestUpdateResult {
-  const next: Record<string, QuestSaveState> = { ...questStates }
-  const completed: { quest: Quest; path: QuestPath }[] = []
-  let progressed = false
-
-  for (const quest of QUESTS) {
-    const st = next[quest.id]
-    if (!st || st.status !== 'active') continue
-
-    const done = new Set(st.completedObjectives)
-    let changed = false
-    for (const path of quest.paths) {
-      for (const obj of path.objectives) {
-        const matches =
-          obj.type === event.kind &&
-          obj.target === event.target &&
-          // skill_check objectives must also match the exact stat + DC, so two
-          // different checks at the same location don't both complete on one roll.
-          (event.kind !== 'skill_check' || (obj.stat === event.stat && obj.dc === event.dc))
-        if (matches && !done.has(obj.id)) {
-          done.add(obj.id)
-          changed = true
-        }
-      }
-    }
-    if (!changed) continue
-    progressed = true
-
-    const finishedPath = quest.paths.find(p => isPathComplete(p, done))
-    next[quest.id] = {
-      status: finishedPath ? 'completed' : 'active',
-      completedObjectives: Array.from(done),
-      completedPathId: finishedPath?.id,
-    }
-    if (finishedPath) completed.push({ quest, path: finishedPath })
-  }
-
-  return { next, completed, progressed }
-}
-
-/** Complete one specific objective (from a dialogue questProgress effect). */
-function questObjectiveProgress(
-  questStates: Record<string, QuestSaveState>,
-  questId: string,
-  objectiveId: string,
-): QuestUpdateResult {
-  const quest = QUESTS.find(q => q.id === questId)
-  const st = questStates[questId]
-  const objectiveExists = quest?.paths.some(p => p.objectives.some(o => o.id === objectiveId))
-  if (!quest || !st || st.status !== 'active' || !objectiveExists || st.completedObjectives.includes(objectiveId)) {
-    return { next: questStates, completed: [], progressed: false }
-  }
-  const done = new Set(st.completedObjectives)
-  done.add(objectiveId)
-  const finishedPath = quest.paths.find(p => isPathComplete(p, done))
-  return {
-    next: {
-      ...questStates,
-      [questId]: {
-        status: finishedPath ? 'completed' : 'active',
-        completedObjectives: Array.from(done),
-        completedPathId: finishedPath?.id,
-      },
-    },
-    completed: finishedPath ? [{ quest, path: finishedPath }] : [],
-    progressed: true,
+    acquiredItems: [],
   }
 }
 
@@ -792,7 +713,7 @@ function ReputationDisplay() {
 function AdventureContent() {
   const router = useRouter()
   const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter, modifyStat } = useCharacter()
-  const { balance, earnNeutral, spendNeutral, initializeWallet, isInitialized: walletInitialized, getKarmaAlignment } = useKarmaWallet()
+  const { balance, earnNeutral, spendNeutral, addBadKarma, initializeWallet, isInitialized: walletInitialized, getKarmaAlignment } = useKarmaWallet()
   const { state: repState, modifyReputation, getReputationLevel, getReputation } = useReputation()
   const { comment: narratorComment } = useNarrator()
 
@@ -1022,16 +943,18 @@ function AdventureContent() {
       if (r.gold && r.gold > 0) earnNeutral(r.gold, `Quest: ${quest.title}`)
       // Karma mapping follows the codebase's precedents: lawful → pinkerton
       // reputation (see handleConfrontationEnd), positive good → neutral karma
-      // (see camp karmaGain / encounter karmaReward). Negative 'good' has no
-      // existing sink and is intentionally a no-op.
+      // (see camp karmaGain / encounter karmaReward). Negative 'good' routes to
+      // the wallet's bad-karma sink so cruel/reckless quest paths actually cost
+      // something (consequences are real — see applyDialogueEffects).
       if (r.karma?.lawful) modifyReputation('pinkerton', r.karma.lawful, `Quest: ${quest.title}`)
       if (r.karma?.good && r.karma.good > 0) earnNeutral(r.karma.good, `Quest karma: ${quest.title}`)
+      if (r.karma?.good && r.karma.good < 0) addBadKarma(-r.karma.good, `Quest karma: ${quest.title}`)
       r.reputation?.forEach(rep => modifyReputation(rep.faction, rep.amount, `Quest: ${quest.title}`))
       narratorComment(`Quest complete: ${quest.title} — ${path.name}. (+${r.xp} XP)`, 'observation')
       // The honest record stands apart from the narrator's voice — plainly true.
       if (quest.trueHistory) setHonestRecord(quest.trueHistory)
     }
-  }, [handleAddXP, earnNeutral, modifyReputation, narratorComment])
+  }, [handleAddXP, earnNeutral, addBadKarma, modifyReputation, narratorComment])
 
   // Commit a quest engine result: sync the ref, apply rewards, merge state.
   // setFlag/unlockLocation rewards merge inside the (pure) updater so they
@@ -1067,6 +990,18 @@ function AdventureContent() {
     if (!qs) return
     commitQuestUpdate(questObjectiveProgress(qs, questId, objectiveId))
   }, [commitQuestUpdate])
+
+  // Acquire an item into the set-deduped inventory, then fire an 'item' quest
+  // event so item-type objectives targeting it complete. Idempotent: re-acquiring
+  // a held item is a no-op, and the quest fire no-ops an already-done objective.
+  const acquireItem = useCallback((itemId: string) => {
+    setAdventureState(prev => {
+      if (!prev) return prev
+      if ((prev.acquiredItems ?? []).includes(itemId)) return prev
+      return { ...prev, acquiredItems: [...(prev.acquiredItems ?? []), itemId] }
+    })
+    fireQuestEvent({ kind: 'item', target: itemId })
+  }, [fireQuestEvent])
 
   // Activate a quest (from a dialogue questStart effect, or by talking to its
   // giver). Idempotent — already-active/completed quests are untouched.
@@ -1145,7 +1080,7 @@ function AdventureContent() {
   const applyDialogueEffects = useCallback((effects: DialogueEffect) => {
     if (!effects) return
 
-    const hasNumericGrant = !!(effects.xp || (effects.gold && effects.gold > 0) || effects.karma?.lawful || (effects.karma?.good && effects.karma.good > 0))
+    const hasNumericGrant = !!(effects.xp || (effects.gold && effects.gold > 0) || effects.karma?.lawful || effects.karma?.good)
     const claimKey = hasNumericGrant ? rewardClaimKey(effects) : ''
     // Already claimed (sync ref catches same-tick repeats before the async
     // setState commits; the persisted dialogueFlags catches re-walks + reloads).
@@ -1159,6 +1094,10 @@ function AdventureContent() {
       if (effects.gold && effects.gold > 0) earnNeutral(effects.gold, 'Dialogue')
       if (effects.karma?.lawful) modifyReputation('pinkerton', effects.karma.lawful, 'Dialogue choice')
       if (effects.karma?.good && effects.karma.good > 0) earnNeutral(effects.karma.good, 'Dialogue karma')
+      // Negative 'good' = a cruel/reckless choice: route to the bad-karma sink so
+      // it actually registers (previously silently dropped). Gated behind the same
+      // once-per-node reward guard so re-walking a tree can't stack the penalty.
+      if (effects.karma?.good && effects.karma.good < 0) addBadKarma(-effects.karma.good, 'Dialogue choice')
     }
 
     // Spending gold (negative) is a player-initiated cost, not a farmable
@@ -1171,6 +1110,12 @@ function AdventureContent() {
     if (effects.reputation) modifyReputation(effects.reputation.faction, effects.reputation.delta, 'Dialogue')
     if (effects.questStart) activateQuest(effects.questStart)
     if (effects.questProgress) fireQuestObjective(effects.questProgress.questId, effects.questProgress.objectiveId)
+    // A tagged narrative choice completes any 'choice'-type quest objective with
+    // this id (fire is idempotent — the engine no-ops an already-done objective).
+    if (effects.choice) fireQuestEvent({ kind: 'choice', target: effects.choice })
+    // Acquiring an item adds it to the inventory (set-deduped) and completes any
+    // 'item'-type objective targeting it.
+    if (effects.item) acquireItem(effects.item)
     // Persist the claim key into dialogueFlags (set-deduped, survives save/load)
     // in the SAME pure functional update as flag/unlock effects — no side
     // effects inside the updater.
@@ -1192,7 +1137,7 @@ function AdventureContent() {
       })
       if (loc) narratorComment('A new location has been marked on your map.', 'observation')
     }
-  }, [handleAddXP, earnNeutral, spendNeutral, balance.neutral, modifyReputation, activateQuest, fireQuestObjective, narratorComment, rewardClaimKey])
+  }, [handleAddXP, earnNeutral, addBadKarma, spendNeutral, balance.neutral, modifyReputation, activateQuest, fireQuestObjective, fireQuestEvent, acquireItem, narratorComment, rewardClaimKey])
 
   // === TRAVEL ===
   // _resuming=true skips the encounter rolls — set by handleEncounterResolved /
@@ -1407,8 +1352,17 @@ function AdventureContent() {
 
   // === SKILL CHECK WRAPPER ===
   const handleSkillCheck = useCallback((stat: StatName, difficulty: number) => {
-    return rollSkillCheck(stat, difficulty)
-  }, [rollSkillCheck])
+    const result = rollSkillCheck(stat, difficulty)
+    // A successful skill check AT a location completes any 'skill_check' quest
+    // objective targeting that location with this stat (the engine matches on
+    // target + stat, DC-independent). Only success progresses quests. This is the
+    // location-targeted counterpart to the NPC skill_check fire in handleNPCTalk.
+    if (result.success) {
+      const locId = stateRef.current?.currentLocationId
+      if (locId) fireQuestEvent({ kind: 'skill_check', target: locId, stat, dc: difficulty })
+    }
+    return result
+  }, [rollSkillCheck, fireQuestEvent])
 
   // === KARMA ===
   const handleEarnKarma = useCallback((amount: number, memo: string) => {

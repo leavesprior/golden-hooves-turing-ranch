@@ -28,6 +28,12 @@ export interface DialogueEffect {
   questStart?: string
   questProgress?: { questId: string; objectiveId: string }
   unlockLocation?: string
+  // Acquire an item (item-id) — grants it to the inventory and completes any
+  // 'item'-type quest objective targeting it.
+  item?: string
+  // Tag a narrative choice (choice-id) — completes any 'choice'-type quest
+  // objective targeting it.
+  choice?: string
 }
 
 export interface DialogueOption {
