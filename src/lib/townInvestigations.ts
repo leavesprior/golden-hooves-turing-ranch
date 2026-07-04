@@ -84,11 +84,11 @@ const WEST_POINT: TownInvestigation = {
   title: 'The Salted Claim at West Point',
   villain: 'Cyrus Vane — "the Tare"',
   setup:
-    'West Point, in the upcountry pines — where Kit Carson kept a trading post before there was any gold to trade for. A stranger has been buying a winter\'s supplies on the promise of a strike, paying in dust that rings a little wrong on an honest scale. The clerk swears the man was here; the man swears he was somewhere richer. Read the real places of this town by their true grain, and you will find which story the ground actually tells.',
+    'West Point, in the upcountry pines — the thriving trading post Kit Carson named, years before there was any gold to trade for. A stranger has been buying a winter\'s supplies on the promise of a strike, paying in dust that rings a little wrong on an honest scale. The clerk swears the man was here; the man swears he was somewhere richer. Read the real places of this town by their true grain, and you will find which story the ground actually tells.',
   scenes: [
     {
       id: 'trading_post',
-      place: "Kit Carson's Trading Post (Landmark #268)",
+      place: "The West Point Trading Post (Landmark #268)",
       art: 'west_point',
       witness: { name: 'Eb Crandall', role: 'trading-post clerk' },
       prompt: 'The stranger paid for a season\'s flour and powder in gold dust that rang false on the scale. He needed that dust "proven" honest before anyone weighed it twice. Where in this district would a man take raw dust to be assayed and stamped?',
@@ -155,9 +155,9 @@ const WEST_POINT: TownInvestigation = {
   ],
   verdict:
     'You corner Cyrus Vane at the false claim, and the story falls apart in the order he built it: salted dust, a bought receipt, a cabin of this-year\'s lumber pretending to be thirty years old. One crime under all of it — the forgery of PRESENCE: claiming to have struck, settled, and stood where he never honestly did. ' +
-    'Which is the one thing this country cannot do. Kit Carson really kept the post before the gold. The Carsners really pulled the first nugget. The mills really cut the timber that built the county\'s towns, board by dated board. West Point was a world of honest homesteads, each one self-contained — and the honest record of who was really here is exactly what catches a man who never was.',
+    'Which is the one thing this country cannot do. Kit Carson really named West Point before the gold, and the post here really thrived before it. The Carsners really pulled the first nugget. The mills really cut the timber that built the county\'s towns, board by dated board. West Point was a world of honest homesteads, each one self-contained — and the honest record of who was really here is exactly what catches a man who never was.',
   sources: [
-    'Kit Carson\'s pre-gold trading post — California Historical Landmark #268 (plaque dedicated 1949).',
+    'West Point, named by scout Kit Carson — a thriving trading post before the gold discovery (CHL #268, plaque dedicated 1949). The plaque credits Carson with naming the place, not operating the post.',
     'Sandy Gulch (2 mi south): the Carsner brothers\' 1849 nugget find, the district\'s first stamp mill, and a Mi-Wuk village.',
     'Indian Gulch (1852) → renamed West Point (1854) → post office (1856); the writer Bret Harte lived here; 10+ stamp mills by the 1860s–70s.',
     'Locally-milled timber tradition: the Harris mill (Sandy Gulch, "supplied materials throughout the region"), the Tiger Creek mill (photographed 1920), and the Raggio steam sawmill (1888–1924). West Point still keeps Lumberjack Day.',
@@ -450,13 +450,13 @@ const ANGELS_CAMP: TownInvestigation = {
   title: "The Counterfeit Frog at Angels Camp",
   villain: 'Cyrus Vane — "the Tare"',
   setup:
-    'Angels Camp — founded by George Angel in 1848, grown rich on deep quartz, and made immortal one rainy fortnight in 1865 when a stranger named Sam Clemens sat at the Angels Hotel bar and wrote down a tall tale about a jumping frog. Now another stranger trades in tall tales. Cyrus Vane is selling a story he swears is true — a champion frog, a famous wager, a fortune in the Utica vein, all of it claiming HIS name and HIS presence. But this is the town that invented the tall tale; it knows a counterfeit when it hears one. Read the real places of Angels Camp by their true grain, and you will find where the lie was actually told.',
+    'Angels Camp — founded by the Angel brothers, Henry and George, in 1848, grown rich on deep quartz, and made immortal one rainy fortnight in 1865 when a stranger named Sam Clemens sat at the Angels Hotel bar and wrote down a tall tale about a jumping frog. Now another stranger trades in tall tales. Cyrus Vane is selling a story he swears is true — a champion frog, a famous wager, a fortune in the Utica vein, all of it claiming HIS name and HIS presence. But this is the town that invented the tall tale; it knows a counterfeit when it hears one. Read the real places of Angels Camp by their true grain, and you will find where the lie was actually told.',
   scenes: [
     {
       id: 'angels_hotel',
-      place: 'The Angels Hotel (dedicated 1856)',
+      place: 'The Angels Hotel (stone building, 1855)',
       art: 'ace_angels_hotel',
-      witness: { name: 'Ross Coon', role: 'bartender & part-owner of the Angels Hotel' },
+      witness: { name: 'Ben Coon', role: 'bartender of the Angels Hotel' },
       prompt:
         'At the bar where Twain heard the frog tale, Vane is selling shares in his own "celebrated frog" — a champion he swears jumped here for famous money. But a frog wager needs a stake, and Vane\'s stake is gold he can\'t account for. He claims it came from the richest hole in the district. Where would a man go to launder dubious dust into a "Utica fortune" — to the one mine big enough that no one questions another ingot?',
       clueEasy:
@@ -508,7 +508,7 @@ const ANGELS_CAMP: TownInvestigation = {
       clueEasy:
         'The steward laughs without warmth. "We started this jump in \'28 — to celebrate paving Main Street — off a tale Mark Twain wrote in 1865, from a yarn told at the Angels Hotel bar. Vane swears HIS frog is the original, that the fame is his. The dates make a liar of him before he opens the box."',
       clueHard:
-        'He spreads the program. "Twain heard it at Ross Coon\'s bar in the winter of \'65 and published it that same year — the story made HIM famous, not any man named Vane. Our Jubilee just keeps the tale alive. The fame has an author and a date, both older than Vane\'s whole story. That\'s the tell: he forged the one presence the whole county can recite by heart."',
+        'He spreads the program. "Twain heard it at Ben Coon\'s bar in the winter of \'65 and published it that same year — the story made HIM famous, not any man named Vane. Our Jubilee just keeps the tale alive. The fame has an author and a date, both older than Vane\'s whole story. That\'s the tell: he forged the one presence the whole county can recite by heart."',
       evidence: { label: 'AUTHOR', value: 'A claim of "original" fame that a published 1865 story already owns' },
       answer: 'twain_1865',
       choices: [
@@ -524,10 +524,10 @@ const ANGELS_CAMP: TownInvestigation = {
   ],
   verdict:
     'You corner Cyrus Vane at the Jubilee, his frog-box in his hands, and the con collapses in the order he built it: wager gold laundered through the Utica\'s good name, a stolen seat on a disaster only three men survived, and a claim on fame that a published story has owned since 1865. One crime under all of it — the forgery of PRESENCE: claiming to have struck, survived, and authored where he never honestly was. ' +
-    'Which is the one thing Angels Camp cannot do. George Angel really founded the camp in 1848. The Utica really threw off millions in deep quartz, and its North Shaft really crushed seventeen men in December 1889 — only three walking out. Sam Clemens really sat at the Angels Hotel bar in 1865 and wrote the tall tale that made him famous, and the town really crowns that frog every year since 1928. This is the country that invented the tall tale; it keeps an honest record of who really told it — and that record is exactly what catches a man who only pretended to.',
+    'Which is the one thing Angels Camp cannot do. Henry and George Angel really founded the camp in 1848. The Utica really threw off millions in deep quartz, and its North Shaft really crushed seventeen men in December 1889 — only three walking out. Sam Clemens really sat at the Angels Hotel bar in 1865 and wrote the tall tale that made him famous, and the town really crowns that frog every year since 1928. This is the country that invented the tall tale; it keeps an honest record of who really told it — and that record is exactly what catches a man who only pretended to.',
   sources: [
     'Angels Camp founding: brothers George and Henry Angel mined the site from 1848.',
-    'Angels Hotel: begun as a canvas tent in 1851, rebuilt in stone, dedicated January 1, 1856; bartender/part-owner Ross Coon told Mark Twain the frog-jump tale here. California Historical Landmark #734.',
+    'Angels Hotel: begun as a canvas tent (C. C. Lake, 1851), rebuilt in stone in 1855 with a second story added in 1857; bartender Ben Coon told Mark Twain the frog-jump tale here in early 1865. California Historical Landmark #734.',
     'Utica Mine disaster: December 1889 North Shaft cave-in (rain-loosened talcose ground) killed 17; only Thomas Corwin, Daniel Danielson, and August Anderson escaped via the south shaft.',
     'Twain\'s "The Celebrated Jumping Frog of Calaveras County": written from a tale Clemens heard at the Angels Hotel bar (rained in, 1865), published 1865; the Calaveras Jumping Frog Jubilee began in 1928 to mark the paving of Main Street.',
   ],
@@ -926,7 +926,7 @@ const MARIPOSA: TownInvestigation = {
       clueEasy:
         'Larkin spreads the old papers. "The grant Micheltorena signed to Alvarado in \'44 had no surveyed lines — just outer limits between the Merced, the Chowchilla and the Sierra. A man could move ten leagues inside that like a tile on a board. Only one bench ever blessed that kind of float."',
       clueHard:
-        'He lowers his voice. "Frémont\'s title rode all the way to Washington. The Supreme Court confirmed Las Mariposas in 1854 — Frémont v. United States — and let a FLOATING claim stand. Vane studied that ruling. He\'s not forging gold; he\'s forging the right to BE somewhere. Find where that float gets stamped honest and you find his model."',
+        'He lowers his voice. "Frémont\'s title rode all the way to Washington. The Supreme Court confirmed Las Mariposas in 1855 — Frémont v. United States — and let a FLOATING claim stand. Vane studied that ruling. He\'s not forging gold; he\'s forging the right to BE somewhere. Find where that float gets stamped honest and you find his model."',
       evidence: { label: 'GRANT', value: 'Ten square leagues with no surveyed corners — a boundary that floats to the gold' },
       answer: 'courthouse',
       choices: [

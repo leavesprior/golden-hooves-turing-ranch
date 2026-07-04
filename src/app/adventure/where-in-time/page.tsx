@@ -9,16 +9,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  ERAS, CHASE, VANE, RECKONING, GUIDE_INTRO,
+  ERAS, VANE, RECKONING, GUIDE_INTRO,
   STARTING_CAUSALITY, OBSERVE_COST, SESSION_KEY,
-  type TimeTrait,
+  buildChase, RANDOMIZE_TRAIL,
+  WARRANT_PROMPT, WARRANT_CHARGES, WARRANT_WRONG, WARRANT_RIGHT,
+  DISTRACTOR_SCENES, TRUE_HISTORY,
+  type TimeTrait, type TimeHop,
 } from './whereInTimeData'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
 
-type Phase = 'clue' | 'feedback' | 'won' | 'lost'
+// 'warrant' = the deduction payoff after the final hop, before 'won' (Grok 2026-06-20).
+type Phase = 'clue' | 'feedback' | 'warrant' | 'won' | 'lost'
 
 interface State {
+  seed: number          // per-session seed for buildChase (replayable/debuggable)
   hopIndex: number
   causality: number // may hold .5 (observing the hard clue costs a half-unit)
   eraRoute: string[]
@@ -27,15 +32,16 @@ interface State {
   redirect: { witness: string; line: string } | null
 }
 
-const TOTAL = CHASE.length
-
 function initialState(): State {
-  return { hopIndex: 0, causality: STARTING_CAUSALITY, eraRoute: [CHASE[0].fromEra], traits: [], observed: false, redirect: null }
+  // New seed each fresh session => a different randomized trail when the flag is on.
+  const seed = RANDOMIZE_TRAIL ? Math.floor(Math.random() * 1e9) + 1 : -1
+  const chase = buildChase(seed, RANDOMIZE_TRAIL)
+  return { seed, hopIndex: 0, causality: STARTING_CAUSALITY, eraRoute: [chase[0].fromEra], traits: [], observed: false, redirect: null }
 }
 
 // Deterministic 3-era candidate order (no Math.random in render); rotate by hop.
-function candidatesFor(hopIndex: number): string[] {
-  const hop = CHASE[hopIndex]
+function candidatesFor(chase: TimeHop[], hopIndex: number): string[] {
+  const hop = chase[hopIndex]
   const ids = [hop.toEra, hop.distractors[0], hop.distractors[1]]
   const s = hopIndex % 3
   return [...ids.slice(s), ...ids.slice(0, s)]
@@ -55,7 +61,14 @@ export default function WhereInTimePage() {
       const raw = sessionStorage.getItem(SESSION_KEY)
       if (raw) {
         const saved = JSON.parse(raw) as { state: State; phase: Phase }
-        if (saved?.state) { setState(saved.state); if (saved.phase) setPhase(saved.phase) }
+        // Defensive: only adopt a save whose shape is sane. A parseable-but-invalid
+        // save (empty/missing eraRoute, non-finite numbers) is discarded in favour of
+        // initialState — never crash the render on corrupt storage (karma-wallet pattern).
+        const st = saved?.state
+        const valid = !!st && Array.isArray(st.eraRoute) && st.eraRoute.length > 0
+          && typeof st.causality === 'number' && Number.isFinite(st.causality)
+          && typeof st.hopIndex === 'number' && Number.isFinite(st.hopIndex)
+        if (valid) { setState(st); if (saved.phase) setPhase(saved.phase) }
         setInited(true); return
       }
     } catch { /* ignore */ }
@@ -77,11 +90,17 @@ export default function WhereInTimePage() {
     } catch { /* non-fatal */ }
   }, [phase])
 
-  const hop = CHASE[state.hopIndex] ?? CHASE[CHASE.length - 1]
-  const hasActive = state.hopIndex < CHASE.length
+  // Per-session chase (seeded). flag OFF => canonical CHASE; flag ON => randomized route.
+  const chase = useMemo(() => buildChase(state.seed, RANDOMIZE_TRAIL), [state.seed])
+  const TOTAL = chase.length
+  const hop = chase[state.hopIndex] ?? chase[chase.length - 1]
+  const hasActive = state.hopIndex < chase.length
   const currentEra = state.eraRoute[state.eraRoute.length - 1]
-  const isFinal = state.hopIndex === CHASE.length - 1
-  const candidates = useMemo(() => (hasActive ? candidatesFor(state.hopIndex) : []), [hasActive, state.hopIndex])
+  // Render-time guard: an unknown/empty era id must not throw (ERAS[undefined].name).
+  // Fall back to the route's first era. Belt-and-suspenders with the loader validation.
+  const eraObj = ERAS[currentEra] ?? ERAS[chase[0].fromEra]
+  const isFinal = state.hopIndex === chase.length - 1
+  const candidates = useMemo(() => (hasActive ? candidatesFor(chase, state.hopIndex) : []), [chase, hasActive, state.hopIndex])
 
   const clueText = state.redirect ? state.redirect.line : state.observed ? hop.guideHard : hop.guideEasy
   const witnessName = state.redirect ? state.redirect.witness : hop.witness.name
@@ -102,23 +121,38 @@ export default function WhereInTimePage() {
         const has = s.traits.some((t) => t.label === hop.trait.label && t.value === hop.trait.value)
         return { ...s, hopIndex: s.hopIndex + 1, eraRoute: [...s.eraRoute, eraId], traits: has ? s.traits : [...s.traits, hop.trait], observed: false, redirect: null }
       })
-      if (isFinal) { setPhase('won') }
+      // Final hop cornered Vane — but the genre's payoff is the WARRANT: the player
+      // must name the charge (consume the collected traits) before the RECKONING.
+      if (isFinal) { setPhase('warrant') }
       else { setHot(hop.paradox); setPhase('feedback') }
     } else {
       const remaining = state.causality - 1
       if (remaining <= 0) { setState((s) => ({ ...s, causality: 0 })); setPhase('lost'); return }
-      setState((s) => ({
-        ...s, causality: remaining, observed: false,
-        redirect: { witness: 'a confused bystander', line: `No sign of him in ${ERAS[eraId].name} (${ERAS[eraId].year}). A paradox ripples through; you lose a unit of causality. The Guide reads the grain again and points you on.` },
-      }))
+      // Item 1: a wrong era is now a real side-thread (witness + onward clue), not a
+      // flat generic line. Falls back to the generic line for any era without a scene.
+      const scene = DISTRACTOR_SCENES[eraId]
+      const redirect = scene
+        ? { witness: scene.witness, line: scene.line }
+        : { witness: 'a confused bystander', line: `No sign of him in ${ERAS[eraId].name} (${ERAS[eraId].year}). A paradox ripples through; you lose a unit of causality. The Guide reads the grain again and points you on.` }
+      setState((s) => ({ ...s, causality: remaining, observed: false, redirect }))
       setPhase('clue')
     }
   }, [phase, hop, isFinal, state.causality])
 
+  // The warrant deduction: a wrong charge nudges with the collected tells (no causality
+  // hit — the chase is already won; this is the payoff). The right charge => RECKONING.
+  const [warrantMsg, setWarrantMsg] = useState<string | null>(null)
+  const chargeVane = useCallback((chargeId: string) => {
+    if (phase !== 'warrant') return
+    const charge = WARRANT_CHARGES.find((c) => c.id === chargeId)
+    if (charge?.isReal) { setWarrantMsg(WARRANT_RIGHT); setPhase('won') }
+    else { setWarrantMsg(WARRANT_WRONG) }
+  }, [phase])
+
   const next = useCallback(() => { setHot(null); setPhase('clue') }, [])
   const retry = useCallback(() => {
     try { sessionStorage.removeItem(SESSION_KEY) } catch { /* */ }
-    setState(initialState()); setPhase('clue'); setHot(null)
+    setState(initialState()); setPhase('clue'); setHot(null); setWarrantMsg(null)
   }, [])
 
   return (
@@ -140,7 +174,7 @@ export default function WhereInTimePage() {
             <span className={state.causality <= 2 ? 'text-[var(--pixel-fire-orange)]' : 'text-[var(--pixel-gold-light)]'} data-testid="causality">{fmt(state.causality)}</span>
           </span>
           <span className="font-[var(--font-pixel)] text-[11px] text-[#b9a7e0]">
-            ERA: <span className="text-[var(--pixel-gold-light)]">{ERAS[currentEra].name}</span>{' '}<span className="text-[#8a78b8]">({ERAS[currentEra].year})</span>
+            ERA: <span className="text-[var(--pixel-gold-light)]">{eraObj.name}</span>{' '}<span className="text-[#8a78b8]">({eraObj.year})</span>
           </span>
           <span className="font-[var(--font-pixel)] text-[11px] text-[#b9a7e0]" data-testid="hop-progress">
             JUMP {Math.min(state.hopIndex + 1, TOTAL)}/{TOTAL}
@@ -150,17 +184,57 @@ export default function WhereInTimePage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_290px]">
           <div className="space-y-4">
             {/* era backdrop */}
-            {ERAS[currentEra].art && (
+            {eraObj.art && (
               <div className="border-2 border-[#4b3a7a] bg-black/40">
-                <PlaceBackdrop id={ERAS[currentEra].art!} className="mx-auto h-40 max-w-md object-top" />
+                <PlaceBackdrop id={eraObj.art} className="mx-auto h-40 max-w-md object-top" />
+              </div>
+            )}
+
+            {/* WARRANT — the deduction payoff: name the charge using collected tells */}
+            {phase === 'warrant' && (
+              <div className="border-2 border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]/15 p-4" data-testid="warrant-panel">
+                <p className="font-[var(--font-pixel)] text-[13px] leading-relaxed text-[var(--pixel-gold-light)] sm:text-[15px]">ISSUE THE WARRANT</p>
+                <p className="mt-3 font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)]">{WARRANT_PROMPT}</p>
+                {state.traits.length > 0 && (
+                  <div className="mt-3 border border-[#4b3a7a] bg-black/30 p-2">
+                    <p className="font-[var(--font-pixel)] text-[9px] text-[#8a78b8]">TELLS YOU LOGGED:</p>
+                    {state.traits.map((t, i) => (
+                      <p key={i} className="font-[var(--font-pixel)] text-[9px] leading-relaxed text-[#b9a7e0]">• [{t.label}] {t.value}</p>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-4 flex flex-col gap-2">
+                  {WARRANT_CHARGES.map((c) => (
+                    <button key={c.id} onClick={() => chargeVane(c.id)} data-testid={`charge-${c.id}`}
+                      className="border-2 border-[#4b3a7a] bg-black/40 px-3 py-2 text-left font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)] transition-all hover:border-[var(--pixel-gold-mid)] hover:bg-[var(--pixel-gold-dark)]/20">
+                      {c.text}
+                    </button>
+                  ))}
+                </div>
+                {warrantMsg && phase === 'warrant' && (
+                  <p className="mt-3 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-fire-orange)]" data-testid="warrant-msg">{warrantMsg}</p>
+                )}
               </div>
             )}
 
             {/* WON */}
             {phase === 'won' && (
               <div className="border-2 border-[var(--pixel-forest-light)] bg-[var(--pixel-forest-dark)]/25 p-4" data-testid="won-panel">
-                <p className="font-[var(--font-pixel)] text-[13px] leading-relaxed text-[var(--pixel-forest-light)] sm:text-[15px]">YOU CORNERED VANE — OUTSIDE TIME</p>
+                <p className="font-[var(--font-pixel)] text-[13px] leading-relaxed text-[var(--pixel-forest-light)] sm:text-[15px]">WARRANT SERVED — VANE BOUND OUTSIDE TIME</p>
+                {warrantMsg && <p className="mt-3 font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-gold-light)]">{warrantMsg}</p>}
                 <p className="mt-3 font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)]">{RECKONING}</p>
+                {/* Item 3: the true-history summary — replay becomes learning. Each forgery
+                    paired with the real, shareable history of this land that catches him. */}
+                <div className="mt-4 border-2 border-[var(--pixel-earth-dark)]/60 bg-black/30 p-3" data-testid="true-history">
+                  <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">THE HONEST RECORD — what the land really holds</p>
+                  <ul className="mt-2 space-y-2">
+                    {TRUE_HISTORY.map((n, i) => (
+                      <li key={i} className="font-[var(--font-pixel)] text-[9px] leading-relaxed text-[var(--pixel-ui-text)]/80">
+                        <span className="text-[#7a1f10]">{n.era}</span> — he forged <span className="italic">{n.forgery}</span>; but: {n.truth}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
                 <p className="mt-3 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)]/70">The trail of forgeries ends where the honest story begins — at the bottom of the years, in 1849, with a wagon pointed west.</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Link href="/oregon-trail" data-testid="to-journey" className="border-2 border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]/20 px-4 py-2 font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] transition-all hover:bg-[var(--pixel-gold-dark)]/40">BEGIN THE JOURNEY — 1849 {'▶'}</Link>
@@ -208,7 +282,13 @@ export default function WhereInTimePage() {
                     </button>
                   )}
                   {!state.redirect && state.observed && (
-                    <p className="mt-3 font-[var(--font-pixel)] text-[10px] italic text-[#b9a7e0]/50">You observed it; the timeline collapsed a little to let you. Half a unit spent.</p>
+                    <div className="mt-3" data-testid="observed-trait">
+                      <p className="font-[var(--font-pixel)] text-[10px] italic text-[#b9a7e0]/50">You observed it; the timeline collapsed a little to let you. Half a unit spent.</p>
+                      {/* Item 3: OBSERVE now surfaces the forgery tell early — the reward for the ½-causality cost. It's the warrant clue, glimpsed before you jump. */}
+                      <p className="mt-2 border-l-2 border-[var(--pixel-gold-mid)] pl-2 font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-gold-light)]">
+                        You glimpse his forgery here — <span className="text-[#7a1f10]">[{hop.trait.label}]</span> {hop.trait.value}. <span className="text-[#b9a7e0]/60">(a tell for the warrant)</span>
+                      </p>
+                    </div>
                   )}
                 </div>
 

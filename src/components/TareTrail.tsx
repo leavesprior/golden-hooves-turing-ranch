@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { INVESTIGATIONS } from '@/lib/townInvestigations'
 import { getCanonicalTown } from '@/lib/townRegistry'
+import { getTownProgressMap, type TownProgress } from '@/lib/townProgress'
 
 const SOLVED_KEY = 'bobr_town_cases_solved'
 const GOLD = 'var(--pixel-gold-light)'
@@ -28,6 +29,9 @@ function teaser(setup: string): string {
 export function TareTrail() {
   const cases = Object.values(INVESTIGATIONS)
   const [solved, setSolved] = useState<string[]>([])
+  // Unified per-town progression (investigation + explore mystery) — the "one
+  // progression" view across both clue surfaces. Read client-side only.
+  const [progress, setProgress] = useState<Record<string, TownProgress>>({})
 
   // Read solved set client-side only (avoids SSR/hydration mismatch).
   useEffect(() => {
@@ -35,6 +39,10 @@ export function TareTrail() {
       const raw = localStorage.getItem(SOLVED_KEY)
       if (raw) setSolved(JSON.parse(raw))
     } catch { /* ignore */ }
+    try {
+      setProgress(getTownProgressMap(cases.map(c => c.townId)))
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const solvedCount = cases.filter(c => solved.includes(c.townId)).length
@@ -86,10 +94,25 @@ export function TareTrail() {
               </div>
               <span className="mt-0.5 text-[9px] text-[var(--pixel-ui-text)]/50">{county} County</span>
               <span className="mt-1.5 text-[10px] leading-relaxed text-[var(--pixel-ui-text)]/70">{teaser(c.setup)}</span>
+              {/* Unified progression: also reflect the /explore mystery status for this town */}
+              <span className="mt-1 text-[8px] text-[var(--pixel-ui-text)]/45">
+                {progress[c.townId]?.fullySolved
+                  ? '★ town fully solved (case + explore)'
+                  : progress[c.townId]?.mysterySolved
+                    ? '🔎 explore mystery solved · case ' + (isSolved ? 'too' : 'open')
+                    : isSolved
+                      ? '🔎 explore mystery still open'
+                      : ''}
+              </span>
               <span className="mt-2 text-[9px]" style={{ color: GOLD }}>{isSolved ? 'revisit the case ▸' : 'open the case ▸'}</span>
             </Link>
           )
         })}
+      </div>
+
+      {/* Whole-game continuity callout (additive from 2026-06 continuity audit) */}
+      <div className="mt-4 border border-[var(--pixel-gold-dark)]/50 bg-black/30 p-2 text-[9px] leading-snug text-[var(--pixel-ui-text)]/70">
+        The Tare slips through five eras on this one piece of land: 1849 Gold Rush (assayer), 1960s Forester&apos;s Trail, 1982 Ranch Begin, the present Back of Beyond, and a future only real stewardship can write. Every honest record — milled oak, tally books, frog counts, your QR presence — is what he cannot forge. Complete the trail across Quest, Where-in-Time, Explore, and the Ranch to close the case for good.
       </div>
     </div>
   )

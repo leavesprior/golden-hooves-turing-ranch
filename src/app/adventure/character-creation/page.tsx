@@ -46,6 +46,23 @@ function CharacterCreationContent() {
     }
   }, [])
 
+  // Continuity guard: warn before overwriting an existing character (from The
+  // Golden Frog / a prior Tale run). Confirming creation replaces them; the
+  // notice offers a one-click path to keep and continue instead.
+  const [existingName, setExistingName] = useState<string | null>(null)
+  const [dismissedWarning, setDismissedWarning] = useState(false)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('bobr_ot_character')
+      if (raw) {
+        const c = JSON.parse(raw)
+        if (c && typeof c.name === 'string' && c.name.trim()) setExistingName(c.name)
+      }
+    } catch {
+      /* no existing character */
+    }
+  }, [])
+
   const handleConfirmPicks = useCallback((ids: string[], mods: Partial<SaddleStats>) => {
     setSelectedPicks(ids)
     setPickMods(mods)
@@ -132,6 +149,33 @@ function CharacterCreationContent() {
               </div>
             ))}
           </div>
+
+          {/* Overwrite warning — you already have a character. */}
+          {existingName && !dismissedWarning && (
+            <div className="mt-5 border-2 border-[var(--pixel-fire-orange)] bg-[var(--pixel-fire-orange)]/10 p-3 text-left">
+              <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-fire-orange)]">
+                You already ride as {existingName}.
+              </p>
+              <p className="font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)] mt-1">
+                Forging a new character replaces {existingName} and their stats, karma,
+                and reputation. This can&apos;t be undone.
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button
+                  onClick={() => router.push('/adventure/play')}
+                  className="font-[var(--font-pixel)] text-[10px] px-3 py-1.5 border-2 border-[var(--pixel-forest-mid)] bg-[var(--pixel-forest-dark)] text-[var(--pixel-forest-light)]"
+                >
+                  Keep {existingName} — continue
+                </button>
+                <button
+                  onClick={() => setDismissedWarning(true)}
+                  className="font-[var(--font-pixel)] text-[10px] px-3 py-1.5 border-2 border-[var(--pixel-ui-border)] bg-[var(--pixel-bg-mid)] text-[var(--pixel-ui-text)]"
+                >
+                  Start over anyway
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Existing-character notice — continue instead of re-creating */}

@@ -212,6 +212,24 @@ export default function AdventurePage() {
     }
   }, [])
 
+  // Character continuity: a character forged in The Golden Frog (Oregon Trail,
+  // level 1) or a prior Tale run lives at `bobr_ot_character`. When one exists we
+  // carry them FORWARD into the Prospector's Tale — same stats/karma/reputation —
+  // rather than forcing a second character build (Leif's continuity directive
+  // 2026-07-02). A brand-new character is then a deliberate "start over" choice.
+  const [existingCharName, setExistingCharName] = useState<string | null>(null)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('bobr_ot_character')
+      if (raw) {
+        const c = JSON.parse(raw)
+        if (c && typeof c.name === 'string' && c.name.trim()) setExistingCharName(c.name)
+      }
+    } catch {
+      /* no readable character — first-timer path */
+    }
+  }, [])
+
   // The canonical save lives at `bobr_ot_character` (character) +
   // `bobr_adventure_state` (game state); `bobr_rpg_session` is the legacy key,
   // kept as a fallback. Reading only the legacy key hid the "Continue
@@ -615,17 +633,37 @@ export default function AdventurePage() {
         {/* Game Start Options */}
         {!session && !showNewGame && (
           <div className="space-y-4 max-w-md mx-auto">
-            {hasSavedGame && (
-              <PixelButton onClick={handleContinue} variant="gold" size="md">
-                Continue Adventure
-              </PixelButton>
+            {existingCharName ? (
+              /* Continuity path: a character already exists — bring them forward
+                 as the PRIMARY action; a new build is a deliberate secondary. */
+              <>
+                <PixelButton onClick={handleContinue} variant="gold" size="md">
+                  Continue as {existingCharName} →
+                </PixelButton>
+                <p className="font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-forest-light)] text-center -mt-1">
+                  {existingCharName} rides on from your earlier journey — same stats,
+                  karma, and reputation carry into the Tale.
+                </p>
+                <PixelButton onClick={() => router.push('/adventure/character-creation')} variant="blue" size="sm">
+                  Start over with a new character
+                </PixelButton>
+              </>
+            ) : (
+              /* First-timer path: no character yet. Offer resume-if-any + new build. */
+              <>
+                {hasSavedGame && (
+                  <PixelButton onClick={handleContinue} variant="gold" size="md">
+                    Continue Adventure
+                  </PixelButton>
+                )}
+                {/* Route straight to the canonical S.A.D.D.L.E. creation flow.
+                    The old inline D&D creator below is superseded — sending players
+                    here prevents building a character twice (B1). */}
+                <PixelButton onClick={() => router.push('/adventure/character-creation')} variant="green" size="md">
+                  New Adventure
+                </PixelButton>
+              </>
             )}
-            {/* Route straight to the canonical S.A.D.D.L.E. creation flow.
-                The old inline D&D creator below is superseded — sending players
-                here prevents building a character twice (B1). */}
-            <PixelButton onClick={() => router.push('/adventure/character-creation')} variant="green" size="md">
-              New Adventure
-            </PixelButton>
 
             {/* THE TARE'S TRAIL — playable now, no character needed (discovery fix) */}
             <div className="border-2 border-[var(--pixel-fire-orange)] bg-gradient-to-b from-[var(--pixel-fire-orange)]/15 to-transparent p-3 text-center">
@@ -639,6 +677,25 @@ export default function AdventurePage() {
               <div className="mt-3 flex justify-center">
                 <PixelButton href="/adventure/chase-demo" variant="gold" size="sm">
                   Take Up the Trail
+                </PixelButton>
+              </div>
+            </div>
+
+            {/* WHERE IN TIME — temporal chase, playable now (discovery fix). Was only
+                reachable from /hub and /prologue; players starting at /adventure had no
+                path to it. */}
+            <div className="border-2 border-[var(--pixel-gold-mid)] bg-gradient-to-b from-[var(--pixel-gold-mid)]/15 to-transparent p-3 text-center">
+              <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
+                ⏳ Where in Time is Cyrus Vane?
+              </p>
+              <p className="font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)] mt-2">
+                A chase across the eras — read the clues, narrow the century, and catch
+                the Tare before he slips through time. A separate deduction game from the
+                main campaign.
+              </p>
+              <div className="mt-3 flex justify-center">
+                <PixelButton href="/adventure/where-in-time" variant="gold" size="sm">
+                  Begin the Chase
                 </PixelButton>
               </div>
             </div>

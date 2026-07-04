@@ -9,6 +9,7 @@ import {
   calculatePrice,
 } from './data/mandelbrotPricing'
 import { DonationRecord } from './data/donationConfig'
+import { getAllRareMomentoIds, getDomesticTreatCategories } from './data/momentos'
 
 const MARKET_STORAGE_KEY = 'bobr_karma_market'
 
@@ -237,14 +238,14 @@ export function MarketProvider({ children }: MarketProviderProps) {
     if (!condition) return true
 
     if (condition === 'Buy treats for every domestic animal') {
-      const domesticIds = ['barn_cats', 'pigs', 'sheep', 'horse', 'emus', 'donkeys', 'peacocks']
+      const domesticIds = getDomesticTreatCategories()
       const fed = getAnimalsFed()
       return domesticIds.every(id => fed.has(id))
     }
 
     if (condition === 'Collect all rare momentos') {
-      // Check if all rare momentos are owned
-      const rareIds = ['black_bart_bandana', 'golden_frog', 'peacock_fan', 'stagecoach_model']
+      // Derive rare IDs from the momento data so this stays in sync as items change.
+      const rareIds = getAllRareMomentoIds()
       return rareIds.every(id => state.ownedMomentos.includes(id))
     }
 
