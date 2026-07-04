@@ -49,19 +49,8 @@ function CharacterCreationContent() {
   // Continuity guard: warn before overwriting an existing character (from The
   // Golden Frog / a prior Tale run). Confirming creation replaces them; the
   // notice offers a one-click path to keep and continue instead.
-  const [existingName, setExistingName] = useState<string | null>(null)
+  // (existingName is populated by the shared-character read above.)
   const [dismissedWarning, setDismissedWarning] = useState(false)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('bobr_ot_character')
-      if (raw) {
-        const c = JSON.parse(raw)
-        if (c && typeof c.name === 'string' && c.name.trim()) setExistingName(c.name)
-      }
-    } catch {
-      /* no existing character */
-    }
-  }, [])
 
   const handleConfirmPicks = useCallback((ids: string[], mods: Partial<SaddleStats>) => {
     setSelectedPicks(ids)

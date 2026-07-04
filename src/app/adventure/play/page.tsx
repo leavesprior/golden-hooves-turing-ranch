@@ -1498,13 +1498,14 @@ function AdventureContent() {
     if (result.xpGain) addExperience(result.xpGain)
     if (result.karmaGain) earnNeutral(result.karmaGain, 'Camp activity')
     if (result.healthChange) {
+      const healthChange = result.healthChange
       // Apply health change via Durability stat modification (positive = heal, negative = damage)
-      modifyStat('Durability', result.healthChange > 0 ? 1 : -1)
+      modifyStat('Durability', healthChange > 0 ? 1 : -1)
       // Peril: a healing camp activity is a day of recovery — regain vitality and
       // ease the worst condition (the "medicine + time" loop). A harmful one ticks.
       if (PERIL_ON) {
-        applyPeril(p => (result.healthChange > 0
-          ? perilRest(p, Math.max(1, Math.round(result.healthChange / 15)), perilMit())
+        applyPeril(p => (healthChange > 0
+          ? perilRest(p, Math.max(1, Math.round(healthChange / 15)), perilMit())
           : perilTick(p)))
       }
     }
