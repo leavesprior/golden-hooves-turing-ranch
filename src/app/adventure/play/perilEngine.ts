@@ -259,7 +259,7 @@ export function isDead(state: PerilState): boolean {
   return !state.alive
 }
 
-/** Human-readable label for a condition + severity (UI/narrator convenience). */
+/** Human-readable label for a condition + severity (compact UI convenience). */
 export function describeCondition(c: Condition): string {
   const sev = c.severity === 1 ? 'mild' : c.severity === 2 ? 'serious' : 'grave'
   const name: Record<ConditionId, string> = {
@@ -267,6 +267,54 @@ export function describeCondition(c: Condition): string {
     injury: 'injury', exhaustion: 'exhaustion',
   }
   return `${sev} ${name[c.id]}`
+}
+
+// Flavorful, historically-grounded condition lore (Grok's highest-leverage change
+// beyond the stabilization stage, 2026-07-03): tie each peril to real Gold-Rush
+// history + the underlying mechanic, so a loss reads as "the Trail claimed another
+// with dysentery" rather than "I died to a debuff." Prose/tooltip layer — the
+// compact describeCondition() stays for tight UI.
+const CONDITION_LORE: Record<ConditionId, { name: string; flavor: string; note: string }> = {
+  dysentery: {
+    name: 'dysentery',
+    flavor: 'the great killer of the overland trails — fouled water and camp filth took more souls than any ambush or accident',
+    note: 'a hardy Durability throws off the worst; clean rest and medicine turn it back',
+  },
+  fever: {
+    name: 'trail fever',
+    flavor: 'the ague — chills and sweats that haunted the river camps and the low, wet ground',
+    note: 'time and rest break it; push on unrested and it deepens',
+  },
+  snakebite: {
+    name: 'snakebite',
+    flavor: 'rattlesnake venom — the diamondbacks struck more prospectors than any outlaw ever did',
+    note: 'a strong Durability shrugs off the worst; left untended the poison spreads',
+  },
+  injury: {
+    name: 'injury',
+    flavor: "a hard hurt — a wagon flip, a horse's kick, a fall on the rocks",
+    note: 'rest knits bone slowly; a steady field-medicine hand speeds it',
+  },
+  exhaustion: {
+    name: 'exhaustion',
+    flavor: 'bone-deep weariness from forced marches and thin rations',
+    note: 'it saps you and opens the door to worse — make camp and eat',
+  },
+}
+
+/**
+ * Immersive, history-grounded description of a condition for prose / tooltips.
+ * Severity-aware. e.g. narrateCondition({id:'dysentery',severity:3}) →
+ * "A grave, life-threatening bout of dysentery — the great killer of the overland
+ *  trails … A hardy Durability throws off the worst; clean rest and medicine turn it back."
+ */
+export function narrateCondition(c: Condition): string {
+  const lore = CONDITION_LORE[c.id]
+  const sev = c.severity === 1 ? 'A touch of'
+            : c.severity === 2 ? 'A serious case of'
+            : 'A grave, life-threatening bout of'
+  const note = lore.note.charAt(0).toUpperCase() + lore.note.slice(1)
+  return `${sev} ${lore.name} — ${lore.flavor}. ${note}.`
 }
 
 export interface SuccessorLegacy {

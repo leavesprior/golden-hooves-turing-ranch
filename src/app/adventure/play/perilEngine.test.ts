@@ -5,7 +5,7 @@
 
 import {
   initPeril, inflict, tick, treatWithMedicine, rest, isDead, successorLegacy,
-  maxVitalityForDurability, describeCondition, stabilize, isDying,
+  maxVitalityForDurability, describeCondition, narrateCondition, stabilize, isDying,
   DEFAULT_PERIL_CONFIG as CFG, CLASSIC_PERIL_CONFIG as CLASSIC,
 } from './perilEngine'
 
@@ -119,6 +119,15 @@ check('legacy handles empty name gracefully', successorLegacy('', 0).heirloomTra
 
 // --- describe (UI helper) ---
 check('describeCondition reads naturally', describeCondition({ id: 'snakebite', severity: 2 }) === 'serious snakebite')
+
+// --- narrateCondition: immersive, history-grounded prose (Grok Q-overall) ---
+const graveDys = narrateCondition({ id: 'dysentery', severity: 3 })
+check('narrateCondition conveys grave severity', /grave|life-threatening/i.test(graveDys))
+check('narrateCondition grounds dysentery in history', /overland trails|killer/i.test(graveDys))
+check('narrateCondition names the governing mechanic (Durability)', /Durability/i.test(graveDys))
+check('narrateCondition varies by severity', narrateCondition({ id: 'dysentery', severity: 1 }) !== graveDys)
+check('narrateCondition covers every condition',
+  (['snakebite','fever','dysentery','injury','exhaustion'] as const).every(id => narrateCondition({ id, severity: 2 }).length > 20))
 
 console.log(failures === 0 ? '\nperilEngine: ALL PASS' : `\nperilEngine: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
