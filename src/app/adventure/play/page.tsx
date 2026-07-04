@@ -2109,6 +2109,13 @@ function AdventureContent() {
               onClose={() => setActiveDialogue(null)}
               onEffect={applyDialogueEffects}
               onSkillCheck={handleSkillCheck}
+              // Sequence gate for requiresObjective options. Read from state
+              // (not the ref) so it stays a pure render input; effects applied
+              // mid-conversation land in the same batched commit, so a gate met
+              // by the previous option is visible on the next node.
+              isQuestObjectiveComplete={(questId, objectiveId) =>
+                (adventureState.questStates?.[questId]?.completedObjectives ?? []).includes(objectiveId)
+              }
             />
           </div>
         </div>

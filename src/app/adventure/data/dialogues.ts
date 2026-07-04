@@ -17,6 +17,13 @@ export interface DialogueRequirement {
   flag?: string
   questCompleted?: string
   karmaTag?: 'lawful' | 'chaotic' | 'good' | 'evil'
+  // Sequence gate: the option is only OFFERED once the named quest objective is
+  // complete. An array means ANY ONE of the listed objectives satisfies the gate
+  // (used when one option resolves several alternate paths of the same quest).
+  // Unlike stat/dc (which renders a visible-but-locked option), an unmet
+  // requiresObjective HIDES the option entirely — resolution lines must not be
+  // pickable in the same breath the quest is received (see DialogueView).
+  requiresObjective?: { questId: string; objectiveId: string | string[] }
 }
 
 export interface DialogueEffect {
@@ -114,6 +121,8 @@ const ch1_shaw_intro: Dialogue = {
           id: 'recovered_crates',
           text: 'I tracked the stolen supplies to Silas Crooke\'s cache and hauled them all back.',
           nextNodeId: undefined,
+          // Resolution of the lawful path — only after catching Crooke in a lie.
+          requirement: { requiresObjective: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_law_4' } },
           effects: { item: 'stolen_supply_crates', xp: 15 },
         },
         {
@@ -121,6 +130,8 @@ const ch1_shaw_intro: Dialogue = {
           text: '[Good] Crooke was desperate, not wicked. I struck a deal — he returns most and keeps enough to survive.',
           nextNodeId: undefined,
           karmaTag: 'good',
+          // Resolution of the diplomatic path — only after learning Crooke's reason.
+          requirement: { requiresObjective: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_dip_3' } },
           effects: { choice: 'negotiate_split', xp: 15 },
         },
         {
@@ -128,6 +139,8 @@ const ch1_shaw_intro: Dialogue = {
           text: '[Chaotic] Your families will eat. I brought replacement crates from the Army storehouse — don\'t ask how.',
           nextNodeId: undefined,
           karmaTag: 'chaotic',
+          // Resolution of the chaotic path — only after stealing the Army crates.
+          requirement: { requiresObjective: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_out_3' } },
           effects: { choice: 'deliver_stolen_goods', xp: 15 },
         },
       ],
@@ -273,6 +286,8 @@ const ch1_hooded_figure: Dialogue = {
           text: '[Chaotic] You said you know where the Army keeps its crates. I slipped in and lifted the replacement supplies.',
           nextNodeId: undefined,
           karmaTag: 'chaotic',
+          // Only after actually sneaking into the Army storehouse (Agility check).
+          requirement: { requiresObjective: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_out_2' } },
           effects: { item: 'army_supply_crates', xp: 15 },
         },
       ],
@@ -451,6 +466,8 @@ const ch1_chief_talking_bear: Dialogue = {
           text: 'I\'ve brought the medicine and iron tools your people need — honestly traded, from Ezra Finch in Independence.',
           nextNodeId: undefined,
           karmaTag: 'good',
+          // Only after Marie Whitehawk has told you what the Pawnee actually need.
+          requirement: { requiresObjective: { questId: 'ch1_pawnee_treaty', objectiveId: 'ch1_pt_fair_1' } },
           effects: {
             item: 'trade_goods_medicine',
             xp: 10,
@@ -611,6 +628,10 @@ const ch2_big_mae: Dialogue = {
           id: 'pay_kidnapper_price',
           text: '[15 gold] Name the man who took Zeke, Mae. Here\'s your price.',
           nextNodeId: 'finch_info',
+          // Corrupt path step 2 — only offered once the quest is underway and
+          // you've come to Mae for information (protects the 15 gold from
+          // being spent before the quest can credit it).
+          requirement: { requiresObjective: { questId: 'ch2_missing_miner', objectiveId: 'ch2_mm_cor_1' } },
           effects: { gold: -15, item: 'bribe_15_gold', xp: 10 },
         },
       ],
@@ -1061,6 +1082,10 @@ const ch2_slim_perkins: Dialogue = {
           text: 'Down the shaft and into the dark — I haul Zeke up alive and get him back to Red Jack.',
           nextNodeId: undefined,
           karmaTag: 'good',
+          // The rescue resolves all three paths of the quest — it appears once
+          // ANY path's find-the-captive legwork is done (tracked the footprints,
+          // bribed Mrs. Frost, or confronted her with the Lodge behind you).
+          requirement: { requiresObjective: { questId: 'ch2_missing_miner', objectiveId: ['ch2_mm_det_4', 'ch2_mm_cor_3', 'ch2_mm_mas_4'] } },
           effects: {
             item: 'rescue_zeke',
             xp: 25,
@@ -1194,6 +1219,8 @@ const ch3_sam_clemens: Dialogue = {
           text: '[Chaotic] I ladled the buckshot into Smiley\'s champion and out-jumped him with my mud-frog.',
           nextNodeId: undefined,
           karmaTag: 'chaotic',
+          // Cheat-path finale — only after distracting Smiley for the buckshot feed.
+          requirement: { requiresObjective: { questId: 'ch3_frog_contest', objectiveId: 'ch3_fc_cheat_3' } },
           effects: { choice: 'win_frog_contest', xp: 15 },
         },
         {
@@ -1201,6 +1228,8 @@ const ch3_sam_clemens: Dialogue = {
           text: '[Evil] I loosed a snake in the frog pens, bet against the field, and collected on the chaos.',
           nextNodeId: undefined,
           karmaTag: 'evil',
+          // Sabotage-path finale — only after actually releasing the snake at night.
+          requirement: { requiresObjective: { questId: 'ch3_frog_contest', objectiveId: 'ch3_fc_sab_3' } },
           effects: { item: 'sabotage_winnings', xp: 15 },
         },
       ],
@@ -1452,6 +1481,8 @@ const ch3_joaquin: Dialogue = {
           id: 'divide_the_gold',
           text: 'We recovered the stolen gold. Here\'s how we split it — your cut, and the rest goes back to the assayer.',
           nextNodeId: undefined,
+          // Can't split gold you haven't recovered from the smuggler's cache.
+          requirement: { requiresObjective: { questId: 'ch3_gold_theft', objectiveId: 'ch3_gt_out_4' } },
           effects: {
             xp: 20,
             choice: 'split_recovered_gold',
@@ -1559,6 +1590,9 @@ const ch3_blind_jake: Dialogue = {
           id: 'recover_stolen_gold',
           text: 'Down where the light don\'t reach — that\'s where the stash was. I recovered the stolen gold bars.',
           nextNodeId: undefined,
+          // Only after locating the stash — searched Moaning Cavern (lawful) or
+          // followed the informant to Natural Bridges (underworld).
+          requirement: { requiresObjective: { questId: 'ch3_gold_theft', objectiveId: ['ch3_gt_law_3', 'ch3_gt_out_3'] } },
           effects: {
             xp: 25,
             item: 'stolen_gold_bars',
@@ -2361,6 +2395,8 @@ const ch4_samuel_clemson: Dialogue = {
           text: '[Chaotic] No county seat, no lawyers. I run your clerk off the land and burn the forged papers myself.',
           nextNodeId: undefined,
           karmaTag: 'chaotic',
+          // Confrontation-path finale — only after the fight at the ranch site.
+          requirement: { requiresObjective: { questId: 'ch4_land_fraud', objectiveId: 'ch4_lf_con_3' } },
           effects: {
             xp: 20,
             choice: 'destroy_fraud_papers',
@@ -2806,6 +2842,10 @@ const ch5_chamber_final: Dialogue = {
           effects: {
             xp: 30,
             flag: 'inscriptions_read',
+            // Opening the strongbox IS securing the treasure — same chest the
+            // 'treasure_found' route grants. Without this, the interpreted route
+            // reached the final choice with the inventory objective unfired.
+            item: 'tobias_treasure_chest',
           },
         },
       ],
@@ -2835,18 +2875,25 @@ const ch5_chamber_final: Dialogue = {
           text: 'Share the treasure with the community.',
           nextNodeId: 'shared',
           karmaTag: 'good',
+          // The 3-way moral ending only opens once the treasure is actually in
+          // hand (the chest item fires ch5_fc_share_2 and ch5_fc_keep_2 alike)
+          // AND The Final Choice quest is active — no resolving a finale that
+          // hasn't begun.
+          requirement: { requiresObjective: { questId: 'ch5_final_choice', objectiveId: ['ch5_fc_share_2', 'ch5_fc_keep_2'] } },
         },
         {
           id: 'keep',
           text: 'Keep it all. I earned this.',
           nextNodeId: 'kept',
           karmaTag: 'evil',
+          requirement: { requiresObjective: { questId: 'ch5_final_choice', objectiveId: ['ch5_fc_share_2', 'ch5_fc_keep_2'] } },
         },
         {
           id: 'preserve',
           text: 'Preserve the chamber as a sacred site.',
           nextNodeId: 'preserved',
           karmaTag: 'lawful',
+          requirement: { requiresObjective: { questId: 'ch5_final_choice', objectiveId: ['ch5_fc_share_2', 'ch5_fc_keep_2'] } },
         },
       ],
     },
@@ -2966,6 +3013,8 @@ const ch4_national_barkeep: Dialogue = {
           text: 'The Argonaut fire, Gus — I reached the bulkhead and brought up the farewell the trapped men chalked on the timber.',
           nextNodeId: undefined,
           karmaTag: 'good',
+          // Only after working through the gas-fouled tunnel to the bulkhead.
+          requirement: { requiresObjective: { questId: 'ch4_kennedy_mine_fire', objectiveId: 'ch4_kf_hon_2' } },
           effects: {
             item: 'chalked_farewell_message',
             xp: 20,
@@ -2976,6 +3025,10 @@ const ch4_national_barkeep: Dialogue = {
           id: 'fire_name_arsonist',
           text: 'When the papers ask who lit the Argonaut, I\'ve settled on the name I\'ll give them.',
           nextNodeId: undefined,
+          // Accusation-path finale — only after weighing the arson story against
+          // the owners' record of neglect (the travel leg to Jackson is trivially
+          // true in this saloon, so gate on the judgment call instead).
+          requirement: { requiresObjective: { questId: 'ch4_kennedy_mine_fire', objectiveId: 'ch4_kf_acc_2' } },
           effects: {
             choice: 'name_the_arsonist',
             xp: 15,
@@ -2986,6 +3039,8 @@ const ch4_national_barkeep: Dialogue = {
           text: 'No cartoon villain — just the dead. I\'ll read all forty-seven names aloud at St. Sava\'s.',
           nextNodeId: undefined,
           karmaTag: 'good',
+          // Honor-path finale — only after bringing the message to the widow.
+          requirement: { requiresObjective: { questId: 'ch4_kennedy_mine_fire', objectiveId: 'ch4_kf_hon_4' } },
           effects: {
             choice: 'read_the_names',
             xp: 20,
