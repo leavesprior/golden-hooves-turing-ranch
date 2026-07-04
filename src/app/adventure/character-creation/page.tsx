@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { PixelNavigation } from '@/components/pixel'
+import { readSharedCharacter } from '@/lib/sharedCharacter'
 import { ZeroSumPicker } from '@/components/adventure/ZeroSumPicker'
 import {
   CharacterProvider,
@@ -33,6 +34,17 @@ function CharacterCreationContent() {
   const [selectedBackground, setSelectedBackground] = useState<CharacterBackground | null>(null)
   const [selectedPicks, setSelectedPicks] = useState<string[]>([])
   const [pickMods, setPickMods] = useState<Partial<SaddleStats>>({})
+  // Shared character read (never re-ask creation): if any game already has a
+  // character, prefill the name and offer to continue instead of re-creating.
+  // Creating anyway stays possible — it deliberately replaces the character.
+  const [existingName, setExistingName] = useState<string | null>(null)
+  useEffect(() => {
+    const existing = readSharedCharacter()
+    if (existing) {
+      setExistingName(existing.name)
+      setCharacterName(prev => prev || existing.name)
+    }
+  }, [])
 
   const handleConfirmPicks = useCallback((ids: string[], mods: Partial<SaddleStats>) => {
     setSelectedPicks(ids)
@@ -121,6 +133,24 @@ function CharacterCreationContent() {
             ))}
           </div>
         </div>
+
+        {/* Existing-character notice — continue instead of re-creating */}
+        {existingName && step === 'name' && (
+          <div className="bg-[var(--pixel-forest-dark)]/40 border-2 border-[var(--pixel-forest-mid)] p-4 mb-4 text-center">
+            <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)]">
+              You already have a character: <span className="text-[var(--pixel-gold-light)]">{existingName}</span>
+            </p>
+            <button
+              onClick={() => router.push('/adventure/play')}
+              className="mt-3 w-full py-3 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] hover:bg-[var(--pixel-gold-mid)] transition-all"
+            >
+              CONTINUE AS {existingName.toUpperCase()} {'▶'}
+            </button>
+            <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] opacity-60 mt-2">
+              Or forge a new destiny below — it replaces your current character.
+            </p>
+          </div>
+        )}
 
         {/* === STEP 1: NAME === */}
         {step === 'name' && (

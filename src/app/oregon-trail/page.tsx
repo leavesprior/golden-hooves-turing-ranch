@@ -224,9 +224,28 @@ function OregonTrailGame() {
     // Try slot-based saves first (authenticated users) — Oregon Trail slots only (C2)
     const sorted = [...trailSaves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     if (sorted.length > 0) {
+      console.info(`[Continue] Found ${sorted.length} slot save(s), trying most recent: ${sorted[0].id}`)
       const result = await loadGame(sorted[0].id)
-      if (result.success) return
-      // Slot load failed — fall through to local autosave
+      // loadGame reports success whenever the registered gameDataLoader ran —
+      // even if the slot carried no oregonTrail payload (e.g. an auto-save
+      // created on the title screen collects `{}`), in which case the loader
+      // is a no-op, the phase stays 'title', and returning here would softlock
+      // Continue. Only trust the slot if it actually held a playable phase;
+      // otherwise fall through to the local autosave below.
+      const slotState = result.data?.oregonTrail as { phase?: unknown } | undefined
+      const slotPlayable =
+        !!slotState && typeof slotState === 'object' &&
+        typeof slotState.phase === 'string' && slotState.phase !== 'title'
+      if (result.success && slotPlayable) {
+        console.info(`[Continue] Slot save applied (phase: ${slotState.phase})`)
+        return
+      }
+      console.info(
+        `[Continue] Slot save not playable (success: ${result.success}` +
+        `${result.error ? `, error: ${result.error}` : ''}) — falling through to local autosave`
+      )
+    } else {
+      console.info('[Continue] No Oregon Trail slot saves — trying local autosave')
     }
     // Fall back to local auto-save (all users)
     try {
@@ -234,6 +253,7 @@ function OregonTrailGame() {
       if (saved) {
         const parsed = JSON.parse(saved)
         if (parsed && typeof parsed === 'object' && parsed.phase && parsed.phase !== 'title') {
+          console.info(`[Continue] Local autosave applied (phase: ${parsed.phase})`)
           loadState(parsed)
           return
         }
@@ -242,10 +262,10 @@ function OregonTrailGame() {
     } catch (e) {
       console.warn('[Continue] Failed to parse local save:', e)
     }
-    // No valid save found from either source
+    // No valid save found from either source — tell the player honestly
     console.warn('[Continue] No valid save found from auth slots or local storage')
     setContinueError(true)
-    setTimeout(() => setContinueError(false), 3000)
+    setTimeout(() => setContinueError(false), 5000)
   }, [audioInitialized, trailSaves, loadGame, loadState])
 
   // Playlist auto-cycles tracks via AudioManager - no manual switching needed

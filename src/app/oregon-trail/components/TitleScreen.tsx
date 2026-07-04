@@ -217,7 +217,7 @@ export function TitleScreen({ onStart, hasSaves, onContinue, continueError }: Ti
             )}
             {continueError && (
               <p className="text-red-400 text-sm font-pixel animate-pulse">
-                No valid save found.
+                Couldn{'’'}t load your save {'—'} start a new game or try again.
               </p>
             )}
             <button
