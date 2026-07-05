@@ -24,6 +24,11 @@ interface DialogueViewProps {
   onEffect: (effects: DialogueEffect) => void
   onSkillCheck: (stat: StatName, dc: number) => { success: boolean; roll: number; modifier: number; total: number }
   onGameStateChanged?: () => void
+  // Returns true when the given quest objective is complete (quest save-state).
+  // Drives the requirement.requiresObjective sequence gate: options carrying it
+  // are HIDDEN (not rendered locked) until the objective is done. When the prop
+  // is absent, gated options stay hidden — fail closed, never sequence-break.
+  isQuestObjectiveComplete?: (questId: string, objectiveId: string) => boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -318,6 +323,7 @@ export function DialogueView({
   onEffect,
   onSkillCheck,
   onGameStateChanged,
+  isQuestObjectiveComplete,
 }: DialogueViewProps) {
   // Resolve the starting node
   const getNode = useCallback((id: string): DialogueNode | undefined => {
@@ -450,6 +456,24 @@ export function DialogueView({
     return (statVal + 20) < option.requirement.dc
   }
 
+  // Sequence gate (requirement.requiresObjective): an option that narrates
+  // completed quest progress ("I hauled them all back...") must not be offered
+  // before the player has actually done the legwork. Unmet gates HIDE the
+  // option — unlike stat gates, which render visibly locked — because showing
+  // a resolution line before the quest has progressed is itself the spoiler.
+  // An objectiveId array means ANY ONE completed objective satisfies the gate.
+  const isAvailable = (option: DialogueOption): boolean => {
+    const gate = option.requirement?.requiresObjective
+    if (!gate) return true
+    const ids = Array.isArray(gate.objectiveId) ? gate.objectiveId : [gate.objectiveId]
+    return ids.some(id => isQuestObjectiveComplete?.(gate.questId, id) ?? false)
+  }
+
+  // Options the player can actually be offered on this node (sequence-gated
+  // options filtered out). Numbering below uses the FILTERED index so the
+  // visible list always reads 1..n with no gaps.
+  const visibleOptions = currentNode?.options.filter(isAvailable) ?? []
+
   // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
@@ -541,9 +565,9 @@ export function DialogueView({
       )}
 
       {/* ---- Response Options ---- */}
-      {typewriterDone && !rollState.rolling && currentNode.options.length > 0 && (
+      {typewriterDone && !rollState.rolling && visibleOptions.length > 0 && (
         <div className="p-3 border-t-2 border-[var(--pixel-ui-border)] space-y-1">
-          {currentNode.options.map((option, idx) => {
+          {visibleOptions.map((option, idx) => {
             const locked = isLocked(option)
             const karmaTags = getKarmaTags(option)
             const hasReq = !!(option.requirement?.stat && option.requirement.dc !== undefined)
@@ -627,8 +651,8 @@ export function DialogueView({
         </div>
       )}
 
-      {/* ---- End of Conversation (no options) ---- */}
-      {typewriterDone && !rollState.rolling && currentNode.options.length === 0 && (
+      {/* ---- End of Conversation (no offerable options) ---- */}
+      {typewriterDone && !rollState.rolling && visibleOptions.length === 0 && (
         <div className="p-3 border-t-2 border-[var(--pixel-ui-border)]">
           <button
             onClick={onClose}

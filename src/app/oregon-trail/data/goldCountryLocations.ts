@@ -81,7 +81,7 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     shortName: 'Murphys',
     description: 'A Gold Rush camp that traded picks for corkscrews — more than 20 wine tasting rooms now line its shady Main Street. The Murphys Historic Hotel has taken guests since the 1850s, and its old register reads like a Gold Rush who\'s-who: Mark Twain, Ulysses S. Grant, and — by local tradition — the gentleman bandit Black Bart, who may have signed in between the stagecoach robberies he was politely committing nearby. Stroll the stone-front buildings, taste the local zinfandel, and keep an eye on who\'s checking in.',
     region: 'calaveras',
-    coordinates: { lat: 38.1377, lng: -120.4613 },
+    coordinates: { lat: 38.1375, lng: -120.4620 },
     driveTime: '50 min from BOBR',
     icon: 'wine',
     externalLink: 'https://visitmurphys.com/',

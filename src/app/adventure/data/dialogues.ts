@@ -17,6 +17,13 @@ export interface DialogueRequirement {
   flag?: string
   questCompleted?: string
   karmaTag?: 'lawful' | 'chaotic' | 'good' | 'evil'
+  // Sequence gate: the option is only OFFERED once the named quest objective is
+  // complete. An array means ANY ONE of the listed objectives satisfies the gate
+  // (used when one option resolves several alternate paths of the same quest).
+  // Unlike stat/dc (which renders a visible-but-locked option), an unmet
+  // requiresObjective HIDES the option entirely — resolution lines must not be
+  // pickable in the same breath the quest is received (see DialogueView).
+  requiresObjective?: { questId: string; objectiveId: string | string[] }
 }
 
 export interface DialogueEffect {
@@ -28,6 +35,12 @@ export interface DialogueEffect {
   questStart?: string
   questProgress?: { questId: string; objectiveId: string }
   unlockLocation?: string
+  // Acquire an item (item-id) — grants it to the inventory and completes any
+  // 'item'-type quest objective targeting it.
+  item?: string
+  // Tag a narrative choice (choice-id) — completes any 'choice'-type quest
+  // objective targeting it.
+  choice?: string
 }
 
 export interface DialogueOption {
@@ -103,6 +116,32 @@ const ch1_shaw_intro: Dialogue = {
           text: 'I\'ll figure it out myself.',
           lowShrewdnessText: '*wander off mid-sentence*',
           nextNodeId: undefined,
+        },
+        {
+          id: 'recovered_crates',
+          text: 'I tracked the stolen supplies to Silas Crooke\'s cache and hauled them all back.',
+          nextNodeId: undefined,
+          // Resolution of the lawful path — only after catching Crooke in a lie.
+          requirement: { requiresObjective: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_law_4' } },
+          effects: { item: 'stolen_supply_crates', xp: 15 },
+        },
+        {
+          id: 'negotiated_return',
+          text: '[Good] Crooke was desperate, not wicked. I struck a deal — he returns most and keeps enough to survive.',
+          nextNodeId: undefined,
+          karmaTag: 'good',
+          // Resolution of the diplomatic path — only after learning Crooke's reason.
+          requirement: { requiresObjective: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_dip_3' } },
+          effects: { choice: 'negotiate_split', xp: 15 },
+        },
+        {
+          id: 'delivered_army_crates',
+          text: '[Chaotic] Your families will eat. I brought replacement crates from the Army storehouse — don\'t ask how.',
+          nextNodeId: undefined,
+          karmaTag: 'chaotic',
+          // Resolution of the chaotic path — only after stealing the Army crates.
+          requirement: { requiresObjective: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_out_3' } },
+          effects: { choice: 'deliver_stolen_goods', xp: 15 },
         },
       ],
     },
@@ -246,6 +285,15 @@ const ch1_hooded_figure: Dialogue = {
           id: 'ignore',
           text: 'Walk past without engaging.',
           nextNodeId: undefined,
+        },
+        {
+          id: 'army_stash_tip',
+          text: '[Chaotic] You said you know where the Army keeps its crates. I slipped in and lifted the replacement supplies.',
+          nextNodeId: undefined,
+          karmaTag: 'chaotic',
+          // Only after actually sneaking into the Army storehouse (Agility check).
+          requirement: { requiresObjective: { questId: 'ch1_stolen_supplies', objectiveId: 'ch1_ss_out_2' } },
+          effects: { item: 'army_supply_crates', xp: 15 },
         },
       ],
     },
@@ -500,6 +548,19 @@ const ch1_chief_talking_bear: Dialogue = {
           effects: {
             xp: 5,
             reputation: { faction: 'natives', delta: 3 },
+          },
+        },
+        {
+          id: 'bring_trade_goods',
+          text: 'I\'ve brought the medicine and iron tools your people need — honestly traded, from Ezra Finch in Independence.',
+          nextNodeId: undefined,
+          karmaTag: 'good',
+          // Only after Marie Whitehawk has told you what the Pawnee actually need.
+          requirement: { requiresObjective: { questId: 'ch1_pawnee_treaty', objectiveId: 'ch1_pt_fair_1' } },
+          effects: {
+            item: 'trade_goods_medicine',
+            xp: 10,
+            reputation: { faction: 'natives', delta: 5 },
           },
         },
       ],
@@ -821,6 +882,16 @@ const ch2_big_mae: Dialogue = {
           nextNodeId: 'finch_info',
           requirement: { stat: 'Shrewdness', dc: 10 },
           effects: { gold: -5, questStart: 'ch2_missing_miner' },
+        },
+        {
+          id: 'pay_kidnapper_price',
+          text: '[15 gold] Name the man who took Zeke, Mae. Here\'s your price.',
+          nextNodeId: 'finch_info',
+          // Corrupt path step 2 — only offered once the quest is underway and
+          // you've come to Mae for information (protects the 15 gold from
+          // being spent before the quest can credit it).
+          requirement: { requiresObjective: { questId: 'ch2_missing_miner', objectiveId: 'ch2_mm_cor_1' } },
+          effects: { gold: -15, item: 'bribe_15_gold', xp: 10 },
         },
       ],
     },
@@ -1202,6 +1273,18 @@ const ch2_slim_perkins: Dialogue = {
             flag: 'slim_partner',
             reputation: { faction: 'outlaws', delta: 10 },
             questStart: 'ch2_claim_jumper',
+            choice: 'accept_slim_deal',
+          },
+        },
+        {
+          id: 'fake_shake',
+          text: '[Shrewdness] Shake his hand — while planning to hand him to Red Jack once he shows me the claim.',
+          nextNodeId: undefined,
+          karmaTag: 'chaotic',
+          effects: {
+            xp: 15,
+            flag: 'slim_double_cross_setup',
+            choice: 'fake_accept_deal',
           },
         },
       ],
@@ -1251,6 +1334,21 @@ const ch2_slim_perkins: Dialogue = {
             // objectiveId remapped from dangling 'find_clue' → real objective
             // (detective path: 'Track footprints from the cemetery')
             questProgress: { questId: 'ch2_missing_miner', objectiveId: 'ch2_mm_det_4' },
+          },
+        },
+        {
+          id: 'haul_zeke_out',
+          text: 'Down the shaft and into the dark — I haul Zeke up alive and get him back to Red Jack.',
+          nextNodeId: undefined,
+          karmaTag: 'good',
+          // The rescue resolves all three paths of the quest — it appears once
+          // ANY path's find-the-captive legwork is done (tracked the footprints,
+          // bribed Mrs. Frost, or confronted her with the Lodge behind you).
+          requirement: { requiresObjective: { questId: 'ch2_missing_miner', objectiveId: ['ch2_mm_det_4', 'ch2_mm_cor_3', 'ch2_mm_mas_4'] } },
+          effects: {
+            item: 'rescue_zeke',
+            xp: 25,
+            reputation: { faction: 'settlers', delta: 10 },
           },
         },
       ],
@@ -1361,6 +1459,37 @@ const ch3_sam_clemens: Dialogue = {
           id: 'buckshot',
           text: 'Buckshot? That\'s cheating!',
           nextNodeId: 'twain_wisdom',
+        },
+        {
+          id: 'catch_any_frog',
+          text: 'I caught a frog down at the creek — nothing special, but it\'ll do for the contest.',
+          nextNodeId: undefined,
+          effects: { item: 'any_bullfrog', xp: 5 },
+        },
+        {
+          id: 'buy_buckshot',
+          text: 'I bought a pouch of buckshot from the hotel store — for Dan\'l Webster.',
+          nextNodeId: undefined,
+          karmaTag: 'chaotic',
+          effects: { item: 'buckshot', xp: 5 },
+        },
+        {
+          id: 'weight_and_win',
+          text: '[Chaotic] I ladled the buckshot into Smiley\'s champion and out-jumped him with my mud-frog.',
+          nextNodeId: undefined,
+          karmaTag: 'chaotic',
+          // Cheat-path finale — only after distracting Smiley for the buckshot feed.
+          requirement: { requiresObjective: { questId: 'ch3_frog_contest', objectiveId: 'ch3_fc_cheat_3' } },
+          effects: { choice: 'win_frog_contest', xp: 15 },
+        },
+        {
+          id: 'sabotage_and_collect',
+          text: '[Evil] I loosed a snake in the frog pens, bet against the field, and collected on the chaos.',
+          nextNodeId: undefined,
+          karmaTag: 'evil',
+          // Sabotage-path finale — only after actually releasing the snake at night.
+          requirement: { requiresObjective: { questId: 'ch3_frog_contest', objectiveId: 'ch3_fc_sab_3' } },
+          effects: { item: 'sabotage_winnings', xp: 15 },
         },
       ],
     },
@@ -1607,6 +1736,18 @@ const ch3_joaquin: Dialogue = {
             flag: 'joaquin_shipment_info',
           },
         },
+        {
+          id: 'divide_the_gold',
+          text: 'We recovered the stolen gold. Here\'s how we split it — your cut, and the rest goes back to the assayer.',
+          nextNodeId: undefined,
+          // Can't split gold you haven't recovered from the smuggler's cache.
+          requirement: { requiresObjective: { questId: 'ch3_gold_theft', objectiveId: 'ch3_gt_out_4' } },
+          effects: {
+            xp: 20,
+            choice: 'split_recovered_gold',
+            reputation: { faction: 'outlaws', delta: 5 },
+          },
+        },
       ],
     },
   ],
@@ -1702,6 +1843,18 @@ const ch3_blind_jake: Dialogue = {
           effects: {
             xp: 20,
             flag: 'deep_cave_tour',
+          },
+        },
+        {
+          id: 'recover_stolen_gold',
+          text: 'Down where the light don\'t reach — that\'s where the stash was. I recovered the stolen gold bars.',
+          nextNodeId: undefined,
+          // Only after locating the stash — searched Moaning Cavern (lawful) or
+          // followed the informant to Natural Bridges (underworld).
+          requirement: { requiresObjective: { questId: 'ch3_gold_theft', objectiveId: ['ch3_gt_law_3', 'ch3_gt_out_3'] } },
+          effects: {
+            xp: 25,
+            item: 'stolen_gold_bars',
           },
         },
       ],
@@ -2496,6 +2649,19 @@ const ch4_samuel_clemson: Dialogue = {
           nextNodeId: 'report_threat',
           karmaTag: 'lawful',
         },
+        {
+          id: 'run_off_and_burn',
+          text: '[Chaotic] No county seat, no lawyers. I run your clerk off the land and burn the forged papers myself.',
+          nextNodeId: undefined,
+          karmaTag: 'chaotic',
+          // Confrontation-path finale — only after the fight at the ranch site.
+          requirement: { requiresObjective: { questId: 'ch4_land_fraud', objectiveId: 'ch4_lf_con_3' } },
+          effects: {
+            xp: 20,
+            choice: 'destroy_fraud_papers',
+            reputation: { faction: 'settlers', delta: 10 },
+          },
+        },
       ],
     },
     {
@@ -2892,6 +3058,7 @@ const ch5_lookout_vision: Dialogue = {
             xp: 15,
             flag: 'all_map_pieces',
             unlockLocation: 'ch5_hidden_chamber',
+            item: 'complete_treasure_map',
           },
         },
       ],
@@ -2934,6 +3101,10 @@ const ch5_chamber_final: Dialogue = {
           effects: {
             xp: 30,
             flag: 'inscriptions_read',
+            // Opening the strongbox IS securing the treasure — same chest the
+            // 'treasure_found' route grants. Without this, the interpreted route
+            // reached the final choice with the inventory objective unfired.
+            item: 'tobias_treasure_chest',
           },
         },
       ],
@@ -2949,6 +3120,7 @@ const ch5_chamber_final: Dialogue = {
           effects: {
             xp: 20,
             flag: 'treasure_found',
+            item: 'tobias_treasure_chest',
           },
         },
       ],
@@ -2962,18 +3134,25 @@ const ch5_chamber_final: Dialogue = {
           text: 'Share the treasure with the community.',
           nextNodeId: 'shared',
           karmaTag: 'good',
+          // The 3-way moral ending only opens once the treasure is actually in
+          // hand (the chest item fires ch5_fc_share_2 and ch5_fc_keep_2 alike)
+          // AND The Final Choice quest is active — no resolving a finale that
+          // hasn't begun.
+          requirement: { requiresObjective: { questId: 'ch5_final_choice', objectiveId: ['ch5_fc_share_2', 'ch5_fc_keep_2'] } },
         },
         {
           id: 'keep',
           text: 'Keep it all. I earned this.',
           nextNodeId: 'kept',
           karmaTag: 'evil',
+          requirement: { requiresObjective: { questId: 'ch5_final_choice', objectiveId: ['ch5_fc_share_2', 'ch5_fc_keep_2'] } },
         },
         {
           id: 'preserve',
           text: 'Preserve the chamber as a sacred site.',
           nextNodeId: 'preserved',
           karmaTag: 'lawful',
+          requirement: { requiresObjective: { questId: 'ch5_final_choice', objectiveId: ['ch5_fc_share_2', 'ch5_fc_keep_2'] } },
         },
       ],
     },
@@ -2991,6 +3170,19 @@ const ch5_chamber_final: Dialogue = {
             karma: { lawful: 2, good: 5 },
             reputation: { faction: 'settlers', delta: 25 },
             flag: 'treasure_shared',
+            choice: 'distribute_settler_gold',
+          },
+        },
+        {
+          id: 'found_trust',
+          text: 'Set the remaining funds aside as a community trust, so the land keeps giving after I\'m gone.',
+          nextNodeId: undefined,
+          karmaTag: 'good',
+          effects: {
+            xp: 40,
+            karma: { good: 5 },
+            reputation: { faction: 'settlers', delta: 10 },
+            choice: 'establish_trust',
           },
         },
       ],
@@ -3009,6 +3201,7 @@ const ch5_chamber_final: Dialogue = {
             karma: { lawful: -1, good: -3 },
             reputation: { faction: 'settlers', delta: -10 },
             flag: 'treasure_hoarded',
+            choice: 'register_all_deeds',
           },
         },
       ],
@@ -3027,7 +3220,147 @@ const ch5_chamber_final: Dialogue = {
             karma: { lawful: 5, good: 3 },
             reputation: { faction: 'settlers', delta: 15 },
             flag: 'chamber_preserved',
+            choice: 'donate_to_history',
+            item: 'modest_gold_share',
           },
+        },
+      ],
+    },
+  ],
+}
+
+// ============================================================
+// Chapter 4 — Flavor: the National Hotel Saloon (Old Town Jackson)
+// ============================================================
+
+const ch4_national_barkeep: Dialogue = {
+  id: 'ch4_national_barkeep',
+  npcId: 'ch4_national_barkeep',
+  npcName: 'Gus Belloni',
+  chapter: 4,
+  title: 'Tall Tales at the National',
+  nodes: [
+    {
+      id: 'start',
+      text: '"Welcome to the National — oldest bar in the state still pouring, or near enough." Gus runs a rag along the carved back-bar and nods at the spotted mirror behind him. "That glass has watched senators, stagecoach robbers, and one fella I could tell you stories about. Rebuilt this whole room after the \'62 fire, and I swear the ghost came back with the furniture. What\'ll it be — a drink, or a yarn?"',
+      speaker: 'Gus Belloni',
+      options: [
+        {
+          id: 'the_duke',
+          text: 'Who\'s the fella you could tell stories about?',
+          nextNodeId: 'duke_tale',
+        },
+        {
+          id: 'the_ghost',
+          text: 'You said a ghost came back with the furniture?',
+          nextNodeId: 'ghost_lore',
+        },
+        {
+          id: 'call_bluff',
+          text: '[Shrewdness DC 8] That mirror\'s the only thing here older than your tall tales, Gus.',
+          nextNodeId: 'barkeep_grin',
+          requirement: { stat: 'Shrewdness', dc: 8 },
+        },
+        {
+          id: 'leave',
+          text: 'Just the drink. Much obliged.',
+          nextNodeId: undefined,
+          effects: { xp: 5 },
+        },
+        {
+          id: 'fire_recovered_message',
+          text: 'The Argonaut fire, Gus — I reached the bulkhead and brought up the farewell the trapped men chalked on the timber.',
+          nextNodeId: undefined,
+          karmaTag: 'good',
+          // Only after working through the gas-fouled tunnel to the bulkhead.
+          requirement: { requiresObjective: { questId: 'ch4_kennedy_mine_fire', objectiveId: 'ch4_kf_hon_2' } },
+          effects: {
+            item: 'chalked_farewell_message',
+            xp: 20,
+            reputation: { faction: 'settlers', delta: 10 },
+          },
+        },
+        {
+          id: 'fire_name_arsonist',
+          text: 'When the papers ask who lit the Argonaut, I\'ve settled on the name I\'ll give them.',
+          nextNodeId: undefined,
+          // Accusation-path finale — only after weighing the arson story against
+          // the owners' record of neglect (the travel leg to Jackson is trivially
+          // true in this saloon, so gate on the judgment call instead).
+          requirement: { requiresObjective: { questId: 'ch4_kennedy_mine_fire', objectiveId: 'ch4_kf_acc_2' } },
+          effects: {
+            choice: 'name_the_arsonist',
+            xp: 15,
+          },
+        },
+        {
+          id: 'fire_read_names',
+          text: 'No cartoon villain — just the dead. I\'ll read all forty-seven names aloud at St. Sava\'s.',
+          nextNodeId: undefined,
+          karmaTag: 'good',
+          // Honor-path finale — only after bringing the message to the widow.
+          requirement: { requiresObjective: { questId: 'ch4_kennedy_mine_fire', objectiveId: 'ch4_kf_hon_4' } },
+          effects: {
+            choice: 'read_the_names',
+            xp: 20,
+            reputation: { faction: 'settlers', delta: 10 },
+          },
+        },
+      ],
+    },
+    {
+      id: 'duke_tale',
+      text: '"Now this is a tall tale, mind — I heard it, I didn\'t swear it on a Bible." Gus leans in. "They say one day a big moving-picture cowboy comes through here, the Duke they\'ll call him, and sits at that very table playing poker till the sun\'s a rumor. Loses a fortune he hasn\'t got, and settles the debt in furniture — a whole room of it, hauled up the stairs. Room 201, still called the Duke\'s room to this day. Half of what you\'re leaning on, he lost fair and square." He winks. "Or so the boys tell it."',
+      speaker: 'Gus Belloni',
+      options: [
+        {
+          id: 'duke_room',
+          text: 'And the furniture\'s still up in Room 201?',
+          nextNodeId: 'duke_room_reply',
+        },
+        {
+          id: 'ghost_pivot',
+          text: 'You mentioned a ghost, too.',
+          nextNodeId: 'ghost_lore',
+        },
+      ],
+    },
+    {
+      id: 'duke_room_reply',
+      text: '"Every stick. Go on up and look — carved bedstead, a wardrobe you could bury a man in. Guests ask for 201 special." He grins. "Whether the Duke ever set foot in it, well. A story that good pays its own bar tab."',
+      speaker: 'Gus Belloni',
+      options: [
+        {
+          id: 'good_yarn',
+          text: 'Best five-cent story in the county. My compliments.',
+          nextNodeId: undefined,
+          effects: { xp: 15, flag: 'heard_duke_legend' },
+        },
+      ],
+    },
+    {
+      id: 'ghost_lore',
+      text: '"Lady in a long dress, second-floor landing. Cold spot on the stairs even in August. Glasses that slide off the back-bar when nobody\'s near \'em." Gus taps the brass foot-rail with his boot. "I don\'t mind her. She never stiffs me on a tab. But new folks in the Duke\'s room don\'t always sleep through the night."',
+      speaker: 'Gus Belloni',
+      options: [
+        {
+          id: 'ghost_thanks',
+          text: 'I\'ll keep a candle lit. Thanks, Gus.',
+          nextNodeId: undefined,
+          effects: { xp: 10, flag: 'heard_national_ghost' },
+        },
+      ],
+    },
+    {
+      id: 'barkeep_grin',
+      text: 'Gus laughs, a big open bark of it, and sets a second glass down without asking. "Sharp one. Course it\'s a tall tale — that\'s what a saloon\'s FOR, friend. Man wants the truth, he goes to the courthouse. Man wants a good night, he comes to me." He slides the glass over. "On the house, for not believing a word."',
+      speaker: 'Gus Belloni',
+      options: [
+        {
+          id: 'toast',
+          text: 'To tall tales, then.',
+          nextNodeId: undefined,
+          effects: { xp: 20, gold: 0, flag: 'heard_duke_legend' },
         },
       ],
     },
@@ -3060,6 +3393,7 @@ export const DIALOGUES: Dialogue[] = [
   ch4_big_jim,
   ch4_walt_henderson,
   ch4_samuel_clemson,
+  ch4_national_barkeep,
   // Chapter 5
   ch5_tobias_journal,
   ch5_barn_spirit,

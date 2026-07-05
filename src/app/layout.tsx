@@ -7,6 +7,7 @@ import { KarmaProvider } from "@/lib/karmaContext";
 import { AuthProvider } from "@/lib/authContext";
 import { SaveLoadProvider } from "@/lib/saveLoadContext";
 import { CrossGameProgressionProvider } from "@/lib/crossGameProgressionContext";
+import { CeremonyProvider } from "@/lib/ceremonyContext";
 import { RegisterSW } from "@/components/pwa/RegisterSW";
 
 const pressStart2P = Press_Start_2P({
@@ -197,6 +198,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <RegisterSW />
+        <CeremonyProvider>
         <AuthProvider>
           <KarmaProvider>
             <CrossGameProgressionProvider>
@@ -210,6 +212,7 @@ export default function RootLayout({
             </CrossGameProgressionProvider>
           </KarmaProvider>
         </AuthProvider>
+        </CeremonyProvider>
       </body>
     </html>
   );
