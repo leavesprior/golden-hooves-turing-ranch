@@ -8,7 +8,7 @@ import { trackPageView, trackGameStart } from '@/lib/eventTracker'
 // Oregon Trail Contexts — the deep systems
 import { CharacterProvider, useCharacter, type StatName, type SaddleStats } from '@/app/oregon-trail/characterContext'
 import { KarmaWalletProvider, useKarmaWallet } from '@/app/oregon-trail/karmaWalletContext'
-import { ReputationProvider, useReputation, type FactionId } from '@/app/oregon-trail/reputationContext'
+import { ReputationProvider, useReputation, FACTIONS, type FactionId } from '@/app/oregon-trail/reputationContext'
 import { NarratorProvider, useNarrator } from '@/app/oregon-trail/narratorContext'
 import { NPCProvider } from '@/app/oregon-trail/npcContext'
 import { MysteryProvider, useMystery } from '@/app/oregon-trail/mysteryContext'
@@ -23,6 +23,8 @@ import { CampManagement } from '@/components/adventure/CampManagement'
 import { SkillTree } from '@/components/adventure/SkillTree'
 import AdventureRewardTracker from '@/components/adventure/AdventureRewardTracker'
 import { ClueGameUnlock } from '@/components/adventure/ClueGameUnlock'
+import { CeremonyLayer } from '@/components/ceremony/CeremonyLayer'
+import { useCeremony, type CeremonyRepChange } from '@/lib/ceremonyContext'
 
 // Lazy-load PixiJS exploration map (SSR-safe)
 import dynamic from 'next/dynamic'
@@ -910,6 +912,32 @@ function AdventureContent() {
     return repState.reputations as Record<FactionId, number>
   }, [repState.reputations])
 
+  // Ceremony — the "loud, named, immediate consequence" layer. celebrate() is a
+  // safe no-op outside the provider, so it can never break gameplay.
+  const { celebrate } = useCeremony()
+
+  // Level-up ceremony. Watched via an effect (never fired inside the pure XP
+  // updater, which React may run twice). skillPoints only rises on level-up and
+  // falls when spent, so a strict increase is the clean level-up signal.
+  const prevSkillPointsRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!adventureState) return
+    const sp = adventureState.skillPoints
+    if (prevSkillPointsRef.current === null) { prevSkillPointsRef.current = sp; return }
+    if (sp > prevSkillPointsRef.current) {
+      const earned = sp - prevSkillPointsRef.current
+      const newLevel = Math.floor(adventureState.totalXP / 100)
+      celebrate({
+        kind: 'levelup',
+        title: 'Your legend grows.',
+        level: newLevel,
+        skillPoints: earned,
+        flavor: 'Spend your skill points in the skill tree.',
+      })
+    }
+    prevSkillPointsRef.current = sp
+  }, [adventureState?.skillPoints, adventureState?.totalXP, celebrate]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // === XP === (defined before the talk/travel handlers — quest rewards flow through it)
   const handleAddXP = useCallback((amount: number) => {
     // Clue XP flows through here — apply the quick_learner skill-check multiplier
@@ -967,8 +995,30 @@ function AdventureContent() {
       narratorComment(`Quest complete: ${quest.title} — ${path.name}. (+${r.xp} XP)`, 'observation')
       // The honest record stands apart from the narrator's voice — plainly true.
       if (quest.trueHistory) setHonestRecord(quest.trueHistory)
+
+      // Ceremony: name what just changed. Lawful karma reads as a Pinkerton rep
+      // shift in this game, so surface it as a faction line (not a duplicate chip).
+      const reps: CeremonyRepChange[] = []
+      if (r.karma?.lawful) {
+        reps.push({ faction: 'pinkerton', name: FACTIONS.pinkerton.name, icon: FACTIONS.pinkerton.icon, delta: r.karma.lawful })
+      }
+      r.reputation?.forEach(rep => {
+        const f = FACTIONS[rep.faction as FactionId]
+        if (f) reps.push({ faction: rep.faction, name: f.name, icon: f.icon, delta: rep.amount })
+      })
+      celebrate({
+        kind: 'quest',
+        title: quest.title,
+        subtitle: path.name,
+        rewards: {
+          xp: r.xp,
+          gold: r.gold && r.gold > 0 ? r.gold : undefined,
+          karmaGood: r.karma?.good || undefined,
+          reputation: reps.length > 0 ? reps : undefined,
+        },
+      })
     }
-  }, [handleAddXP, earnNeutral, addBadKarma, modifyReputation, narratorComment])
+  }, [handleAddXP, earnNeutral, addBadKarma, modifyReputation, narratorComment, celebrate])
 
   // Commit a quest engine result: sync the ref, apply rewards, merge state.
   // setFlag/unlockLocation rewards merge inside the (pure) updater so they
@@ -1488,10 +1538,18 @@ function AdventureContent() {
       setShowClueGameUnlock(true)
       return
     }
+    // Ceremony: mark the chapter's end before dropping into camp. The overlay's
+    // "MAKE CAMP" button dismisses it, revealing the camp UI mounted underneath.
+    celebrate({
+      kind: 'chapter',
+      chapter: adventureState.chapter,
+      title: 'The trail carries you onward.',
+      flavor: 'A fine place to camp for the night.',
+    })
     // Show camp management
     setShowCamp(true)
     updateState({ phase: 'camp' })
-  }, [adventureState, updateState, narratorComment])
+  }, [adventureState, updateState, narratorComment, celebrate])
 
   // === CAMP RESULT ===
   const handleCampResult = useCallback((result: ActivityResult) => {
@@ -2172,6 +2230,10 @@ function AdventureContent() {
           </div>
         </div>
       )}
+
+      {/* Ceremony overlay — quest toasts + level-up / chapter-complete beats.
+          Self-positions (z-[104]/z-[105]); sits above camp/dialogue, below the ending. */}
+      <CeremonyLayer />
     </div>
   )
 }
