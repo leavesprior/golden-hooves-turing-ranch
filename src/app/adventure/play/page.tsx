@@ -79,6 +79,17 @@ import {
 // the death→successor framing is still being tuned (see PERIL_DESIGN.md).
 const PERIL_ON = process.env.NEXT_PUBLIC_PERIL === '1'
 
+// Chapter-end ceremony titles, keyed to each chapter's actual quest themes
+// (ch2 = claims & claim-jumpers, ch3 = gold theft + the jumping-frog, ch4 = land
+// and water disputes, ch5 = Tobias's legacy). Falls back to a neutral line.
+const CHAPTER_TITLES: Record<number, string> = {
+  1: 'The Road to the Diggings',
+  2: 'Claims and Claim-Jumpers',
+  3: 'The Weight of Gold',
+  4: 'Boundary Lines',
+  5: 'The Reckoning',
+}
+
 // ============================================
 // ADVENTURE STATE
 // ============================================
@@ -939,7 +950,9 @@ function AdventureContent() {
   }, [adventureState?.skillPoints, adventureState?.totalXP, celebrate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // === XP === (defined before the talk/travel handlers — quest rewards flow through it)
-  const handleAddXP = useCallback((amount: number) => {
+  // opts.questContext suppresses the floating "+XP" — quest rewards already show
+  // their XP in the quest-complete toast, so we'd double-count otherwise.
+  const handleAddXP = useCallback((amount: number, opts?: { questContext?: boolean }) => {
     // Clue XP flows through here — apply the quick_learner skill-check multiplier
     // once and use the gained amount for both character XP and adventure totals.
     const gained = skillCheckXP(amount)
@@ -958,7 +971,9 @@ function AdventureContent() {
         skillPoints: prev.skillPoints + skillPointsEarned,
       }
     })
-  }, [addExperience, skillCheckXP])
+    // Per-action XP float (outside the pure updater). Skipped for quest rewards.
+    if (gained > 0 && !opts?.questContext) celebrate({ kind: 'xp', title: `+${gained} XP` })
+  }, [addExperience, skillCheckXP, celebrate])
 
   // ============================================
   // QUEST + DIALOGUE WIRING
@@ -981,7 +996,7 @@ function AdventureContent() {
   const applyQuestCompletions = useCallback((completed: { quest: Quest; path: QuestPath }[]) => {
     for (const { quest, path } of completed) {
       const r = path.reward
-      if (r.xp) handleAddXP(r.xp)
+      if (r.xp) handleAddXP(r.xp, { questContext: true })
       if (r.gold && r.gold > 0) earnNeutral(r.gold, `Quest: ${quest.title}`)
       // Karma mapping follows the codebase's precedents: lawful → pinkerton
       // reputation (see handleConfrontationEnd), positive good → neutral karma
@@ -1543,7 +1558,7 @@ function AdventureContent() {
     celebrate({
       kind: 'chapter',
       chapter: adventureState.chapter,
-      title: 'The trail carries you onward.',
+      title: CHAPTER_TITLES[adventureState.chapter] ?? 'The trail carries you onward.',
       flavor: 'A fine place to camp for the night.',
     })
     // Show camp management

@@ -26,8 +26,8 @@ export interface CeremonyRewards {
 
 // 'quest' rides the toast lane (top-center, auto-dismiss). 'levelup' and 'chapter'
 // ride the overlay lane (center-screen, player dismisses — these are the beats worth
-// pausing on).
-export type CeremonyKind = 'quest' | 'levelup' | 'chapter'
+// pausing on). 'xp' is a tiny transient float for per-action XP (fast, glanceable).
+export type CeremonyKind = 'quest' | 'levelup' | 'chapter' | 'xp'
 
 export interface CeremonyEvent {
   id: string

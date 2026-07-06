@@ -94,6 +94,21 @@ function QuestToast({ ev, onDismiss }: { ev: CeremonyEvent; onDismiss: () => voi
   )
 }
 
+function XpFloat({ ev, onDismiss, index }: { ev: CeremonyEvent; onDismiss: () => void; index: number }) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 1300)
+    return () => clearTimeout(t)
+  }, [onDismiss])
+  return (
+    <div
+      className="animate-float-up font-pixel text-[var(--pixel-gold-light)] text-sm drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+      style={{ marginTop: index === 0 ? 0 : 2 }}
+    >
+      {ev.title}
+    </div>
+  )
+}
+
 function Overlay({ ev, onDismiss }: { ev: CeremonyEvent; onDismiss: () => void }) {
   useEffect(() => {
     // Safety auto-dismiss so a ceremony can never soft-lock the player.
@@ -141,6 +156,7 @@ export function CeremonyLayer() {
   const { events, dismiss } = useCeremony()
 
   const toasts = events.filter(e => e.kind === 'quest')
+  const floats = events.filter(e => e.kind === 'xp')
   // Only one overlay at a time — show the oldest queued, dismiss reveals the next.
   const overlay = events.find(e => e.kind === 'levelup' || e.kind === 'chapter')
 
@@ -150,6 +166,13 @@ export function CeremonyLayer() {
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[104] flex flex-col items-center gap-2 pointer-events-none">
           {toasts.map(ev => (
             <QuestToast key={ev.id} ev={ev} onDismiss={() => dismiss(ev.id)} />
+          ))}
+        </div>
+      )}
+      {floats.length > 0 && (
+        <div className="fixed top-24 right-6 z-[103] flex flex-col items-end pointer-events-none">
+          {floats.map((ev, i) => (
+            <XpFloat key={ev.id} ev={ev} index={i} onDismiss={() => dismiss(ev.id)} />
           ))}
         </div>
       )}
