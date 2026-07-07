@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { PixelNavigation, PixelButton } from '@/components/pixel'
 import Link from 'next/link'
+import { readSharedCharacter } from '@/lib/sharedCharacter'
 
 type MenuOption = 'main' | 'qr-hunt' | 'about'
 
@@ -10,6 +11,18 @@ export default function GamePage() {
   const [selectedOption, setSelectedOption] = useState(0)
   const [showMenu, setShowMenu] = useState(false)
   const [currentView, setCurrentView] = useState<MenuOption>('main')
+  // Shared character read (never re-ask creation): a player who already made a
+  // character — in The Prospector's Tale or the RPG — skips this title menu and
+  // lands straight on the hunt itself. Menu stays reachable via BACK TO MENU.
+  const [characterName, setCharacterName] = useState<string | null>(null)
+
+  useEffect(() => {
+    const existing = readSharedCharacter()
+    if (existing) {
+      setCharacterName(existing.name)
+      setCurrentView('qr-hunt')
+    }
+  }, [])
 
   // Animate title screen appearance
   useEffect(() => {
@@ -42,15 +55,16 @@ export default function GamePage() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedOption, currentView])
+  }, [selectedOption, currentView, characterName])
 
   const handleMenuSelect = (index: number) => {
     switch (index) {
       case 0: // QR Treasure Hunt at the Ranch — primary
         setCurrentView('qr-hunt')
         break
-      case 1: // Adventure RPG — character creation
-        window.location.href = '/adventure/character-creation'
+      case 1: // Adventure RPG — resume play when a character exists (shared
+        // read across games); only brand-new players see creation.
+        window.location.href = characterName ? '/adventure/play' : '/adventure/character-creation'
         break
       case 2: // Continue Adventure RPG
         window.location.href = '/adventure/play'
@@ -208,6 +222,11 @@ export default function GamePage() {
             <h1 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-lg mb-2">
               🏠 AT THE RANCH
             </h1>
+            {characterName && (
+              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-mid)] mb-2">
+                Welcome back, {characterName} — your trail continues here.
+              </p>
+            )}
             <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
               The physical QR treasure hunt for guests staying at Back of Beyond Ranch
             </p>
@@ -237,7 +256,7 @@ export default function GamePage() {
 
           <div className="flex flex-col gap-3">
             <PixelButton href="/adventure/play" variant="gold" size="md">
-              ▶ PLAY THE PROLOGUE FIRST
+              {characterName ? '▶ CONTINUE YOUR ADVENTURE' : '▶ PLAY THE PROLOGUE FIRST'}
             </PixelButton>
             <PixelButton href="/rentals" variant="orange" size="md">
               📅 BOOK YOUR STAY

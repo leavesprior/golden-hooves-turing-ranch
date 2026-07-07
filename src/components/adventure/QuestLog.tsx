@@ -154,6 +154,32 @@ export function QuestLog({ quests, onClose, onSelectQuest, activeQuestId }: Ques
                         </span>
                       </div>
                     )}
+                    {/* Per-objective checklist — labels the bare counter above so
+                        "1/4" reads as WHICH steps are done. Shown collapsed only;
+                        the expanded view below carries the full ☑/☐ detail. */}
+                    {quest.status === 'active' && !isExpanded && quest.objectives.length > 0 && (
+                      <div className="mt-1 space-y-[2px]">
+                        {quest.objectives.map(obj => (
+                          <div key={obj.id} className="flex items-start gap-1">
+                            <span className={`font-[var(--font-pixel)] text-[10px] shrink-0 ${
+                              obj.completed ? 'text-[var(--pixel-forest-light)]' : 'text-[var(--pixel-ui-text)] opacity-50'
+                            }`}>
+                              {obj.completed ? '✓' : '•'}
+                            </span>
+                            <span className={`font-[var(--font-pixel)] text-[10px] leading-tight ${
+                              obj.completed
+                                ? 'text-[var(--pixel-ui-text)] opacity-40 line-through'
+                                : 'text-[var(--pixel-ui-text)] opacity-70'
+                            }`}>
+                              {obj.description}
+                              {obj.optional && (
+                                <span className="opacity-50 ml-1">(optional)</span>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-ui-text)] opacity-40">
                     {isExpanded ? '\u25BC' : '\u25B6'}

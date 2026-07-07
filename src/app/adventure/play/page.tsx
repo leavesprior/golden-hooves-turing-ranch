@@ -8,7 +8,7 @@ import { trackPageView, trackGameStart } from '@/lib/eventTracker'
 // Oregon Trail Contexts — the deep systems
 import { CharacterProvider, useCharacter, type StatName, type SaddleStats } from '@/app/oregon-trail/characterContext'
 import { KarmaWalletProvider, useKarmaWallet } from '@/app/oregon-trail/karmaWalletContext'
-import { ReputationProvider, useReputation, type FactionId } from '@/app/oregon-trail/reputationContext'
+import { ReputationProvider, useReputation, FACTIONS, type FactionId } from '@/app/oregon-trail/reputationContext'
 import { NarratorProvider, useNarrator } from '@/app/oregon-trail/narratorContext'
 import { NPCProvider } from '@/app/oregon-trail/npcContext'
 import { MysteryProvider, useMystery } from '@/app/oregon-trail/mysteryContext'
@@ -23,6 +23,8 @@ import { CampManagement } from '@/components/adventure/CampManagement'
 import { SkillTree } from '@/components/adventure/SkillTree'
 import AdventureRewardTracker from '@/components/adventure/AdventureRewardTracker'
 import { ClueGameUnlock } from '@/components/adventure/ClueGameUnlock'
+import { CeremonyLayer } from '@/components/ceremony/CeremonyLayer'
+import { useCeremony, type CeremonyRepChange } from '@/lib/ceremonyContext'
 
 // Lazy-load PixiJS exploration map (SSR-safe)
 import dynamic from 'next/dynamic'
@@ -63,19 +65,41 @@ import {
   questEventProgress,
   questObjectiveProgress,
   type QuestEvent,
-  type QuestUpdateResult,
   type QuestSaveState,
-} from '@/app/adventure/data/questEngine'
+  type QuestUpdateResult,
+} from '@/app/adventure/play/questEngine'
+import {
+  initPeril, inflict, tick as perilTick, treatWithMedicine, rest as perilRest,
+  describeCondition, successorLegacy,
+  type PerilState, type PerilMitigations, type ConditionId,
+} from '@/app/adventure/play/perilEngine'
+
+// Survivable illness/injury/death loop — OFF by default; enable with
+// NEXT_PUBLIC_PERIL=1. Gated because the mechanic changes how the game feels and
+// the death→successor framing is still being tuned (see PERIL_DESIGN.md).
+const PERIL_ON = process.env.NEXT_PUBLIC_PERIL === '1'
+
+// Chapter-end ceremony titles, keyed to each chapter's actual quest themes
+// (ch2 = claims & claim-jumpers, ch3 = gold theft + the jumping-frog, ch4 = land
+// and water disputes, ch5 = Tobias's legacy). Falls back to a neutral line.
+const CHAPTER_TITLES: Record<number, string> = {
+  1: 'The Road to the Diggings',
+  2: 'Claims and Claim-Jumpers',
+  3: 'The Weight of Gold',
+  4: 'Boundary Lines',
+  5: 'The Reckoning',
+}
 
 // ============================================
 // ADVENTURE STATE
 // ============================================
 
-type AdventurePhase = 'loading' | 'exploring' | 'at_location' | 'traveling' | 'camp' | 'chapter_complete'
+type AdventurePhase = 'loading' | 'exploring' | 'at_location' | 'traveling' | 'camp' | 'chapter_complete' | 'perished'
 
-// Per-quest progress (QuestSaveState) and the pure completion engine now live in
-// ./data/questEngine so they can be unit-tested in isolation. AdventureState just
-// stores a map of them.
+// Per-quest progress, persisted inside AdventureState. Objectives complete via
+// cheap hooks into existing handlers (talk / travel / clue answered / dialogue
+// questProgress effects); a quest completes when every non-optional objective
+// of one of its paths is done.
 interface AdventureState {
   chapter: number
   currentLocationId: string
@@ -95,6 +119,10 @@ interface AdventureState {
   // Dialogue/quest progression (added with the dialogue+quest wiring)
   dialogueFlags: string[]
   questStates: Record<string, QuestSaveState>
+  // Inventory of acquired item-ids (satisfies 'item'-type quest objectives)
+  acquiredItems: string[]
+  // Survivability state (NEXT_PUBLIC_PERIL). Optional so pre-peril saves load.
+  peril?: PerilState
 }
 
 const SAVE_KEY = 'bobr_adventure_state'
@@ -105,9 +133,20 @@ function loadAdventureState(): AdventureState | null {
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw)
-    // Migrate older saves missing new fields
+    if (!parsed || typeof parsed !== 'object') return null
+    // Migrate older saves missing new fields. Core fields get defensive defaults
+    // too: a save truncated/corrupted mid-write could otherwise leave them
+    // undefined and crash the first .filter/.includes/comparison on load.
     return {
       ...parsed,
+      chapter: parsed.chapter ?? 1,
+      currentLocationId: parsed.currentLocationId ?? 'ch1_independence',
+      discoveredLocationIds: parsed.discoveredLocationIds ?? [],
+      visitedLocationIds: parsed.visitedLocationIds ?? [],
+      phase: parsed.phase ?? 'exploring',
+      unlockedSkillNodes: parsed.unlockedSkillNodes ?? [],
+      skillPoints: parsed.skillPoints ?? 0,
+      totalXP: parsed.totalXP ?? 0,
       // Reset playStartTime on each load so the Reward Tracker measures THIS
       // session's active time, not total elapsed real-time across days/weeks.
       playStartTime: Date.now(),
@@ -118,6 +157,8 @@ function loadAdventureState(): AdventureState | null {
       recruitedAllies: parsed.recruitedAllies ?? [],
       dialogueFlags: parsed.dialogueFlags ?? [],
       questStates: parsed.questStates ?? {},
+      acquiredItems: parsed.acquiredItems ?? [],
+      peril: parsed.peril, // re-initialised from Durability by an effect if PERIL_ON
     }
   } catch {
     return null
@@ -167,6 +208,8 @@ function createNewAdventureState(): AdventureState {
     recruitedAllies: [],
     dialogueFlags: [],
     questStates: {},
+    acquiredItems: [],
+    peril: PERIL_ON ? initPeril(8) : undefined,
   }
 }
 
@@ -697,7 +740,7 @@ function ReputationDisplay() {
 function AdventureContent() {
   const router = useRouter()
   const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter, modifyStat } = useCharacter()
-  const { balance, earnNeutral, spendNeutral, initializeWallet, isInitialized: walletInitialized, getKarmaAlignment } = useKarmaWallet()
+  const { balance, earnNeutral, spendNeutral, addBadKarma, initializeWallet, isInitialized: walletInitialized, getKarmaAlignment } = useKarmaWallet()
   const { state: repState, modifyReputation, getReputationLevel, getReputation } = useReputation()
   const { comment: narratorComment } = useNarrator()
 
@@ -880,8 +923,36 @@ function AdventureContent() {
     return repState.reputations as Record<FactionId, number>
   }, [repState.reputations])
 
+  // Ceremony — the "loud, named, immediate consequence" layer. celebrate() is a
+  // safe no-op outside the provider, so it can never break gameplay.
+  const { celebrate } = useCeremony()
+
+  // Level-up ceremony. Watched via an effect (never fired inside the pure XP
+  // updater, which React may run twice). skillPoints only rises on level-up and
+  // falls when spent, so a strict increase is the clean level-up signal.
+  const prevSkillPointsRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!adventureState) return
+    const sp = adventureState.skillPoints
+    if (prevSkillPointsRef.current === null) { prevSkillPointsRef.current = sp; return }
+    if (sp > prevSkillPointsRef.current) {
+      const earned = sp - prevSkillPointsRef.current
+      const newLevel = Math.floor(adventureState.totalXP / 100)
+      celebrate({
+        kind: 'levelup',
+        title: 'Your legend grows.',
+        level: newLevel,
+        skillPoints: earned,
+        flavor: 'Spend your skill points in the skill tree.',
+      })
+    }
+    prevSkillPointsRef.current = sp
+  }, [adventureState?.skillPoints, adventureState?.totalXP, celebrate]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // === XP === (defined before the talk/travel handlers — quest rewards flow through it)
-  const handleAddXP = useCallback((amount: number) => {
+  // opts.questContext suppresses the floating "+XP" — quest rewards already show
+  // their XP in the quest-complete toast, so we'd double-count otherwise.
+  const handleAddXP = useCallback((amount: number, opts?: { questContext?: boolean }) => {
     // Clue XP flows through here — apply the quick_learner skill-check multiplier
     // once and use the gained amount for both character XP and adventure totals.
     const gained = skillCheckXP(amount)
@@ -900,7 +971,9 @@ function AdventureContent() {
         skillPoints: prev.skillPoints + skillPointsEarned,
       }
     })
-  }, [addExperience, skillCheckXP])
+    // Per-action XP float (outside the pure updater). Skipped for quest rewards.
+    if (gained > 0 && !opts?.questContext) celebrate({ kind: 'xp', title: `+${gained} XP` })
+  }, [addExperience, skillCheckXP, celebrate])
 
   // ============================================
   // QUEST + DIALOGUE WIRING
@@ -915,22 +988,52 @@ function AdventureContent() {
     questStatesRef.current = adventureState?.questStates ?? null
   }, [adventureState?.questStates])
 
+  // A quest's true-history epilogue, surfaced as the distinct HONEST RECORD panel
+  // on completion (NOT through the unreliable narrator).
+  const [honestRecord, setHonestRecord] = useState<string | null>(null)
+
   // Apply a completed quest path's reward through the EXISTING reward paths.
   const applyQuestCompletions = useCallback((completed: { quest: Quest; path: QuestPath }[]) => {
     for (const { quest, path } of completed) {
       const r = path.reward
-      if (r.xp) handleAddXP(r.xp)
+      if (r.xp) handleAddXP(r.xp, { questContext: true })
       if (r.gold && r.gold > 0) earnNeutral(r.gold, `Quest: ${quest.title}`)
       // Karma mapping follows the codebase's precedents: lawful → pinkerton
       // reputation (see handleConfrontationEnd), positive good → neutral karma
-      // (see camp karmaGain / encounter karmaReward). Negative 'good' has no
-      // existing sink and is intentionally a no-op.
+      // (see camp karmaGain / encounter karmaReward). Negative 'good' routes to
+      // the wallet's bad-karma sink so cruel/reckless quest paths actually cost
+      // something (consequences are real — see applyDialogueEffects).
       if (r.karma?.lawful) modifyReputation('pinkerton', r.karma.lawful, `Quest: ${quest.title}`)
       if (r.karma?.good && r.karma.good > 0) earnNeutral(r.karma.good, `Quest karma: ${quest.title}`)
+      if (r.karma?.good && r.karma.good < 0) addBadKarma(-r.karma.good, `Quest karma: ${quest.title}`)
       r.reputation?.forEach(rep => modifyReputation(rep.faction, rep.amount, `Quest: ${quest.title}`))
       narratorComment(`Quest complete: ${quest.title} — ${path.name}. (+${r.xp} XP)`, 'observation')
+      // The honest record stands apart from the narrator's voice — plainly true.
+      if (quest.trueHistory) setHonestRecord(quest.trueHistory)
+
+      // Ceremony: name what just changed. Lawful karma reads as a Pinkerton rep
+      // shift in this game, so surface it as a faction line (not a duplicate chip).
+      const reps: CeremonyRepChange[] = []
+      if (r.karma?.lawful) {
+        reps.push({ faction: 'pinkerton', name: FACTIONS.pinkerton.name, icon: FACTIONS.pinkerton.icon, delta: r.karma.lawful })
+      }
+      r.reputation?.forEach(rep => {
+        const f = FACTIONS[rep.faction as FactionId]
+        if (f) reps.push({ faction: rep.faction, name: f.name, icon: f.icon, delta: rep.amount })
+      })
+      celebrate({
+        kind: 'quest',
+        title: quest.title,
+        subtitle: path.name,
+        rewards: {
+          xp: r.xp,
+          gold: r.gold && r.gold > 0 ? r.gold : undefined,
+          karmaGood: r.karma?.good || undefined,
+          reputation: reps.length > 0 ? reps : undefined,
+        },
+      })
     }
-  }, [handleAddXP, earnNeutral, modifyReputation, narratorComment])
+  }, [handleAddXP, earnNeutral, addBadKarma, modifyReputation, narratorComment, celebrate])
 
   // Commit a quest engine result: sync the ref, apply rewards, merge state.
   // setFlag/unlockLocation rewards merge inside the (pure) updater so they
@@ -966,6 +1069,50 @@ function AdventureContent() {
     if (!qs) return
     commitQuestUpdate(questObjectiveProgress(qs, questId, objectiveId))
   }, [commitQuestUpdate])
+
+  // Acquire an item into the set-deduped inventory, then fire an 'item' quest
+  // event so item-type objectives targeting it complete. Idempotent: re-acquiring
+  // a held item is a no-op, and the quest fire no-ops an already-done objective.
+  const acquireItem = useCallback((itemId: string) => {
+    setAdventureState(prev => {
+      if (!prev) return prev
+      if ((prev.acquiredItems ?? []).includes(itemId)) return prev
+      return { ...prev, acquiredItems: [...(prev.acquiredItems ?? []), itemId] }
+    })
+    fireQuestEvent({ kind: 'item', target: itemId })
+  }, [fireQuestEvent])
+
+  // === PERIL (survivability — NEXT_PUBLIC_PERIL) ===
+  // Mitigations come from the character's picks: Iron Constitution → disease
+  // immunity, Trail Hardened → travel perils land one lighter (matches the
+  // advantage specialAbility text in advantages.ts).
+  const perilMit = useCallback((): PerilMitigations => {
+    try {
+      const picks: string[] = JSON.parse(localStorage.getItem('bobr_adventure_picks') || '{}').picks ?? []
+      return {
+        immuneToDisease: picks.includes('iron_constitution'),
+        trailHardened: picks.includes('trail_hardened'),
+      }
+    } catch {
+      return {}
+    }
+  }, [])
+
+  // Apply a pure peril mutation; if it kills the character, flip to the death phase.
+  const applyPeril = useCallback((fn: (p: PerilState) => PerilState) => {
+    setAdventureState(prev => {
+      if (!prev?.peril) return prev
+      const peril = fn(prev.peril)
+      return { ...prev, peril, phase: !peril.alive ? 'perished' : prev.phase }
+    })
+  }, [])
+
+  // Initialise peril from the character's Durability once both are loaded.
+  useEffect(() => {
+    if (!PERIL_ON || !adventureState || adventureState.peril || !charState.character) return
+    const dur = charState.character.stats.Durability
+    setAdventureState(prev => (prev && !prev.peril ? { ...prev, peril: initPeril(dur) } : prev))
+  }, [adventureState, charState.character])
 
   // Activate a quest (from a dialogue questStart effect, or by talking to its
   // giver). Idempotent — already-active/completed quests are untouched.
@@ -1044,7 +1191,7 @@ function AdventureContent() {
   const applyDialogueEffects = useCallback((effects: DialogueEffect) => {
     if (!effects) return
 
-    const hasNumericGrant = !!(effects.xp || (effects.gold && effects.gold > 0) || effects.karma?.lawful || (effects.karma?.good && effects.karma.good > 0))
+    const hasNumericGrant = !!(effects.xp || (effects.gold && effects.gold > 0) || effects.karma?.lawful || effects.karma?.good)
     const claimKey = hasNumericGrant ? rewardClaimKey(effects) : ''
     // Already claimed (sync ref catches same-tick repeats before the async
     // setState commits; the persisted dialogueFlags catches re-walks + reloads).
@@ -1058,6 +1205,10 @@ function AdventureContent() {
       if (effects.gold && effects.gold > 0) earnNeutral(effects.gold, 'Dialogue')
       if (effects.karma?.lawful) modifyReputation('pinkerton', effects.karma.lawful, 'Dialogue choice')
       if (effects.karma?.good && effects.karma.good > 0) earnNeutral(effects.karma.good, 'Dialogue karma')
+      // Negative 'good' = a cruel/reckless choice: route to the bad-karma sink so
+      // it actually registers (previously silently dropped). Gated behind the same
+      // once-per-node reward guard so re-walking a tree can't stack the penalty.
+      if (effects.karma?.good && effects.karma.good < 0) addBadKarma(-effects.karma.good, 'Dialogue choice')
     }
 
     // Spending gold (negative) is a player-initiated cost, not a farmable
@@ -1070,6 +1221,12 @@ function AdventureContent() {
     if (effects.reputation) modifyReputation(effects.reputation.faction, effects.reputation.delta, 'Dialogue')
     if (effects.questStart) activateQuest(effects.questStart)
     if (effects.questProgress) fireQuestObjective(effects.questProgress.questId, effects.questProgress.objectiveId)
+    // A tagged narrative choice completes any 'choice'-type quest objective with
+    // this id (fire is idempotent — the engine no-ops an already-done objective).
+    if (effects.choice) fireQuestEvent({ kind: 'choice', target: effects.choice })
+    // Acquiring an item adds it to the inventory (set-deduped) and completes any
+    // 'item'-type objective targeting it.
+    if (effects.item) acquireItem(effects.item)
     // Persist the claim key into dialogueFlags (set-deduped, survives save/load)
     // in the SAME pure functional update as flag/unlock effects — no side
     // effects inside the updater.
@@ -1091,7 +1248,7 @@ function AdventureContent() {
       })
       if (loc) narratorComment('A new location has been marked on your map.', 'observation')
     }
-  }, [handleAddXP, earnNeutral, spendNeutral, balance.neutral, modifyReputation, activateQuest, fireQuestObjective, narratorComment, rewardClaimKey])
+  }, [handleAddXP, earnNeutral, addBadKarma, spendNeutral, balance.neutral, modifyReputation, activateQuest, fireQuestObjective, fireQuestEvent, acquireItem, narratorComment, rewardClaimKey])
 
   // === TRAVEL ===
   // _resuming=true skips the encounter rolls — set by handleEncounterResolved /
@@ -1180,6 +1337,25 @@ function AdventureContent() {
       if (allyBonus.description) narratorComment(allyBonus.description, 'observation')
     }
 
+    // Peril: a failed trail encounter inflicts a condition; every leg ticks the
+    // journey's toll on anything untreated. Careful players reach camp and heal;
+    // heedless ones spiral. (NEXT_PUBLIC_PERIL — no-op otherwise.)
+    if (PERIL_ON) {
+      const n = `${travelEncounter.name} ${travelEncounter.description ?? ''}`.toLowerCase()
+      const cond: ConditionId = /snake/.test(n) ? 'snakebite'
+        : /(water|fever|sick|chol|dysent|ill)/.test(n) ? 'fever'
+        : 'injury'
+      const mit = perilMit()
+      applyPeril(p => {
+        let next = p
+        if (!success) {
+          next = inflict(next, cond, 2, mit)
+          narratorComment(`The trail exacts its price — you've taken ${cond === 'injury' ? 'a hurt' : cond}. Tend it at camp.`, 'observation')
+        }
+        return perilTick(next)
+      })
+    }
+
     // Always clear the encounter overlay first
     setTravelEncounter(null)
     // Only continue travel if a destination was set (map-click path). Random
@@ -1190,7 +1366,7 @@ function AdventureContent() {
       setTravelDestination(null)
       handleTravelTo(destId, true)
     }
-  }, [travelEncounter, travelDestination, addExperience, earnNeutral, narratorComment, handleTravelTo])
+  }, [travelEncounter, travelDestination, addExperience, earnNeutral, narratorComment, handleTravelTo, perilMit, applyPeril])
 
   // Resolve confrontation encounter
   const handleConfrontationEnd = useCallback((result: ConfrontationResult) => {
@@ -1306,8 +1482,17 @@ function AdventureContent() {
 
   // === SKILL CHECK WRAPPER ===
   const handleSkillCheck = useCallback((stat: StatName, difficulty: number) => {
-    return rollSkillCheck(stat, difficulty)
-  }, [rollSkillCheck])
+    const result = rollSkillCheck(stat, difficulty)
+    // A successful skill check AT a location completes any 'skill_check' quest
+    // objective targeting that location with this stat (the engine matches on
+    // target + stat, DC-independent). Only success progresses quests. This is the
+    // location-targeted counterpart to the NPC skill_check fire in handleNPCTalk.
+    if (result.success) {
+      const locId = stateRef.current?.currentLocationId
+      if (locId) fireQuestEvent({ kind: 'skill_check', target: locId, stat, dc: difficulty })
+    }
+    return result
+  }, [rollSkillCheck, fireQuestEvent])
 
   // === KARMA ===
   const handleEarnKarma = useCallback((amount: number, memo: string) => {
@@ -1368,18 +1553,34 @@ function AdventureContent() {
       setShowClueGameUnlock(true)
       return
     }
+    // Ceremony: mark the chapter's end before dropping into camp. The overlay's
+    // "MAKE CAMP" button dismisses it, revealing the camp UI mounted underneath.
+    celebrate({
+      kind: 'chapter',
+      chapter: adventureState.chapter,
+      title: CHAPTER_TITLES[adventureState.chapter] ?? 'The trail carries you onward.',
+      flavor: 'A fine place to camp for the night.',
+    })
     // Show camp management
     setShowCamp(true)
     updateState({ phase: 'camp' })
-  }, [adventureState, updateState, narratorComment])
+  }, [adventureState, updateState, narratorComment, celebrate])
 
   // === CAMP RESULT ===
   const handleCampResult = useCallback((result: ActivityResult) => {
     if (result.xpGain) addExperience(result.xpGain)
     if (result.karmaGain) earnNeutral(result.karmaGain, 'Camp activity')
     if (result.healthChange) {
+      const healthChange = result.healthChange
       // Apply health change via Durability stat modification (positive = heal, negative = damage)
-      modifyStat('Durability', result.healthChange > 0 ? 1 : -1)
+      modifyStat('Durability', healthChange > 0 ? 1 : -1)
+      // Peril: a healing camp activity is a day of recovery — regain vitality and
+      // ease the worst condition (the "medicine + time" loop). A harmful one ticks.
+      if (PERIL_ON) {
+        applyPeril(p => (healthChange > 0
+          ? perilRest(p, Math.max(1, Math.round(healthChange / 15)), perilMit())
+          : perilTick(p)))
+      }
     }
     if (result.statChange) {
       modifyStat(result.statChange.stat, result.statChange.amount)
@@ -1399,7 +1600,7 @@ function AdventureContent() {
         })
       }
     }
-  }, [addExperience, earnNeutral, modifyStat, modifyReputation, adventureState, updateState])
+  }, [addExperience, earnNeutral, modifyStat, modifyReputation, adventureState, updateState, applyPeril, perilMit])
 
   // === CAMP COMPLETE ===
   const handleCampComplete = useCallback(() => {
@@ -1639,6 +1840,22 @@ function AdventureContent() {
           </div>
           <div className="flex items-center gap-4">
             <ReputationDisplay />
+            {PERIL_ON && adventureState.peril && (
+              <div
+                className="flex items-center gap-1"
+                title={adventureState.peril.conditions.map(describeCondition).join(', ') || 'hale and whole'}
+              >
+                <span className="text-sm">{'❤️'}</span>
+                <span className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)]">
+                  {adventureState.peril.vitality}/{adventureState.peril.maxVitality}
+                </span>
+                {adventureState.peril.conditions.length > 0 && (
+                  <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-fire-red)]" title={adventureState.peril.conditions.map(describeCondition).join(', ')}>
+                    {'⚠'}{adventureState.peril.conditions.length}
+                  </span>
+                )}
+              </div>
+            )}
             {adventureState.recruitedAllies.length > 0 && (
               <div className="flex items-center gap-1" title={adventureState.recruitedAllies.map(a => a.enemyName).join(', ')}>
                 {adventureState.recruitedAllies.map(ally => (
@@ -1660,6 +1877,37 @@ function AdventureContent() {
           </div>
         </div>
       </div>
+
+      {/* Death → successor (NEXT_PUBLIC_PERIL). DEFAULT framing — the specific
+          heir narrative is Leif's call (see PERIL_DESIGN.md); this is a sensible
+          placeholder so the loop is complete and testable. */}
+      {PERIL_ON && adventureState.phase === 'perished' && adventureState.peril && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
+          <div className="max-w-md border-4 border-[var(--pixel-fire-red)] bg-[var(--pixel-bg-mid)] p-6 text-center space-y-3">
+            <h2 className="font-[var(--font-pixel)] text-[16px] text-[var(--pixel-fire-red)]">THE TRAIL CLAIMS ITS OWN</h2>
+            <p className="font-[var(--font-pixel)] text-[11px] leading-relaxed text-[var(--pixel-ui-text)]">
+              {charState.character?.name ?? 'The prospector'} has fallen on the trail. Their journey ends here — but the Mother Lode remembers, and the Legacy endures.
+            </p>
+            <p className="font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-gold-light)]">
+              An heir takes up the reins, inheriting {successorLegacy(charState.character?.name ?? 'the fallen', balance.neutral).inheritedGold} in gold and the family name.
+            </p>
+            <button
+              onClick={() => {
+                const legacy = successorLegacy(charState.character?.name ?? 'the fallen', balance.neutral)
+                try {
+                  localStorage.setItem('bobr_adventure_legacy', JSON.stringify(legacy))
+                  localStorage.removeItem('bobr_ot_character')
+                  localStorage.removeItem('bobr_adventure_state')
+                } catch { /* storage unavailable */ }
+                router.push('/adventure/character-creation')
+              }}
+              className="font-[var(--font-pixel)] text-[12px] px-4 py-2 border-2 border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)] text-[var(--pixel-gold-light)]"
+            >
+              Take up the trail as their heir
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-4 py-4">
@@ -1825,6 +2073,45 @@ function AdventureContent() {
         />
       )}
 
+      {/* The Honest Record — true-history epilogue, apart from the narrator's voice */}
+      {honestRecord && (
+        <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
+          <div className="max-w-xl w-full bg-[#14100c] border-2 border-amber-800/50 rounded-lg p-6 shadow-2xl">
+            <p className="text-amber-500/80 text-[11px] font-mono tracking-widest text-center mb-4">
+              THE HONEST RECORD
+            </p>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {honestRecord.split('\n\n').map((para, i, arr) => {
+                const isFirst = i === 0
+                const isLast = i === arr.length - 1
+                return (
+                  <p
+                    key={i}
+                    className={
+                      isFirst
+                        ? 'text-amber-200/90 text-sm leading-relaxed italic text-center'
+                        : isLast
+                          ? 'text-amber-300/90 text-sm leading-relaxed italic text-center pt-1'
+                          : 'text-stone-300 text-sm leading-relaxed'
+                    }
+                  >
+                    {para}
+                  </p>
+                )
+              })}
+            </div>
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={() => setHonestRecord(null)}
+                className="px-5 py-2 border border-amber-800/60 text-amber-200/90 text-sm rounded hover:bg-amber-900/20 transition-colors"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Cloud Save Passphrase Modal */}
       {cloudModal && (
         <PassphraseModal
@@ -1895,6 +2182,13 @@ function AdventureContent() {
               onClose={() => setActiveDialogue(null)}
               onEffect={applyDialogueEffects}
               onSkillCheck={handleSkillCheck}
+              // Sequence gate for requiresObjective options. Read from state
+              // (not the ref) so it stays a pure render input; effects applied
+              // mid-conversation land in the same batched commit, so a gate met
+              // by the previous option is visible on the next node.
+              isQuestObjectiveComplete={(questId, objectiveId) =>
+                (adventureState.questStates?.[questId]?.completedObjectives ?? []).includes(objectiveId)
+              }
             />
           </div>
         </div>
@@ -1951,6 +2245,10 @@ function AdventureContent() {
           </div>
         </div>
       )}
+
+      {/* Ceremony overlay — quest toasts + level-up / chapter-complete beats.
+          Self-positions (z-[104]/z-[105]); sits above camp/dialogue, below the ending. */}
+      <CeremonyLayer />
     </div>
   )
 }

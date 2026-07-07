@@ -5,7 +5,7 @@ export type PixelButtonProps = {
   children: React.ReactNode
   href?: string
   onClick?: () => void
-  variant?: 'gold' | 'green' | 'orange' | 'blue'
+  variant?: 'gold' | 'green' | 'orange' | 'blue' | 'clear'
   size?: 'sm' | 'md' | 'lg'
   disabled?: boolean
   className?: string
@@ -16,6 +16,7 @@ const variantStyles = {
   green: 'bg-[var(--pixel-forest-mid)] hover:bg-[var(--pixel-forest-light)] text-white border-[var(--pixel-forest-dark)]',
   orange: 'bg-[var(--pixel-fire-orange)] hover:bg-[var(--pixel-gold-mid)] text-white border-[var(--pixel-earth-dark)]',
   blue: 'bg-[var(--pixel-ui-border)] hover:bg-[var(--pixel-sky-light)] text-white border-[var(--pixel-ui-bg)]',
+  clear: 'bg-transparent border border-[var(--pixel-gold-mid)] hover:bg-[var(--pixel-gold-mid)]/20 text-[var(--pixel-gold-light)]',
 }
 
 const sizeStyles = {

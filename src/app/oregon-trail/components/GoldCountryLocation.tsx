@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
@@ -21,6 +21,18 @@ import {
   type SearchArea,
   type SearchFinding,
 } from '../data/goldCountryEncounters'
+
+// Haversine distance in km for GPS correlation with location coords (from places.json / Google Maps)
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
 
 interface GoldCountryLocationProps {
   locationId: string
@@ -50,6 +62,39 @@ export function GoldCountryLocation({
   const location = getGoldCountryLocation(locationId)
   const npcs = getNPCsAtLocation(locationId)
   const searchAreas = getSearchAreasForLocation(locationId)
+
+  // GPS for physical location correlation (device hardware via browser Geolocation API + haversine)
+  // Correlates with location.coordinates (from Google Maps verified + places.json)
+  // If within ~2-5km, 'physically present' – SADDLE bonuses, historical AR (PlaceBackdrop), shop deals, NPC/bounty engagement
+  const [isPhysicallyPresent, setIsPhysicallyPresent] = useState(false)
+  const [gpsStatus, setGpsStatus] = useState<'idle'|'requesting'|'granted'|'denied'|'error'>('idle')
+  const [currentDist, setCurrentDist] = useState<number | null>(null)
+  const requestLocationGPS = useCallback(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation || !location?.coordinates) {
+      setGpsStatus('error')
+      return
+    }
+    setGpsStatus('requesting')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const dist = getDistance(
+          pos.coords.latitude, pos.coords.longitude,
+          location.coordinates.lat, location.coordinates.lng
+        )
+        setCurrentDist(dist)
+        setIsPhysicallyPresent(dist < 5) // ~5km threshold for presence bonuses (tunable)
+        setGpsStatus('granted')
+      },
+      () => {
+        setGpsStatus('denied')
+        setIsPhysicallyPresent(false)
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    )
+  }, [location])
+  useEffect(() => {
+    requestLocationGPS()
+  }, [requestLocationGPS])
 
   // Hook must be called before any early return (React rules-of-hooks)
   const handleSearch = useCallback((area: SearchArea) => {
@@ -213,6 +258,13 @@ export function GoldCountryLocation({
           {/* 64-bit period backdrop of the real place */}
           <PlaceBackdrop id={location.id} className="h-44 rounded-lg border border-green-700/40" />
 
+          {/* GPS Physical Presence (device GPS hardware + haversine correlate to real lat/lng from Google Maps / places.json) */}
+          <div className="bg-green-950/30 border border-green-700/40 rounded p-2 text-xs font-mono flex items-center gap-2">
+            <span>GPS: {gpsStatus}{currentDist !== null ? ` • ${currentDist.toFixed(1)}km` : ''}</span>
+            <button onClick={requestLocationGPS} className="px-2 py-0.5 bg-green-900/50 border border-green-700/30 rounded text-green-400">RETRY/UPDATE GPS</button>
+            {isPhysicallyPresent && <span className="text-green-400">📍 PHYSICALLY PRESENT – SADDLE + PlaceBackdrop + bonuses</span>}
+          </div>
+
           {/* NPCs */}
           <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-4">
             <h2 className="text-amber-400 font-pixel text-sm tracking-wider mb-3">PEOPLE HERE</h2>
@@ -277,6 +329,16 @@ export function GoldCountryLocation({
               )}
             </div>
           </div>
+
+          {/* GPS-enhanced Shop/Storefront (if shopType and physically present or high stat for engagement) */}
+          {location.shopType !== 'none' && (
+            <button
+              onClick={() => setView('shop')}
+              className="w-full py-3 bg-amber-900/40 hover:bg-amber-800/60 text-amber-300 font-pixel text-sm rounded border border-amber-600/50 transition-colors flex items-center justify-center gap-2"
+            >
+              🚪 ENTER THE {location.shopType.toUpperCase()} {isPhysicallyPresent ? '(PHYSICAL PRESENCE BONUS)' : ''}
+            </button>
+          )}
 
           {/* Special Actions */}
           <div className="flex gap-3">
@@ -665,6 +727,39 @@ export function GoldCountryLocation({
             >
               CONTINUE
             </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Shop view (enhanced with GPS presence + historical accuracy for physical-digital hybrid)
+  if (view === 'shop') {
+    const presenceBonus = isPhysicallyPresent ? 0.85 : 1.0 // physical presence discount
+    const historicalGoods = [
+      { name: 'Pick & Pan Set (1850s)', base: 12, desc: 'Iron from SF ships, high markup' },
+      { name: 'Flour Sack (50lb)', base: 8, desc: 'Staple at Traver-style stores' },
+      { name: 'Boots (miners)', base: 22, desc: 'Leather, scarce in camps' },
+      { name: 'Whiskey (bottle)', base: 15, desc: 'Saloon staple, French War era' },
+    ]
+    return (
+      <div className={`min-h-screen bg-gradient-to-b ${bgGradient} text-green-400`}>
+        <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.1) 2px, rgba(0,255,0,0.1) 4px)' }} />
+        <div className="max-w-2xl mx-auto p-4 pt-8">
+          <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-6">
+            <h2 className="text-amber-400 font-pixel text-lg">STOREFRONT — {location.name.toUpperCase()} {isPhysicallyPresent ? ' (YOU ARE HERE + SADDLE BONUS)' : ''}</h2>
+            <p className="text-green-700 text-xs font-mono mb-1">1850s goods • high markup in camps. PlaceBackdrop shows real historical photo pixelated. {isPhysicallyPresent ? 'Physical presence qualifies for better deals (Shrewdness/Diplomacy roll bonus in full sim).' : 'Visit the real location for presence unlock.'}</p>
+            <div className="space-y-2 my-4">
+              {historicalGoods.map((g, i) => (
+                <div key={i} className="flex justify-between bg-green-950/40 p-2 rounded text-sm border border-green-800/30">
+                  <span>{g.name} — {g.desc}</span>
+                  <span className="font-mono">{Math.floor(g.base * presenceBonus)}🌮 {isPhysicallyPresent && <span className="text-green-400">(present)</span>}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-amber-300">SADDLE stats (Shrewdness for haggling, Diplomacy for deals) + crossGame carry apply on full purchase. Physical presence + PlaceBackdrop AR for immersion.</p>
+            <button onClick={() => setView('main')} className="w-full mt-4 py-2 bg-green-950/50 text-green-400 text-xs font-mono rounded border border-green-700/40">BACK</button>
+            <div className="mt-2 text-[10px] text-green-600 font-mono">Traver Stone Store 1856 (Murphys): oldest stone bldg, general store/Wells Fargo, survived fires w/ iron shutters & sand roof. Visit for real unlocks.</div>
           </div>
         </div>
       </div>

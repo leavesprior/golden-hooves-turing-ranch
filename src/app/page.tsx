@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { KarmaStorage, getAlignmentPosition, getDiscountMultiplier, type AlignmentPosition } from '@/lib/karmaStorage'
 import { trackPageView, trackBookingClick } from '@/lib/eventTracker'
-import { airbnbBookingLink } from '@/lib/airbnbLink'
+import { airbnbBookingLink, airbnbRetreatLink } from '@/lib/airbnbLink'
 
 const cabinPhotos = [
   '/cabin-photos/cabin-1.jpg',
@@ -654,19 +654,27 @@ export default function Home() {
           </div>
 
           <div className="mt-6 flex flex-col items-center gap-5" style={{ animation: 'fadeSlideIn 1s ease-out 0.8s both' }}>
-            <span onClick={() => trackBookingClick('hero')}>
-              <PixelButton href={AIRBNB_HERO_URL} variant="orange" size="lg">
-                🏨 Book Your Stay
-              </PixelButton>
-            </span>
-            {/* May availability callout — authoritative, no discount signal */}
+            {/* Two audiences, two listings — small groups (Forest Retreat) + whole ranch */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <span onClick={() => trackBookingClick('hero-retreat')}>
+                <PixelButton href={airbnbRetreatLink('site')} variant="orange" size="lg">
+                  🛖 Couples & Small Groups
+                </PixelButton>
+              </span>
+              <span onClick={() => trackBookingClick('hero-ranch')}>
+                <PixelButton href={AIRBNB_HERO_URL} variant="clear" size="lg">
+                  🏡 Whole Ranch · Sleeps 12
+                </PixelButton>
+              </span>
+            </div>
+            {/* Two ways to stay — evergreen (no stale dates), no discount signal */}
             <div
               className="font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] tracking-wider border border-[var(--pixel-gold-mid)]/40 bg-black/30 px-3 py-1.5 rounded-sm"
-              aria-label="Availability notice"
+              aria-label="Two ways to stay"
             >
-              <span className="text-[var(--pixel-gold-light)]">May weekdays open</span>
+              <span className="text-[var(--pixel-gold-light)]">Forest Retreat sleeps up to 6</span>
               <span className="opacity-60"> &middot; </span>
-              <span>Memorial Day weekend booked</span>
+              <span>Whole ranch sleeps 12</span>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <PixelButton href="/oregon-trail" variant="gold" size="md">

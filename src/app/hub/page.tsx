@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useKarma, ALIGNMENT_DISPLAY_NAMES } from '@/lib/karmaContext'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
+import { hasAnyCharacter } from '@/lib/sharedCharacter'
 import { AlignmentCompass, KarmaToastContainer, HouseRulesQuiz } from '@/components/karma'
 import { ShareLegacy } from '@/components/ui/ShareLegacy'
 
@@ -82,6 +83,15 @@ export default function HubPage() {
 
   const prologueUnlocked = isUnlocked('prologue')
   const ranchHuntUnlocked = isUnlocked('ranch_treasure_hunt')
+
+  // /hub is THE menu — cards deep-link straight into play, past secondary
+  // lobbies. If any game already has a character (shared read), the RPG
+  // Adventure card resumes play directly; otherwise it goes straight to
+  // creation. The /adventure lobby stays reachable by URL. (2026-07-03)
+  const [hasCharacter, setHasCharacter] = useState(false)
+  useEffect(() => {
+    setHasCharacter(hasAnyCharacter())
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-950 via-amber-900 to-amber-950">
@@ -318,8 +328,8 @@ export default function HubPage() {
               />
               <GameCard
                 title="RPG Adventure"
-                description="Create a character and explore the frontier"
-                href="/adventure"
+                description={hasCharacter ? 'Continue exploring the frontier' : 'Create a character and explore the frontier'}
+                href={hasCharacter ? '/adventure/play' : '/adventure/character-creation'}
                 icon="⚔️"
                 available={true}
                 features={['Character', 'Quests']}
