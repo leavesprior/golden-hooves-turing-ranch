@@ -1,0 +1,102 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CCA Trainer · The Static Gallery</title>
+<style>
+:root{--bg:#0b0d12;--ink:#cfe;--dim:#7d8aa0;--gold:#e8b84b;--green:#4ade80;--red:#f87171;--blue:#60a5fa;--panel:#121620;--line:#1f2733}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--blue)}.wrap{max-width:920px;margin:0 auto;padding:18px}
+h1{font-size:20px;margin:.2em 0;color:var(--gold);letter-spacing:.3px}
+.sub{color:var(--dim);font-size:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0}
+button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:#1a2030;color:var(--ink);padding:9px 14px}
+button:hover{border-color:var(--blue)}button.primary{background:var(--gold);color:#1a1300;border:none;font-weight:600}
+input{font:inherit;background:#0e131c;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:9px 12px;width:100%}
+.opt{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 14px;background:#0e131c;border:1px solid var(--line);border-radius:10px;color:var(--ink);transition:.12s}
+.opt:hover{border-color:var(--blue)}.opt .k{color:var(--gold);font-weight:700;margin-right:8px}
+.opt.correct{border-color:var(--green);background:rgba(74,222,128,.10)}
+.opt.wrong{border-color:var(--red);background:rgba(248,113,113,.10)}
+.opt:disabled{cursor:default;opacity:.95}
+.fb{margin-top:12px;padding:12px 14px;border-radius:10px;border-left:4px solid var(--gold);background:#0e131c}
+.fb.ok{border-left-color:var(--green)}.fb.no{border-left-color:var(--red)}
+.riff{color:var(--dim);font-style:italic;font-size:13px;margin-top:6px}
+.remind{color:var(--gold);font-size:13px;margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+.bar{height:10px;background:#0e131c;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,#f87171,#e8b84b,#4ade80)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row.sb{justify-content:space-between}
+.pill{font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:20px;padding:2px 9px}
+.dom{font-size:12px}.dom b{color:var(--ink)}.muted{color:var(--dim)}
+.vis{margin-top:12px;text-align:center}.vis img{max-width:100%;border-radius:10px;border:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:680px){.grid{grid-template-columns:1fr}}
+.tag{font-size:11px;color:var(--dim)}.scorebig{font-size:34px;color:var(--gold);font-weight:700}
+</style></head><body><div class="wrap" id="app">loading…</div>
+<script>
+const DOMW={1:27,2:18,3:20,4:20,5:15},DOMN={1:"Agentic Architecture",2:"Tool / MCP",3:"Claude Code Config",4:"Prompt / Output",5:"Context / Reliability"};
+const DIAG={1:"agentic_loop.png",2:"mcp_team_permissions.png",3:"cca_mindmap.png",4:"cca_mindmap.png",5:"cca_mindmap.png",scen:"six_scenarios.png",map:"cca_mindmap.png"};
+const RIFFS=["OHM: “Confidently wrong — the most expensive kind.”","HENRY: “Close! In the way a barn is close to the moon.”","OHM: “That distractor was written to catch exactly that instinct.”","HENRY: “A fine answer. To a different question.”","OHM: “The trap sprung. Now you’ll remember it.”"];
+let QS=[],USER=null,STAT={};
+const $=(h)=>{const d=document.createElement("div");d.innerHTML=h;return d.firstElementChild;};
+const app=document.getElementById("app");
+function LET(a){return typeof a==="number"?"ABCD"[a]:(/^\d$/.test(a)?"ABCD"[+a]:a);}
+function norm(q){const o=q.options||{};let opt=o;if(!Object.keys(o).length&&Array.isArray(q.choices)){opt={};q.choices.forEach((c,i)=>opt["ABCD"[i]]=c);}return{id:q.id,domain:q.domain,ts:q.ts,concept:q.concept||"",stem:q.stem||q.q,options:opt,correct:LET(q.answer),why:q.rationale||q.why||"",dwhy:q.distractor_why||{}};}
+function load(){const r=localStorage.getItem("cca_stat_"+USER);STAT=r?JSON.parse(r):{};}
+function save(){localStorage.setItem("cca_stat_"+USER,JSON.stringify(STAT));}
+function profiles(){try{return JSON.parse(localStorage.getItem("cca_profiles")||"[]")}catch(e){return[]}}
+function rec(id,ok,remark){const s=STAT[id]||{seen:0,correct:0,wrong:0,remark:""};s.seen++;ok?s.correct++:s.wrong++;s.last=Date.now();if(remark)s.remark=remark;STAT[id]=s;save();}
+// readiness: per-domain mastery (correct ratio over seen, untested=0), weighted
+function readiness(){let R=0,dm={},tested=0,total=QS.filter(q=>typeof q.domain==='number'&&q.domain>=1&&q.domain<=5).length;const byd={};QS.forEach(q=>{(byd[q.domain]=byd[q.domain]||[]).push(q);});for(let d=1;d<=5;d++){const qs=byd[d]||[];let sumM=0,cnt=0;qs.forEach(q=>{const s=STAT[q.id];cnt++;if(s&&s.seen){tested++;sumM+=Math.round(100*s.correct/s.seen);}});dm[d]=cnt?Math.round(sumM/cnt):0;R+=dm[d]*DOMW[d]/100;}return{R:Math.round(R),dm,tested,total};}
+function gauge(){const{R,dm,tested,total}=readiness();const v=verdict(R,dm,tested,total);return `<div class="card"><div class="row sb"><b>Exam readiness</b><span class="pill">${tested}/${total} tested</span></div>
+  <div style="margin:8px 0"><div class="bar"><i style="width:${R}%"></i></div></div>
+  <div class="row sb"><span class="scorebig">${R}%</span><span class="muted">≈ ${R*10}/1000 practice · ${v.icon} ${v.label}</span></div>
+  <div class="grid" style="margin-top:10px">${[1,2,3,4,5].map(d=>`<div class="dom">D${d} <b>${DOMN[d]}</b> (${DOMW[d]}%) — ${dm[d]}%${dm[d]===0?' <span class="muted">untested</span>':''}</div>`).join("")}</div></div>`;}
+function verdict(R,dm,t,tot){const mn=Math.min(...Object.values(dm));if(R>=90&&mn>=80&&t===tot)return{icon:"🟢",label:"READY — sit the practice exam"};if(R>=75)return{icon:"🟡",label:"ALMOST — close the weak domains"};if(R>=50)return{icon:"🟠",label:"BUILDING"};return{icon:"🔴",label:"EARLY — build coverage"};}
+// adaptive pick for Learn: unseen + wrong-weighted
+function pickLearn(){const scored=QS.map(q=>{const s=STAT[q.id]||{seen:0,correct:0,wrong:0};const unseen=s.seen===0?40:0;const wrongw=s.wrong*15;const recency=s.last?Math.max(0,10-(Date.now()-s.last)/3.6e6):0;return{q,sc:unseen+wrongw-recency+Math.random()*6};});scored.sort((a,b)=>b.sc-a.sc);return scored[0].q;}
+function header(){return `<div class="row sb"><h1>🎚️ CCA Trainer · The Static Gallery</h1><span class="pill">${USER} · <a href="#" onclick="signout();return false">switch</a></span></div>
+<div class="sub">Anthropic is the authoritative source — this is a sincere learning companion. Official sample Qs are marked.</div>`;}
+// ---------- screens ----------
+function signin(){const ps=profiles();app.innerHTML=`<h1>🎚️ CCA Trainer · The Static Gallery</h1>
+<div class="sub">Sign in to start — or continue where you left off.</div>
+<div class="card"><div class="row"><input id="nm" placeholder="your name" onkeydown="if(event.key==='Enter')start()"><button class="primary" onclick="start()">Start</button></div>
+${ps.length?`<div style="margin-top:12px" class="muted">Continue:</div><div class="row">${ps.map(p=>`<button onclick="start('${p}')">${p}</button>`).join("")}</div>`:""}</div>
+<div class="card muted"><b>Two ways to play.</b> <b>📚 Learn the Game</b> — click an answer, see instantly if it’s right and <i>specifically</i> why the others are wrong, with a visual to make it stick. <b>🎯 Ready to Play</b> — answer everything first, graded at the end like the real exam.</div>`;}
+function start(name){const nm=(name||document.getElementById("nm").value||"").trim();if(!nm)return;USER=nm;const ps=profiles();if(!ps.includes(nm)){ps.push(nm);localStorage.setItem("cca_profiles",JSON.stringify(ps));}load();home();}
+function signout(){USER=null;signin();}
+function home(){app.innerHTML=header()+gauge()+`<div class="grid">
+  <div class="card"><h1 style="font-size:17px">📚 Learn the Game</h1><div class="sub">Click → instant feedback + why + a visual to remember it. Adaptive: your weak + missed questions come back.</div><div style="margin-top:10px"><button class="primary" onclick="learn()">Start learning</button></div></div>
+  <div class="card"><h1 style="font-size:17px">🎯 Ready to Play</h1><div class="sub">Answer a set with no peeking, graded at the end — exam conditions.</div><div style="margin-top:10px"><button onclick="test(10)">10-question round</button> <button onclick="test(20)">20</button></div></div></div>
+  <div class="card"><div class="row sb"><span class="muted">The map of the whole exam:</span><button onclick="showMap()">🗺️ Mind-map</button></div></div>`;}
+function showMap(){app.innerHTML=header()+`<div class="card"><div class="vis"><img src="cca/diagrams/${DIAG.map}"></div><div style="margin-top:10px"><button onclick="home()">← back</button></div></div>`;}
+// ---------- LEARN MODE ----------
+function learn(){const q=pickLearn();renderLearn(q);}
+function renderLearn(q){const prev=STAT[q.id];const offBefore=prev&&prev.wrong>0;
+ app.innerHTML=header()+gauge()+`<div class="card"><div class="row sb"><span class="pill">D${q.domain} ${DOMN[q.domain]} · ${q.ts}</span><span class="tag">${q.concept}</span></div>
+ <div style="font-size:16px;margin:12px 0">${q.stem}</div><div id="opts">${["A","B","C","D"].filter(k=>q.options[k]).map(k=>`<button class="opt" id="o${k}" onclick="answer('${q.id}','${k}')"><span class="k">${k}</span>${q.options[k]}</button>`).join("")}</div>
+ ${offBefore?`<div class="remind">↻ You’ve missed this one before${prev.remark?` — remember: “${prev.remark}”`:""}. Let’s lock it in.</div>`:""}
+ <div id="fb"></div></div>`;window._cq=q;}
+function answer(id,k){const q=window._cq;const correct=q.correct;document.querySelectorAll(".opt").forEach(b=>b.disabled=true);
+ document.getElementById("o"+correct).classList.add("correct");const ok=k===correct;if(!ok)document.getElementById("o"+k).classList.add("wrong");
+ const dwhy=q.dwhy&&q.dwhy[k];const remark=q.why;rec(id,ok,remark);
+ const riff=ok?"":RIFFS[Math.floor(Math.random()*RIFFS.length)];
+ const fb=document.getElementById("fb");fb.className="fb "+(ok?"ok":"no");
+ fb.innerHTML=`<b>${ok?"✅ Correct.":`❌ Not quite — the answer is ${correct}.`}</b><div style="margin-top:6px">${q.why}</div>
+  ${(!ok&&dwhy)?`<div style="margin-top:8px" class="muted"><b>Why ${k} is wrong here:</b> ${dwhy}</div>`:""}
+  ${riff?`<div class="riff">${riff}</div>`:""}
+  <div class="vis"><img src="cca/diagrams/${DIAG[q.domain]||DIAG.map}" alt="visual aid"></div>
+  <div class="row" style="margin-top:12px"><button class="primary" onclick="learn()">Next →</button><button onclick="home()">Done</button></div>`;
+ fb.scrollIntoView({behavior:"smooth",block:"nearest"});}
+// ---------- TEST MODE ----------
+function test(n){const pool=[...QS].sort(()=>Math.random()-.5).slice(0,Math.min(n,QS.length));window._test={pool,ans:{}};
+ app.innerHTML=header()+`<div class="card"><b>🎯 Ready to Play — ${pool.length} questions</b><div class="sub">No feedback until you submit. Click your answer for each.</div></div>`+
+ pool.map((q,i)=>`<div class="card"><div class="row sb"><span class="pill">Q${i+1} · D${q.domain} ${q.ts}</span></div><div style="margin:10px 0">${q.stem}</div>
+   ${["A","B","C","D"].filter(k=>q.options[k]).map(k=>`<button class="opt" id="t${i}${k}" onclick="pick(${i},'${k}')"><span class="k">${k}</span>${q.options[k]}</button>`).join("")}</div>`).join("")+
+ `<div class="card"><button class="primary" onclick="submit()">Submit & grade</button> <button onclick="home()">Cancel</button></div>`;}
+function pick(i,k){window._test.ans[i]=k;const q=window._test.pool[i];["A","B","C","D"].forEach(x=>{const e=document.getElementById("t"+i+x);if(e)e.style.borderColor=(x===k)?"var(--blue)":"var(--line)";});}
+function submit(){const{pool,ans}=window._test;let c=0;pool.forEach((q,i)=>{const ok=ans[i]===q.correct;if(ok)c++;rec(q.id,ok,q.why);});const pct=Math.round(100*c/pool.length);
+ app.innerHTML=header()+`<div class="card"><div class="scorebig">${c}/${pool.length} = ${pct}%</div><div class="muted">≈ ${pct*10}/1000 · reviewed below; all recorded toward readiness.</div></div>`+gauge()+
+ pool.map((q,i)=>{const a=ans[i],ok=a===q.correct;return `<div class="card"><div class="row sb"><span class="pill">Q${i+1} D${q.domain} ${q.ts}</span><span>${ok?"✅":"❌"}</span></div><div style="margin:8px 0">${q.stem}</div>
+   <div class="${ok?'':'muted'}">Your answer: <b>${a||"—"}</b> · Correct: <b>${q.correct}</b></div>
+   <div class="fb ${ok?'ok':'no'}" style="margin-top:8px">${q.why}${(!ok&&q.dwhy&&q.dwhy[a])?`<div class="muted" style="margin-top:6px"><b>Why ${a} is wrong:</b> ${q.dwhy[a]}</div>`:""}</div></div>`;}).join("")+
+ `<div class="card"><button class="primary" onclick="home()">← Home</button> <button onclick="learn()">Drill the misses (Learn)</button></div>`;}
+// ---------- boot ----------
+fetch("cca/question_bank.json").then(r=>r.json()).then(d=>{QS=(d.questions||d).map(norm);signin();}).catch(e=>{app.innerHTML="<h1>Could not load question_bank.json</h1><p class='muted'>"+e+"</p>";});
+</script></body></html>
