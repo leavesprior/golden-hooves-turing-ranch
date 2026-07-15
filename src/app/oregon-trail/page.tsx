@@ -57,6 +57,7 @@ import {
   GoldCountryLocationScreen,
   GoldCountryTravelScreen,
   SaveLoadIntegration,
+  LivingTrailScreen,
 } from './phases'
 import { useConsumableEffects } from './hooks/useConsumableEffects'
 
@@ -379,6 +380,11 @@ function OregonTrailGame() {
 
     if (state.phase === 'gold_country_travel') {
       return <GoldCountryTravelScreen />
+    }
+
+    // Living Trail — presence-gated real-world quest chains
+    if (state.phase === 'living_trail') {
+      return <LivingTrailScreen />
     }
 
     // Settlement phase - main settlement building (accessed from BOBR Cabin)

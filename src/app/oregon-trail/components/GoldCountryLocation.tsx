@@ -66,6 +66,7 @@ export function GoldCountryLocation({
   // GPS for physical location correlation (device hardware via browser Geolocation API + haversine)
   // Correlates with location.coordinates (from Google Maps verified + places.json)
   // If within ~2-5km, 'physically present' – SADDLE bonuses, historical AR (PlaceBackdrop), shop deals, NPC/bounty engagement
+  // TODO(P2): consume useVerifiedPresence (lib/useVerifiedPresence.ts) — keeps accuracy, per-call radius, dwell tracking
   const [isPhysicallyPresent, setIsPhysicallyPresent] = useState(false)
   const [gpsStatus, setGpsStatus] = useState<'idle'|'requesting'|'granted'|'denied'|'error'>('idle')
   const [currentDist, setCurrentDist] = useState<number | null>(null)

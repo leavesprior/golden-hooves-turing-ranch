@@ -426,6 +426,7 @@ export type WorldEventAction =
   | 'treasure_found'
   | 'ally_recruited'
   | 'ranch_visited'
+  | 'living_trail_chain_completed'
   | 'custom'
 
 export interface WorldEvent {

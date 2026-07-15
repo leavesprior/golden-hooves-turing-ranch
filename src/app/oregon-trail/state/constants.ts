@@ -1,4 +1,5 @@
 import type { InvestigationState, OregonTrailState, RandomEvent, Weather } from './types'
+import { buildDefaultLivingTrailSlice } from './livingTrailActions'
 
 // Landmarks along the trail (Missouri to California Gold Country)
 export const LANDMARKS = [
@@ -593,6 +594,8 @@ export const DEFAULT_STATE: OregonTrailState = {
   // Seasonal market (trail-side)
   trailMarketEvent: null,
   trailMarketEventEndDay: 0,
+  // Living Trail (presence-gated real-world chains)
+  livingTrail: buildDefaultLivingTrailSlice(),
 }
 
 // Helper function for weather

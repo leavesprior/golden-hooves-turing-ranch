@@ -32,6 +32,7 @@ export type GamePhase =
   | 'gold_country_travel'   // Travel between locations with encounters
   | 'settlement'          // Settlement building phase (accessed from BOBR Cabin)
   | 'settlement_victory'  // Settlement completion/ending screen
+  | 'living_trail'        // Presence-gated real-world quest chains (Living Trail P1)
   | 'complete'
   | 'game_over'
 
@@ -181,4 +182,21 @@ export interface OregonTrailState {
   // Seasonal market (trail-side — ranch has its own; this tracks the active event for the trail shop)
   trailMarketEvent: MarketEvent | null       // Active market event affecting trail shop prices
   trailMarketEventEndDay: number             // Game day the event expires
+
+  // Living Trail (presence-gated real-world quest chains)
+  livingTrail: LivingTrailSlice
+}
+
+// === Living Trail (P1) ===
+
+export type LivingTrailNodeStatus = 'locked' | 'available' | 'completed'
+
+export interface LivingTrailNodeState {
+  status: LivingTrailNodeStatus
+  completedAt?: number
+  verifiedPresence?: boolean   // false = completed via the remote "by-lantern-light" variant
+}
+
+export interface LivingTrailSlice {
+  nodes: Record<string, LivingTrailNodeState>
 }

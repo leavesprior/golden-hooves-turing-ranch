@@ -99,6 +99,11 @@ export type GameAction =
   | { type: 'ADD_INVENTORY_ITEM'; itemId: string }
   | { type: 'ADVANCE_GOLD_COUNTRY_DAY'; days: number }
 
+  // Living Trail (presence-gated real-world chains)
+  | { type: 'ENTER_LIVING_TRAIL' }
+  // completeLivingTrailNode calls karma hooks before dispatching
+  | { type: 'COMPLETE_LT_NODE'; nodeId: string; verifiedPresence: boolean }
+
   // Posse system
   | { type: 'HIRE_POSSE_MEMBER'; member: PosseMember }
   | { type: 'DISMISS_POSSE_MEMBER'; memberId: string }

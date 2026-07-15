@@ -22,6 +22,8 @@ import {
   type MarketEvent,
 } from './data/seasonalMarket'
 import { getCurrentSeason, getDayOfYear } from './data/ranchConfig'
+import { getLivingTrailNode, getChainNodes } from './data/livingTrailChains'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
 
 // === State types and constants (extracted to state/ directory) ===
 import type {
@@ -111,6 +113,10 @@ interface OregonTrailContextValue {
   markAreaSearched: (areaId: string) => void
   addInventoryItem: (itemId: string) => void
   advanceGoldCountryDay: (days: number) => void
+
+  // Living Trail (presence-gated real-world chains)
+  enterLivingTrail: () => void
+  completeLivingTrailNode: (nodeId: string, verifiedPresence: boolean) => void
 
   // Save/Load support
   loadState: (savedState: OregonTrailState) => void
@@ -342,6 +348,49 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   const addInventoryItem = useCallback((itemId: string) => dispatch({ type: 'ADD_INVENTORY_ITEM', itemId }), [])
   const advanceGoldCountryDay = useCallback((days: number) => dispatch({ type: 'ADVANCE_GOLD_COUNTRY_DAY', days }), [])
 
+  // === Living Trail (presence-gated real-world chains) ===
+
+  const enterLivingTrail = useCallback(() => dispatch({ type: 'ENTER_LIVING_TRAIL' }), [])
+
+  // completeLivingTrailNode — karma side effects wrapper (same split as
+  // completeQuestWithReward: reducer owns state, wrapper owns karma).
+  // Remote "by-lantern-light" completions earn karma scaled by
+  // remoteVariant.karmaScale (rounded) and record verifiedPresence: false.
+  const completeLivingTrailNode = useCallback((nodeId: string, verifiedPresence: boolean) => {
+    const node = getLivingTrailNode(nodeId)
+    if (!node) return
+    // Mirror the reducer guard so karma can't be double-granted: only an
+    // 'available' node completes.
+    if (state.livingTrail.nodes[nodeId]?.status !== 'available') return
+
+    dispatch({ type: 'COMPLETE_LT_NODE', nodeId, verifiedPresence })
+
+    const scale = verifiedPresence ? 1 : node.remoteVariant.karmaScale
+    if (node.reward.goodKarma) {
+      earnGood(Math.round(node.reward.goodKarma * scale), `Living Trail: ${node.title}`)
+    }
+    if (node.reward.neutralKarma) {
+      earnNeutral(Math.round(node.reward.neutralKarma * scale), `Living Trail: ${node.title}`)
+    }
+
+    // Chain completion → one cross-game event (fire-and-forget) for the
+    // future town-memory layer.
+    const chainNodes = getChainNodes(node.chainId)
+    const chainComplete = chainNodes.every(
+      n => n.id === nodeId || state.livingTrail.nodes[n.id]?.status === 'completed'
+    )
+    if (chainComplete) {
+      try {
+        CrossGameStorage.logEvent(
+          'prospectors_tale',
+          'living_trail_chain_completed',
+          `Walked the Living Trail: ${node.chainId}`,
+          { detail: `chain=${node.chainId} finalNode=${nodeId} verifiedPresence=${verifiedPresence}` }
+        )
+      } catch { /* fire-and-forget */ }
+    }
+  }, [state.livingTrail.nodes, earnGood, earnNeutral])
+
   // === Save/Load ===
 
   const loadState = useCallback((savedState: OregonTrailState) => {
@@ -491,6 +540,9 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     markAreaSearched,
     addInventoryItem,
     advanceGoldCountryDay,
+    // Living Trail
+    enterLivingTrail,
+    completeLivingTrailNode,
     // Save/Load
     loadState,
     // Posse system (#6)

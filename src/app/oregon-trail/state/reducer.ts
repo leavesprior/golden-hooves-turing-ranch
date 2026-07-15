@@ -31,6 +31,9 @@ import {
 } from './goldCountryActions'
 import { applyHirePosseMember, applyDismissPosseMember } from './posseEngine'
 import {
+  applyEnterLivingTrail, applyCompleteLivingTrailNode, migrateLivingTrail,
+} from './livingTrailActions'
+import {
   applySetPhase, applySetCurrentLandmark, applyOpenWorldMap,
   applyStartFromTitle, applyCompleteChapterIntro,
   applyOpenRanchManagement, applyCloseRanchManagement,
@@ -110,6 +113,10 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       const loaded = { ...DEFAULT_STATE, ...action.savedState, graphicsTier: DEFAULT_STATE.graphicsTier }
       // #8: migrate saves with duplicate party ids / duplicate leader roles
       loaded.party = migrateParty(loaded.party ?? [])
+      // Living Trail: old saves have no livingTrail slice — default it, and
+      // merge in any nodes added after the save was written (never clobbers
+      // recorded progress). Same migration choke point as the party fix.
+      loaded.livingTrail = migrateLivingTrail(loaded.livingTrail)
       return loaded
     }
 
@@ -348,6 +355,10 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     case 'MARK_AREA_SEARCHED': return applyMarkAreaSearched(state, action.areaId)
     case 'ADD_INVENTORY_ITEM': return applyAddInventoryItem(state, action.itemId)
     case 'ADVANCE_GOLD_COUNTRY_DAY': return applyAdvanceGoldCountryDay(state, action.days)
+
+    // === Living Trail (presence-gated real-world chains) ===
+    case 'ENTER_LIVING_TRAIL': return applyEnterLivingTrail(state)
+    case 'COMPLETE_LT_NODE': return applyCompleteLivingTrailNode(state, action.nodeId, action.verifiedPresence)
 
     // === Posse system ===
     case 'HIRE_POSSE_MEMBER': return applyHirePosseMember(state, action.member)

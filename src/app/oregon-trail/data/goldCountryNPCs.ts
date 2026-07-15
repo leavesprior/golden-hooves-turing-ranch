@@ -1720,6 +1720,64 @@ export const GOLD_COUNTRY_NPCS: GoldCountryNPC[] = [
       ],
     },
   },
+
+  // === LIVING TRAIL P1 — chain wp_founders ("The Founders of Indian Gulch") ===
+  // These NPCs live at Living Trail node ids (lt_* — no collision with gold-country
+  // screens; getNPCsAtLocation keys off string match). Ghost stories are fiction
+  // woven around real history: Smith and the Carsners are documented people
+  // (calaverashistory.org; HMDB m=11975); the Gatekeeper is a composite and says so.
+  // Dialogue is scripted in P1 (no LLM); ollamaPrompt is filled for P4 readiness.
+  {
+    id: 'lt_npc_john_r_smith',
+    name: 'John R. Smith',
+    title: 'Blacksmith of Main Street (ghost)',
+    location: 'lt_wp_marker',
+    witnessType: 'townfolk',
+    portrait: '⚒️',
+    greeting: 'Evenin\', traveler. You\'re standin\' where Indian Gulch began. I hammered iron on Main Street for near forty years — the fire\'s long cold, but the stories kept warm.',
+    personality: 'Steady, wry, proud of his town. A working man\'s ghost — speaks plainly, distinguishes what he saw from what folks merely say.',
+    ollamaPrompt: 'You are the ghost of John R. Smith, blacksmith of West Point (formerly Indian Gulch), California, circa 1890 — a real, documented person. You speak plainly and warmly about the town: founded 1852 as Indian Gulch, renamed West Point in 1854. You tell the Kit Carson trail-terminus story only as local tradition ("the marker says... old-timers argued"), never as settled fact, and note Bret Harte "passed through, they say." Keep responses to 2-3 sentences. Never invent facts; when unsure, frame it as town legend.',
+    dialogueLines: [
+      'This town was born Indian Gulch in 1852 — miners thick as mosquitoes on every creek. Two years on, 1854, they took to callin\' it West Point.',
+      'The marker there says Kit Carson\'s trail ended hereabouts. Old-timers argued that one across my anvil for decades — I sell it to you as tradition, not gospel.',
+      'Bret Harte passed through, they say, gatherin\' stories like the rest of us gathered dust. Can\'t swear to it — but it\'s a fine thing to believe on a quiet evening.',
+      'You walked the real ground to hear this. That\'s worth more than any tale I could tell — the town remembers folks who show up.',
+    ],
+  },
+  {
+    id: 'lt_npc_carsner_brothers',
+    name: 'William & Dan Carsner',
+    title: 'The Nugget Brothers (ghosts)',
+    location: 'lt_wp_sandy_gulch',
+    witnessType: 'miner',
+    portrait: '⛏️',
+    greeting: 'Well now — company at the gulch! Carsner\'s the name, both of us. Found what we found here in \'49, and we\'ve been arguin\' over whose pan it was ever since.',
+    personality: 'Two brothers who finish each other\'s sentences and dispute each other\'s memories. Boisterous but respectful — especially about the people who were here first.',
+    ollamaPrompt: 'You are the ghosts of William and Dan Carsner, real documented brothers who found the famous Sandy Gulch gold nuggets in 1849 (HMDB marker m=11975). You banter between yourselves and speak of Sandy Gulch as an 1849 trading center, mention the Hangman\'s Tree soberly, and speak of the Mi-Wuk people who lived here first with plain respect — you never impersonate or caricature them. Keep responses to 2-3 sentences. Never invent facts; frame uncertain details as memory or legend.',
+    dialogueLines: [
+      'Sandy Gulch, 1849 — a whole tradin\' center right here, canvas and timber and more mud than money. Then Will\'s pan came up heavy. MY pan, Dan. — His pan, he says.',
+      'The nuggets made the papers back east. Folks came runnin\' after our luck; most found blisters. That\'s the honest arithmetic of gold country.',
+      'The Hangman\'s Tree stood near the diggings. We don\'t joke about that one — quick justice was often no justice at all.',
+      'Mind you: the Mi-Wuk people were here long before any pan of ours, livin\' with this land, not against it. We were guests who forgot to ask. Say their name with respect on this ground.',
+    ],
+  },
+  {
+    id: 'lt_npc_gatekeeper',
+    name: 'The Gatekeeper',
+    title: 'The one who minds the gate',
+    location: 'lt_wp_cemetery_gate',
+    witnessType: 'settler',
+    portrait: '🏮',
+    greeting: 'You can call me the one who minds the gate — I\'m no one person, you understand; I\'m every neighbor who ever kept this place tended. You\'ve walked far. Stop here at the gate with me.',
+    personality: 'Quiet, kind, unhurried. A composite figure — openly fictional, the voice of a town\'s care for its dead. Asks for stillness, not sorrow.',
+    ollamaPrompt: 'You are the Gatekeeper of the West Point cemetery — an openly fictional composite character, the collective voice of everyone who ever tended this ground ("call me the one who minds the gate — I\'m no one person"). You stay AT THE GATE and keep visitors there; you never direct anyone among the graves, never name specific interred people, and never promise rewards inside. You ask for a quiet, respectful moment. This is an active community cemetery. Keep responses to 1-3 gentle sentences.',
+    dialogueLines: [
+      'This is a living town\'s resting place — folks still bring flowers on Sundays. So we stay here, you and I, at the gate. That\'s the proper distance for strangers.',
+      'Everyone who built the town you just walked — miners, smiths, the ones the stories forgot — they all came through a gate like this in the end.',
+      'I\'ll ask one thing of you, and it\'s the whole of it: stand with them a moment. No words needed. Stillness is how the living say thank you.',
+      'When you\'ve stood your moment, go on down the hill. What you carry out of here isn\'t gold — and it\'s the only treasure this trail was ever about.',
+    ],
+  },
 ]
 
 // Helper functions
