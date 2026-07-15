@@ -5,6 +5,7 @@ import { useEscapeKey } from '../lib/useEscapeKey'
 import { useCharacter, CHARACTER_TRAITS, BACKGROUND_DESCRIPTIONS, type CharacterBackground, type StatName } from '../characterContext'
 import { useOregonTrail } from '../oregonTrailContext'
 import { getAbsurdItem, type AbsurdItem } from '../data/absurdItems'
+import { CoveredWagonSprite } from './Graphics64bit'
 import { DISCOVERABLE_TRAITS, getDiscoveredTraitDisplay, getTraitRarityColor, getTraitRarityLabel, getTraitCategoryIcon } from '../data/discoverableTraits'
 
 // =============================================================================
@@ -640,13 +641,14 @@ export function CharacterSheet({
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">
-                    {isDead ? '\u{1F480}' : member.isSick ? '\u{1F912}' : member.id === 'leader' ? '\u{2B50}' : '\u{1F920}'}
+                    {isDead ? '\u{1F480}' : member.isSick ? '\u{1F912}' : member.role === 'leader' ? '\u{2B50}' : '\u{1F920}'}
                   </span>
                   <div>
                     <span className={`font-bold text-sm ${isDead ? 'text-gray-500 line-through' : 'text-amber-200'}`}>
                       {member.name}
                     </span>
-                    {member.id === 'leader' && !isDead && (
+                    {/* #8: LEADER badge keys off role, not id */}
+                    {member.role === 'leader' && !isDead && (
                       <span className="ml-1.5 text-[9px] px-1 py-0.5 bg-amber-700 text-amber-200 rounded">
                         LEADER
                       </span>
@@ -921,7 +923,7 @@ export function CharacterSheet({
                   : 'bg-amber-950 text-amber-500 hover:text-amber-300 hover:bg-amber-900/50'
               }`}
             >
-              <span>{tab.emoji}</span>
+              {tab.id === 'wagon' ? <CoveredWagonSprite scale={0.3} /> : <span>{tab.emoji}</span>}
               <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}

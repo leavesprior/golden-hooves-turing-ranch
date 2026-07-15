@@ -35,16 +35,10 @@ export type GamePhase =
   | 'complete'
   | 'game_over'
 
-// Graphics tier system (unlocked through progression)
+// Graphics tiers. The progression-unlock function that once gated these was
+// removed 2026-07-13 (visual64): it was never called, and the tier is pinned
+// to ultra_64bit in DEFAULT_STATE + LOAD_STATE (see graphicsTier.test.ts).
 export type GraphicsTier = 'retro_4bit' | 'classic_8bit' | 'enhanced_16bit' | 'modern_32bit' | 'ultra_64bit'
-
-export function getGraphicsTier(gamesCompleted: number, outlawsCaught: number): GraphicsTier {
-  if (gamesCompleted >= 3 && outlawsCaught >= 10) return 'ultra_64bit'
-  if (gamesCompleted >= 2 && outlawsCaught >= 5) return 'modern_32bit'
-  if (gamesCompleted >= 1 && outlawsCaught >= 2) return 'enhanced_16bit'
-  if (outlawsCaught >= 1) return 'classic_8bit'
-  return 'retro_4bit'
-}
 
 export interface PartyMember {
   id: string
@@ -117,6 +111,10 @@ export interface OregonTrailState {
   // Party
   party: PartyMember[]
   wagonLeader: string
+
+  // Hired trail guide (#11) — persisted so the guide survives reload
+  hiredGuideId: string | null
+  guideRemainingLandmarks: number
 
   // Resources
   food: number           // Pounds

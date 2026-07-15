@@ -29,7 +29,6 @@ import type {
   PartyMember, RandomEvent, EventChoice, EventOutcome,
   InvestigationState, OregonTrailState,
 } from './state/types'
-import { getGraphicsTier } from './state/types'
 import {
   LANDMARKS, RANDOM_EVENTS, DEFAULT_STATE,
   hasCynthiasInn,
@@ -39,7 +38,6 @@ import { gameReducer } from './state/reducer'
 // Re-export types and constants for backward compatibility (28+ consumers import from this file)
 export type { Pace, Rations, Weather, GamePhase, GraphicsTier }
 export type { PartyMember, RandomEvent, EventChoice, EventOutcome, InvestigationState, OregonTrailState }
-export { getGraphicsTier }
 export { LANDMARKS, RANDOM_EVENTS, DEFAULT_STATE, hasCynthiasInn }
 
 
@@ -120,6 +118,9 @@ interface OregonTrailContextValue {
   // Posse system (#6)
   hirePosseMember: (member: PosseMember) => void
   dismissPosseMember: (memberId: string) => void
+
+  // Trail guide (#11)
+  hireGuide: (guideId: string, duration: number) => void
   getPartyBonuses: () => Record<string, number>
   getScarcityWarnings: () => { resource: ResourceType; level: 'low' | 'critical' | 'depleted'; description: string }[]
   handleDesperationChoice: (choiceId: string) => void
@@ -357,6 +358,11 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     dispatch({ type: 'DISMISS_POSSE_MEMBER', memberId })
   }, [])
 
+  // Trail guide (#11) — karma cost handled by GuideHire before this call
+  const hireGuide = useCallback((guideId: string, duration: number) => {
+    dispatch({ type: 'HIRE_GUIDE', guideId, duration })
+  }, [])
+
   const handleDesperationChoice = useCallback((choiceId: string) => {
     dispatch({ type: 'HANDLE_DESPERATION_CHOICE', choiceId })
   }, [])
@@ -490,6 +496,8 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     // Posse system (#6)
     hirePosseMember,
     dismissPosseMember,
+    // Trail guide (#11)
+    hireGuide,
     getPartyBonuses: getPartyBonusesFn,
     getScarcityWarnings: getScarcityWarningsFn,
     handleDesperationChoice,

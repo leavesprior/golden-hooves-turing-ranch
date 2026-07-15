@@ -103,5 +103,8 @@ export type GameAction =
   | { type: 'HIRE_POSSE_MEMBER'; member: PosseMember }
   | { type: 'DISMISS_POSSE_MEMBER'; memberId: string }
 
+  // Trail guide (#11) — GuideHire handles karma cost before dispatching
+  | { type: 'HIRE_GUIDE'; guideId: string; duration: number }
+
   // NPC relationships
   | { type: 'UPDATE_NPC_RELATIONSHIP'; npcId: string; modifierId: string }

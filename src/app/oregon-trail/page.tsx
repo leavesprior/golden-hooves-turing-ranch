@@ -30,7 +30,7 @@ import { VolumeControl } from './components/VolumeControl'
 import * as AudioManager from './lib/audioManager'
 
 // Specialty Shops — HireableGuide type used by TravelScreen wrapper
-import { type HireableGuide } from './data/specialtyShops'
+import { HIREABLE_GUIDES, type HireableGuide } from './data/specialtyShops'
 
 // Extracted Phase Screens (formerly inline in this file)
 import {
@@ -69,7 +69,7 @@ const LOCAL_AUTOSAVE_KEY = 'golden_frog_local_save'
 // TravelScreen is a thin wrapper that holds shared state across sub-phases
 // (town ↔ traveling ↔ event ↔ river) and dispatches to the appropriate component.
 function TravelScreen() {
-  const { state } = useOregonTrail()
+  const { state, hireGuide } = useOregonTrail()
 
   // Shared consumable effects (persists across sub-phase changes)
   const { activeEffects, handleUseConsumable, handleApplyMedicine, handleRepairWagon } = useConsumableEffects()
@@ -80,9 +80,15 @@ function TravelScreen() {
     threshold: 'high' | 'low'
   } | null>(null)
 
-  // Shared state: hired guide (persists across town visits)
-  const [hiredGuide, setHiredGuide] = useState<HireableGuide | null>(null)
-  const [guideRemainingLandmarks, setGuideRemainingLandmarks] = useState(0)
+  // Hired guide (#11): lives in persisted trail state (golden_frog_local_save)
+  // so it survives reload — the guide object is derived from static data
+  const hiredGuide = useMemo<HireableGuide | null>(
+    () => state.hiredGuideId
+      ? HIREABLE_GUIDES.find(g => g.id === state.hiredGuideId) ?? null
+      : null,
+    [state.hiredGuideId]
+  )
+  const guideRemainingLandmarks = state.guideRemainingLandmarks
 
   // Shared state: solved puzzles and visited historical characters.
   // 2026-06-21: solved puzzles are now PERSISTED (was a silent data-loss bug — progress
@@ -94,9 +100,8 @@ function TravelScreen() {
   const [visitedHistoricalIds, setVisitedHistoricalIds] = useState<string[]>([])
 
   const handleHireGuide = useCallback((guide: HireableGuide) => {
-    setHiredGuide(guide)
-    setGuideRemainingLandmarks(guide.duration)
-  }, [])
+    hireGuide(guide.id, guide.duration)
+  }, [hireGuide])
 
   // Sub-phase dispatch
   if (state.phase === 'event' && state.currentEvent) {

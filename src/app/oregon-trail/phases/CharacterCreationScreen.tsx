@@ -113,7 +113,7 @@ export function CharacterCreationScreen() {
     if (pointsRemaining !== 0 || !selectedBackground) return
 
     // Create the character with the selected background
-    const leaderName = trailState.party.find(m => m.id === 'leader')?.name || 'Agent'
+    const leaderName = trailState.party.find(m => m.role === 'leader')?.name || 'Agent'
     createCharacter(leaderName, selectedBackground)
 
     // Apply stat adjustments

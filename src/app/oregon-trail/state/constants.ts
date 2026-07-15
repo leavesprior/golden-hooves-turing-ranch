@@ -542,6 +542,9 @@ export const DEFAULT_STATE: OregonTrailState = {
   milesUntilNextLandmark: 102,
   party: [],
   wagonLeader: '',
+  // Hired trail guide (#11)
+  hiredGuideId: null,
+  guideRemainingLandmarks: 0,
   food: 0,
   ammunition: 0,
   spareParts: 0,
@@ -565,7 +568,8 @@ export const DEFAULT_STATE: OregonTrailState = {
   // Mystery/RPG defaults
   investigation: DEFAULT_INVESTIGATION,
   previousPhase: null,
-  graphicsTier: 'retro_4bit',
+  // visual64: the best presentation IS the game — no longer a progression lock
+  graphicsTier: 'ultra_64bit',
   gamesCompleted: 0,
   outlawsCaught: 0,
   // Gold Country Free-Roam defaults

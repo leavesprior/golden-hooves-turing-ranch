@@ -6,6 +6,7 @@ import { useKarmaWallet } from '../karmaWalletContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { KarmaWallet } from '../components/KarmaWallet'
 import { KarmaConvertModal } from '../components/KarmaConvertModal'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 
 export function OutfittingScreen() {
   const { state, purchaseSupplies, goToCharacterCreation } = useOregonTrail()
@@ -61,6 +62,10 @@ export function OutfittingScreen() {
           <h1 className="font-pixel text-amber-200 text-xl mb-2">Matt's General Store</h1>
           <p className="text-amber-400 text-sm">Independence, Missouri</p>
         </header>
+
+        {/* Independence itself — real-place raster art (visual64) */}
+        <PlaceBackdrop id="ch1_independence" className="h-36 rounded-lg border-2 border-amber-700/60 mb-6" />
+
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Store */}
@@ -222,7 +227,7 @@ export function OutfittingScreen() {
               <ul className="space-y-1">
                 {state.party.map(member => (
                   <li key={member.id} className="text-amber-200 text-xs">
-                    {member.name} {member.id === 'leader' && '(Leader)'}
+                    {member.name} {member.role === 'leader' && '(Leader)'}
                   </li>
                 ))}
               </ul>

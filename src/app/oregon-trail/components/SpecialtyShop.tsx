@@ -26,7 +26,7 @@ interface SpecialtyShopProps {
 }
 
 export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
-  const { state, buySupplies } = useOregonTrail()
+  const { state, buySupplies, buyFood } = useOregonTrail()
   const { getStat, modifyStat } = useCharacter()
   const { comment, setMood } = useNarrator()
   const {
@@ -105,6 +105,9 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
         setMessage(`${item.name} installed! ${eff.description} (-${neutralCost}🌮)`)
         break
       case 'health_restore':
+        // #9: actually heal the whole party (BUY_FOOD applies a party-wide,
+        // clamped health bonus — same mechanism the inn's food uses)
+        buyFood(eff.value, 0, 0, true)
         setMessage(`${item.name} administered! ${eff.description} (-${neutralCost}🌮)`)
         break
       case 'cure_sickness':
@@ -147,7 +150,7 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
   }, [
     stock, getStats, canAfford, spendNeutral, spendGood,
     setConvertModalContext, setShowConvertModal, shop,
-    buySupplies, modifyStat, comment, purchasedItems,
+    buySupplies, buyFood, modifyStat, comment, purchasedItems,
   ])
 
   // Color theme per shop type

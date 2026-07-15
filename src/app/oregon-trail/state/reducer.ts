@@ -41,6 +41,32 @@ import { getCriticalDescription } from '../data/criticalDescriptions'
 import { createRelationship, applyDispositionChange } from '../data/npcRelationships'
 import type { PartyRole } from '../data/posseSystem'
 
+/**
+ * Save migration (#8): corrupted/legacy saves can carry duplicate party ids
+ * (e.g. every starting member `id:"leader"`), which produces duplicate React
+ * keys (TownScreen/CampMenu party lists) and multiple LEADER badges in Camp.
+ * Ensures every id is unique and only the first leader keeps role 'leader'.
+ */
+export function migrateParty(party: PartyMember[]): PartyMember[] {
+  const seen = new Set<string>()
+  let leaderSeen = false
+  return party.map((original, i) => {
+    let member = original
+    if (member.role === 'leader') {
+      if (leaderSeen) member = { ...member, role: 'companion' as PartyRole }
+      else leaderSeen = true
+    }
+    if (!member.id || seen.has(member.id)) {
+      let n = i
+      let candidate = `member_${n}`
+      while (seen.has(candidate)) { n += 1; candidate = `member_${n}` }
+      member = { ...member, id: candidate }
+    }
+    seen.add(member.id)
+    return member
+  })
+}
+
 export function gameReducer(state: OregonTrailState, action: GameAction): OregonTrailState {
   switch (action.type) {
     // === Game lifecycle ===
@@ -78,8 +104,14 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     case 'RESET_GAME':
       return DEFAULT_STATE
 
-    case 'LOAD_STATE':
-      return { ...DEFAULT_STATE, ...action.savedState }
+    case 'LOAD_STATE': {
+      // graphicsTier pinned: presentation is not save data (visual64) — old
+      // saves carry 'retro_4bit' from the progression-lock era
+      const loaded = { ...DEFAULT_STATE, ...action.savedState, graphicsTier: DEFAULT_STATE.graphicsTier }
+      // #8: migrate saves with duplicate party ids / duplicate leader roles
+      loaded.party = migrateParty(loaded.party ?? [])
+      return loaded
+    }
 
     // === Settings ===
 
@@ -179,7 +211,10 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         ammunition: state.ammunition - ammoUsed,
         food: state.food + foodGained,
         animalsKilled: state.animalsKilled + (success ? 1 : 0),
-        message: huntMessage,
+        // #12: hunting takes a full day (same pattern as applyRestAtInn) —
+        // closes the free-food farm exploit from town Hunt spam
+        day: state.day + 1,
+        message: `${huntMessage} The hunt took a full day.`,
       }
     }
 
@@ -317,6 +352,10 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     // === Posse system ===
     case 'HIRE_POSSE_MEMBER': return applyHirePosseMember(state, action.member)
     case 'DISMISS_POSSE_MEMBER': return applyDismissPosseMember(state, action.memberId)
+
+    // === Trail guide (#11) — persisted so the guide survives reload ===
+    case 'HIRE_GUIDE':
+      return { ...state, hiredGuideId: action.guideId, guideRemainingLandmarks: action.duration }
 
     // === NPC relationships ===
     case 'UPDATE_NPC_RELATIONSHIP': {

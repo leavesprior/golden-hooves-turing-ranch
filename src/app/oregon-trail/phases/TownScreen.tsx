@@ -64,10 +64,10 @@ export function TownScreen({
   visitedHistoricalIds,
   onHistoricalVisited,
 }: TownScreenProps) {
-  const { state, hunt, leaveTown, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, getAllNPCRelationships } = useOregonTrail()
-  const { earnNeutral } = useKarmaWallet()
+  const { state, hunt, leaveTown, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, getAllNPCRelationships, buySupplies } = useOregonTrail()
+  const { earnNeutral, earnGood } = useKarmaWallet()
   const { state: mysteryState, getCluesForLocation, getCorrectClueCount, getActiveCase } = useMystery()
-  const { getStat } = useCharacter()
+  const { getStat, addExperience } = useCharacter()
   const { comment } = useNarrator()
   const { progress: chapterProgress } = useChapter()
 
@@ -570,19 +570,19 @@ export function TownScreen({
               }}
               onComplete={(puzzleId, rewards) => {
                 onPuzzleSolved(puzzleId)
-                // Apply rewards
-                if (rewards.food || rewards.ammunition || rewards.medicine || rewards.spareParts) {
-                  // These are applied via the state context
-                }
+                // Apply rewards (#10): resources via trail state, XP via character context
+                if (rewards.food) buySupplies('food', rewards.food, 0)
+                if (rewards.ammunition) buySupplies('ammunition', rewards.ammunition, 0)
+                if (rewards.medicine) buySupplies('medicine', rewards.medicine, 0)
+                if (rewards.spareParts) buySupplies('spareParts', rewards.spareParts, 0)
                 if (rewards.neutralKarma && rewards.neutralKarma > 0) {
                   earnNeutral(rewards.neutralKarma, `Puzzle solved: ${showPuzzle.title}`)
                 }
-                if (rewards.xp) {
-                  // XP would go through character context
+                if (rewards.goodKarma && rewards.goodKarma > 0) {
+                  earnGood(rewards.goodKarma, `Puzzle solved: ${showPuzzle.title}`)
                 }
-                if (rewards.inventoryItem) {
-                  // Add to game inventory
-                }
+                if (rewards.xp) addExperience(rewards.xp)
+                // rewards.inventoryItem: display-only for now (no trail inventory hook)
               }}
               onClose={() => setShowPuzzle(null)}
             />
