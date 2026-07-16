@@ -6,7 +6,7 @@ import { OregonTrailProvider, useOregonTrail } from './oregonTrailContext'
 import { ShareLegacy } from '@/components/ui/ShareLegacy'
 
 // Context Providers (used in provider tree)
-import { KarmaWalletProvider } from './karmaWalletContext'
+import { KarmaWalletProvider, useKarmaWallet } from './karmaWalletContext'
 import { CharacterProvider } from './characterContext'
 import { ReputationProvider } from './reputationContext'
 import { NarratorProvider } from './narratorContext'
@@ -232,6 +232,26 @@ function OregonTrailGame() {
     return () => window.removeEventListener('beforeunload', handleUnload)
   }, [state])
 
+  // #17: nothing in the trail flow ever called initializeWallet, so the karma
+  // wallet provider's persist effect (gated on isInitialized && walletMode)
+  // never ran — oregon_trail_karma_wallet was never written, taco/cookie
+  // balances lived only in memory + the in-memory offline queue, and every
+  // reload reset them to the 400 starting default (progress loss AND an
+  // infinite-money exploit). Same lazy-init the adventure page uses: create a
+  // brand-new wallet ONLY when nothing is stored. When a stored wallet exists
+  // the provider's own mount-load effect restores it — deliberately NOT the
+  // 'continue' init path, whose offline getBalance() fallback returns the 400
+  // default and would clobber a saved balance.
+  const { isInitialized: walletInitialized, initializeWallet } = useKarmaWallet()
+  useEffect(() => {
+    if (walletInitialized) return
+    try {
+      if (!localStorage.getItem('oregon_trail_karma_wallet')) {
+        initializeWallet('new')
+      }
+    } catch { /* storage unavailable */ }
+  }, [walletInitialized, initializeWallet])
+
   // Initialize audio and start music on game start (user interaction required)
   const handleGameStart = useCallback(async () => {
     if (!audioInitialized) {
@@ -239,9 +259,15 @@ function OregonTrailGame() {
       setAudioInitialized(true)
     }
     // Start music based on saved preference (electro swing or Fallout 2 OST)
+    // #21: dispatch to the playlist matching the SAVED mode — previously only
+    // 'fallout' was honored and parov/western silently fell through to synth.
     const savedMode = AudioManager.loadSoundtrackPreference()
     if (savedMode === 'fallout') {
       AudioManager.playFalloutPlaylist()
+    } else if (savedMode === 'parov') {
+      AudioManager.playParovPlaylist()
+    } else if (savedMode === 'western') {
+      AudioManager.playWesternPlaylist()
     } else {
       AudioManager.playPlaylist()
     }
@@ -255,9 +281,15 @@ function OregonTrailGame() {
       await AudioManager.initAudio()
       setAudioInitialized(true)
     }
+    // #21: dispatch to the playlist matching the SAVED mode — previously only
+    // 'fallout' was honored and parov/western silently fell through to synth.
     const savedMode = AudioManager.loadSoundtrackPreference()
     if (savedMode === 'fallout') {
       AudioManager.playFalloutPlaylist()
+    } else if (savedMode === 'parov') {
+      AudioManager.playParovPlaylist()
+    } else if (savedMode === 'western') {
+      AudioManager.playWesternPlaylist()
     } else {
       AudioManager.playPlaylist()
     }
