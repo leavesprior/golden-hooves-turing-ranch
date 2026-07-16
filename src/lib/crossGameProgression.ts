@@ -427,6 +427,7 @@ export type WorldEventAction =
   | 'ally_recruited'
   | 'ranch_visited'
   | 'living_trail_chain_completed'
+  | 'dm_directive'
   | 'custom'
 
 export interface WorldEvent {

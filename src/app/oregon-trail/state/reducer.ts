@@ -33,6 +33,7 @@ import { applyHirePosseMember, applyDismissPosseMember } from './posseEngine'
 import {
   applyEnterLivingTrail, applyCompleteLivingTrailNode, migrateLivingTrail,
 } from './livingTrailActions'
+import { applyDmDirectiveState } from './dmDirectiveActions'
 import {
   applySetPhase, applySetCurrentLandmark, applyOpenWorldMap,
   applyStartFromTitle, applyCompleteChapterIntro,
@@ -139,6 +140,16 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         ...member,
         health: Math.max(0, Math.min(100, member.health + (outcome.healthDelta || 0))),
       }))
+      // DM boss encounters (P1) can interrupt the TOWN phase; return the
+      // player there instead of teleporting to the trail. Scoped to dm_boss_*
+      // event ids only — every existing event fires from computeTravel while
+      // traveling (travelEngine never sets previousPhase), so touching the
+      // general case could resurrect a stale previousPhase. For non-DM events
+      // this branch is provably identity: their ids never start with dm_boss_.
+      const postEventPhase: GamePhase =
+        state.currentEvent.id.startsWith('dm_boss_') && state.previousPhase === 'town'
+          ? 'town'
+          : 'traveling'
       return {
         ...state,
         food: Math.max(0, state.food + (outcome.foodDelta || 0)),
@@ -147,7 +158,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         spareParts: Math.max(0, state.spareParts + (outcome.spareParts || 0)),
         day: state.day + (outcome.daysLost || 0),
         party: updatedParty,
-        phase: 'traveling',
+        phase: postEventPhase,
         currentEvent: null,
         message: action.outcomeMessageOverride ?? outcome.message,
       }
@@ -367,6 +378,9 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     // === Trail guide (#11) — persisted so the guide survives reload ===
     case 'HIRE_GUIDE':
       return { ...state, hiredGuideId: action.guideId, guideRemainingLandmarks: action.duration }
+
+    // === DM directive channel (DM Layer P1) ===
+    case 'APPLY_DM_DIRECTIVE': return applyDmDirectiveState(state, action.directive)
 
     // === NPC relationships ===
     case 'UPDATE_NPC_RELATIONSHIP': {

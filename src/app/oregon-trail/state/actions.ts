@@ -12,6 +12,7 @@ import type { Pace, Rations, GamePhase, OregonTrailState } from './types'
 import type { CrossingOutcome } from '../data/riverCrossings'
 import type { QuestReward } from '../data/goldCountryNPCs'
 import type { PosseMember } from '../data/posseSystem'
+import type { DmDirective } from '@/lib/dmDirectives'
 
 // === Core Gameplay ===
 
@@ -113,3 +114,7 @@ export type GameAction =
 
   // NPC relationships
   | { type: 'UPDATE_NPC_RELATIONSHIP'; npcId: string; modifierId: string }
+
+  // DM directive channel (DM Layer P1) — applyDmDirective validates + logs
+  // before dispatching; the reducer re-validates (drop, never partial-apply)
+  | { type: 'APPLY_DM_DIRECTIVE'; directive: DmDirective }

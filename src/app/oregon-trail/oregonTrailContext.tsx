@@ -24,6 +24,7 @@ import {
 import { getCurrentSeason, getDayOfYear } from './data/ranchConfig'
 import { getLivingTrailNode, getChainNodes } from './data/livingTrailChains'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
+import { validateDmDirective, type DmDirective } from '@/lib/dmDirectives'
 
 // === State types and constants (extracted to state/ directory) ===
 import type {
@@ -117,6 +118,9 @@ interface OregonTrailContextValue {
   // Living Trail (presence-gated real-world chains)
   enterLivingTrail: () => void
   completeLivingTrailNode: (nodeId: string, verifiedPresence: boolean) => void
+
+  // DM directive channel (DM Layer P1)
+  applyDmDirective: (directive: DmDirective) => void
 
   // Save/Load support
   loadState: (savedState: OregonTrailState) => void
@@ -391,6 +395,29 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     }
   }, [state.livingTrail.nodes, earnGood, earnNeutral])
 
+  // === DM directive channel (DM Layer P1) ===
+
+  // Validate at this boundary too (the queue validated on write AND read; the
+  // reducer will validate again — a directive that fails here is dropped and
+  // logged, never partially applied). Audit-tape logging is a side effect, so
+  // it lives in this wrapper, not the reducer — same split as the karma hooks.
+  const applyDmDirective = useCallback((directive: DmDirective) => {
+    const v = validateDmDirective(directive)
+    if (!v.ok) {
+      console.warn(`[dm-directive] DROP at client boundary: ${v.reason}`)
+      return
+    }
+    dispatch({ type: 'APPLY_DM_DIRECTIVE', directive: v.directive })
+    try {
+      CrossGameStorage.logEvent(
+        'prospectors_tale',
+        'dm_directive',
+        `DM directive applied: ${v.directive.kind}`,
+        { detail: JSON.stringify(v.directive) }
+      )
+    } catch { /* fire-and-forget */ }
+  }, [])
+
   // === Save/Load ===
 
   const loadState = useCallback((savedState: OregonTrailState) => {
@@ -543,6 +570,8 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     // Living Trail
     enterLivingTrail,
     completeLivingTrailNode,
+    // DM directive channel (DM Layer P1)
+    applyDmDirective,
     // Save/Load
     loadState,
     // Posse system (#6)
