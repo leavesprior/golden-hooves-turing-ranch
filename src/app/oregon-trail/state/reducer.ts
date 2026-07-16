@@ -33,6 +33,7 @@ import { applyHirePosseMember, applyDismissPosseMember } from './posseEngine'
 import {
   applyEnterLivingTrail, applyCompleteLivingTrailNode, migrateLivingTrail,
 } from './livingTrailActions'
+import { applyDmDirectiveState } from './dmDirectiveActions'
 import {
   applySetPhase, applySetCurrentLandmark, applyOpenWorldMap,
   applyStartFromTitle, applyCompleteChapterIntro,
@@ -367,6 +368,9 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     // === Trail guide (#11) — persisted so the guide survives reload ===
     case 'HIRE_GUIDE':
       return { ...state, hiredGuideId: action.guideId, guideRemainingLandmarks: action.duration }
+
+    // === DM directive channel (DM Layer P1) ===
+    case 'APPLY_DM_DIRECTIVE': return applyDmDirectiveState(state, action.directive)
 
     // === NPC relationships ===
     case 'UPDATE_NPC_RELATIONSHIP': {

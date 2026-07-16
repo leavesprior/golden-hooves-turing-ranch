@@ -60,6 +60,7 @@ import {
   LivingTrailScreen,
 } from './phases'
 import { useConsumableEffects } from './hooks/useConsumableEffects'
+import { useDmDirectives } from './hooks/useDmDirectives'
 
 // Local auto-save key for unauthenticated users (subsystem contexts persist
 // independently; this captures the core OregonTrail state so "Continue" works
@@ -180,6 +181,10 @@ function OregonTrailGame() {
   const [audioInitialized, setAudioInitialized] = useState(false)
   const [continueError, setContinueError] = useState(false)
   const { saves, loadGame } = useSaveLoad()
+
+  // DM directive channel (DM Layer P1): drain the queue while in trail
+  // gameplay phases and apply through the APPLY_DM_DIRECTIVE choke point.
+  useDmDirectives()
 
   // C2 fix: the save-slot store is shared across all games. Only consider
   // saves that belong to THIS game (explicit gameType, or inferred for legacy
