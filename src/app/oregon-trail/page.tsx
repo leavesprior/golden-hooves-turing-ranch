@@ -66,6 +66,30 @@ import { useConsumableEffects } from './hooks/useConsumableEffects'
 // without requiring login)
 const LOCAL_AUTOSAVE_KEY = 'golden_frog_local_save'
 
+// #13: the local autosave is stored as { savedAt, state } so Continue can
+// compare recency against auth slots. Legacy saves were the bare state object
+// (phase at top level) and carry no wall-clock stamp (savedAt: null).
+// Returns null when absent, unparsable, or not playable (title phase).
+function readLocalAutosave(): { savedAt: string | null; state: Record<string, unknown> } | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_AUTOSAVE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    // Legacy bare-state save: phase lives at the top level, savedAt unknown
+    if (typeof parsed.phase === 'string') {
+      return parsed.phase !== 'title' ? { savedAt: null, state: parsed } : null
+    }
+    const inner = parsed.state
+    if (inner && typeof inner === 'object' && typeof inner.phase === 'string' && inner.phase !== 'title') {
+      return { savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : null, state: inner }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 // NOTE: Phase screens extracted to ./phases/ directory.
 // TravelScreen is a thin wrapper that holds shared state across sub-phases
 // (town ↔ traveling ↔ event ↔ river) and dispatches to the appropriate component.
@@ -186,7 +210,8 @@ function OregonTrailGame() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
       try {
-        localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(state))
+        // #13: wrapped shape — savedAt lets Continue compare recency vs slots
+        localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify({ savedAt: new Date().toISOString(), state }))
         setHasLocalSave(true)
       } catch { /* storage full or unavailable */ }
     }, 2000)
@@ -199,7 +224,7 @@ function OregonTrailGame() {
     const handleUnload = () => {
       if (state.phase !== 'title' && state.phase !== 'chapter_intro') {
         try {
-          localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(state))
+          localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify({ savedAt: new Date().toISOString(), state }))
         } catch { /* ignore */ }
       }
     }
@@ -236,46 +261,77 @@ function OregonTrailGame() {
     } else {
       AudioManager.playPlaylist()
     }
-    // Try slot-based saves first (authenticated users) — Oregon Trail slots only (C2)
+    // #13: gather BOTH candidates first, then newest-wins. The local autosave
+    // is the continuously-overwritten copy the player last saw, so a stale
+    // auth slot must never shadow it just because slots are checked first.
     const sorted = [...trailSaves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    if (sorted.length > 0) {
-      console.info(`[Continue] Found ${sorted.length} slot save(s), trying most recent: ${sorted[0].id}`)
-      const result = await loadGame(sorted[0].id)
+    const newestSlot = sorted.length > 0 ? sorted[0] : null
+    const local = readLocalAutosave()
+
+    // Decide which source is newer (only matters when both exist)
+    let preferLocal = local !== null
+    if (local && newestSlot) {
+      if (local.savedAt) {
+        // (a) both wall-clock timestamps present — newer wins
+        preferLocal = new Date(local.savedAt).getTime() >= new Date(newestSlot.timestamp).getTime()
+      } else {
+        // (b) legacy local save with no wall-clock stamp — compare in-game
+        // progress (totalMilesTraveled, then day); higher wins
+        const slotGame = (newestSlot.gameData as { oregonTrail?: Record<string, unknown> } | undefined)?.oregonTrail
+        const slotMiles = typeof slotGame?.totalMilesTraveled === 'number' ? slotGame.totalMilesTraveled : null
+        const localMiles = typeof local.state.totalMilesTraveled === 'number' ? local.state.totalMilesTraveled : null
+        const slotDay = typeof slotGame?.day === 'number' ? slotGame.day : null
+        const localDay = typeof local.state.day === 'number' ? local.state.day : null
+        if (slotMiles !== null && localMiles !== null && slotMiles !== localMiles) {
+          preferLocal = localMiles > slotMiles
+        } else if (slotDay !== null && localDay !== null && slotDay !== localDay) {
+          preferLocal = localDay > slotDay
+        } else {
+          // (c) indeterminate — prefer the local autosave
+          preferLocal = true
+        }
+      }
+      console.info(`[Continue] Both sources present — preferring ${preferLocal ? 'local autosave' : `slot ${newestSlot.id}`}`)
+    }
+
+    // Both apply paths route through the existing loaders so the LOAD_STATE
+    // migration choke point (migrateParty + migrateLivingTrail) still fires.
+    const applyLocal = (): boolean => {
+      if (!local) return false
+      console.info(`[Continue] Local autosave applied (phase: ${local.state.phase})`)
+      loadState(local.state as unknown as Parameters<typeof loadState>[0])
+      return true
+    }
+    const applySlot = async (): Promise<boolean> => {
+      if (!newestSlot) return false
+      console.info(`[Continue] Trying slot save: ${newestSlot.id}`)
+      const result = await loadGame(newestSlot.id)
       // loadGame reports success whenever the registered gameDataLoader ran —
       // even if the slot carried no oregonTrail payload (e.g. an auto-save
       // created on the title screen collects `{}`), in which case the loader
-      // is a no-op, the phase stays 'title', and returning here would softlock
-      // Continue. Only trust the slot if it actually held a playable phase;
-      // otherwise fall through to the local autosave below.
+      // is a no-op, the phase stays 'title', and trusting it would softlock
+      // Continue. Only trust the slot if it actually held a playable phase.
       const slotState = result.data?.oregonTrail as { phase?: unknown } | undefined
       const slotPlayable =
         !!slotState && typeof slotState === 'object' &&
         typeof slotState.phase === 'string' && slotState.phase !== 'title'
       if (result.success && slotPlayable) {
         console.info(`[Continue] Slot save applied (phase: ${slotState.phase})`)
-        return
+        return true
       }
       console.info(
         `[Continue] Slot save not playable (success: ${result.success}` +
-        `${result.error ? `, error: ${result.error}` : ''}) — falling through to local autosave`
+        `${result.error ? `, error: ${result.error}` : ''})`
       )
-    } else {
-      console.info('[Continue] No Oregon Trail slot saves — trying local autosave')
+      return false
     }
-    // Fall back to local auto-save (all users)
-    try {
-      const saved = localStorage.getItem(LOCAL_AUTOSAVE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed && typeof parsed === 'object' && parsed.phase && parsed.phase !== 'title') {
-          console.info(`[Continue] Local autosave applied (phase: ${parsed.phase})`)
-          loadState(parsed)
-          return
-        }
-        console.warn('[Continue] Local save has invalid or title-phase state, ignoring')
-      }
-    } catch (e) {
-      console.warn('[Continue] Failed to parse local save:', e)
+
+    if (preferLocal) {
+      if (applyLocal()) return
+      if (await applySlot()) return
+    } else {
+      if (await applySlot()) return
+      if (applyLocal()) return
     }
     // No valid save found from either source — tell the player honestly
     console.warn('[Continue] No valid save found from auth slots or local storage')
