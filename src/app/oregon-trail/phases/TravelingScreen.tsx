@@ -87,7 +87,12 @@ export function TravelingScreen({
   const passingLandmark = state.currentLandmark
     ? LANDMARKS.find(l => l.name === state.currentLandmark)
     : undefined
+  // #15: only on the actual arrival day — currentLandmark is never cleared
+  // (it's load-bearing for towns/Living Trail), so gate on the recorded
+  // arrival day. Old saves lack landmarkArrivalDay (undefined !== number),
+  // so they safely show the wagon scene until the next arrival.
   const scenicPassing = passingLandmark && ['landmark', 'pass', 'desert'].includes(passingLandmark.type)
+    && state.landmarkArrivalDay === state.day
     ? passingLandmark
     : undefined
 

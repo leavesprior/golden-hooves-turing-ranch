@@ -242,6 +242,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
       day: prev.day + 1,
       distance: despDistance,
       currentLandmark: despLandmark.currentLandmark || prev.currentLandmark,
+      landmarkArrivalDay: despLandmark.currentLandmark ? prev.day + 1 : prev.landmarkArrivalDay,
       nextLandmark: despLandmark.nextLandmark,
       milesUntilNextLandmark: Math.max(0, despLandmark.milesUntilNextLandmark),
       food: newFood,
@@ -312,6 +313,10 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   // Check if reached next landmark
   const landmarkState = computeLandmarkState(newDistance, newMilesUntil, prev.nextLandmark)
   const newLandmark = landmarkState.currentLandmark || prev.currentLandmark
+  // #15: landmarkState.currentLandmark is non-empty exactly when a landmark is
+  // newly reached this tick — record the arrival day so scenic place art shows
+  // only on that day (currentLandmark is never cleared; it's load-bearing).
+  const newArrivalDay = landmarkState.currentLandmark ? prev.day + 1 : prev.landmarkArrivalDay
   const nextLandmarkName = landmarkState.nextLandmark
   const nextLandmarkMiles = landmarkState.milesUntilNextLandmark
   const newPhase = landmarkState.landmarkPhase
@@ -324,6 +329,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
       day: prev.day + 1,
       distance: newDistance,
       currentLandmark: newLandmark,
+      landmarkArrivalDay: newArrivalDay,
       nextLandmark: nextLandmarkName,
       milesUntilNextLandmark: Math.max(0, nextLandmarkMiles),
       food: newFood,
@@ -352,6 +358,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
     day: prev.day + 1,
     distance: newDistance,
     currentLandmark: newLandmark,
+    landmarkArrivalDay: newArrivalDay,
     nextLandmark: nextLandmarkName,
     milesUntilNextLandmark: Math.max(0, nextLandmarkMiles),
     food: newFood,

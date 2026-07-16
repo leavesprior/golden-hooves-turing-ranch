@@ -144,6 +144,12 @@ export interface OregonTrailState {
   currentEvent: RandomEvent | null
   message: string | null
 
+  // #15: day the current landmark was reached — scenic place art (LandmarkScene)
+  // shows only when landmarkArrivalDay === day. Optional: old saves lack it
+  // (undefined never equals a number, so they just show the wagon scene).
+  // currentLandmark itself is load-bearing elsewhere and is never cleared.
+  landmarkArrivalDay?: number
+
   // Statistics
   totalMilesTraveled: number
   daysOnTrail: number
