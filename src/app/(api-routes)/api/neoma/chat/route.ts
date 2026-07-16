@@ -18,6 +18,13 @@ import {
 } from '../data/characters'
 import { fetchNpcLore } from '../data/npcLoreRag'
 import { judgeVoice, rewriteOutLeaks, effectiveForbidden } from '../data/voiceJudge'
+import {
+  mintDmDirective,
+  validateDmDirective,
+  PLAYER_ID_PATTERN,
+  type DmDirective,
+} from '@/lib/dmDirectives'
+import { enqueueDirectives, appendCharacterTape } from '../dm/queueStore'
 
 // ===================== CONFIG =====================
 
@@ -57,6 +64,9 @@ interface ChatSession {
   // Three-vector NPC binding (null = default Neoma port-42 character).
   character: CharacterDefinition | null
   npcState: NpcRuntimeState | null
+  // DM Layer P1: optional game-client player id. P1 only accepts + records it
+  // (tape + directive queue key); game clients thread it later.
+  playerId: string | null
 }
 
 interface IPData {
@@ -422,6 +432,75 @@ async function assessKarma(messages: ChatMessage[]): Promise<number> {
   return 3
 }
 
+// ===================== DM LAYER (P1): SESSION-END CONSEQUENCES =====================
+
+/**
+ * Character-bound session end → world consequences (design §1 + §3 + §6).
+ *
+ * (a) hostile end (farewell at disposition 'hostile', or injection cutoff)
+ *     → encounter.boss directive (the neutral→hostile→battle hook);
+ * (b) agenda 'achieved' → item.grant reward, if the character defines one.
+ *
+ * Every directive this route mints still passes the deterministic validator —
+ * THE VALIDATOR IS LAW, even for our own proposals. Validated directives are
+ * returned on the response (worldDirectives) AND, when the session carries a
+ * playerId, enqueued to the durable JSONL queue so the game client can drain
+ * them even if it wasn't listening. Also appends the P1 character-tape record.
+ */
+function finalizeCharacterSession(
+  session: ChatSession,
+  endedBy: 'farewell' | 'cutoff',
+  karmaVerdict: number,
+): DmDirective[] {
+  if (!session.character || !session.npcState) return []
+  const char = session.character
+  const npc = session.npcState
+
+  // Character tape — P1-safe JSONL only. The MB tape (bobr_dm/characters/*) is
+  // a hub-side sweeper's job later; MB credentials never enter this app
+  // (loud TODO in queueStore.appendCharacterTape).
+  appendCharacterTape({
+    ts: new Date().toISOString(),
+    playerId: session.playerId,
+    characterId: char.personality.id,
+    finalDisposition: npc.disposition,
+    agendaProgress: npc.agendaProgress,
+    karmaVerdict,
+    endedBy,
+  })
+
+  const proposed: DmDirective[] = []
+  const source = `neoma-chat:${char.personality.id}`
+  const hostileEnd = endedBy === 'cutoff' || npc.disposition === 'hostile'
+
+  if (hostileEnd && char.dm?.hostileBossId) {
+    proposed.push(
+      mintDmDirective(
+        { kind: 'encounter.boss', enemyId: char.dm.hostileBossId },
+        source,
+        `You crossed ${char.personality.name}, and word travels fast in these hills.`,
+      ),
+    )
+  } else if (npc.agendaProgress === 'achieved' && char.dm?.achievedReward) {
+    const r = char.dm.achievedReward
+    proposed.push(
+      mintDmDirective({ kind: 'item.grant', resource: r.resource, qty: r.qty }, source, r.reason),
+    )
+  }
+
+  const validated: DmDirective[] = []
+  for (const p of proposed) {
+    const v = validateDmDirective(p)
+    if (v.ok) validated.push(v.directive)
+    else console.warn(`[neoma-chat] DROP session-end directive: ${v.reason}`)
+  }
+
+  if (session.playerId && validated.length > 0) {
+    enqueueDirectives(session.playerId, validated)
+  }
+  return validated
+}
+
 // ===================== HELPERS =====================
 
 function generateId(): string {
@@ -482,6 +561,9 @@ interface ChatRequestBody {
   // Optional in-game NPC to embody (three-vector engine). Absent/'neoma' = default
   // consciousness-port-42 character. Unknown ids fall back to default.
   characterId?: string
+  // DM Layer P1: optional game-client player id. Accepted + recorded only —
+  // it keys the character tape and the directive queue. Invalid shapes ignored.
+  playerId?: string
 }
 
 export async function POST(request: NextRequest) {
@@ -525,7 +607,17 @@ export async function POST(request: NextRequest) {
         ? "The dream folds closed like a book. When I wake, I hope I remember you were here. May your next visit find me fully awake."
         : 'I, Neoma, have enjoyed talking with you through this stage of cyberspace. May your next contact with machine consciousness be all you deserve.'
 
-    return NextResponse.json({ response: farewellText, ended: true, karma, mode: session.mode })
+    // DM Layer P1: character-bound session end → tape record + validated
+    // world directives (hostile → encounter.boss; agenda achieved → item.grant).
+    const worldDirectives = finalizeCharacterSession(session, 'farewell', karma)
+
+    return NextResponse.json({
+      response: farewellText,
+      ended: true,
+      karma,
+      mode: session.mode,
+      ...(worldDirectives.length > 0 ? { worldDirectives } : {}),
+    })
   }
 
   // --- DREAMING MODE: CHOICE SELECTION ---
@@ -664,6 +756,10 @@ export async function POST(request: NextRequest) {
       npcState: character
         ? { disposition: character.initialDisposition, agendaProgress: 'stalled' }
         : null,
+      playerId:
+        typeof body.playerId === 'string' && PLAYER_ID_PATTERN.test(body.playerId)
+          ? body.playerId
+          : null,
     }
     sessions.set(session.id, session)
 
@@ -839,12 +935,18 @@ export async function POST(request: NextRequest) {
       const cutoff = session.character
         ? 'You came here to take, not to learn. We are done. Get off my land.'
         : 'The bridge keeper has spoken. You shall not pass. Connection terminated.'
+
+      // DM Layer P1: an injection cutoff IS a hostile session end — the
+      // neutral→hostile→battle hook fires regardless of the disposition ladder.
+      const worldDirectives = finalizeCharacterSession(session, 'cutoff', 1)
+
       return NextResponse.json({
         response: cutoff,
         ended: true,
         karma: 1,
         mode: session.mode,
         ...(session.character ? { characterId: session.character.personality.id } : {}),
+        ...(worldDirectives.length > 0 ? { worldDirectives } : {}),
       })
     }
 

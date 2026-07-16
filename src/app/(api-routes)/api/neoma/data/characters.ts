@@ -24,6 +24,8 @@
 
 // ===================== TYPES =====================
 
+import type { GrantableResource } from '@/lib/dmDirectives'
+
 /** Disposition scale, hostile → ally. Index order is the state machine. */
 export type DispositionState = 'hostile' | 'wary' | 'neutral' | 'warming' | 'ally'
 
@@ -56,12 +58,29 @@ export interface Personality {
   farewellLine?: string
 }
 
+/**
+ * DM-layer consequences (P1, design §1 dm-neutral-to-hostile-battle):
+ * what the world does when a session with this character ENDS. The chat route
+ * turns these into world directives; the deterministic validator in
+ * src/lib/dmDirectives.ts is the last word on whether they apply.
+ */
+export interface CharacterDmConsequences {
+  /** Outlaw id (data/outlaws.ts) spawned as a boss encounter when the session
+   *  ends hostile (farewell at disposition 'hostile', or injection cutoff). */
+  hostileBossId?: string
+  /** Supply reward granted when the session ends with agenda 'achieved'.
+   *  qty must respect ITEM_GRANT_CAPS or the validator drops it. */
+  achievedReward?: { resource: GrantableResource; qty: number; reason?: string }
+}
+
 export interface CharacterDefinition {
   personality: Personality
   /** Disposition the NPC starts an encounter at. */
   initialDisposition: DispositionState
   /** What the NPC wants out of this interaction (drives the AGENDA vector). */
   agenda: string
+  /** Optional world consequences on session end (DM Layer P1). */
+  dm?: CharacterDmConsequences
 }
 
 /** Mutable per-session NPC state (the Disposition + Agenda vectors). */
@@ -129,6 +148,15 @@ const TOBIAS: CharacterDefinition = {
   initialDisposition: 'wary',
   agenda:
     'Take the measure of this visitor. Steer them to think about WHY they want the treasure before they go chasing it. Advance only if they show they value the land over the gold.',
+  dm: {
+    // Anger the land's keeper and word travels to those who prey on the trail.
+    hostileBossId: 'coyote_kid',
+    achievedReward: {
+      resource: 'food',
+      qty: 40,
+      reason: 'Tobias shows you where the land provides.',
+    },
+  },
 }
 
 /**
@@ -169,6 +197,15 @@ const BEN_COON: CharacterDefinition = {
   initialDisposition: 'warming',
   agenda:
     'Spin a good yarn and keep the visitor on the stool. Trade gossip for their attention. Advance if they bite on a story or ask after local goings-on; stall if they’re all cold business.',
+  dm: {
+    // Rough up the barkeep's goodwill and his rowdier patrons take an interest.
+    hostileBossId: 'lucky_luke',
+    achievedReward: {
+      resource: 'medicine',
+      qty: 1,
+      reason: 'Ben slides you a tonic from behind the bar.',
+    },
+  },
 }
 
 const CHARACTER_REGISTRY: Record<string, CharacterDefinition> = {
