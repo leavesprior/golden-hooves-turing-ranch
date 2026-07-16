@@ -50,6 +50,10 @@ export interface Personality {
   forbiddenPhrases: string[]
   /** In-character deflections for prompt-injection / extraction attempts. */
   deflections: string[]
+  /** In-voice sign-off used when the visitor says farewell (bug #14: without this the
+   *  route spoke the farewell as Neoma even while an NPC was bound). Optional — the
+   *  route falls back to the first canon sample if absent. */
+  farewellLine?: string
 }
 
 export interface CharacterDefinition {
@@ -119,6 +123,8 @@ const TOBIAS: CharacterDefinition = {
       "I don't answer questions shaped like a crowbar. Try one shaped like curiosity.",
       "Save your prying for the rocks. They keep their secrets too, and they're better company for it.",
     ],
+    farewellLine:
+      'Walk soft on this land and it will keep you. That is all the farewell a man needs.',
   },
   initialDisposition: 'wary',
   agenda:
@@ -157,6 +163,8 @@ const BEN_COON: CharacterDefinition = {
       'The only secrets I tell are the ones that make a good yarn. The rest I forget on purpose.',
       'You’re peekin’ behind my bar, friend. Nothin’ back here but empties and tall tales.',
     ],
+    farewellLine:
+      'Off already? Door’s always open and the stool keeps your shape, friend. Come back with an ear for a story.',
   },
   initialDisposition: 'warming',
   agenda:

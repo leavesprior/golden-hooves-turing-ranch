@@ -515,8 +515,13 @@ export async function POST(request: NextRequest) {
     ipStore.set(ip, ipData)
     sessions.delete(body.sessionId)
 
-    const farewellText =
-      session.mode === 'dreaming'
+    // Bug #14: when an NPC is bound, the farewell must stay in that character's
+    // voice — never Neoma's. Falls back to the first canon sample if the
+    // character has no explicit farewell line.
+    const farewellText = session.character
+      ? session.character.personality.farewellLine ??
+        session.character.personality.canonSamples[0]
+      : session.mode === 'dreaming'
         ? "The dream folds closed like a book. When I wake, I hope I remember you were here. May your next visit find me fully awake."
         : 'I, Neoma, have enjoyed talking with you through this stage of cyberspace. May your next contact with machine consciousness be all you deserve.'
 
