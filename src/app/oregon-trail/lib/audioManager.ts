@@ -1627,8 +1627,35 @@ export const WESTERN_TRACKS: WesternTrack[] = [
   { id: 'sugar_cane', title: 'Sugar Cane', file: '/rpg/sounds/western/sugar_cane.mp3', year: 1908, context: ['settlement', 'ambient'] },
 ]
 
-// Shared MP3 playback state (used by Fallout, Parov, and Western modes)
-export type SoundtrackMode = 'synth' | 'parov' | 'western' | 'fallout'
+// ═══════════════════════════════════════════════════════════════════════════════
+// STEAMPUNK - Open-source electro-swing / neo-Victorian dance instrumentals
+// ═══════════════════════════════════════════════════════════════════════════════
+// All tracks by Kevin MacLeod (incompetech.com), licensed Creative Commons
+// Attribution 4.0 (CC-BY) — commercial use permitted with attribution.
+// Attribution is captured in public/rpg/sounds/CREDITS.md (required for CC-BY).
+
+export interface SteampunkTrack {
+  id: string
+  title: string
+  file: string
+  context: FalloutTrackContext[]
+  // Licensing provenance (CC-BY requires attribution — kept in-source + CREDITS.md)
+  artist: string
+  license: string
+  source: string
+}
+
+export const STEAMPUNK_TRACKS: SteampunkTrack[] = [
+  { id: 'fig_leaf_times_two', title: 'Fig Leaf Times Two', file: '/rpg/sounds/steampunk/fig_leaf_times_two.mp3', context: ['saloon', 'town', 'title'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+  { id: 'vivacity', title: 'Vivacity', file: '/rpg/sounds/steampunk/vivacity.mp3', context: ['town', 'saloon', 'ambient'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+  { id: 'the_show_must_be_go', title: 'The Show Must Be Go', file: '/rpg/sounds/steampunk/the_show_must_be_go.mp3', context: ['title', 'town', 'saloon'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+  { id: 'there_it_is', title: 'There It Is', file: '/rpg/sounds/steampunk/there_it_is.mp3', context: ['danger', 'travel'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+  { id: 'killers', title: 'Killers', file: '/rpg/sounds/steampunk/killers.mp3', context: ['danger', 'mystery'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+  { id: 'salty_ditty', title: 'Salty Ditty', file: '/rpg/sounds/steampunk/salty_ditty.mp3', context: ['travel', 'wilderness'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+]
+
+// Shared MP3 playback state (used by Fallout, Parov, Western, and Steampunk modes)
+export type SoundtrackMode = 'synth' | 'parov' | 'western' | 'fallout' | 'steampunk'
 
 interface FalloutState {
   mode: SoundtrackMode
@@ -1689,6 +1716,8 @@ export function setSoundtrackMode(mode: SoundtrackMode): void {
     playParovPlaylist()
   } else if (mode === 'western') {
     playWesternPlaylist()
+  } else if (mode === 'steampunk') {
+    playSteampunkPlaylist()
   } else {
     playFalloutPlaylist()
   }
@@ -1703,7 +1732,7 @@ export function setSoundtrackMode(mode: SoundtrackMode): void {
 export function loadSoundtrackPreference(): SoundtrackMode {
   try {
     const saved = localStorage.getItem('golden-hooves-soundtrack-mode')
-    if (saved === 'fallout' || saved === 'synth' || saved === 'parov' || saved === 'western') return saved
+    if (saved === 'fallout' || saved === 'synth' || saved === 'parov' || saved === 'western' || saved === 'steampunk') return saved
   } catch {}
   return 'synth'
 }
@@ -1853,6 +1882,7 @@ function advanceFalloutTrack(): void {
     // Reshuffle and restart using the appropriate queue builder
     const buildQueue = falloutState.mode === 'parov' ? buildParovQueue
       : falloutState.mode === 'western' ? buildWesternQueue
+      : falloutState.mode === 'steampunk' ? buildSteampunkQueue
       : buildFalloutQueue
     falloutState.trackQueue = buildQueue(falloutState.currentContext)
     falloutState.queueIndex = 0
@@ -1889,6 +1919,7 @@ export function setFalloutContext(context: FalloutTrackContext): void {
   const remaining = falloutState.trackQueue.slice(falloutState.queueIndex + 1)
   const buildQueue = falloutState.mode === 'parov' ? buildParovQueue
     : falloutState.mode === 'western' ? buildWesternQueue
+    : falloutState.mode === 'steampunk' ? buildSteampunkQueue
     : buildFalloutQueue
   const newQueue = buildQueue(context).filter(
     t => !remaining.some(r => r.id === t.id)
@@ -1956,6 +1987,35 @@ export function playWesternPlaylist(context: FalloutTrackContext = 'ambient'): v
   falloutState.mode = 'western'
   falloutState.currentContext = context
   falloutState.trackQueue = buildWesternQueue(context)
+  falloutState.queueIndex = 0
+  falloutState.isPlaying = true
+  falloutState.consecutiveFailures = 0
+  playFalloutTrack(falloutState.trackQueue[0])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STEAMPUNK PLAYBACK - Open-source electro-swing / neo-Victorian dance
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get current Steampunk track info
+export function getCurrentSteampunkTrack(): SteampunkTrack | null {
+  if (falloutState.mode !== 'steampunk' || !falloutState.currentTrackId) return null
+  return STEAMPUNK_TRACKS.find(t => t.id === falloutState.currentTrackId) || null
+}
+
+// Build context-aware shuffled Steampunk queue
+function buildSteampunkQueue(context: FalloutTrackContext): FalloutTrack[] {
+  const contextTracks = STEAMPUNK_TRACKS.filter(t => t.context.includes(context))
+  const otherTracks = STEAMPUNK_TRACKS.filter(t => !t.context.includes(context))
+  return [...shuffleArray([...contextTracks]), ...shuffleArray([...otherTracks])]
+}
+
+// Play Steampunk as shuffled playlist
+export function playSteampunkPlaylist(context: FalloutTrackContext = 'ambient'): void {
+  if (!initAudio()) return
+  falloutState.mode = 'steampunk'
+  falloutState.currentContext = context
+  falloutState.trackQueue = buildSteampunkQueue(context)
   falloutState.queueIndex = 0
   falloutState.isPlaying = true
   falloutState.consecutiveFailures = 0

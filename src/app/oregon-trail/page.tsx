@@ -273,6 +273,8 @@ function OregonTrailGame() {
       AudioManager.playParovPlaylist()
     } else if (savedMode === 'western') {
       AudioManager.playWesternPlaylist()
+    } else if (savedMode === 'steampunk') {
+      AudioManager.playSteampunkPlaylist()
     } else {
       AudioManager.playPlaylist()
     }
@@ -295,6 +297,8 @@ function OregonTrailGame() {
       AudioManager.playParovPlaylist()
     } else if (savedMode === 'western') {
       AudioManager.playWesternPlaylist()
+    } else if (savedMode === 'steampunk') {
+      AudioManager.playSteampunkPlaylist()
     } else {
       AudioManager.playPlaylist()
     }
