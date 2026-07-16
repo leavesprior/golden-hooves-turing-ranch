@@ -5,7 +5,6 @@ import { useEscapeKey } from '../lib/useEscapeKey'
 import { useCharacter, CHARACTER_TRAITS, BACKGROUND_DESCRIPTIONS, type CharacterBackground, type StatName } from '../characterContext'
 import { useOregonTrail } from '../oregonTrailContext'
 import { getAbsurdItem, type AbsurdItem } from '../data/absurdItems'
-import { CoveredWagonSprite } from './Graphics64bit'
 import { DISCOVERABLE_TRAITS, getDiscoveredTraitDisplay, getTraitRarityColor, getTraitRarityLabel, getTraitCategoryIcon } from '../data/discoverableTraits'
 
 // =============================================================================
@@ -923,7 +922,10 @@ export function CharacterSheet({
                   : 'bg-amber-950 text-amber-500 hover:text-amber-300 hover:bg-amber-900/50'
               }`}
             >
-              {tab.id === 'wagon' ? <CoveredWagonSprite scale={0.3} /> : <span>{tab.emoji}</span>}
+              {/* CoveredWagonSprite never existed in Graphics64bit (pre-existing
+                  broken import, tsc TS2614) — the wagon tab uses its emoji like
+                  every other tab. */}
+              <span>{tab.emoji}</span>
               <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
