@@ -242,9 +242,13 @@ const MODE_LABELS: Record<string, { name: string; color: string }> = {
 
 function NowPlayingMP3({ mode }: { mode: string }) {
   const [trackTitle, setTrackTitle] = useState<string | null>(null)
+  const [fellBackToSynth, setFellBackToSynth] = useState(false)
 
   useEffect(() => {
     const update = () => {
+      // #20: if the audio manager fell back to synth (mode files missing),
+      // say so instead of showing "Loading..." forever.
+      setFellBackToSynth(AudioManager.getSoundtrackMode() === 'synth')
       let current: { title: string } | null = null
       if (mode === 'fallout') current = AudioManager.getCurrentFalloutTrack()
       else if (mode === 'parov') current = AudioManager.getCurrentParovTrack()
@@ -261,7 +265,11 @@ function NowPlayingMP3({ mode }: { mode: string }) {
   return (
     <div className="text-xs font-pixel">
       <p className={label.color}>
-        {trackTitle ? `Now Playing: ${trackTitle}` : `${label.name} - Loading...`}
+        {trackTitle
+          ? `Now Playing: ${trackTitle}`
+          : fellBackToSynth
+            ? 'Tracks unavailable - playing Chiptune'
+            : `${label.name} - Loading...`}
       </p>
       <p className="text-stone-500/50 mt-0.5">
         {label.name}

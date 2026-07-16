@@ -1639,6 +1639,7 @@ interface FalloutState {
   queueIndex: number
   isPlaying: boolean
   currentContext: FalloutTrackContext
+  consecutiveFailures: number  // #20: failed-load streak; triggers synth fallback
 }
 
 const falloutState: FalloutState = {
@@ -1650,7 +1651,12 @@ const falloutState: FalloutState = {
   queueIndex: 0,
   isPlaying: false,
   currentContext: 'ambient',
+  consecutiveFailures: 0,
 }
+
+// #20: after this many consecutive track load failures, assume the whole
+// mode's files are missing and fall back to the procedural synth soundtrack.
+const MAX_CONSECUTIVE_TRACK_FAILURES = 5
 
 // Get the active soundtrack mode
 export function getSoundtrackMode(): SoundtrackMode {
@@ -1724,6 +1730,7 @@ export function playFalloutPlaylist(context: FalloutTrackContext = 'ambient'): v
   falloutState.trackQueue = buildFalloutQueue(context)
   falloutState.queueIndex = 0
   falloutState.isPlaying = true
+  falloutState.consecutiveFailures = 0
 
   playFalloutTrack(falloutState.trackQueue[0])
 }
@@ -1767,8 +1774,42 @@ function playFalloutTrack(track: FalloutTrack): void {
     }, fadeInterval)
   }
 
+  // #20: a failed load never fires `ended`, so without this the playlist
+  // stalls forever on the first 404. Treat load failure like `ended`
+  // (advance), and after MAX_CONSECUTIVE_TRACK_FAILURES in a row assume the
+  // mode's files are absent and fall back to the synth soundtrack.
+  let failureHandled = false // `error` event and play() rejection can both fire
+  const handleLoadFailure = (reason: string) => {
+    if (failureHandled) return
+    failureHandled = true
+    // Superseded element: crossfade fade-out and stopFalloutMusic() both set
+    // src='' on the OLD element, which fires a spurious 'error' (Empty src
+    // attribute). Only the element that is still current may drive advancing.
+    if (falloutState.audioElement !== audio) return
+    falloutState.currentTrackId = null // don't claim "Now Playing" a track that failed
+    falloutState.audioElement = null
+    if (!falloutState.isPlaying) return
+    falloutState.consecutiveFailures++
+    console.warn(`AudioManager: track failed to load (${track.file}): ${reason} — advancing`)
+    if (falloutState.consecutiveFailures >= MAX_CONSECUTIVE_TRACK_FAILURES) {
+      const failedMode = falloutState.mode
+      console.warn(`AudioManager: ${falloutState.consecutiveFailures} consecutive failures in "${failedMode}" mode — files likely missing; falling back to synth soundtrack`)
+      stopFalloutMusic()
+      falloutState.mode = 'synth'
+      falloutState.consecutiveFailures = 0
+      playPlaylist()
+      return
+    }
+    advanceFalloutTrack()
+  }
+
+  audio.addEventListener('error', () => {
+    handleLoadFailure(audio.error?.message || 'media error')
+  })
+
   // Fade in new track
   audio.play().then(() => {
+    falloutState.consecutiveFailures = 0 // a track is actually playing
     const targetVol = 0.8
     const fadeSteps = 20
     const fadeInterval = crossfadeDuration / fadeSteps
@@ -1782,7 +1823,12 @@ function playFalloutTrack(track: FalloutTrack): void {
       }
     }, fadeInterval)
   }).catch(err => {
-    console.warn('AudioManager: Fallout track play failed (user interaction required?):', err.message)
+    if (err?.name === 'NotAllowedError') {
+      // Autoplay blocked — needs user interaction; do NOT burn through the queue
+      console.warn('AudioManager: track play blocked (user interaction required):', err.message)
+    } else {
+      handleLoadFailure(err?.message || 'play() rejected')
+    }
   })
 
   // When track ends, advance to next
@@ -1883,6 +1929,7 @@ export function playParovPlaylist(context: FalloutTrackContext = 'ambient'): voi
   falloutState.trackQueue = buildParovQueue(context)
   falloutState.queueIndex = 0
   falloutState.isPlaying = true
+  falloutState.consecutiveFailures = 0
   playFalloutTrack(falloutState.trackQueue[0])
 }
 
@@ -1911,5 +1958,6 @@ export function playWesternPlaylist(context: FalloutTrackContext = 'ambient'): v
   falloutState.trackQueue = buildWesternQueue(context)
   falloutState.queueIndex = 0
   falloutState.isPlaying = true
+  falloutState.consecutiveFailures = 0
   playFalloutTrack(falloutState.trackQueue[0])
 }
