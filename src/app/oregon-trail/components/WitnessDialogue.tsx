@@ -33,6 +33,11 @@ interface WitnessDialogueProps {
 
 type DialogueMode = 'checking' | 'dynamic' | 'scripted'
 
+// #29: client-side timeout for the DM-voiced chat requests. Local ollama is often slow;
+// a slow-but-200 live LLM must not leave the reply stuck on the "..." placeholder forever.
+// If a reply doesn't arrive within this window, we abort and fall back to a scripted line.
+const DM_CHAT_TIMEOUT_MS = 13000
+
 export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onClueObtained }: WitnessDialogueProps) {
   const { getStat, rollSkillCheck, addExperience, addInvestigationXP, getInvestigationLevel, getInvestigationBonus } = useCharacter()
   const { modifyReputation, getInteractionBonus } = useReputation()
@@ -223,12 +228,15 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
   const ensureDmSession = useCallback(async (): Promise<string | null> => {
     if (dmSessionIdRef.current) return dmSessionIdRef.current
     if (!npc) return null
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), DM_CHAT_TIMEOUT_MS)
     try {
       const playerId = getDmPlayerId()
       const res = await fetch('/api/neoma/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ characterId: npc.id, playerId }),
+        signal: controller.signal,
       })
       if (!res.ok) return null
       const data = await res.json()
@@ -238,7 +246,10 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
       }
       return null
     } catch {
+      // Includes AbortError on timeout — caller degrades to the scripted floor.
       return null
+    } finally {
+      clearTimeout(timeoutId)
     }
   }, [npc])
 
@@ -254,11 +265,16 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
     }
     setIsStreaming(true)
     addToHistory(npc.name, '', true)
+    // #29: bound the reply on a client-side timeout. A slow live LLM must degrade to the
+    // scripted floor rather than leaving the user stuck on the "..." placeholder forever.
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), DM_CHAT_TIMEOUT_MS)
     try {
       const res = await fetch('/api/neoma/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, message }),
+        signal: controller.signal,
       })
       const data = res.ok ? await res.json() : null
       const text = data?.response
@@ -273,8 +289,10 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
         addExperience(XP_REWARDS.CLUE_OBTAINED)
       }
     } catch {
+      // Includes AbortError on timeout — fall back to a scripted line and clear the "...".
       updateLastHistory(npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...')
     } finally {
+      clearTimeout(timeoutId)
       setIsStreaming(false)
     }
   }, [npc, ensureDmSession, addToHistory, updateLastHistory, clue, clueObtained, addClue, onClueObtained, addExperience])
