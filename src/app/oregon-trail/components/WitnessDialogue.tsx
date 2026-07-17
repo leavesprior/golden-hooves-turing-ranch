@@ -145,7 +145,13 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
   useEffect(() => {
     if (dialogueMode === 'scripted' && currentNode && !initialNodeProcessed.current) {
       initialNodeProcessed.current = true
-      processNodeEffects(currentNode)
+      // #30: a real GoldCountryNPC opens with its authored greeting + real name,
+      // not the coerced generic witness label/line. Undefined-safe for NPCs (and
+      // all generic witnesses) without an authored greeting.
+      processNodeEffects(
+        currentNode,
+        npc?.greeting ? { speaker: npc.name, text: npc.greeting } : undefined
+      )
     }
   }, [dialogueMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -400,7 +406,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
   ]
 
   // Process node effects (scripted mode)
-  const processNodeEffects = useCallback((node: DialogueNode) => {
+  const processNodeEffects = useCallback((node: DialogueNode, greetingOverride?: { speaker: string; text: string }) => {
     if (node.effect) {
       if (node.effect.grantClue && clue && !clueObtained) {
         const clueText = node.text.replace('[CLUE_PLACEHOLDER]', clue.text)
@@ -430,7 +436,13 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
           onClueObtained?.(clue)
         }
       }
-      addToHistory(node.speaker === 'witness' ? getWitnessLabel(witnessType) : 'NARRATOR', text)
+      // #30: for a real NPC's opening witness line, prefer its authored greeting +
+      // real name over the coerced generic label/text. Generic witnesses unchanged.
+      if (node.speaker === 'witness' && greetingOverride) {
+        addToHistory(greetingOverride.speaker, greetingOverride.text)
+      } else {
+        addToHistory(node.speaker === 'witness' ? getWitnessLabel(witnessType) : 'NARRATOR', text)
+      }
     }
 
     if (node.narratorComment) {
