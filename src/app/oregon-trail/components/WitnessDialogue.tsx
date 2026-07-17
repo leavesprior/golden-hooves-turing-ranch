@@ -133,9 +133,13 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
     checkMode()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Process initial scripted node once mode is set
+  // Process initial scripted node once mode is set. Ref guard, not
+  // dialogueHistory.length: both StrictMode effect invocations see length 0
+  // before React applies the state, which duplicated the greeting.
+  const initialNodeProcessed = useRef(false)
   useEffect(() => {
-    if (dialogueMode === 'scripted' && currentNode && dialogueHistory.length === 0) {
+    if (dialogueMode === 'scripted' && currentNode && !initialNodeProcessed.current) {
+      initialNodeProcessed.current = true
       processNodeEffects(currentNode)
     }
   }, [dialogueMode]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -816,11 +820,11 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
                           {karmaCost}🌮
                         </span>
                       )}
-                      {response.karmaGood && response.karmaGood > 0 && (
+                      {(response.karmaGood ?? 0) > 0 && (
                         <span className="text-amber-400 text-xs">+{response.karmaGood}🍪</span>
                       )}
-                      {response.karmaGood && response.karmaGood < 0 && (
-                        <span className="text-red-400 text-xs">+{Math.abs(response.karmaGood)}🪨</span>
+                      {(response.karmaGood ?? 0) < 0 && (
+                        <span className="text-red-400 text-xs">+{Math.abs(response.karmaGood ?? 0)}🪨</span>
                       )}
                     </div>
                   </div>
