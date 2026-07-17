@@ -25,6 +25,7 @@
 // ===================== TYPES =====================
 
 import type { GrantableResource } from '@/lib/dmDirectives'
+import { getNPCById, type GoldCountryNPC } from '@/app/oregon-trail/data/goldCountryNPCs'
 
 /** Disposition scale, hostile → ally. Index order is the state machine. */
 export type DispositionState = 'hostile' | 'wary' | 'neutral' | 'warming' | 'ally'
@@ -213,10 +214,53 @@ const CHARACTER_REGISTRY: Record<string, CharacterDefinition> = {
   ben_coon: BEN_COON,
 }
 
-/** Resolve a characterId to its definition, or null for the default (non-NPC) path. */
+/**
+ * ADAPTER — synthesize a three-vector CharacterDefinition from a GoldCountryNPC
+ * (Town Investigations 1849, insertion 3). One adapter makes EVERY authored NPC
+ * (Volcano's Sonoran miner, the Miwok woman, the saloon keeper, …) a DM-voiced
+ * character without a hand-written registry entry:
+ *   ollamaPrompt  → personality.basePrompt   (carries the accuracy/dignity discipline)
+ *   dialogueLines → personality.canonSamples  (offline floor + voice anchor)
+ *   greeting      → first canon sample         (so the greeting turn degrades in-voice)
+ *   name/title    → personality identity + voiceRegister
+ * The scripted dialogueLines remain the offline floor; the chat route degrades to a
+ * canon sample when the LLM is unreachable, so this never hard-depends on Ollama.
+ */
+function adaptNpcToCharacter(npc: GoldCountryNPC): CharacterDefinition {
+  return {
+    personality: {
+      id: npc.id,
+      name: npc.name,
+      role: npc.title,
+      voiceRegister: npc.personality,
+      basePrompt: npc.ollamaPrompt,
+      // Greeting first so the LLM-less greeting fallback speaks it; then the scripted lines.
+      canonSamples: [npc.greeting, ...npc.dialogueLines].filter(Boolean),
+      // Minimal meta-leak floor; period NPCs have no cowboy-stereotype set to scrub.
+      forbiddenPhrases: ['as an ai', 'language model', "i'm just a", 'openai', 'chatbot'],
+      deflections: [
+        "That's a question with no answer I can give you, stranger.",
+        'You are prying at something that is not mine to open. Ask me plainly instead.',
+        'I keep to what I know and what I have seen. The rest is not for me to say.',
+      ],
+      farewellLine: npc.dialogueLines[npc.dialogueLines.length - 1] ?? npc.greeting,
+    },
+    initialDisposition: 'neutral',
+    agenda: `Speak as ${npc.name}, ${npc.title}, in the California Gold Country of 1849. Share what a person in your place and time truly knew; frame uncertain history as talk or legend; never invent facts and use nothing out of its time. Advance if the visitor is respectful and curious; stall if they are hostile or careless.`,
+  }
+}
+
+/**
+ * Resolve a characterId to its definition, or null for the default (non-NPC) path.
+ * Falls through the hand-authored registry to the GoldCountryNPC adapter, so any
+ * data-defined townsperson becomes a three-vector character on the fly.
+ */
 export function getCharacter(characterId: string | undefined | null): CharacterDefinition | null {
   if (!characterId) return null
-  return CHARACTER_REGISTRY[characterId.toLowerCase()] ?? null
+  const registered = CHARACTER_REGISTRY[characterId.toLowerCase()]
+  if (registered) return registered
+  const npc = getNPCById(characterId)
+  return npc ? adaptNpcToCharacter(npc) : null
 }
 
 // ===================== DISPOSITION STATE MACHINE =====================

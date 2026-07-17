@@ -14,10 +14,18 @@ import { SkillCheck } from './SkillCheck'
 import { ConversationStore, generateNPCId } from '../lib/conversationStore'
 import { detectAdamsKeyword } from '../data/adamsEasterEggs'
 import { getMoodEntry, trustToMoodLevel, MOOD_SCALE, type MoodLevel } from '../data/npcMoodScale'
+import type { GoldCountryNPC } from '../data/goldCountryNPCs'
+import { getDmPlayerId } from '../hooks/useDmDirectives'
 
 interface WitnessDialogueProps {
   witnessType: WitnessType
   location: string
+  /**
+   * Town Investigations 1849 (insertion 3): the real period NPC being interviewed, when
+   * there is one. Its dialogueLines are the offline floor; freeform dialogue routes to
+   * the DM-voiced /api/neoma/chat character session (characterId = npc.id).
+   */
+  npc?: GoldCountryNPC
   clue?: CollectedClue  // The clue this witness has
   onClose: () => void
   onClueObtained?: (clue: CollectedClue) => void
@@ -25,7 +33,7 @@ interface WitnessDialogueProps {
 
 type DialogueMode = 'checking' | 'dynamic' | 'scripted'
 
-export function WitnessDialogue({ witnessType, location, clue, onClose, onClueObtained }: WitnessDialogueProps) {
+export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onClueObtained }: WitnessDialogueProps) {
   const { getStat, rollSkillCheck, addExperience, addInvestigationXP, getInvestigationLevel, getInvestigationBonus } = useCharacter()
   const { modifyReputation, getInteractionBonus } = useReputation()
   const { comment, recordPlayerAction, setMood, state: narratorState } = useNarrator()
@@ -77,6 +85,8 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
 
   const historyEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // DM-voiced chat session id (/api/neoma/chat) for a real GoldCountryNPC, lazily minted.
+  const dmSessionIdRef = useRef<string | null>(null)
 
   const witness = WITNESS_PERSONALITIES[witnessType]
   const currentNode = dialogueTree.nodes[currentNodeId]
@@ -100,11 +110,13 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
       const status = await checkOllamaHealth()
       setOllamaAvailable(status.available)
 
-      // Check if freeform is already unlocked by rapport
-      const rapportUnlocked = trustLevel >= 7 || (visitCount >= 3 && trustLevel >= 5)
+      // Check if freeform is already unlocked by rapport. Real period NPCs (DM-voiced)
+      // always offer "Speak freely" — routing is server-side (/api/neoma/chat) and
+      // degrades to scripted dialogueLines, so it doesn't depend on local Ollama.
+      const rapportUnlocked = !!npc || trustLevel >= 7 || (visitCount >= 3 && trustLevel >= 5)
       setFreeformUnlocked(rapportUnlocked)
 
-      if (status.available && rapportUnlocked) {
+      if (!npc && status.available && rapportUnlocked) {
         // Pre-initialize conversation for when player unlocks freeform
         startConversation(
           witnessType,
@@ -148,17 +160,18 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
 
   // Switch to dynamic/freeform mode
   const enterFreeformMode = useCallback(() => {
-    if (!ollamaAvailable) return
+    // Real NPCs route to the server-side DM chat, so don't require local Ollama here.
+    if (!ollamaAvailable && !npc) return
     setDialogueMode('dynamic')
-    if (!npcState.activeConversation) {
+    if (!npc && !npcState.activeConversation) {
       startConversation(
         witnessType,
         location,
         clue ? { trait: clue.trait || 'unknown', value: clue.value || '' } : undefined
       )
     }
-    addToHistory('NARRATOR', `${npcName} seems willing to talk openly...`)
-  }, [ollamaAvailable, npcState.activeConversation, witnessType, location, clue, startConversation, npcName]) // eslint-disable-line react-hooks/exhaustive-deps
+    addToHistory('NARRATOR', `${npc ? npc.name : npcName} seems willing to talk openly...`)
+  }, [ollamaAvailable, npc, npcState.activeConversation, witnessType, location, clue, startConversation, npcName]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Add dialogue line to history
   const addToHistory = useCallback((speaker: string, text: string, isStreaming?: boolean) => {
@@ -200,12 +213,82 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
     return greetings[witnessType] || "Yes? What do you want?"
   }
 
+  // --- DM-VOICED DIALOGUE (real GoldCountryNPC → /api/neoma/chat character session) ---
+  // Lazily open a character-bound chat session (three-vector engine). Returns the
+  // sessionId, or null if the chat route/LLM is unreachable so the caller can degrade.
+  const ensureDmSession = useCallback(async (): Promise<string | null> => {
+    if (dmSessionIdRef.current) return dmSessionIdRef.current
+    if (!npc) return null
+    try {
+      const playerId = getDmPlayerId()
+      const res = await fetch('/api/neoma/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ characterId: npc.id, playerId }),
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      if (typeof data?.sessionId === 'string') {
+        dmSessionIdRef.current = data.sessionId
+        return data.sessionId
+      }
+      return null
+    } catch {
+      return null
+    }
+  }, [npc])
+
+  const sendToDmChat = useCallback(async (message: string) => {
+    if (!npc) return
+    addToHistory('YOU', message)
+    const sessionId = await ensureDmSession()
+    if (!sessionId) {
+      // DM chat unreachable — degrade to a scripted dialogueLine (the offline floor).
+      const line = npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...'
+      addToHistory(npc.name, line)
+      return
+    }
+    setIsStreaming(true)
+    addToHistory(npc.name, '', true)
+    try {
+      const res = await fetch('/api/neoma/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message }),
+      })
+      const data = res.ok ? await res.json() : null
+      const text = data?.response
+        || npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)]
+        || '...'
+      updateLastHistory(text)
+      // Grant the grounded clue on the first real exchange (mirrors the offline path).
+      if (clue && !clueObtained) {
+        addClue(clue)
+        setClueObtained(true)
+        onClueObtained?.(clue)
+        addExperience(XP_REWARDS.CLUE_OBTAINED)
+      }
+    } catch {
+      updateLastHistory(npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...')
+    } finally {
+      setIsStreaming(false)
+    }
+  }, [npc, ensureDmSession, addToHistory, updateLastHistory, clue, clueObtained, addClue, onClueObtained, addExperience])
+
   // Handle dynamic dialogue input
   const handleDynamicInput = useCallback(async () => {
     if (!customInput.trim() || isStreaming) return
 
     const message = customInput.trim()
     setCustomInput('')
+
+    // Real period NPC → DM-voiced character session instead of the local-Ollama path.
+    if (npc) {
+      await sendToDmChat(message)
+      recordPlayerAction('dm_dialogue')
+      return
+    }
+
     addToHistory('YOU', message)
     setIsStreaming(true)
     setStreamingText('')
@@ -284,7 +367,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
     setIsStreaming(false)
     setStreamingText('')
     recordPlayerAction('dynamic_dialogue')
-  }, [customInput, isStreaming, npcName, sendMessage, sendMessageStream, getStat, narratorState.mood, clue, clueObtained, addClue, onClueObtained, comment, addToHistory, updateLastHistory, recordPlayerAction])
+  }, [customInput, isStreaming, npc, sendToDmChat, npcName, sendMessage, sendMessageStream, getStat, narratorState.mood, clue, clueObtained, addClue, onClueObtained, comment, addToHistory, updateLastHistory, recordPlayerAction])
 
   // Quick question buttons for dynamic mode
   const quickQuestions = [
@@ -484,10 +567,10 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
         {/* Header */}
         <div className="bg-gray-800 p-4 border-b border-amber-700 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">{getWitnessEmoji(witnessType)}</span>
+            <span className="text-2xl">{npc ? npc.portrait : getWitnessEmoji(witnessType)}</span>
             <div>
               <h2 className="text-amber-300">
-                {dialogueMode === 'dynamic' ? npcName : getWitnessLabel(witnessType)}
+                {npc ? npc.name : (dialogueMode === 'dynamic' ? npcName : getWitnessLabel(witnessType))}
               </h2>
               <p className="text-gray-500 text-xs">
                 {location}
@@ -744,8 +827,8 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
                 </button>
               )
             })}
-            {/* Speak freely option — unlocked via rapport or easter egg */}
-            {freeformUnlocked && ollamaAvailable && (
+            {/* Speak freely option — unlocked via rapport/easter egg, or always for a real DM-voiced NPC */}
+            {freeformUnlocked && (ollamaAvailable || !!npc) && (
               <button
                 onClick={enterFreeformMode}
                 className="w-full p-4 md:p-3 text-left rounded transition-colors active:scale-[0.99] bg-indigo-900/50 text-indigo-200 hover:bg-indigo-800/50 active:bg-indigo-700/50 border border-indigo-600/30"

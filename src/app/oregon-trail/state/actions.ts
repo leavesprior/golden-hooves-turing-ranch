@@ -57,7 +57,7 @@ export type GameAction =
   | { type: 'OPEN_INVESTIGATION' }
   | { type: 'CLOSE_INVESTIGATION' }
   | { type: 'INVESTIGATE_LOCATION'; locationId: string }
-  | { type: 'OPEN_WITNESS_DIALOGUE'; witnessType: string }
+  | { type: 'OPEN_WITNESS_DIALOGUE'; witnessType: string; npcId?: string | null }
   | { type: 'CLOSE_WITNESS_DIALOGUE' }
   | { type: 'OPEN_DOSSIER' }
   | { type: 'CLOSE_DOSSIER' }

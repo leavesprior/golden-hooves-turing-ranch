@@ -7,6 +7,7 @@ import { useNarrator } from '../narratorContext'
 import { useReputation } from '../reputationContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { NarratorOverlay, ReliabilityIndicator } from '../components/NarratorOverlay'
+import { getNPCsAtLocation } from '../data/goldCountryNPCs'
 
 export function InvestigationScreen() {
   const { state, closeInvestigation, openWitnessDialogue, openDossier, openTelegraph, openJournal, investigateLocation } = useOregonTrail()
@@ -27,6 +28,15 @@ export function InvestigationScreen() {
   ]
 
   const hoursRemaining = state.investigation.maxInvestigationHours - state.investigation.hoursInvestigated
+
+  // Town Investigations 1849 (insertion 1): resolve the current town's REAL period
+  // townsfolk from goldCountryNPCs. Location id is derived from the landmark name the
+  // same way TownScreen does. When a town has authored NPCs, we render one interview per
+  // real person; otherwise we fall back to the generic saloon/street witness roster so
+  // towns without data (and old saves) still work with no crash.
+  const locationId = (state.currentLandmark || '').toLowerCase().replace(/[^a-z]/g, '_')
+  const townNPCs = getNPCsAtLocation(locationId)
+  const hasTownNPCs = townNPCs.length > 0
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-amber-950 to-gray-900 p-4">
@@ -69,7 +79,52 @@ export function InvestigationScreen() {
           </button>
         </div>
 
-        {/* Investigation Locations */}
+        {/* Per-town townsfolk roster — REAL period NPCs when the town has authored data */}
+        {hasTownNPCs && (
+          <div className="mb-6">
+            <p className="text-amber-300 text-xs mb-3 font-pixel">Townsfolk to question</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {townNPCs.map(npc => {
+                const interviewed = state.investigation.witnessesInterviewed.includes(npc.id)
+                return (
+                  <button
+                    key={npc.id}
+                    onClick={() => {
+                      if (!interviewed) {
+                        // Track by npc.id (unique per person) and carry the id for the
+                        // grounded-clue + DM-voiced-dialogue paths.
+                        openWitnessDialogue(npc.id, npc.id)
+                        recordPlayerAction(`interview_${npc.id}`)
+                      }
+                    }}
+                    disabled={interviewed}
+                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                      interviewed
+                        ? 'bg-green-900/40 border-green-700 opacity-70'
+                        : 'bg-gray-800/70 border-amber-700 hover:border-amber-400'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl shrink-0">{npc.portrait}</span>
+                      <div className="min-w-0">
+                        <p className="text-amber-200 text-sm">
+                          {npc.name}
+                          {interviewed && ' ✓'}
+                        </p>
+                        <p className="text-amber-500 text-xs">{npc.title}</p>
+                        <p className="text-gray-400 text-xs mt-1 line-clamp-2 italic">&ldquo;{npc.greeting}&rdquo;</p>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Investigation Locations — generic fallback for towns without authored NPCs */}
+        {!hasTownNPCs && (
+        <>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
           {investigationLocations.map(loc => {
             // Count how many witnesses at this location have been interviewed
@@ -138,6 +193,8 @@ export function InvestigationScreen() {
                 })}
             </div>
           </div>
+        )}
+        </>
         )}
 
         {/* Leave Investigation */}

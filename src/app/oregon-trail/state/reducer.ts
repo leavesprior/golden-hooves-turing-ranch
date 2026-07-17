@@ -325,7 +325,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     case 'OPEN_INVESTIGATION': return applyOpenInvestigation(state)
     case 'CLOSE_INVESTIGATION': return applyCloseInvestigation(state)
     case 'INVESTIGATE_LOCATION': return applyInvestigateLocation(state, action.locationId)
-    case 'OPEN_WITNESS_DIALOGUE': return applyOpenWitnessDialogue(state, action.witnessType)
+    case 'OPEN_WITNESS_DIALOGUE': return applyOpenWitnessDialogue(state, action.witnessType, action.npcId)
     case 'CLOSE_WITNESS_DIALOGUE': return applyCloseWitnessDialogue(state)
     case 'OPEN_DOSSIER': return applyOpenDossier(state)
     case 'CLOSE_DOSSIER': return applyCloseDossier(state)

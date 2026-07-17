@@ -37,12 +37,12 @@ export function applyInvestigateLocation(prev: OregonTrailState, locationId: str
   }
 }
 
-export function applyOpenWitnessDialogue(prev: OregonTrailState, witnessType: string): OregonTrailState {
+export function applyOpenWitnessDialogue(prev: OregonTrailState, witnessType: string, npcId?: string | null): OregonTrailState {
   return {
     ...prev,
     phase: 'witness',
     previousPhase: prev.phase,
-    investigation: { ...prev.investigation, activeWitness: witnessType },
+    investigation: { ...prev.investigation, activeWitness: witnessType, activeNpcId: npcId ?? null },
   }
 }
 
@@ -54,6 +54,7 @@ export function applyCloseWitnessDialogue(prev: OregonTrailState): OregonTrailSt
     investigation: {
       ...prev.investigation,
       activeWitness: null,
+      activeNpcId: null,
       witnessesInterviewed: prev.investigation.activeWitness
         ? [...prev.investigation.witnessesInterviewed, prev.investigation.activeWitness]
         : prev.investigation.witnessesInterviewed,
