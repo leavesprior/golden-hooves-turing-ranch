@@ -195,7 +195,7 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     atmosphere: 'ghostly',
     tags: ['town', 'history', 'gold_rush', 'haunted'],
     shopType: 'saloon',
-    adjacentTo: ['bobr_cabin', 'jackson', 'murphys'],
+    adjacentTo: ['bobr_cabin', 'jackson', 'murphys', 'volcano'],
     travelDistance: 3,
     specialFeature: 'haunted_inn',
   },
@@ -236,7 +236,7 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     atmosphere: 'mysterious',
     tags: ['town', 'history', 'tunnels', 'county_seat'],
     shopType: 'general',
-    adjacentTo: ['kennedy_mine', 'mokelumne_hill'],
+    adjacentTo: ['kennedy_mine', 'mokelumne_hill', 'volcano'],
     travelDistance: 4,
     specialFeature: 'warrant_system',
   },
@@ -260,6 +260,31 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     adjacentTo: ['bobr_cabin', 'angels_camp'],
     travelDistance: 2,
     specialFeature: 'gold_panning',
+  },
+  {
+    // Town-investigation exemplar. History verified 2026-07-16 (Western Mining History;
+    // Amador County Chamber; en.wikipedia Volcano, California). 1849 = the EARLY placer
+    // rush (tent-and-canvas), NOT the 1850s stone town: the limestone stores (1855),
+    // Masonic Cave/Lodge 56 (1854) and Old Abe cannon (Civil War) are all LATER and are
+    // NOT presented here as present-1849 fact. Cast + grounded clues in goldCountryNPCs.ts.
+    id: 'volcano',
+    name: 'Volcano',
+    shortName: 'Volcano',
+    description: 'One of the richest placer camps in the southern mines, born in 1849 as \'Soldiers Gulch\' after men of Colonel Stevenson\'s New York regiment struck color here the year before. The camp sits in a crater-like limestone basin, and the morning mist that rises from it gave the town its name — there is no volcano. In these early days it is a raw sprawl of tents and canvas stores, its gravels famously rich (a hundred dollars a day was common talk) and growing richer the deeper they were dug, the gold caught in potholes worn into the limestone. The southern mines are astonishingly mixed — Sonoran and Chilean placer men, Anglo-Americans, and the Northern Sierra Miwok on whose homeland it all unfolds.',
+    region: 'amador',
+    coordinates: { lat: 38.4441, lng: -120.6299 },
+    driveTime: '35 min from BOBR',
+    icon: 'saloon',
+    externalLink: 'https://westernmininghistory.com/towns/california/volcano/',
+    linkPrompt: 'Talk your way into the 1849 camp',
+    linkHint: 'How did a town with no volcano get its name?',
+    fact: 'Volcano began in 1849 as \'Soldiers Gulch,\' named after Colonel Stevenson\'s New York regiment; it was renamed for the crater-like basin it sits in and the morning mist that seems to rise like a volcano. Its placers were among the richest in the Mother Lode.',
+    atmosphere: 'historic',
+    tags: ['town', 'gold_rush', 'placer', '1849', 'history'],
+    shopType: 'saloon',
+    adjacentTo: ['jackson', 'mokelumne_hill'],
+    travelDistance: 3,
+    specialFeature: 'town_investigation_1849',
   }
 ]
 
