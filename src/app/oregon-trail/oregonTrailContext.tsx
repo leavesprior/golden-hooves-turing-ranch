@@ -73,7 +73,7 @@ interface OregonTrailContextValue {
   openInvestigation: () => void
   closeInvestigation: () => void
   investigateLocation: (locationId: string) => void
-  openWitnessDialogue: (witnessType: string) => void
+  openWitnessDialogue: (witnessType: string, npcId?: string | null) => void
   closeWitnessDialogue: () => void
   openDossier: () => void
   closeDossier: () => void
@@ -264,7 +264,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   const openInvestigation = useCallback(() => dispatch({ type: 'OPEN_INVESTIGATION' }), [])
   const closeInvestigation = useCallback(() => dispatch({ type: 'CLOSE_INVESTIGATION' }), [])
   const investigateLocation = useCallback((locationId: string) => dispatch({ type: 'INVESTIGATE_LOCATION', locationId }), [])
-  const openWitnessDialogue = useCallback((witnessType: string) => dispatch({ type: 'OPEN_WITNESS_DIALOGUE', witnessType }), [])
+  const openWitnessDialogue = useCallback((witnessType: string, npcId?: string | null) => dispatch({ type: 'OPEN_WITNESS_DIALOGUE', witnessType, npcId }), [])
   const closeWitnessDialogue = useCallback(() => dispatch({ type: 'CLOSE_WITNESS_DIALOGUE' }), [])
   const openDossier = useCallback(() => dispatch({ type: 'OPEN_DOSSIER' }), [])
   const closeDossier = useCallback(() => dispatch({ type: 'CLOSE_DOSSIER' }), [])

@@ -532,6 +532,7 @@ export const DEFAULT_INVESTIGATION: InvestigationState = {
   witnessesInterviewed: [],
   locationsSearched: [],
   activeWitness: null,
+  activeNpcId: null,
 }
 
 // Default initial state

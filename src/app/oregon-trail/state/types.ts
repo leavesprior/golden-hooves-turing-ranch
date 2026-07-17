@@ -98,7 +98,8 @@ export interface InvestigationState {
   maxInvestigationHours: number        // Before trail goes cold
   witnessesInterviewed: string[]       // IDs of witnesses talked to
   locationsSearched: string[]          // Places searched at current landmark
-  activeWitness: string | null         // Currently talking to
+  activeWitness: string | null         // Currently talking to (witnessType string)
+  activeNpcId?: string | null          // Real GoldCountryNPC id, when the witness is one (undefined-safe for old saves)
 }
 
 export interface OregonTrailState {

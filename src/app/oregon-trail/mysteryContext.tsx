@@ -27,8 +27,10 @@ import {
   getCluesByCaseId,
   getCluesByLocationId,
   getTrailCluesByLocationId,
+  getClueById,
   checkAnswer as checkEducationalAnswer
 } from './data/educationalClues'
+import { getNPCById } from './data/goldCountryNPCs'
 import {
   CASES,
   type Case,
@@ -174,7 +176,7 @@ interface MysteryContextValue {
   processClue: (clue: CollectedClue) => void
   getMatchingOutlaws: () => Outlaw[]
   getNarrowedDown: () => { possible: Outlaw[]; eliminated: Outlaw[] }
-  generateClueForWitness: (witnessType: WitnessType, location: string) => CollectedClue | undefined
+  generateClueForWitness: (witnessType: WitnessType, location: string, npcId?: string | null) => CollectedClue | undefined
 
   // Warrant system
   issueWarrant: (traits: Partial<OutlawTraits>) => Warrant
@@ -482,7 +484,29 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
 
   // Generate a clue for a witness at a location (used by WitnessDialogue)
   // BOUNTY HUNTER MODE: If no active outlaw, pick a random one from the gang
-  const generateClueForWitness = useCallback((witnessType: WitnessType, location: string): CollectedClue | undefined => {
+  const generateClueForWitness = useCallback((witnessType: WitnessType, location: string, npcId?: string | null): CollectedClue | undefined => {
+    // Town Investigations 1849 (insertion 2): if this witness is a real GoldCountryNPC
+    // with a grounded investigationClue, PREFER it over the random outlaw-trait clue.
+    // An educationalClueId links to a verified fact in EDUCATIONAL_CLUES so the clue
+    // teaches real history. Falls through to the random generator when absent.
+    if (npcId) {
+      const npc = getNPCById(npcId)
+      const ic = npc?.investigationClue
+      if (ic) {
+        const eduClue = ic.educationalClueId ? getClueById(ic.educationalClueId) : undefined
+        return {
+          id: `clue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          // Prefer the verified educational fact when linked; else the NPC's clue line.
+          text: eduClue ? eduClue.fact : ic.text,
+          witnessType,
+          location,
+          reliability: 0.95, // grounded, cited history — high reliability
+          isTrue: ic.isTrue,
+          timestamp: Date.now(),
+        }
+      }
+    }
+
     let outlaw: Outlaw | undefined
 
     if (state.currentOutlaw) {
