@@ -11,6 +11,7 @@
 
 import { useRef, useState } from 'react'
 import { PixelButton } from '@/components/pixel'
+import { babelfishTransform } from '@/app/oregon-trail/lib/babelfishSpell'
 
 type Disposition = 'hostile' | 'wary' | 'neutral' | 'warming' | 'ally'
 
@@ -45,11 +46,17 @@ export default function NpcChat({
   name,
   portrait,
   intro,
+  communicationSpell = false,
+  karma = 0,
 }: {
   characterId: string
   name: string
   portrait?: string
   intro?: string
+  // dp-babelfish-spell: when true, ALL NPC lines render as Douglas-Adams gestures
+  // (emoji if karma>=100, ASCII otherwise). Off by default → normal dialogue.
+  communicationSpell?: boolean
+  karma?: number
 }) {
   const [open, setOpen] = useState(false)
   const [started, setStarted] = useState(false)
@@ -171,7 +178,9 @@ export default function NpcChat({
                   }`}
                 >
                   {l.role === 'npc' && <span className="text-[var(--pixel-forest-light)]">{name}: </span>}
-                  {l.text}
+                  {l.role === 'npc' && communicationSpell
+                    ? babelfishTransform(l.text, karma, true)
+                    : l.text}
                 </p>
               </div>
             ))}
