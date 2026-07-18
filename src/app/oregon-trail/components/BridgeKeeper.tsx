@@ -25,6 +25,18 @@ interface BridgeKeeperProps {
   onSuccess: () => void
   onFailure: () => void
   onCancel: () => void
+  /**
+   * dp-bridge-variant: optional question-set override. When provided, the Keeper
+   * poses THESE questions in order (e.g. BRIDGE_QUESTIONS_OTHER_SERIES) instead of
+   * the randomized default trio. A wrong answer on any question with a real
+   * wrongAnswerEffect routes to the failure path (the chasm). Default behavior is
+   * unchanged when omitted.
+   */
+  questions?: BridgeQuestion[]
+  /** Optional intro lines override (themed for the alternate entrance). */
+  introLines?: string[]
+  /** Optional approach-button label. */
+  approachLabel?: string
 }
 
 type Phase = 'intro' | 'questioning' | 'success' | 'failure' | 'reversal'
@@ -34,17 +46,23 @@ export function BridgeKeeper({
   onSuccess,
   onFailure,
   onCancel,
+  questions: questionsOverride,
+  introLines,
+  approachLabel = 'Approach the Bridge',
 }: BridgeKeeperProps) {
+  const introPool = introLines && introLines.length > 0 ? introLines : BRIDGE_KEEPER_INTRO
   const [phase, setPhase] = useState<Phase>('intro')
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answer, setAnswer] = useState('')
   const [dialogue, setDialogue] = useState(
-    BRIDGE_KEEPER_INTRO[Math.floor(Math.random() * BRIDGE_KEEPER_INTRO.length)]
+    introPool[Math.floor(Math.random() * introPool.length)]
   )
   const [questionsAsked, setQuestionsAsked] = useState<BridgeQuestion[]>([])
 
-  // Select 3 random questions (always include name and quest, then one random)
+  // Select 3 random questions (always include name and quest, then one random).
+  // When an override set is supplied (dp-bridge-variant), pose it verbatim.
   const getQuestions = useCallback(() => {
+    if (questionsOverride && questionsOverride.length > 0) return questionsOverride
     const mandatory = BRIDGE_QUESTIONS.slice(0, 3) // name, quest, color
     const tricky = BRIDGE_QUESTIONS.slice(3) // capital, swallow
     const randomTricky = tricky[Math.floor(Math.random() * tricky.length)]
@@ -54,7 +72,7 @@ export function BridgeKeeper({
       return [mandatory[0], mandatory[1], randomTricky]
     }
     return mandatory
-  }, [])
+  }, [questionsOverride])
 
   const [questions] = useState(() => getQuestions())
 
@@ -164,7 +182,7 @@ export function BridgeKeeper({
                 onClick={handleStartQuestions}
                 className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded border-2 border-slate-500 transition-colors"
               >
-                Approach the Bridge
+                {approachLabel}
               </button>
               <button
                 onClick={onCancel}
