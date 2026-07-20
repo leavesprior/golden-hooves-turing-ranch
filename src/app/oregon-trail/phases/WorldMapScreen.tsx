@@ -84,6 +84,26 @@ export function WorldMapScreen() {
     }
   }, [selectedLocation, travelTo, comment])
 
+  // Marker-click travel inside <WorldMap> animates the player then fires
+  // onTravelComplete — but the screen never passed that callback, so the
+  // animation finished and NOTHING committed: the location was never marked
+  // visited via the chapter machine, so chapter advance (which gates on
+  // visitedLocations, e.g. sacramento_valley) could never trigger from the map.
+  // Commit the arrival through the same travelTo path the "Travel Here" button
+  // uses, so both routes update visited/discovered state identically.
+  const handleTravelComplete = useCallback((locationId: string) => {
+    const result = travelTo(locationId)
+    if (result.success) {
+      setSelectedLocation(locationId)
+      const newNames = result.newDiscoveries
+        .map(id => getLocationById(id)?.name)
+        .filter(Boolean)
+      if (newNames.length > 0) {
+        comment(`New locations discovered: ${newNames.join(', ')}`, 'observation')
+      }
+    }
+  }, [travelTo, comment])
+
   const handleEnterLocation = useCallback(() => {
     if (!selectedLocation) return
 
@@ -137,6 +157,7 @@ export function WorldMapScreen() {
             currentLocationId={progress.currentLocationId}
             discoveredLocations={progress.discoveredLocations}
             onLocationClick={handleLocationClick}
+            onTravelComplete={handleTravelComplete}
             graphicsTier={state.graphicsTier}
           />
 

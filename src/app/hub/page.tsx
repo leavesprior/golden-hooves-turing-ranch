@@ -95,8 +95,8 @@ export default function HubPage() {
   const { isUnlocked, unlockToasts, dismissUnlockToast } = useCrossGame()
   const [showQuiz, setShowQuiz] = useState(false)
 
-  const prologueUnlocked = isUnlocked('prologue')
   const ranchHuntUnlocked = isUnlocked('ranch_treasure_hunt')
+  const clueGameUnlocked = isUnlocked('clue_game')
 
   // /hub is THE menu — cards deep-link straight into play, past secondary
   // lobbies. If any game already has a character (shared read), the RPG
@@ -320,7 +320,7 @@ export default function HubPage() {
                 icon="🔍"
                 art="/place-art/moaning_cavern.png"
                 available={true}
-                locked={true}
+                locked={!clueGameUnlocked}
                 lockHint="Find the key during your stay"
                 features={['Hidden', 'Guests Only', 'Discounts']}
               />
@@ -370,8 +370,6 @@ export default function HubPage() {
                 art="/place-art/natural_bridges.png"
                 available={true}
                 isNew={true}
-                locked={!prologueUnlocked}
-                lockHint="Verify your booking to unlock"
                 features={['4 Characters', 'Investigation', 'Puzzles']}
               />
               <GameCard

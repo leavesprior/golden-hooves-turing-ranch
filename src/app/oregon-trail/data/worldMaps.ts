@@ -438,7 +438,7 @@ export const GOLD_COUNTRY_LOCATIONS: MapLocation[] = [
       founded: '1848',
       peakPopulation: 5000,
       currentPopulation: 2500,
-      historicalNote: 'Black Bart was captured here in 1883, identified by a laundry mark on his handkerchief.',
+      historicalNote: 'Black Bart was tried here in 1883 for his final Calaveras County robbery — a laundry mark on a handkerchief dropped at the scene identified him, though the arrest itself was made in San Francisco.',
       easterEggs: [
         'The courthouse has Black Bart\'s trial records',
         'A laundry mark leads to Ferguson\'s Tobacco Shop in SF',

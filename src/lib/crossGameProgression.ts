@@ -146,13 +146,14 @@ export const GAME_UNLOCK_CONFIGS: GameUnlockConfig[] = [
   {
     gameId: 'clue_game',
     name: "Cynthia's Treasure Hunt",
-    condition: {
-      type: 'composite',
-      conditions: [
-        { type: 'milestone', milestoneId: 'adventure_chapter_5' },
-        // Karma check is handled in the component (ClueGameUnlock)
-      ],
-    },
+    // Single source of truth. The clue_game_unlocked milestone is the ONLY
+    // writer of this unlock — ClueGameUnlock mints it only after the player
+    // finishes all 5 adventure chapters AND meets Cynthia with a worthy karma
+    // alignment, then accepts her quest. Gating the config on that milestone
+    // (rather than adventure_chapter_5 alone, with karma checked separately in
+    // the component) keeps the hub card and /clue-game page reading one source
+    // and preserves the karma gate for both.
+    condition: { type: 'milestone', milestoneId: 'clue_game_unlocked' },
     unlockMessage: 'Cynthia has a quest for you...',
   },
 ]

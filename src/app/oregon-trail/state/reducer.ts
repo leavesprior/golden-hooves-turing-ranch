@@ -215,7 +215,11 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       const isCritSuccess = roll > 0.95
       const isCritFailure = roll < 0.05
       const ammoUsed = Math.floor(Math.random() * 10) + 5
-      const foodGained = success ? Math.floor(Math.random() * 200) + 50 : 0
+      // Hunt-yield soft-cap (Grok balance fix 2026-07-20): was rand*200+50 (E≈150lb),
+      // which fed the wagon AND printed karma ~22x over cost. Nerf YIELD only — keep the
+      // hunt mechanic + success rate intact — so E≈65lb: still sustains a party of 4,
+      // no longer a karma-printing exploit.
+      const foodGained = success ? Math.floor(Math.random() * 70) + 30 : 0
       let huntMessage = success
         ? `You shot a deer! Gained ${foodGained} pounds of food.`
         : 'The animals got away. Better luck next time.'

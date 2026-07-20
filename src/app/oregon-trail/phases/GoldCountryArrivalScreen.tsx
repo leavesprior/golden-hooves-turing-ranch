@@ -1,17 +1,31 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { useMystery } from '../mysteryContext'
 import { KarmaToastContainer } from '@/components/karma'
+import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import GoldCountryBooking from '../components/GoldCountryBooking'
 
 export function GoldCountryArrivalScreen() {
   const { state, enterSettlement, leaveSettlement, resetGame } = useOregonTrail()
   const { balance } = useKarmaWallet()
   const { autoStartFirstCase } = useMystery()
+  const { recordMilestone } = useCrossGame()
   const [showBooking, setShowBooking] = useState(false)
+
+  // Reaching Gold Country IS the trail victory — this screen mounts exactly
+  // once when the party arrives (travelEngine sets phase gold_country_arrival
+  // at 2000mi). The auto-driver/2000mi victory path never touched the
+  // WorldMap/chapter machine that used to emit this milestone, so a full trail
+  // win left bobr_cross_game_progression.milestones empty and Ranch Treasure
+  // Hunt (gated on reached_west_point) never unlocked. Emit it here — the
+  // single, canonical victory point. recordMilestone dedupes, so a player who
+  // also reached West Point via the WorldMap path is never double-counted.
+  useEffect(() => {
+    recordMilestone('reached_west_point', 'prospectors_tale')
+  }, [recordMilestone])
 
   // Calculate karma score and outlaws caught for discount tier
   const karmaScore = balance.good + Math.floor(balance.neutral / 2)

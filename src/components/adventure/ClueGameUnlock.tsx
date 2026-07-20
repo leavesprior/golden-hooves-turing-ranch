@@ -47,11 +47,11 @@ export function ClueGameUnlock({
   }, [])
 
   const handleUnlock = () => {
+    // Single writer of the clue_game unlock. The hub card and /clue-game page
+    // now both read isUnlocked('clue_game') off this milestone, so the legacy
+    // bobr_clue_game_unlocked flag is no longer written (only read once for
+    // migration of existing players).
     CrossGameStorage.recordMilestone('clue_game_unlocked', 'clue_game')
-    // Also write the legacy key so /clue-game (which only reads this) actually unlocks.
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('bobr_clue_game_unlocked', 'true')
-    }
     setUnlocked(true)
   }
 
@@ -150,10 +150,10 @@ export function ClueGameUnlock({
                 Visit Back of Beyond Ranch in person to begin the treasure hunt.
               </p>
               <Link
-                href="/ranch-treasure-hunt"
+                href="/clue-game"
                 className="mt-3 inline-block font-[var(--font-pixel)] text-[11px] text-[var(--pixel-gold-light)] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] px-4 py-2 hover:bg-[var(--pixel-gold-mid)] transition-colors"
               >
-                The trail leads home — to the ranch ▶
+                Enter Cynthia's Treasure Hunt ▶
               </Link>
             </div>
           )}
