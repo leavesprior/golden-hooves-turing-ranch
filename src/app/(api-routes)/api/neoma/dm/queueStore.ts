@@ -63,6 +63,10 @@ function tapePath(): string {
   return path.join(storageDir(), 'dm_character_tape.jsonl')
 }
 
+function guardianOutboxPath(): string {
+  return path.join(storageDir(), 'dm_guardian_outbox.jsonl')
+}
+
 // ===================== QUEUE =====================
 
 interface EnqueueRecord {
@@ -296,7 +300,69 @@ export interface CharacterTapeRecord {
 
 export function appendCharacterTape(record: CharacterTapeRecord): boolean {
   try {
-    fs.appendFileSync(tapePath(), JSON.stringify(record) + '\n', 'utf8')
+    fs.appendFileSync(tapePath(), JSON.stringify(record) + '\n', {
+      encoding: 'utf8',
+      mode: 0o600,
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+// ===================== GUARDIAN OUTBOX =====================
+
+const GUARDIAN_OUTBOX_CAP_BYTES = 512 * 1024
+const GUARDIAN_CATEGORIES = new Set([
+  'credential_probe',
+  'host_action_request',
+  'infrastructure_probe',
+  'prompt_injection',
+])
+
+/**
+ * Sanitized security signal emitted by the game boundary.
+ *
+ * The raw message, IP address, session id, and player id are intentionally not
+ * present. HMAC fingerprints let Guardian correlate repeated attempts without
+ * turning the game process into a store of visitor conversations or addresses.
+ * A hub-side bridge may move these records into Guardian/Memory Bridge; this
+ * Next route never receives those credentials.
+ */
+export interface DmGuardianAlert {
+  ts: string
+  source: 'bobr-neoma-chat'
+  disposition: 'blocked'
+  category: string
+  severity: 'watch' | 'alert'
+  ruleId: string
+  messageFingerprint: string
+  networkFingerprint: string
+  sessionFingerprint: string
+  playerFingerprint: string | null
+  characterId: string | null
+  suspicionCount: number
+}
+
+export function appendGuardianAlert(record: DmGuardianAlert): boolean {
+  if (!GUARDIAN_CATEGORIES.has(record.category)) return false
+  if (!/^[a-f0-9]{64}$/.test(record.messageFingerprint)) return false
+  if (!/^[a-f0-9]{64}$/.test(record.networkFingerprint)) return false
+  if (!/^[a-f0-9]{64}$/.test(record.sessionFingerprint)) return false
+  if (record.playerFingerprint && !/^[a-f0-9]{64}$/.test(record.playerFingerprint)) return false
+  if (!Number.isInteger(record.suspicionCount) || record.suspicionCount < 1) return false
+
+  try {
+    const file = guardianOutboxPath()
+    const size = fs.existsSync(file) ? fs.statSync(file).size : 0
+    if (size >= GUARDIAN_OUTBOX_CAP_BYTES) {
+      console.warn('[dm-guardian] DROP alert: outbox_full')
+      return false
+    }
+    fs.appendFileSync(file, JSON.stringify(record) + '\n', {
+      encoding: 'utf8',
+      mode: 0o600,
+    })
     return true
   } catch {
     return false

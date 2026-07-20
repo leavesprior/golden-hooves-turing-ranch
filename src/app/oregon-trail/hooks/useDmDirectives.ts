@@ -17,6 +17,7 @@ import type { GamePhase } from '../state/types'
 
 const POLL_INTERVAL_MS = 30_000 // gentle: >= 30s per design
 const DM_PLAYER_ID_KEY = 'bobr_dm_player_id'
+const DM_QUEUE_CAPABILITY_KEY = 'bobr_dm_queue_capability'
 
 /**
  * Stable anonymous player id for the DM channel, minted once per browser.
@@ -31,6 +32,26 @@ export function getDmPlayerId(): string | null {
     const fresh = `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
     localStorage.setItem(DM_PLAYER_ID_KEY, fresh)
     return fresh
+  } catch {
+    return null
+  }
+}
+
+export function storeDmQueueCapability(value: unknown): void {
+  if (typeof window === 'undefined') return
+  if (typeof value !== 'string' || !/^v1\.\d+\.[A-Za-z0-9_-]+$/.test(value)) return
+  try {
+    localStorage.setItem(DM_QUEUE_CAPABILITY_KEY, value)
+  } catch {
+    // Storage may be unavailable in private or hardened browser contexts.
+  }
+}
+
+function getDmQueueCapability(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const value = localStorage.getItem(DM_QUEUE_CAPABILITY_KEY)
+    return value && /^v1\.\d+\.[A-Za-z0-9_-]+$/.test(value) ? value : null
   } catch {
     return null
   }
@@ -54,8 +75,19 @@ export function useDmDirectives(): void {
       inFlight.current = true
       try {
         const playerId = getDmPlayerId()
-        if (!playerId) return
-        const res = await fetch(`/api/neoma/dm/queue?playerId=${encodeURIComponent(playerId)}`)
+        const capability = getDmQueueCapability()
+        if (!playerId || !capability) return
+        const res = await fetch(
+          `/api/neoma/dm/queue?playerId=${encodeURIComponent(playerId)}`,
+          {
+            headers: { Authorization: `Bearer ${capability}` },
+            cache: 'no-store',
+          },
+        )
+        if (res.status === 401) {
+          localStorage.removeItem(DM_QUEUE_CAPABILITY_KEY)
+          return
+        }
         if (!res.ok) return
         const data: { ok?: boolean; directives?: unknown[] } = await res.json()
         if (cancelled || !data.ok || !Array.isArray(data.directives)) return

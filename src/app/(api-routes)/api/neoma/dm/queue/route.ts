@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PLAYER_ID_PATTERN } from '@/lib/dmDirectives'
+import {
+  bearerToken,
+  verifyDmQueueAdminToken,
+  verifyDmQueueCapability,
+} from '@/lib/dmSecurity'
 import { enqueueDirectives, drainDirectives } from '../queueStore'
 
 export const runtime = 'nodejs'
@@ -14,13 +19,13 @@ export const runtime = 'nodejs'
  *   the product calls this over HTTP. It exists so hub-side tooling (and
  *   verification) can stage directives.
  *
- * ⚠️ P1 security posture, stated honestly: this surface is UNAUTHENTICATED.
- * That is acceptable ONLY because the deterministic validator caps every
- * effect at fiction-level (small supply grants, weather, one boss encounter,
- * per-class cooldowns) and NO directive class can mint karma or touch
- * anything real-money-adjacent. P2 LINE: any privileged or reward-bearing
- * directive class requires an authenticated, server-authoritative channel
- * FIRST (see design §8 dm-secure-channel-qsd — Grok-before).
+ * GET requires the short-lived player capability minted by the chat route.
+ * POST is disabled unless the server has an explicit DM_QUEUE_ADMIN_TOKEN and
+ * the caller presents it as a bearer token. Normal chat consequences enqueue
+ * through the direct server import and never need the HTTP write surface.
+ *
+ * No QSD input is accepted here. QSD may later add observed entropy/presence,
+ * but it cannot replace conventional authentication.
  */
 
 // ===================== RATE LIMITING (P1.5 hardening) =====================
@@ -84,13 +89,33 @@ function admitPost(ip: string): boolean {
 export async function GET(req: NextRequest) {
   const playerId = req.nextUrl.searchParams.get('playerId') || ''
   if (!PLAYER_ID_PATTERN.test(playerId)) {
-    return NextResponse.json({ ok: false, reason: 'invalid_player_id' }, { status: 400 })
+    return NextResponse.json(
+      { ok: false, reason: 'invalid_player_id' },
+      { status: 400, headers: { 'Cache-Control': 'no-store' } },
+    )
+  }
+  const capability = bearerToken(req.headers.get('authorization'))
+  if (!verifyDmQueueCapability(playerId, capability)) {
+    return NextResponse.json(
+      { ok: false, reason: 'unauthorized' },
+      { status: 401, headers: { 'Cache-Control': 'no-store' } },
+    )
   }
   const directives = drainDirectives(playerId)
-  return NextResponse.json({ ok: true, directives })
+  return NextResponse.json(
+    { ok: true, directives },
+    { headers: { 'Cache-Control': 'no-store' } },
+  )
 }
 
 export async function POST(req: NextRequest) {
+  if (!verifyDmQueueAdminToken(req.headers.get('authorization'))) {
+    return NextResponse.json(
+      { ok: false, reason: 'forbidden' },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } },
+    )
+  }
+
   const ip = getClientIP(req)
   if (!admitPost(ip)) {
     console.warn(`[dm-queue] 429 rate-limited POST from ${ip}`)

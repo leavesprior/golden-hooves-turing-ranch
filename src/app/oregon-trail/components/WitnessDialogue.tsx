@@ -15,7 +15,7 @@ import { ConversationStore, generateNPCId } from '../lib/conversationStore'
 import { detectAdamsKeyword } from '../data/adamsEasterEggs'
 import { getMoodEntry, trustToMoodLevel, MOOD_SCALE, type MoodLevel } from '../data/npcMoodScale'
 import type { GoldCountryNPC } from '../data/goldCountryNPCs'
-import { getDmPlayerId } from '../hooks/useDmDirectives'
+import { getDmPlayerId, storeDmQueueCapability } from '../hooks/useDmDirectives'
 
 interface WitnessDialogueProps {
   witnessType: WitnessType
@@ -246,6 +246,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
       })
       if (!res.ok) return null
       const data = await res.json()
+      storeDmQueueCapability(data?.dmQueueCapability)
       if (typeof data?.sessionId === 'string') {
         dmSessionIdRef.current = data.sessionId
         return data.sessionId

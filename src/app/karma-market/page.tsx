@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useKarmaWallet } from '@/app/oregon-trail/karmaWalletContext'
 import { useMarket } from './marketContext'
 import { MarketTracker } from './components/MarketTracker'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 import { MandelbrotVisualizer } from './components/MandelbrotVisualizer'
 import { DonationPanel } from './components/DonationPanel'
 import { AnimalTreatsStore } from './components/AnimalTreatsStore'
@@ -38,6 +39,7 @@ export default function KarmaMarketPage() {
       {/* Header */}
       <header className="border-b-4 border-amber-600 bg-amber-900/50 px-4 py-4">
         <div className="max-w-2xl mx-auto">
+          <PlaceBackdrop id="jackson" className="mb-3 h-24 rounded border border-amber-700/60" />
           <div className="flex items-center justify-between">
             <div>
               <h1 className="font-pixel text-amber-200 text-lg">Karma Market</h1>

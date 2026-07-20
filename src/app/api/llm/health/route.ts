@@ -10,7 +10,7 @@ const OLLAMA_URL = process.env.LLM_OLLAMA_URL || 'http://localhost:11434'
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || ''
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct'
 
-async function checkOllama(): Promise<{ available: boolean; model: string | null }> {
+async function checkOllama(): Promise<{ available: boolean; model: string | null; warm: boolean }> {
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3000)
@@ -18,7 +18,7 @@ async function checkOllama(): Promise<{ available: boolean; model: string | null
     const response = await fetch(`${OLLAMA_URL}/api/tags`, { signal: controller.signal })
     clearTimeout(timeout)
 
-    if (!response.ok) return { available: false, model: null }
+    if (!response.ok) return { available: false, model: null, warm: false }
 
     const data = await response.json()
     const models = data.models?.map((m: { name: string }) => m.name.split(':')[0]) || []
@@ -26,12 +26,22 @@ async function checkOllama(): Promise<{ available: boolean; model: string | null
 
     for (const p of preferred) {
       const found = models.find((m: string) => m.includes(p))
-      if (found) return { available: true, model: found }
+      if (found) {
+        let warm = false
+        try {
+          const running = await fetch(`${OLLAMA_URL}/api/ps`)
+          if (running.ok) {
+            const active = await running.json()
+            warm = Array.isArray(active.models) && active.models.some((model: { name?: string }) => model.name?.includes(found))
+          }
+        } catch { /* cold availability is still availability */ }
+        return { available: true, model: found, warm }
+      }
     }
 
-    return { available: models.length > 0, model: data.models?.[0]?.name || null }
+    return { available: models.length > 0, model: data.models?.[0]?.name || null, warm: false }
   } catch {
-    return { available: false, model: null }
+    return { available: false, model: null, warm: false }
   }
 }
 
@@ -42,6 +52,7 @@ export async function GET() {
     ollama: {
       available: ollama.available,
       model: ollama.model,
+      warm: ollama.warm,
       url: OLLAMA_URL,
     },
     openrouter: {

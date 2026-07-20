@@ -17,6 +17,7 @@ import Link from 'next/link'
 import { INVESTIGATIONS } from '@/lib/townInvestigations'
 import { getCanonicalTown } from '@/lib/townRegistry'
 import { getTownProgressMap, type TownProgress } from '@/lib/townProgress'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 
 const SOLVED_KEY = 'bobr_town_cases_solved'
 const GOLD = 'var(--pixel-gold-light)'
@@ -86,6 +87,7 @@ export function TareTrail() {
               href={`/town/${c.townId}`}
               className={`relative flex flex-col border-2 p-3 transition-colors ${isSolved ? 'border-[var(--pixel-gold-mid)] bg-[var(--pixel-gold-dark)]/15' : 'border-[var(--pixel-gold-dark)] bg-black/40 hover:bg-[var(--pixel-gold-dark)]/10'}`}
             >
+              <PlaceBackdrop id={c.townId} className="mb-2 h-20 rounded border border-[var(--pixel-gold-dark)]/60" />
               <div className="flex items-baseline justify-between">
                 <span className="text-[12px]" style={{ color: GOLD }}>{c.title}</span>
                 {isSolved

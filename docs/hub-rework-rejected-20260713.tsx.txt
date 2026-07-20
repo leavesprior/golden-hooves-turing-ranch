@@ -1,0 +1,434 @@
+'use client'
+
+import React, { useState, useEffect } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { useKarma, ALIGNMENT_DISPLAY_NAMES } from '@/lib/karmaContext'
+import { useCrossGame } from '@/lib/crossGameProgressionContext'
+import { hasAnyCharacter } from '@/lib/sharedCharacter'
+import { AlignmentCompass, KarmaToastContainer, HouseRulesQuiz } from '@/components/karma'
+import { ShareLegacy } from '@/components/ui/ShareLegacy'
+
+// Game card component \u2014 visual64 treatment: each adventure fronted by its real 64-bit place art
+interface GameCardProps {
+  title: string
+  description: string
+  href: string
+  icon: string
+  art?: string
+  available: boolean
+  comingSoon?: boolean
+  isNew?: boolean
+  locked?: boolean
+  lockHint?: string
+  features?: string[]
+}
+
+function GameCard({ title, description, href, icon, art, available, comingSoon, isNew, locked, lockHint, features }: GameCardProps) {
+  const isAccessible = available && !locked
+  const content = (
+    <div
+      className={`
+        relative overflow-hidden rounded-lg border transition-all duration-300 group
+        ${isAccessible
+          ? 'border-[#9a7a48]/60 bg-[#171b1b]/95 shadow-[0_12px_32px_rgba(0,0,0,0.4)] hover:border-amber-400 hover:shadow-[0_16px_40px_rgba(212,169,80,0.15)] cursor-pointer'
+          : locked
+            ? 'border-purple-700/60 bg-[#14121a]/95 cursor-not-allowed opacity-80'
+            : 'border-stone-700 bg-[#141616]/95 cursor-not-allowed opacity-60'}
+      `}
+    >
+      {art && (
+        <div className="relative aspect-video">
+          <Image
+            src={art}
+            alt={title}
+            fill
+            className={`object-cover transition-transform duration-500 ${isAccessible ? 'group-hover:scale-105' : 'grayscale-[0.6] brightness-75'}`}
+            sizes="(max-width: 640px) 50vw, 260px"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_45%,rgba(19,20,20,0.95))]" aria-hidden="true" />
+          <span className="absolute bottom-1.5 left-2 text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{locked ? '\uD83D\uDD12' : icon}</span>
+        </div>
+      )}
+      {comingSoon && (
+        <div className="absolute top-2 right-2 z-10 bg-red-700/90 text-white text-[8px] font-pixel px-2 py-1 rounded">
+          Coming Soon
+        </div>
+      )}
+      {isNew && !comingSoon && !locked && (
+        <div className="absolute top-2 right-2 z-10 bg-emerald-700/90 text-white text-[8px] font-pixel px-2 py-1 rounded animate-pulse">
+          NEW!
+        </div>
+      )}
+      {locked && (
+        <div className="absolute top-2 right-2 z-10 bg-purple-800/90 text-purple-100 text-[8px] font-pixel px-2 py-1 rounded">
+          Locked
+        </div>
+      )}
+      <div className="p-3">
+        {!art && (
+          <div className="text-3xl mb-2 text-center group-hover:scale-110 transition-transform">
+            {locked ? '\uD83D\uDD12' : icon}
+          </div>
+        )}
+        <h3 className="font-pixel text-[#f0d69a] text-[11px] leading-4 mb-1.5">{title}</h3>
+        <p className="text-stone-400 text-[10px] leading-4">{description}</p>
+        {locked && lockHint && (
+          <p className="text-purple-300/70 text-[9px] mt-2 italic">{lockHint}</p>
+        )}
+        {features && features.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {features.map((feature, i) => (
+              <span key={i} className="text-[8px] border border-[#9a7a48]/40 bg-black/40 text-amber-200/90 px-1.5 py-0.5 rounded">
+                {feature}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  if (isAccessible) {
+    return <Link href={href}>{content}</Link>
+  }
+  return content
+}
+
+export default function HubPage() {
+  const { karma, alignmentPosition, discountMultiplier, hasCompletedHouseRules, houseRulesScore } = useKarma()
+  const { isUnlocked, unlockToasts, dismissUnlockToast } = useCrossGame()
+  const [showQuiz, setShowQuiz] = useState(false)
+
+  const prologueUnlocked = isUnlocked('prologue')
+  const ranchHuntUnlocked = isUnlocked('ranch_treasure_hunt')
+
+  // /hub is THE menu — cards deep-link straight into play, past secondary
+  // lobbies. If any game already has a character (shared read), the RPG
+  // Adventure card resumes play directly; otherwise it goes straight to
+  // creation. The /adventure lobby stays reachable by URL. (2026-07-03)
+  const [hasCharacter, setHasCharacter] = useState(false)
+  useEffect(() => {
+    setHasCharacter(hasAnyCharacter())
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-[#12100c] bg-[radial-gradient(ellipse_at_top,rgba(120,84,32,0.22),transparent_55%),linear-gradient(180deg,#171410,#12100c_40%,#0d0c0a)]">
+      <KarmaToastContainer />
+      {/* Cross-game unlock toasts */}
+      {unlockToasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+          {unlockToasts.map(toast => (
+            <div
+              key={toast.id}
+              className="bg-gradient-to-r from-purple-900 to-purple-800 border-2 border-purple-400 rounded-lg p-4 shadow-lg animate-slide-in max-w-sm cursor-pointer"
+              onClick={() => dismissUnlockToast(toast.id)}
+            >
+              <div className="font-pixel text-purple-200 text-xs">{'\uD83D\uDD13'} Game Unlocked!</div>
+              <div className="font-pixel text-amber-200 text-sm mt-1">{toast.gameName}</div>
+              <div className="text-purple-300 text-xs mt-1">{toast.message}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <HouseRulesQuiz isOpen={showQuiz} onClose={() => setShowQuiz(false)} />
+
+      {/* Header — the real ranch house, visual64 framing */}
+      <header className="relative overflow-hidden border-b border-[#9a7a48]/60">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/cabin-photos/cabin-1.jpg')" }}
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,10,8,0.55),rgba(10,10,8,0.35)_45%,rgba(13,12,10,0.96))]" aria-hidden="true" />
+        <div className="absolute inset-x-0 top-0 h-1 bg-[#d4a950]" aria-hidden="true" />
+        <div className="relative z-10 mx-auto flex max-w-4xl items-end justify-between px-4 pb-6 pt-14 sm:pt-20">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#8ed5d2]">Gold Country Game Hub</p>
+            <h1 className="font-pixel mt-2 text-xl text-[#f0d69a] drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] sm:text-2xl">Back of Beyond Ranch</h1>
+            <p className="mt-1 text-xs text-stone-300">One land, every era. Your trail carries forward.</p>
+          </div>
+          <Link
+            href="/"
+            className="font-pixel rounded border border-[#9a7a48]/70 bg-black/50 px-3 py-2 text-xs text-amber-200 backdrop-blur-sm transition-colors hover:border-amber-400 hover:text-amber-100"
+          >
+            &larr; Home
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-8 pb-16">
+        {/* PLAY THE COMPLETE JOURNEY — the one-game ladder, in story order */}
+        <div className="mb-8 overflow-hidden rounded-lg border border-[#9a7a48]/60 bg-[#171b1b]/95 shadow-[0_18px_48px_rgba(0,0,0,0.45)]">
+          <div className="border-b border-[#9a7a48]/40 bg-black/40 px-4 py-3">
+            <h2 className="font-pixel text-sm tracking-wider text-[#f0d69a]">{'▶'} PLAY THE COMPLETE JOURNEY</h2>
+            <p className="mt-1 text-[11px] leading-relaxed text-stone-400">
+              Chase the forger Cyrus Vane across time, then live the years honestly — Gold Rush to the present ranch. One character. Every choice carries forward.
+            </p>
+          </div>
+          <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              { href: '/prologue', step: '1', title: 'The Prologue', sub: '600–1500 · forge your character' },
+              { href: '/adventure/where-in-time', step: '2', title: 'Where in Time?', sub: 'the chase · swear the warrant' },
+              { href: '/oregon-trail', step: '3', title: 'The Journey', sub: '1849 · survive the trail west' },
+              { href: '/playtest', step: '4', title: 'Gold Country: Volcano', sub: 'the case · investigate & accuse' },
+              { href: '/investigations', step: '🔍', title: "The Tare's Trail", sub: 'investigate 10 towns' },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group rounded border border-[#9a7a48]/40 bg-black/50 p-3 transition-colors hover:border-amber-400 hover:bg-[#1d2320]"
+              >
+                <span className="font-pixel block text-[13px] text-amber-300">{item.step}</span>
+                <strong className="font-pixel mt-1 block text-[11px] leading-4 text-[#f0d69a] group-hover:text-amber-100">{item.title}</strong>
+                <span className="mt-1 block text-[9px] leading-4 text-stone-400">{item.sub}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* One land, two renderings — the real ranch beside the game's memory of it.
+            The rope bridge still crosses, hidden in plain sight, on the seam between them. */}
+        <div className="mb-8 overflow-hidden rounded-lg border border-[#9a7a48]/60 shadow-[0_18px_48px_rgba(0,0,0,0.45)]">
+          <div className="relative grid grid-cols-2">
+            <div className="relative aspect-[21/10]">
+              <Image src="/cabin-photos/cabin-1.jpg" alt="Back of Beyond Ranch — the real cabin" fill className="object-cover" sizes="(max-width: 900px) 50vw, 450px" />
+              <span className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 font-pixel text-[8px] text-amber-200">THE REAL RANCH</span>
+            </div>
+            <div className="relative aspect-[21/10]">
+              <Image src="/place-art/bobr_cabin.png" alt="The ranch as the game remembers it" fill className="object-cover" sizes="(max-width: 900px) 50vw, 450px" />
+              <span className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 font-pixel text-[8px] text-cyan-200">THE GAME&apos;S MEMORY</span>
+            </div>
+            <Link href="/neoma" aria-label="A quiet bridge between the two" className="group absolute left-[40%] right-[40%] top-[40%] z-[5] h-[22%]">
+              <div className="absolute left-0 top-[12%] bottom-[12%] w-[3px]" style={{ background: 'linear-gradient(180deg, #6b5b43, #4a3a2a)' }} />
+              <div className="absolute right-0 top-[12%] bottom-[12%] w-[3px]" style={{ background: 'linear-gradient(180deg, #6b5b43, #4a3a2a)' }} />
+              <div className="absolute top-[30%] left-[1%] right-[1%] h-[2px] bg-[#7b6b53]/80" />
+              <div className="absolute top-[54%] left-0 right-0 h-[4px]" style={{ background: 'linear-gradient(90deg, #5c4a38, #8b7355 30%, #6b5b43 55%, #8b7355 80%, #5c4a38)' }} />
+              <div className="absolute top-[46%] left-[6%] right-[6%] flex h-[22%] justify-between">
+                {[...Array(12)].map((_, i) => (
+                  <div key={i} className="h-full w-[2px] bg-amber-700/40" />
+                ))}
+              </div>
+              <div className="absolute inset-0 rounded bg-purple-500/0 transition-all duration-1000 group-hover:bg-purple-500/[0.08]" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Two column layout: Games + Karma */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Games grid */}
+          <div className="md:col-span-2">
+            <h2 className="font-pixel text-[#f0d69a] text-lg mb-4 border-b border-[#9a7a48]/60 pb-2">
+              Choose Your Adventure
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <GameCard
+                title="Mystery Game"
+                description="A hidden quest waits for guests at the ranch"
+                href="/clue-game"
+                icon="🔍"
+                art="/place-art/moaning_cavern.png"
+                available={true}
+                locked={true}
+                lockHint="Find the key during your stay"
+                features={['Hidden', 'Guests Only', 'Discounts']}
+              />
+              <GameCard
+                title="Gold Country Explorer"
+                description="Discover 6 historic towns with 30+ attractions"
+                href="/explore"
+                icon="⛏️"
+                art="/place-art/west_point.png"
+                available={true}
+                isNew={true}
+                features={['XP System', 'Badges', 'Secrets']}
+              />
+              <GameCard
+                title="The Prospector's Tale"
+                description="Fallout-style journey from Missouri to Gold Country"
+                href="/oregon-trail"
+                icon="🚐"
+                art="/place-art/ch1_independence.png"
+                available={true}
+                isNew={true}
+                features={['World Map', 'Chapters', 'Easter Eggs']}
+              />
+              <GameCard
+                title="RPG Adventure"
+                description={hasCharacter ? 'Continue exploring the frontier' : 'Create a character and explore the frontier'}
+                href={hasCharacter ? '/adventure/play' : '/adventure/character-creation'}
+                icon="⚔️"
+                art="/place-art/forester_trail.png"
+                available={true}
+                features={['Character', 'Quests']}
+              />
+              <GameCard
+                title="Location Hunt"
+                description="Discover hidden spots around the ranch"
+                href="/game"
+                icon="🗺️"
+                art="/place-art/welcome_gate.png"
+                available={true}
+                features={['Photo Mode', 'Challenges']}
+              />
+              <GameCard
+                title="Play The Prologue"
+                description="600-1500 AD: Four civilizations, one ancient mystery"
+                href="/prologue"
+                icon={'\uD83C\uDFDB\uFE0F'}
+                art="/place-art/natural_bridges.png"
+                available={true}
+                isNew={true}
+                locked={!prologueUnlocked}
+                lockHint="Verify your booking to unlock"
+                features={['4 Characters', 'Investigation', 'Puzzles']}
+              />
+              <GameCard
+                title="Ranch Treasure Hunt"
+                description="Discover hidden treasures at Back of Beyond Ranch"
+                href="/ranch-treasure-hunt"
+                icon={'\uD83D\uDCE6'}
+                art="/place-art/harris_ranch.png"
+                available={true}
+                isNew={true}
+                locked={!ranchHuntUnlocked}
+                lockHint="Reach West Point in The Prospector's Tale"
+                features={['Bounties', 'QR Codes', 'Rewards']}
+              />
+              <GameCard
+                title="Karma Market"
+                description="Support the ranch, trade karma, collect momentos"
+                href="/karma-market"
+                icon={'\uD83C\uDFEA'}
+                art="/place-art/jackson.png"
+                available={true}
+                isNew={true}
+                features={['Donations', 'Animal Treats', 'Momentos', 'Market Tracker']}
+              />
+              <GameCard
+                title="Cynthia's Inn"
+                description="Crossroads tavern connecting all adventures"
+                href="/oregon-trail"
+                icon={'\uD83C\uDFE8'}
+                art="/place-art/mh_hotel_leger.png"
+                available={false}
+                comingSoon={true}
+                features={['NPCs', 'Side Quests']}
+              />
+            </div>
+
+            {/* House Rules Quiz CTA */}
+            <div className="mt-6 rounded-lg border border-[#9a7a48]/55 bg-[#171b1b]/95 p-4 shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-pixel text-amber-200 text-sm">House Rules Quiz</h3>
+                  <p className="text-amber-400 text-xs mt-1">
+                    {hasCompletedHouseRules
+                      ? `Completed! Score: ${houseRulesScore}/10`
+                      : 'Learn the rules and earn Lawful karma!'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowQuiz(true)}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-amber-100 font-pixel text-xs rounded border-2 border-amber-400 transition-colors"
+                >
+                  {hasCompletedHouseRules ? 'Retake' : 'Start Quiz'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Karma sidebar */}
+          <div className="rounded-lg border border-[#9a7a48]/55 bg-[#171b1b]/95 p-4 shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
+            <h2 className="font-pixel text-[#f0d69a] text-sm mb-4 text-center border-b border-[#9a7a48]/50 pb-2">
+              Your Alignment
+            </h2>
+
+            <div className="flex justify-center mb-4">
+              <AlignmentCompass size="md" showMultiplier={true} showLabels={false} />
+            </div>
+
+            {/* Karma stats */}
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-amber-400">Lawful/Chaotic:</span>
+                <span className={`font-pixel ${karma.alignment.lawfulChaotic < 0 ? 'text-blue-300' : karma.alignment.lawfulChaotic > 0 ? 'text-purple-300' : 'text-gray-300'}`}>
+                  {karma.alignment.lawfulChaotic > 0 ? '+' : ''}{karma.alignment.lawfulChaotic}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-amber-400">Good/Evil:</span>
+                <span className={`font-pixel ${karma.alignment.goodEvil < 0 ? 'text-green-300' : karma.alignment.goodEvil > 0 ? 'text-red-300' : 'text-gray-300'}`}>
+                  {karma.alignment.goodEvil > 0 ? '+' : ''}{karma.alignment.goodEvil}
+                </span>
+              </div>
+              <div className="border-t border-amber-700 pt-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-amber-400">Discount Boost:</span>
+                  <span className={`font-pixel ${discountMultiplier >= 1 ? 'text-green-300' : 'text-red-300'}`}>
+                    {discountMultiplier}x
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Karma history preview */}
+            {karma.history.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-amber-700">
+                <div className="text-amber-400 text-xs mb-2">Recent Actions:</div>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {karma.history.slice(0, 5).map((action) => (
+                    <div key={action.id} className="text-[10px] text-amber-300/70 truncate">
+                      {action.description}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Discount explanation */}
+        <div className="mt-8 rounded-lg border border-[#9a7a48]/55 bg-[#171b1b]/95 p-4">
+          <h3 className="font-pixel text-amber-200 text-sm mb-2">How Karma Affects Discounts</h3>
+          <p className="text-amber-400 text-xs leading-relaxed">
+            Your alignment determines your discount multiplier. Good guests who follow rules and help others
+            earn better discounts. Lawful Good alignment gives you 1.5x your earned discount, while Chaotic
+            Evil only gets 0.5x. Play games, complete the house rules quiz, and make good choices to improve
+            your karma!
+          </p>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[10px]">
+            <div className="bg-yellow-900/40 p-2 rounded">
+              <div className="text-yellow-300">Lawful Good</div>
+              <div className="text-yellow-100">1.5x</div>
+            </div>
+            <div className="bg-gray-700/40 p-2 rounded">
+              <div className="text-gray-300">True Neutral</div>
+              <div className="text-gray-100">1.0x</div>
+            </div>
+            <div className="bg-red-900/40 p-2 rounded">
+              <div className="text-red-300">Chaotic Evil</div>
+              <div className="text-red-100">0.5x</div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Book Your Stay CTA */}
+      <div className="fixed bottom-0 inset-x-0 bg-[#12100c]/95 border-t border-[#9a7a48]/60 p-3 text-center z-40 backdrop-blur-sm">
+        <a href="/rentals" className="text-amber-200 font-pixel text-sm hover:text-amber-100 transition-colors">
+          {'\uD83C\uDFE1'} Book Your Stay at Back of Beyond Ranch {'\u2192'}
+        </a>
+      </div>
+
+      {/* Footer */}
+      <footer className="border-t-2 border-amber-800 bg-amber-950/50 px-4 py-4 mt-8">
+        <div className="max-w-4xl mx-auto text-center text-amber-600 text-xs">
+          &copy; 2026 Back of Beyond Ranch | Gold Country, California
+        </div>
+      </footer>
+
+      <ShareLegacy />
+    </div>
+  )
+}

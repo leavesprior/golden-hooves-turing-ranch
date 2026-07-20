@@ -18,6 +18,7 @@ import { useOregonTrail, type Weather } from '../oregonTrailContext'
 import { useCharacter, type StatName } from '../characterContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { useNarrator } from '../narratorContext'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 // NEW: Douglas Adams / Monty Python Easter Egg imports
 import { RiverAnimation } from './RiverAnimation'
 import { BridgeKeeper } from './BridgeKeeper'
@@ -282,6 +283,11 @@ export function RiverCrossing({
 
         {phase === 'assess' && (
           <div className="text-center mb-6">
+            {/* The real river (visual64) — renders only when art exists for this crossing */}
+            <PlaceBackdrop
+              id={'ot_' + riverName.toLowerCase().replace(/ crossing$/, '').replace(/[^a-z]+/g, '_')}
+              className="mb-4 h-36 rounded-lg border-2 border-cyan-700/50"
+            />
             {/* Show RiverAnimation in assessment phase too */}
             {riverState && (
               <div className="mb-4">

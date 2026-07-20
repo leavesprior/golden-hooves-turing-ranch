@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { PixelNavigation, PixelButton } from '@/components/pixel'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 
 export default function ClueGamePage() {
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -34,7 +35,7 @@ export default function ClueGamePage() {
         <div className="border-4 border-[var(--pixel-gold-mid)] bg-[var(--pixel-bg-mid)] p-6 text-center space-y-6">
           {isUnlocked ? (
             <>
-              <div className="text-4xl">🏡</div>
+              <PlaceBackdrop id="bobr_cabin" className="h-36 rounded border-2 border-[var(--pixel-gold-mid)]/60" />
               <h2 className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)]">
                 Quest Unlocked!
               </h2>

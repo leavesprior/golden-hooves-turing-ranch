@@ -28,13 +28,16 @@ const clampNum = (v: unknown, min: number, max: number, fallback: number): numbe
  *   LLM_OLLAMA_URL      - Ollama endpoint (e.g. https://ollama.your-tunnel.com)
  *   OPENROUTER_API_KEY   - OpenRouter API key for fallback
  *   OPENROUTER_MODEL     - Model to use on OpenRouter (default: meta-llama/llama-3.1-8b-instruct)
- *   LLM_OLLAMA_TIMEOUT   - Timeout in ms for Ollama connection (default: 5000)
+ *   LLM_OLLAMA_TIMEOUT   - Timeout in ms for Ollama connection (default: 30000)
  */
 
 const OLLAMA_URL = process.env.LLM_OLLAMA_URL || 'http://localhost:11434'
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || ''
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct'
-const OLLAMA_TIMEOUT = parseInt(process.env.LLM_OLLAMA_TIMEOUT || '5000', 10)
+// A local model can need ~16s for a genuine cold load on this machine. Five
+// seconds made health look green while every first free-form question fell
+// through to authored dialogue.
+const OLLAMA_TIMEOUT = parseInt(process.env.LLM_OLLAMA_TIMEOUT || '30000', 10)
 
 interface GenerateRequestBody {
   prompt: string

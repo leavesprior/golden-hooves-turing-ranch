@@ -54,6 +54,68 @@ body {
   image-rendering: pixelated;
 }
 
+/* Route-scoped presentation upgrade. Existing game routes keep their current rendering. */
+.visual64-shell,
+.visual64-shell * {
+  image-rendering: auto;
+  letter-spacing: 0;
+}
+
+.visual64-shell {
+  font-family: Georgia, 'Times New Roman', serif;
+  background: linear-gradient(rgba(8, 12, 11, 0.94), rgba(8, 12, 11, 0.98)), url('/treasure-map.png') center / cover fixed;
+}
+
+.visual64-shell button,
+.visual64-shell input,
+.visual64-shell select,
+.visual64-shell textarea,
+.visual64-shell nav {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.visual64-shell p,
+.visual64-shell label,
+.visual64-shell button,
+.visual64-shell input,
+.visual64-shell select,
+.visual64-shell textarea,
+.visual64-shell nav,
+.visual64-shell span {
+  line-height: 1.45;
+}
+
+.visual64-shell p,
+.visual64-shell label,
+.visual64-shell input,
+.visual64-shell select,
+.visual64-shell textarea {
+  font-size: max(12px, 0.75rem);
+}
+
+.visual64-scene-image {
+  image-rendering: auto !important;
+  filter: saturate(0.9) contrast(1.05) brightness(0.78);
+  transform: scale(1.015);
+}
+
+.visual64-character-sprite {
+  width: 112px;
+  height: 176px;
+  background-image: url('/sprites/visual64-character-atlas.png');
+  background-repeat: no-repeat;
+  background-size: 400% 200%;
+  filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.62));
+}
+
+.visual64-character-sprite[data-sprite='sleuth'] { background-position: 0 0; }
+.visual64-character-sprite[data-sprite='doctor'] { background-position: 33.333% 0; }
+.visual64-character-sprite[data-sprite='priest'] { background-position: 66.667% 0; }
+.visual64-character-sprite[data-sprite='miner'] { background-position: 100% 0; }
+.visual64-character-sprite[data-sprite='actor'] { background-position: 0 100%; }
+.visual64-character-sprite[data-sprite='nell'] { background-position: 33.333% 100%; }
+.visual64-character-sprite[data-sprite='headmistress'] { background-position: 66.667% 100%; }
+
 /* Steam/smoke animation */
 @keyframes steam {
   0%, 100% {

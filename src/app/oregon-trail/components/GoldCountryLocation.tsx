@@ -387,6 +387,8 @@ export function GoldCountryLocation({
         />
 
         <div className="max-w-2xl mx-auto p-4 pt-8">
+          {/* The place itself stays on screen while talking (visual64) */}
+          <PlaceBackdrop id={location.id} className="mb-4 h-32 rounded-lg border border-green-700/40" />
           {/* NPC Card */}
           <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-6">
             <div className="flex items-center gap-4 mb-4">

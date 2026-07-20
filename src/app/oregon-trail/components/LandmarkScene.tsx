@@ -1,7 +1,33 @@
 'use client'
 
 import React, { useMemo } from 'react'
-import { SmokeEffect, WaterEffect, SwayingTree, MountainSilhouette, WeatherParticles, type TimeOfDay, type WeatherType } from './Graphics64bit'
+import { SmokeEffect, WaterEffect, SwayingTree, MountainSilhouette, WeatherParticles, CoveredWagonSprite, type TimeOfDay, type WeatherType } from './Graphics64bit'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+
+// visual64: real-place raster art (public/place-art) elevates the scene when a
+// confident match exists. Only exact matches are mapped — every other landmark
+// keeps its authored SVG scene, so no stop ever shows wrong art.
+const LANDMARK_PLACE_ART: Record<string, string> = {
+  'Independence, Missouri': 'ch1_independence',
+  'Fort Kearny': 'ch1_fort_kearny',
+  'Truckee Pass': 'ch3_donner_pass',
+  'Sacramento Valley': 'ch1_sacramento_waterfront',
+  'West Point': 'ch4_west_point',
+  'Gold Country': 'bobr_cabin',
+  // Generated landmark set (2026-07-14). Fort Laramie is from the corrected
+  // re-run (adobe wall + river; acceptable-not-ideal — img2img upgrade queued).
+  'Kansas River Crossing': 'ot_kansas_river',
+  'Chimney Rock': 'ot_chimney_rock',
+  'Independence Rock': 'ot_independence_rock',
+  'South Pass': 'ot_south_pass',
+  'Fort Bridger': 'ot_fort_bridger',
+  'Raft River': 'ot_raft_river',
+  'City of Rocks': 'ot_city_of_rocks',
+  'Humboldt River': 'ot_humboldt_river',
+  'Humboldt Sink': 'ot_humboldt_sink',
+  'Forty Mile Desert': 'ot_forty_mile_desert',
+  'Fort Laramie': 'ot_fort_laramie',
+}
 
 // Landmark types from oregonTrailContext.tsx
 export type LandmarkType = 'town' | 'river' | 'fort' | 'landmark' | 'pass' | 'spring' | 'mountains' | 'destination'
@@ -227,6 +253,8 @@ export function LandmarkScene({
     }
   }
 
+  const placeArt = LANDMARK_PLACE_ART[landmarkName]
+
   return (
     <div className={`relative w-full h-48 md:h-64 overflow-hidden rounded-lg border-2 border-${config.accentColor}-600 ${className}`}>
       {/* Sky gradient background */}
@@ -235,15 +263,23 @@ export function LandmarkScene({
         style={{ zIndex: 0 }}
       />
 
+      {/* Real-place raster art (visual64) — sits over the gradient; if the
+          image fails PlaceBackdrop returns null and the gradient still shows */}
+      {placeArt && (
+        <PlaceBackdrop id={placeArt} className="absolute inset-0 h-full" />
+      )}
+
       {/* Weather effects */}
       {weather !== 'clear' && (
         <WeatherParticles weather={weather} intensity={0.5} />
       )}
 
-      {/* Scene content */}
-      <div className="relative h-full" style={{ zIndex: 10 }}>
-        {renderScene()}
-      </div>
+      {/* Scene content — authored SVG scene carries the stops without art */}
+      {!placeArt && (
+        <div className="relative h-full" style={{ zIndex: 10 }}>
+          {renderScene()}
+        </div>
+      )}
 
       {/* Location label */}
       <div className="absolute bottom-2 left-2 right-2 text-center" style={{ zIndex: 30 }}>
@@ -281,7 +317,7 @@ function IndependenceScene({ timeOfDay }: { timeOfDay: TimeOfDay }) {
 
       {/* Wagons waiting */}
       <div className="absolute bottom-4 left-8">
-        <span className="text-2xl">🛒</span>
+        <CoveredWagonSprite scale={0.5} />
       </div>
       <div className="absolute bottom-4 right-8">
         <span className="text-2xl">🐎</span>

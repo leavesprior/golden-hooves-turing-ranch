@@ -17,6 +17,8 @@ const cabinPhotos = [
   '/cabin-photos/cabin-8.jpg',
 ]
 
+// Retreat (2nd) listing visibility — OFF while the A/B listing is paused; flip env to restore.
+const RETREAT_LIVE = process.env.NEXT_PUBLIC_RETREAT_LIVE === '1'
 const AIRBNB_HERO_URL = airbnbBookingLink('site')
 const AIRBNB_CTA_URL = airbnbBookingLink('site', 'may2026-cta')
 const AIRBNB_CARD_URL = airbnbBookingLink('site', 'may2026-card')
@@ -26,7 +28,7 @@ const amenities = [
   { icon: '\u2668\ufe0f', name: 'Hot Tub', desc: 'Soak under the stars' },
   { icon: '\ud83c\udfae', name: 'Game Room', desc: 'Pool table & arcade' },
   { icon: '\ud83d\udc34', name: 'Ranch Animals', desc: 'Horses, emus, sheep & more' },
-  { icon: '\ud83c\udfd4\ufe0f', name: '10 Acres', desc: 'Private Gold Country retreat' },
+  { icon: '\ud83c\udfd4\ufe0f', name: '60 Acres', desc: 'Private Gold Country ranch' },
   { icon: '\ud83d\udecf\ufe0f', name: 'Sleeps 12', desc: '6 bedrooms, 3 baths' },
   { icon: '\ud83d\udd25', name: 'Fire Pit', desc: 'Outdoor gathering spot' },
   { icon: '\ud83c\udf77', name: 'Wine Country', desc: 'Minutes from vineyards' },
@@ -174,6 +176,7 @@ export default function Home() {
                 src={photo}
                 alt={`Back of Beyond Ranch - Photo ${index + 1}`}
                 fill
+                sizes="100vw"
                 className="object-cover"
                 priority={index === 0}
               />
@@ -654,27 +657,28 @@ export default function Home() {
           </div>
 
           <div className="mt-6 flex flex-col items-center gap-5" style={{ animation: 'fadeSlideIn 1s ease-out 0.8s both' }}>
-            {/* Two audiences, two listings — small groups (Forest Retreat) + whole ranch */}
+            {/* Retreat (A/B) listing paused — RETREAT_LIVE gates its button so one env flip restores the dual hero */}
             <div className="flex flex-col sm:flex-row items-center gap-3">
-              <span onClick={() => trackBookingClick('hero-retreat')}>
-                <PixelButton href={airbnbRetreatLink('site')} variant="orange" size="lg">
-                  🛖 Couples & Small Groups
-                </PixelButton>
-              </span>
+              {RETREAT_LIVE && (
+                <span onClick={() => trackBookingClick('hero-retreat')}>
+                  <PixelButton href={airbnbRetreatLink('site')} variant="orange" size="lg">
+                    🛖 Couples & Small Groups
+                  </PixelButton>
+                </span>
+              )}
               <span onClick={() => trackBookingClick('hero-ranch')}>
-                <PixelButton href={AIRBNB_HERO_URL} variant="clear" size="lg">
-                  🏡 Whole Ranch · Sleeps 12
+                <PixelButton href={AIRBNB_HERO_URL} variant="orange" size="lg">
+                  🏡 Book Your Stay · Sleeps 12
                 </PixelButton>
               </span>
             </div>
-            {/* Two ways to stay — evergreen (no stale dates), no discount signal */}
             <div
               className="font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] tracking-wider border border-[var(--pixel-gold-mid)]/40 bg-black/30 px-3 py-1.5 rounded-sm"
-              aria-label="Two ways to stay"
+              aria-label="The stay"
             >
-              <span className="text-[var(--pixel-gold-light)]">Forest Retreat sleeps up to 6</span>
+              <span className="text-[var(--pixel-gold-light)]">Hot tub under the stars</span>
               <span className="opacity-60"> &middot; </span>
-              <span>Whole ranch sleeps 12</span>
+              <span>6 bedrooms &middot; whole ranch sleeps 12</span>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <PixelButton href="/oregon-trail" variant="gold" size="md">
@@ -719,7 +723,7 @@ export default function Home() {
             The Ranch
           </h2>
           <p className="font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] text-center mb-10 max-w-lg mx-auto leading-relaxed">
-            A mountain cabin on 10 private acres in the heart of Gold Country.
+            A mountain cabin on 60 private acres in the heart of Gold Country.
             Unplug, explore, and make memories.
           </p>
 
@@ -759,6 +763,7 @@ export default function Home() {
                   src={photo}
                   alt={`Ranch photo ${index + 1}`}
                   fill
+                  sizes="(max-width: 768px) 50vw, 25vw"
                   className="object-cover group-hover:brightness-110 group-hover:scale-105 transition-all duration-500"
                 />
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors duration-300" />
@@ -785,6 +790,7 @@ export default function Home() {
               src={cabinPhotos[galleryIndex]}
               alt={`Ranch photo ${galleryIndex + 1}`}
               fill
+              sizes="(max-width: 900px) 100vw, 768px"
               className="object-contain"
             />
           </div>
@@ -1154,7 +1160,7 @@ export default function Home() {
               </div>
               <div>
                 <p className="text-[var(--pixel-gold-mid)]">How many guests can the ranch accommodate?</p>
-                <p>Up to 12 guests across 6 bedrooms and 3 bathrooms on 10 private acres.</p>
+                <p>Up to 12 guests across 6 bedrooms and 3 bathrooms on 60 private acres.</p>
               </div>
               <div>
                 <p className="text-[var(--pixel-gold-mid)]">Is the ranch pet friendly?</p>
