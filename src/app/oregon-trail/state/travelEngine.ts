@@ -55,7 +55,20 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   const paceMultiplier = { steady: 1, strenuous: 1.5, grueling: 2 }[prev.pace]
   const weatherPenalty = { fair: 0, rain: 0.2, storm: 0.5, snow: 0.6 }[prev.weather]
   const baseDistance = 15 // Miles per day with good conditions
-  const dailyDistance = Math.round(baseDistance * paceMultiplier * (1 - weatherPenalty) * speedBonus)
+  let dailyDistance = Math.round(baseDistance * paceMultiplier * (1 - weatherPenalty) * speedBonus)
+
+  // Town-stop guarantee (Leif 2026-07-20): never travel PAST the next landmark in
+  // a single tick. Clamp the day's distance to the gap so the party always ARRIVES
+  // at each landmark/town and gets the choice to enter it, instead of overshooting.
+  // This is what let the 50-mi endgame gaps (Sacramento Valley -> West Point ->
+  // Gold Country) skip West Point + Cynthia's Inn at grueling pace / with speed
+  // bonuses, and also skip the `newDistance >= 2000` arrival straight past West
+  // Point. Carrying the remainder to the next tick means a fast day can no longer
+  // swallow the intermediate stop — you stop at West Point (1950) first, THEN
+  // reach Gold Country (2000) on the following tick.
+  if (prev.milesUntilNextLandmark > 0 && dailyDistance > prev.milesUntilNextLandmark) {
+    dailyDistance = prev.milesUntilNextLandmark
+  }
 
   // Desert terrain check (Humboldt Sink → Forty Mile Desert region)
   const inDesertTerrain = prev.distance >= 1380 && prev.distance <= 1700

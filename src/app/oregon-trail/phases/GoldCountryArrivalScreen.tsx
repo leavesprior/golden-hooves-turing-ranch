@@ -23,9 +23,22 @@ export function GoldCountryArrivalScreen() {
   // Hunt (gated on reached_west_point) never unlocked. Emit it here — the
   // single, canonical victory point. recordMilestone dedupes, so a player who
   // also reached West Point via the WorldMap path is never double-counted.
+  //
+  // A1 (dual-emit): `reached_west_point` is kept for back-compat (the Ranch
+  // Treasure Hunt gate), but it is semantically "beat the trail," NOT "visited
+  // West Point town" — a party can win without ever stopping in the town. Also
+  // emit `trail_victory`, the honestly-named beat-the-trail event, so future
+  // town-quests can gate on a true `visited_west_point` without mis-firing here.
+  //
+  // Run ONCE on mount — recordMilestone is intentionally omitted from deps: its
+  // identity churns on every mint (useCallback dep [state.milestones]), so
+  // listing it re-runs this effect after the mint and re-fires recordMilestone
+  // in a render loop. It dedupes, so the mount-time closure call is correct.
   useEffect(() => {
     recordMilestone('reached_west_point', 'prospectors_tale')
-  }, [recordMilestone])
+    recordMilestone('trail_victory', 'prospectors_tale')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Calculate karma score and outlaws caught for discount tier
   const karmaScore = balance.good + Math.floor(balance.neutral / 2)

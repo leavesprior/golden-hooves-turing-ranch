@@ -43,7 +43,13 @@ export function BookingGate({ onUnlocked, onClose }: BookingGateProps) {
     return () => {
       cancelled = true
     }
-  }, [recordMilestone])
+    // Run ONCE on mount. recordMilestone is intentionally omitted: its identity
+    // churns on every mint (useCallback dep [state.milestones]), so listing it
+    // re-runs this effect after the restore-mint and re-fires /api/verify-booking
+    // in a request loop until the unlock timer unmounts the gate. recordMilestone
+    // dedupes, so calling the mount-time closure once is correct and idempotent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleVerify = async () => {
     if (isVerifying) return

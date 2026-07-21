@@ -35,6 +35,7 @@ export type GameId =
 export type MilestoneId =
   // Prospector's Tale milestones
   | 'reached_west_point'
+  | 'trail_victory'
   | 'completed_journey_west'
   | 'completed_gold_country'
   | 'captured_black_bart'
