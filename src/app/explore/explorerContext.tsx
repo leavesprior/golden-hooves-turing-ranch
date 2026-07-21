@@ -8,7 +8,7 @@ import {
   attemptDeduction,
 } from './data/townMysteries'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
-import { getSiteForTown, type SpiritualSite } from './data/spiritualSites'
+import { getSiteRefForTown, type TownSiteRef } from './data/townSites'
 
 // ============================================
 // TYPES
@@ -490,7 +490,7 @@ export function ExplorerProvider({
     // live business domain until Leif + tribal review opt in.
     // Opt-in: NEXT_PUBLIC_SACRED_SITE_GAMEPLAY=1
     if (process.env.NEXT_PUBLIC_SACRED_SITE_GAMEPLAY === '1') {
-      const spiritualSite: SpiritualSite | undefined = getSiteForTown(townId)
+      const spiritualSite: TownSiteRef | undefined = getSiteRefForTown(townId)
       if (spiritualSite) {
         CrossGameStorage.visitSpiritualSite(spiritualSite.id)
       }
