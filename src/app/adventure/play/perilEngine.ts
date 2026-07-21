@@ -242,7 +242,7 @@ export function rest(
   const perDay = cfg.restVitalityPerDay + (mit.extraRest ? cfg.extraRestBonus : 0)
   // Camp rest also pulls a bleeding-out character back from the brink (a companion
   // tends them through the night) — clear the dying flag before restoring vitality.
-  let vitality = Math.min(state.maxVitality, state.vitality + perDay * days)
+  const vitality = Math.min(state.maxVitality, state.vitality + perDay * days)
   let conditions = state.conditions.map(c => ({ ...c }))
   for (let d = 0; d < days && conditions.length > 0; d++) {
     // Ease the worst condition each day (time heals the body). Decrement raw —

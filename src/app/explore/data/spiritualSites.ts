@@ -15,6 +15,12 @@
  * and starvation between 1848 and 1870. The California Legislature
  * funded militia campaigns against Native peoples. These sites survived
  * despite systematic attempts to erase them.
+ *
+ * GAMEPLAY GATE (2026-07-21): Cross-game visitSpiritualSite / town-auto
+ * karma+XP is OFF unless NEXT_PUBLIC_SACRED_SITE_GAMEPLAY=1. Grok
+ * pre-publish: reputational risk of gamifying sacred/burial content on a
+ * live business domain. Re-enable only after Leif + tribal review.
+ * See docs/PREPUBLISH_RAILWAY_CHECKLIST_20260721.md.
  */
 
 // ============================================================================

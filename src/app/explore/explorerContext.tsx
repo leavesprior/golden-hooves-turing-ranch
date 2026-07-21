@@ -485,10 +485,15 @@ export function ExplorerProvider({
       CrossGameStorage.addHistoricalDepth(1)
     }
 
-    // Cross-game: check if this town has a spiritual site and register visit
-    const spiritualSite: SpiritualSite | undefined = getSiteForTown(townId)
-    if (spiritualSite) {
-      CrossGameStorage.visitSpiritualSite(spiritualSite.id)
+    // Sacred-site gameplay is GATED OFF by default (Grok pre-publish #3).
+    // Visiting a town must not auto-award karma/XP for sacred/burial sites on a
+    // live business domain until Leif + tribal review opt in.
+    // Opt-in: NEXT_PUBLIC_SACRED_SITE_GAMEPLAY=1
+    if (process.env.NEXT_PUBLIC_SACRED_SITE_GAMEPLAY === '1') {
+      const spiritualSite: SpiritualSite | undefined = getSiteForTown(townId)
+      if (spiritualSite) {
+        CrossGameStorage.visitSpiritualSite(spiritualSite.id)
+      }
     }
 
     return { xpGained, levelUp, badgeEarned }

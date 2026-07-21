@@ -790,8 +790,14 @@ export const CrossGameStorage = {
   /**
    * Record a sacred/spiritual site visit.
    * Recalculates level and buffs.
+   *
+   * GATED: no-op unless NEXT_PUBLIC_SACRED_SITE_GAMEPLAY=1.
+   * Default OFF for production reputational safety (burial/sacred gamification).
    */
   visitSpiritualSite(siteId: string): SpiritualAwareness {
+    if (process.env.NEXT_PUBLIC_SACRED_SITE_GAMEPLAY !== '1') {
+      return this.getSpiritualAwareness()
+    }
     const state = this.load() || { ...DEFAULT_CROSS_GAME_STATE }
     if (!state.spiritualAwareness) state.spiritualAwareness = { ...DEFAULT_SPIRITUAL_AWARENESS }
 
