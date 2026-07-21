@@ -23,15 +23,44 @@ import crypto from 'crypto';
  */
 
 // safe-mint: HMAC session token, NOT a monetary code — no value is minted here.
-function getSecret(): string {
+let _ephemeralProdSecret: string | null = null
+let _warnedMissingSecret = false
+
+function isProductionRuntime(): boolean {
   return (
-    process.env.MARKER_SESSION_SECRET ||
-    process.env.BOBR_SERVER_SECRET ||
-    // Dev fallback. In prod, set MARKER_SESSION_SECRET. The token still binds the
-    // session to the server clock + difficulty even with the fallback, so forgery
-    // requires walking the timing floor regardless of secret strength.
-    'bobr-dev-marker-secret-do-not-use-in-prod'
-  );
+    process.env.NODE_ENV === 'production' ||
+    Boolean(process.env.RAILWAY_ENVIRONMENT) ||
+    process.env.VERCEL_ENV === 'production'
+  )
+}
+
+/**
+ * Marker-session HMAC secret.
+ * Production MUST set MARKER_SESSION_SECRET (or BOBR_SERVER_SECRET) — the old
+ * hardcoded dev fallback is refused so early-bird minting cannot share a known key.
+ * If unset in prod we use a process-local random secret (tokens die on redeploy)
+ * and log CRITICAL once — better than a public constant.
+ */
+function getSecret(): string {
+  const fromEnv =
+    process.env.MARKER_SESSION_SECRET || process.env.BOBR_SERVER_SECRET
+  if (fromEnv && fromEnv.trim().length >= 16) {
+    return fromEnv.trim()
+  }
+  if (isProductionRuntime()) {
+    if (!_warnedMissingSecret) {
+      _warnedMissingSecret = true
+      console.error(
+        '[CRITICAL] MARKER_SESSION_SECRET unset in production — using ephemeral process secret. Set Railway secret + mount /data for sqlite or discount codes and sessions will not survive redeploy.',
+      )
+    }
+    if (!_ephemeralProdSecret) {
+      _ephemeralProdSecret = crypto.randomBytes(32).toString('hex')
+    }
+    return _ephemeralProdSecret
+  }
+  // Local/dev only
+  return 'bobr-dev-marker-secret-do-not-use-in-prod'
 }
 
 /** Minimum spacing between two markers in one session. Real hunts take minutes;

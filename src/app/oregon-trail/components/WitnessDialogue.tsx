@@ -14,10 +14,18 @@ import { SkillCheck } from './SkillCheck'
 import { ConversationStore, generateNPCId } from '../lib/conversationStore'
 import { detectAdamsKeyword } from '../data/adamsEasterEggs'
 import { getMoodEntry, trustToMoodLevel, MOOD_SCALE, type MoodLevel } from '../data/npcMoodScale'
+import type { GoldCountryNPC } from '../data/goldCountryNPCs'
+import { getDmPlayerId, storeDmQueueCapability } from '../hooks/useDmDirectives'
 
 interface WitnessDialogueProps {
   witnessType: WitnessType
   location: string
+  /**
+   * Town Investigations 1849 (insertion 3): the real period NPC being interviewed, when
+   * there is one. Its dialogueLines are the offline floor; freeform dialogue routes to
+   * the DM-voiced /api/neoma/chat character session (characterId = npc.id).
+   */
+  npc?: GoldCountryNPC
   clue?: CollectedClue  // The clue this witness has
   onClose: () => void
   onClueObtained?: (clue: CollectedClue) => void
@@ -25,7 +33,12 @@ interface WitnessDialogueProps {
 
 type DialogueMode = 'checking' | 'dynamic' | 'scripted'
 
-export function WitnessDialogue({ witnessType, location, clue, onClose, onClueObtained }: WitnessDialogueProps) {
+// #29: client-side timeout for the DM-voiced chat requests. Local ollama is often slow;
+// a slow-but-200 live LLM must not leave the reply stuck on the "..." placeholder forever.
+// If a reply doesn't arrive within this window, we abort and fall back to a scripted line.
+const DM_CHAT_TIMEOUT_MS = 13000
+
+export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onClueObtained }: WitnessDialogueProps) {
   const { getStat, rollSkillCheck, addExperience, addInvestigationXP, getInvestigationLevel, getInvestigationBonus } = useCharacter()
   const { modifyReputation, getInteractionBonus } = useReputation()
   const { comment, recordPlayerAction, setMood, state: narratorState } = useNarrator()
@@ -77,6 +90,8 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
 
   const historyEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // DM-voiced chat session id (/api/neoma/chat) for a real GoldCountryNPC, lazily minted.
+  const dmSessionIdRef = useRef<string | null>(null)
 
   const witness = WITNESS_PERSONALITIES[witnessType]
   const currentNode = dialogueTree.nodes[currentNodeId]
@@ -100,11 +115,13 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
       const status = await checkOllamaHealth()
       setOllamaAvailable(status.available)
 
-      // Check if freeform is already unlocked by rapport
-      const rapportUnlocked = trustLevel >= 7 || (visitCount >= 3 && trustLevel >= 5)
+      // Check if freeform is already unlocked by rapport. Real period NPCs (DM-voiced)
+      // always offer "Speak freely" — routing is server-side (/api/neoma/chat) and
+      // degrades to scripted dialogueLines, so it doesn't depend on local Ollama.
+      const rapportUnlocked = !!npc || trustLevel >= 7 || (visitCount >= 3 && trustLevel >= 5)
       setFreeformUnlocked(rapportUnlocked)
 
-      if (status.available && rapportUnlocked) {
+      if (!npc && status.available && rapportUnlocked) {
         // Pre-initialize conversation for when player unlocks freeform
         startConversation(
           witnessType,
@@ -121,10 +138,20 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
     checkMode()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Process initial scripted node once mode is set
+  // Process initial scripted node once mode is set. Ref guard, not
+  // dialogueHistory.length: both StrictMode effect invocations see length 0
+  // before React applies the state, which duplicated the greeting.
+  const initialNodeProcessed = useRef(false)
   useEffect(() => {
-    if (dialogueMode === 'scripted' && currentNode && dialogueHistory.length === 0) {
-      processNodeEffects(currentNode)
+    if (dialogueMode === 'scripted' && currentNode && !initialNodeProcessed.current) {
+      initialNodeProcessed.current = true
+      // #30: a real GoldCountryNPC opens with its authored greeting + real name,
+      // not the coerced generic witness label/line. Undefined-safe for NPCs (and
+      // all generic witnesses) without an authored greeting.
+      processNodeEffects(
+        currentNode,
+        npc?.greeting ? { speaker: npc.name, text: npc.greeting } : undefined
+      )
     }
   }, [dialogueMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -148,17 +175,18 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
 
   // Switch to dynamic/freeform mode
   const enterFreeformMode = useCallback(() => {
-    if (!ollamaAvailable) return
+    // Real NPCs route to the server-side DM chat, so don't require local Ollama here.
+    if (!ollamaAvailable && !npc) return
     setDialogueMode('dynamic')
-    if (!npcState.activeConversation) {
+    if (!npc && !npcState.activeConversation) {
       startConversation(
         witnessType,
         location,
         clue ? { trait: clue.trait || 'unknown', value: clue.value || '' } : undefined
       )
     }
-    addToHistory('NARRATOR', `${npcName} seems willing to talk openly...`)
-  }, [ollamaAvailable, npcState.activeConversation, witnessType, location, clue, startConversation, npcName]) // eslint-disable-line react-hooks/exhaustive-deps
+    addToHistory('NARRATOR', `${npc ? npc.name : npcName} seems willing to talk openly...`)
+  }, [ollamaAvailable, npc, npcState.activeConversation, witnessType, location, clue, startConversation, npcName]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Add dialogue line to history
   const addToHistory = useCallback((speaker: string, text: string, isStreaming?: boolean) => {
@@ -200,12 +228,96 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
     return greetings[witnessType] || "Yes? What do you want?"
   }
 
+  // --- DM-VOICED DIALOGUE (real GoldCountryNPC → /api/neoma/chat character session) ---
+  // Lazily open a character-bound chat session (three-vector engine). Returns the
+  // sessionId, or null if the chat route/LLM is unreachable so the caller can degrade.
+  const ensureDmSession = useCallback(async (): Promise<string | null> => {
+    if (dmSessionIdRef.current) return dmSessionIdRef.current
+    if (!npc) return null
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), DM_CHAT_TIMEOUT_MS)
+    try {
+      const playerId = getDmPlayerId()
+      const res = await fetch('/api/neoma/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ characterId: npc.id, playerId }),
+        signal: controller.signal,
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      storeDmQueueCapability(data?.dmQueueCapability)
+      if (typeof data?.sessionId === 'string') {
+        dmSessionIdRef.current = data.sessionId
+        return data.sessionId
+      }
+      return null
+    } catch {
+      // Includes AbortError on timeout — caller degrades to the scripted floor.
+      return null
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }, [npc])
+
+  const sendToDmChat = useCallback(async (message: string) => {
+    if (!npc) return
+    addToHistory('YOU', message)
+    const sessionId = await ensureDmSession()
+    if (!sessionId) {
+      // DM chat unreachable — degrade to a scripted dialogueLine (the offline floor).
+      const line = npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...'
+      addToHistory(npc.name, line)
+      return
+    }
+    setIsStreaming(true)
+    addToHistory(npc.name, '', true)
+    // #29: bound the reply on a client-side timeout. A slow live LLM must degrade to the
+    // scripted floor rather than leaving the user stuck on the "..." placeholder forever.
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), DM_CHAT_TIMEOUT_MS)
+    try {
+      const res = await fetch('/api/neoma/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, message }),
+        signal: controller.signal,
+      })
+      const data = res.ok ? await res.json() : null
+      const text = data?.response
+        || npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)]
+        || '...'
+      updateLastHistory(text)
+      // Grant the grounded clue on the first real exchange (mirrors the offline path).
+      if (clue && !clueObtained) {
+        addClue(clue)
+        setClueObtained(true)
+        onClueObtained?.(clue)
+        addExperience(XP_REWARDS.CLUE_OBTAINED)
+      }
+    } catch {
+      // Includes AbortError on timeout — fall back to a scripted line and clear the "...".
+      updateLastHistory(npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...')
+    } finally {
+      clearTimeout(timeoutId)
+      setIsStreaming(false)
+    }
+  }, [npc, ensureDmSession, addToHistory, updateLastHistory, clue, clueObtained, addClue, onClueObtained, addExperience])
+
   // Handle dynamic dialogue input
   const handleDynamicInput = useCallback(async () => {
     if (!customInput.trim() || isStreaming) return
 
     const message = customInput.trim()
     setCustomInput('')
+
+    // Real period NPC → DM-voiced character session instead of the local-Ollama path.
+    if (npc) {
+      await sendToDmChat(message)
+      recordPlayerAction('dm_dialogue')
+      return
+    }
+
     addToHistory('YOU', message)
     setIsStreaming(true)
     setStreamingText('')
@@ -284,7 +396,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
     setIsStreaming(false)
     setStreamingText('')
     recordPlayerAction('dynamic_dialogue')
-  }, [customInput, isStreaming, npcName, sendMessage, sendMessageStream, getStat, narratorState.mood, clue, clueObtained, addClue, onClueObtained, comment, addToHistory, updateLastHistory, recordPlayerAction])
+  }, [customInput, isStreaming, npc, sendToDmChat, npcName, sendMessage, sendMessageStream, getStat, narratorState.mood, clue, clueObtained, addClue, onClueObtained, comment, addToHistory, updateLastHistory, recordPlayerAction])
 
   // Quick question buttons for dynamic mode
   const quickQuestions = [
@@ -295,7 +407,7 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
   ]
 
   // Process node effects (scripted mode)
-  const processNodeEffects = useCallback((node: DialogueNode) => {
+  const processNodeEffects = useCallback((node: DialogueNode, greetingOverride?: { speaker: string; text: string }) => {
     if (node.effect) {
       if (node.effect.grantClue && clue && !clueObtained) {
         const clueText = node.text.replace('[CLUE_PLACEHOLDER]', clue.text)
@@ -325,7 +437,13 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
           onClueObtained?.(clue)
         }
       }
-      addToHistory(node.speaker === 'witness' ? getWitnessLabel(witnessType) : 'NARRATOR', text)
+      // #30: for a real NPC's opening witness line, prefer its authored greeting +
+      // real name over the coerced generic label/text. Generic witnesses unchanged.
+      if (node.speaker === 'witness' && greetingOverride) {
+        addToHistory(greetingOverride.speaker, greetingOverride.text)
+      } else {
+        addToHistory(node.speaker === 'witness' ? getWitnessLabel(witnessType) : 'NARRATOR', text)
+      }
     }
 
     if (node.narratorComment) {
@@ -484,10 +602,10 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
         {/* Header */}
         <div className="bg-gray-800 p-4 border-b border-amber-700 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">{getWitnessEmoji(witnessType)}</span>
+            <span className="text-2xl">{npc ? npc.portrait : getWitnessEmoji(witnessType)}</span>
             <div>
               <h2 className="text-amber-300">
-                {dialogueMode === 'dynamic' ? npcName : getWitnessLabel(witnessType)}
+                {npc ? npc.name : (dialogueMode === 'dynamic' ? npcName : getWitnessLabel(witnessType))}
               </h2>
               <p className="text-gray-500 text-xs">
                 {location}
@@ -733,19 +851,19 @@ export function WitnessDialogue({ witnessType, location, clue, onClose, onClueOb
                           {karmaCost}🌮
                         </span>
                       )}
-                      {response.karmaGood && response.karmaGood > 0 && (
+                      {(response.karmaGood ?? 0) > 0 && (
                         <span className="text-amber-400 text-xs">+{response.karmaGood}🍪</span>
                       )}
-                      {response.karmaGood && response.karmaGood < 0 && (
-                        <span className="text-red-400 text-xs">+{Math.abs(response.karmaGood)}🪨</span>
+                      {(response.karmaGood ?? 0) < 0 && (
+                        <span className="text-red-400 text-xs">+{Math.abs(response.karmaGood ?? 0)}🪨</span>
                       )}
                     </div>
                   </div>
                 </button>
               )
             })}
-            {/* Speak freely option — unlocked via rapport or easter egg */}
-            {freeformUnlocked && ollamaAvailable && (
+            {/* Speak freely option — unlocked via rapport/easter egg, or always for a real DM-voiced NPC */}
+            {freeformUnlocked && (ollamaAvailable || !!npc) && (
               <button
                 onClick={enterFreeformMode}
                 className="w-full p-4 md:p-3 text-left rounded transition-colors active:scale-[0.99] bg-indigo-900/50 text-indigo-200 hover:bg-indigo-800/50 active:bg-indigo-700/50 border border-indigo-600/30"

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, ReactNode } from 'react'
 import {
   KarmaBlockchainClient,
   KarmaBalance,
@@ -249,11 +249,13 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
   useEffect(() => {
     const checkOnline = async () => {
       const online = await oregonTrailKarma.checkConnection()
-      setState(prev => ({
-        ...prev,
-        isOnline: online,
-        pendingTransactions: oregonTrailKarma.pendingCount,
-      }))
+      setState(prev => {
+        const pending = oregonTrailKarma.pendingCount
+        // Bail out when nothing changed — returning prev skips the re-render
+        // (this poll was re-rendering every karma consumer every 10s).
+        if (prev.isOnline === online && prev.pendingTransactions === pending) return prev
+        return { ...prev, isOnline: online, pendingTransactions: pending }
+      })
     }
 
     checkOnline()
@@ -688,7 +690,9 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     }))
   }, [])
 
-  const value: KarmaWalletContextValue = {
+  // Memoized so context identity only changes when state (or a callback) does —
+  // otherwise any provider re-render fans out to every useKarmaWallet consumer.
+  const value: KarmaWalletContextValue = useMemo(() => ({
     // State
     balance: state.balance,
     isOnline: state.isOnline,
@@ -737,7 +741,15 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     setShowConvertModal,
     convertModalContext,
     setConvertModalContext,
-  }
+  }), [
+    state,
+    initializeWallet, spendNeutral, spendGood, earnNeutral, earnGood,
+    addBadKarma, earnFromDonation, convertGoodToNeutral, takeDebt,
+    canAfford, getAffordableAmount, refreshBalance,
+    getKarmaAlignment, getAlignmentDisplayName, getDiscountMultiplier,
+    recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction,
+    loadKarmaState, showConvertModal, convertModalContext,
+  ])
 
   return (
     <KarmaWalletContext.Provider value={value}>

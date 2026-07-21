@@ -11,7 +11,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useEscapeKey } from '../lib/useEscapeKey'
 import * as AudioManager from '../lib/audioManager'
 
-type SoundtrackMode = 'synth' | 'parov' | 'western' | 'fallout'
+type SoundtrackMode = 'synth' | 'parov' | 'western' | 'fallout' | 'steampunk'
 
 interface VolumeState {
   masterVolume: number
@@ -180,6 +180,16 @@ export function VolumeControl() {
             >
               Fallout 2
             </button>
+            <button
+              onClick={() => handleSoundtrackChange('steampunk')}
+              className={`py-1.5 px-2 rounded text-xs font-pixel transition-colors ${
+                state.soundtrackMode === 'steampunk'
+                  ? 'bg-cyan-700/60 border border-cyan-500/50 text-cyan-200'
+                  : 'bg-stone-800/60 border border-stone-600/30 text-stone-400 hover:bg-stone-700/60'
+              }`}
+            >
+              Steampunk
+            </button>
           </div>
 
           {/* Mute toggle */}
@@ -238,17 +248,23 @@ const MODE_LABELS: Record<string, { name: string; color: string }> = {
   fallout: { name: 'Fallout 2 Original Soundtrack', color: 'text-green-500/70' },
   parov: { name: 'Parov Stelar - Electro Swing', color: 'text-purple-500/70' },
   western: { name: 'Scott Joplin - Ragtime Piano', color: 'text-yellow-500/70' },
+  steampunk: { name: 'Electro-Swing - Kevin MacLeod (CC-BY)', color: 'text-cyan-500/70' },
 }
 
 function NowPlayingMP3({ mode }: { mode: string }) {
   const [trackTitle, setTrackTitle] = useState<string | null>(null)
+  const [fellBackToSynth, setFellBackToSynth] = useState(false)
 
   useEffect(() => {
     const update = () => {
+      // #20: if the audio manager fell back to synth (mode files missing),
+      // say so instead of showing "Loading..." forever.
+      setFellBackToSynth(AudioManager.getSoundtrackMode() === 'synth')
       let current: { title: string } | null = null
       if (mode === 'fallout') current = AudioManager.getCurrentFalloutTrack()
       else if (mode === 'parov') current = AudioManager.getCurrentParovTrack()
       else if (mode === 'western') current = AudioManager.getCurrentWesternTrack()
+      else if (mode === 'steampunk') current = AudioManager.getCurrentSteampunkTrack()
       setTrackTitle(current?.title ?? null)
     }
     update()
@@ -261,7 +277,11 @@ function NowPlayingMP3({ mode }: { mode: string }) {
   return (
     <div className="text-xs font-pixel">
       <p className={label.color}>
-        {trackTitle ? `Now Playing: ${trackTitle}` : `${label.name} - Loading...`}
+        {trackTitle
+          ? `Now Playing: ${trackTitle}`
+          : fellBackToSynth
+            ? 'Tracks unavailable - playing Chiptune'
+            : `${label.name} - Loading...`}
       </p>
       <p className="text-stone-500/50 mt-0.5">
         {label.name}

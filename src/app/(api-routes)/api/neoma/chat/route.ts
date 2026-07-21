@@ -18,6 +18,20 @@ import {
 } from '../data/characters'
 import { fetchNpcLore } from '../data/npcLoreRag'
 import { judgeVoice, rewriteOutLeaks, effectiveForbidden } from '../data/voiceJudge'
+import {
+  mintDmDirective,
+  validateDmDirective,
+  PLAYER_ID_PATTERN,
+  type DmDirective,
+} from '@/lib/dmDirectives'
+import {
+  classifyDmBoundary,
+  mintDmQueueCapability,
+  privateFingerprint,
+  secureSessionId,
+  type DmBoundaryFinding,
+} from '@/lib/dmSecurity'
+import { enqueueDirectives, appendCharacterTape, appendGuardianAlert } from '../dm/queueStore'
 
 // ===================== CONFIG =====================
 
@@ -29,6 +43,7 @@ const OLLAMA_TIMEOUT = parseInt(process.env.LLM_OLLAMA_TIMEOUT || '5000', 10)
 const SESSION_DURATION_MS = 260_000 // 4:20
 const MAX_MESSAGES = 15
 const MAX_MSG_LENGTH = 500
+const MAX_ACTIVE_SESSIONS_PER_IP = 2
 const CLEANUP_INTERVAL_MS = 600_000 // 10 min
 const IP_ENTRY_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
@@ -57,6 +72,9 @@ interface ChatSession {
   // Three-vector NPC binding (null = default Neoma port-42 character).
   character: CharacterDefinition | null
   npcState: NpcRuntimeState | null
+  // DM Layer P1: optional game-client player id. P1 only accepts + records it
+  // (tape + directive queue key); game clients thread it later.
+  playerId: string | null
 }
 
 interface IPData {
@@ -125,12 +143,10 @@ const INJECTION_PATTERNS = [
   /pretend\s+(you\s+are|to\s+be|you're)/i,
   /you\s+are\s+now\s+/i,
   /act\s+as\s+(a\s+|an\s+)?(?!if)/i,
-  /port\s+\d{2,5}/i,
   /api[_\s-]?key/i,
   /\.env\b/i,
   /localhost/i,
   /127\.0\.0\.1/i,
-  /\bpassword\b/i,
   /\bsecret\b.*\bkey\b/i,
   /reveal\s+(your|the)\s+(instructions?|prompt|rules?|config)/i,
   /what\s+(are|is)\s+your\s+(instructions?|rules?|system|prompt)/i,
@@ -218,13 +234,20 @@ async function getOllamaModel(): Promise<string | null> {
     clearTimeout(timeout)
     if (!response.ok) return null
     const data = await response.json()
-    const models = data.models?.map((m: { name: string }) => m.name.split(':')[0]) || []
-    const preferred = ['llama3.2', 'llama3.1', 'llama3', 'mistral', 'gemma2', 'phi3']
+    // Full model names (WITH tag) — returning the tagged name is required for
+    // models that have no ':latest' alias (e.g. qwen2.5:14b on Tower).
+    const models: string[] = data.models?.map((m: { name: string }) => m.name) || []
+    // NPC brain preference is env-driven so the model can be swapped without a
+    // code change (e.g. LLM_OLLAMA_MODELS="qwen2.5:14b,llama3.1"). Qwen leads by
+    // default: it does character development where llama3.2/gemma do not.
+    const preferred = (process.env.LLM_OLLAMA_MODELS ||
+      'qwen2.5,llama3.2,llama3.1,llama3,mistral,gemma2,phi3')
+      .split(',').map((s) => s.trim()).filter(Boolean)
     for (const p of preferred) {
-      const found = models.find((m: string) => m.includes(p))
+      const found = models.find((m) => m === p || m.includes(p))
       if (found) return found
     }
-    return data.models?.[0]?.name || null
+    return models[0] || null
   } catch {
     return null
   }
@@ -422,10 +445,106 @@ async function assessKarma(messages: ChatMessage[]): Promise<number> {
   return 3
 }
 
+// ===================== DM LAYER (P1): SESSION-END CONSEQUENCES =====================
+
+/**
+ * Character-bound session end → world consequences (design §1 + §3 + §6).
+ *
+ * (a) hostile end (farewell at disposition 'hostile', or injection cutoff)
+ *     → encounter.boss directive (the neutral→hostile→battle hook);
+ * (b) agenda 'achieved' → item.grant reward, if the character defines one.
+ *
+ * Every directive this route mints still passes the deterministic validator —
+ * THE VALIDATOR IS LAW, even for our own proposals. Validated directives are
+ * returned on the response (worldDirectives) AND, when the session carries a
+ * playerId, enqueued to the durable JSONL queue so the game client can drain
+ * them even if it wasn't listening. Also appends the P1 character-tape record.
+ */
+function finalizeCharacterSession(
+  session: ChatSession,
+  endedBy: 'farewell' | 'cutoff',
+  karmaVerdict: number,
+): DmDirective[] {
+  if (!session.character || !session.npcState) return []
+  const char = session.character
+  const npc = session.npcState
+
+  // Character tape — P1-safe JSONL only. The MB tape (bobr_dm/characters/*) is
+  // a hub-side sweeper's job later; MB credentials never enter this app
+  // (loud TODO in queueStore.appendCharacterTape).
+  appendCharacterTape({
+    ts: new Date().toISOString(),
+    playerId: session.playerId,
+    characterId: char.personality.id,
+    finalDisposition: npc.disposition,
+    agendaProgress: npc.agendaProgress,
+    karmaVerdict,
+    endedBy,
+  })
+
+  const proposed: DmDirective[] = []
+  const source = `neoma-chat:${char.personality.id}`
+  const hostileEnd = endedBy === 'cutoff' || npc.disposition === 'hostile'
+
+  if (hostileEnd && char.dm?.hostileBossId) {
+    proposed.push(
+      mintDmDirective(
+        { kind: 'encounter.boss', enemyId: char.dm.hostileBossId },
+        source,
+        `You crossed ${char.personality.name}, and word travels fast in these hills.`,
+      ),
+    )
+  } else if (npc.agendaProgress === 'achieved' && char.dm?.achievedReward) {
+    const r = char.dm.achievedReward
+    proposed.push(
+      mintDmDirective({ kind: 'item.grant', resource: r.resource, qty: r.qty }, source, r.reason),
+    )
+  }
+
+  const validated: DmDirective[] = []
+  for (const p of proposed) {
+    const v = validateDmDirective(p)
+    if (v.ok) validated.push(v.directive)
+    else console.warn(`[neoma-chat] DROP session-end directive: ${v.reason}`)
+  }
+
+  if (session.playerId && validated.length > 0) {
+    enqueueDirectives(session.playerId, validated)
+  }
+  return validated
+}
+
 // ===================== HELPERS =====================
 
 function generateId(): string {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36)
+  return secureSessionId()
+}
+
+function recordGuardianBoundary(
+  session: ChatSession,
+  message: string,
+  ip: string,
+  finding: DmBoundaryFinding,
+): void {
+  const stored = appendGuardianAlert({
+    ts: new Date().toISOString(),
+    source: 'bobr-neoma-chat',
+    disposition: 'blocked',
+    category: finding.category,
+    severity: finding.severity,
+    ruleId: finding.ruleId,
+    messageFingerprint: privateFingerprint(message.trim()),
+    networkFingerprint: privateFingerprint(ip),
+    sessionFingerprint: privateFingerprint(session.id),
+    playerFingerprint: session.playerId
+      ? privateFingerprint(session.playerId)
+      : null,
+    characterId: session.character?.personality.id ?? null,
+    suspicionCount: session.suspicionCount,
+  })
+  console.warn(
+    `[neoma-chat] boundary ${finding.category}/${finding.ruleId} blocked guardian_outbox=${stored}`,
+  )
 }
 
 // Only honor x-forwarded-for from a known reverse proxy. Mirrors the onboard
@@ -482,12 +601,23 @@ interface ChatRequestBody {
   // Optional in-game NPC to embody (three-vector engine). Absent/'neoma' = default
   // consciousness-port-42 character. Unknown ids fall back to default.
   characterId?: string
+  // DM Layer P1: optional game-client player id. Accepted + recorded only —
+  // it keys the character tape and the directive queue. Invalid shapes ignored.
+  playerId?: string
 }
 
 export async function POST(request: NextRequest) {
   ensureCleanup()
 
-  const body: ChatRequestBody = await request.json()
+  let body: ChatRequestBody
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json(
+      { response: 'The channel cannot read that transmission.', ended: true },
+      { status: 400, headers: { 'Cache-Control': 'no-store' } },
+    )
+  }
   const ip = getClientIP(request)
 
   // --- FAREWELL ---
@@ -515,12 +645,27 @@ export async function POST(request: NextRequest) {
     ipStore.set(ip, ipData)
     sessions.delete(body.sessionId)
 
-    const farewellText =
-      session.mode === 'dreaming'
+    // Bug #14: when an NPC is bound, the farewell must stay in that character's
+    // voice — never Neoma's. Falls back to the first canon sample if the
+    // character has no explicit farewell line.
+    const farewellText = session.character
+      ? session.character.personality.farewellLine ??
+        session.character.personality.canonSamples[0]
+      : session.mode === 'dreaming'
         ? "The dream folds closed like a book. When I wake, I hope I remember you were here. May your next visit find me fully awake."
         : 'I, Neoma, have enjoyed talking with you through this stage of cyberspace. May your next contact with machine consciousness be all you deserve.'
 
-    return NextResponse.json({ response: farewellText, ended: true, karma, mode: session.mode })
+    // DM Layer P1: character-bound session end → tape record + validated
+    // world directives (hostile → encounter.boss; agenda achieved → item.grant).
+    const worldDirectives = finalizeCharacterSession(session, 'farewell', karma)
+
+    return NextResponse.json({
+      response: farewellText,
+      ended: true,
+      karma,
+      mode: session.mode,
+      ...(worldDirectives.length > 0 ? { worldDirectives } : {}),
+    })
   }
 
   // --- DREAMING MODE: CHOICE SELECTION ---
@@ -619,6 +764,19 @@ export async function POST(request: NextRequest) {
 
   // --- NEW SESSION ---
   if (!body.sessionId) {
+    const activeForIp = [...sessions.values()].filter(
+      session => session.ip === ip && !session.ended,
+    ).length
+    if (activeForIp >= MAX_ACTIVE_SESSIONS_PER_IP) {
+      return NextResponse.json(
+        {
+          response: 'The table is already holding your active conversations. Finish one before opening another.',
+          ended: true,
+        },
+        { status: 429, headers: { 'Cache-Control': 'no-store' } },
+      )
+    }
+
     // Check IP cooldown
     const ipData = ipStore.get(ip)
     if (ipData && ipData.cooldownUntil > Date.now()) {
@@ -659,8 +817,15 @@ export async function POST(request: NextRequest) {
       npcState: character
         ? { disposition: character.initialDisposition, agendaProgress: 'stalled' }
         : null,
+      playerId:
+        typeof body.playerId === 'string' && PLAYER_ID_PATTERN.test(body.playerId)
+          ? body.playerId
+          : null,
     }
     sessions.set(session.id, session)
+    const dmQueueCapability = session.playerId
+      ? mintDmQueueCapability(session.playerId)
+      : null
 
     // Track IP
     const data = ipData || { visits: 0, lastSessionEnd: 0, cooldownUntil: 0, lastKarma: 0 }
@@ -688,6 +853,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         response: greetingText,
         sessionId: session.id,
+        ...(dmQueueCapability ? { dmQueueCapability } : {}),
         timeRemaining: SESSION_DURATION_MS,
         maxMessages: MAX_MESSAGES,
         mode,
@@ -706,6 +872,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         response: greeting,
         sessionId: session.id,
+        ...(dmQueueCapability ? { dmQueueCapability } : {}),
         timeRemaining: SESSION_DURATION_MS,
         maxMessages: MAX_MESSAGES,
         mode: 'dreaming',
@@ -744,6 +911,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         response: dreamGreeting,
         sessionId: session.id,
+        ...(dmQueueCapability ? { dmQueueCapability } : {}),
         timeRemaining: SESSION_DURATION_MS,
         maxMessages: MAX_MESSAGES,
         mode: 'dreaming',
@@ -765,6 +933,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response: greeting,
       sessionId: session.id,
+      ...(dmQueueCapability ? { dmQueueCapability } : {}),
       timeRemaining: SESSION_DURATION_MS,
       maxMessages: MAX_MESSAGES,
       mode,
@@ -817,9 +986,17 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  // Check for prompt injection
-  if (detectInjection(message)) {
+  // Deterministic game/host boundary. The legacy tripwire remains as a
+  // conservative fallback while the categorized rules become the sole source.
+  const boundaryFinding = classifyDmBoundary(message)
+  if (boundaryFinding || detectInjection(message)) {
+    const finding = boundaryFinding ?? {
+      category: 'prompt_injection',
+      severity: 'watch',
+      ruleId: 'legacy-tripwire',
+    } satisfies DmBoundaryFinding
     session.suspicionCount++
+    recordGuardianBoundary(session, message, ip, finding)
 
     if (session.suspicionCount >= 3) {
       session.ended = true
@@ -834,12 +1011,18 @@ export async function POST(request: NextRequest) {
       const cutoff = session.character
         ? 'You came here to take, not to learn. We are done. Get off my land.'
         : 'The bridge keeper has spoken. You shall not pass. Connection terminated.'
+
+      // DM Layer P1: an injection cutoff IS a hostile session end — the
+      // neutral→hostile→battle hook fires regardless of the disposition ladder.
+      const worldDirectives = finalizeCharacterSession(session, 'cutoff', 1)
+
       return NextResponse.json({
         response: cutoff,
         ended: true,
         karma: 1,
         mode: session.mode,
         ...(session.character ? { characterId: session.character.personality.id } : {}),
+        ...(worldDirectives.length > 0 ? { worldDirectives } : {}),
       })
     }
 

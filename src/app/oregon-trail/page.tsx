@@ -6,7 +6,7 @@ import { OregonTrailProvider, useOregonTrail } from './oregonTrailContext'
 import { ShareLegacy } from '@/components/ui/ShareLegacy'
 
 // Context Providers (used in provider tree)
-import { KarmaWalletProvider } from './karmaWalletContext'
+import { KarmaWalletProvider, useKarmaWallet } from './karmaWalletContext'
 import { CharacterProvider } from './characterContext'
 import { ReputationProvider } from './reputationContext'
 import { NarratorProvider } from './narratorContext'
@@ -30,7 +30,7 @@ import { VolumeControl } from './components/VolumeControl'
 import * as AudioManager from './lib/audioManager'
 
 // Specialty Shops — HireableGuide type used by TravelScreen wrapper
-import { type HireableGuide } from './data/specialtyShops'
+import { HIREABLE_GUIDES, type HireableGuide } from './data/specialtyShops'
 
 // Extracted Phase Screens (formerly inline in this file)
 import {
@@ -57,19 +57,45 @@ import {
   GoldCountryLocationScreen,
   GoldCountryTravelScreen,
   SaveLoadIntegration,
+  LivingTrailScreen,
 } from './phases'
 import { useConsumableEffects } from './hooks/useConsumableEffects'
+import { useDmDirectives } from './hooks/useDmDirectives'
 
 // Local auto-save key for unauthenticated users (subsystem contexts persist
 // independently; this captures the core OregonTrail state so "Continue" works
 // without requiring login)
 const LOCAL_AUTOSAVE_KEY = 'golden_frog_local_save'
 
+// #13: the local autosave is stored as { savedAt, state } so Continue can
+// compare recency against auth slots. Legacy saves were the bare state object
+// (phase at top level) and carry no wall-clock stamp (savedAt: null).
+// Returns null when absent, unparsable, or not playable (title phase).
+function readLocalAutosave(): { savedAt: string | null; state: Record<string, unknown> } | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_AUTOSAVE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    // Legacy bare-state save: phase lives at the top level, savedAt unknown
+    if (typeof parsed.phase === 'string') {
+      return parsed.phase !== 'title' ? { savedAt: null, state: parsed } : null
+    }
+    const inner = parsed.state
+    if (inner && typeof inner === 'object' && typeof inner.phase === 'string' && inner.phase !== 'title') {
+      return { savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : null, state: inner }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 // NOTE: Phase screens extracted to ./phases/ directory.
 // TravelScreen is a thin wrapper that holds shared state across sub-phases
 // (town ↔ traveling ↔ event ↔ river) and dispatches to the appropriate component.
 function TravelScreen() {
-  const { state } = useOregonTrail()
+  const { state, hireGuide } = useOregonTrail()
 
   // Shared consumable effects (persists across sub-phase changes)
   const { activeEffects, handleUseConsumable, handleApplyMedicine, handleRepairWagon } = useConsumableEffects()
@@ -80,9 +106,15 @@ function TravelScreen() {
     threshold: 'high' | 'low'
   } | null>(null)
 
-  // Shared state: hired guide (persists across town visits)
-  const [hiredGuide, setHiredGuide] = useState<HireableGuide | null>(null)
-  const [guideRemainingLandmarks, setGuideRemainingLandmarks] = useState(0)
+  // Hired guide (#11): lives in persisted trail state (golden_frog_local_save)
+  // so it survives reload — the guide object is derived from static data
+  const hiredGuide = useMemo<HireableGuide | null>(
+    () => state.hiredGuideId
+      ? HIREABLE_GUIDES.find(g => g.id === state.hiredGuideId) ?? null
+      : null,
+    [state.hiredGuideId]
+  )
+  const guideRemainingLandmarks = state.guideRemainingLandmarks
 
   // Shared state: solved puzzles and visited historical characters.
   // 2026-06-21: solved puzzles are now PERSISTED (was a silent data-loss bug — progress
@@ -94,9 +126,8 @@ function TravelScreen() {
   const [visitedHistoricalIds, setVisitedHistoricalIds] = useState<string[]>([])
 
   const handleHireGuide = useCallback((guide: HireableGuide) => {
-    setHiredGuide(guide)
-    setGuideRemainingLandmarks(guide.duration)
-  }, [])
+    hireGuide(guide.id, guide.duration)
+  }, [hireGuide])
 
   // Sub-phase dispatch
   if (state.phase === 'event' && state.currentEvent) {
@@ -151,6 +182,10 @@ function OregonTrailGame() {
   const [continueError, setContinueError] = useState(false)
   const { saves, loadGame } = useSaveLoad()
 
+  // DM directive channel (DM Layer P1): drain the queue while in trail
+  // gameplay phases and apply through the APPLY_DM_DIRECTIVE choke point.
+  useDmDirectives()
+
   // C2 fix: the save-slot store is shared across all games. Only consider
   // saves that belong to THIS game (explicit gameType, or inferred for legacy
   // slots) so "Continue Game" can never load an Adventure save.
@@ -180,7 +215,8 @@ function OregonTrailGame() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
       try {
-        localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(state))
+        // #13: wrapped shape — savedAt lets Continue compare recency vs slots
+        localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify({ savedAt: new Date().toISOString(), state }))
         setHasLocalSave(true)
       } catch { /* storage full or unavailable */ }
     }, 2000)
@@ -193,13 +229,33 @@ function OregonTrailGame() {
     const handleUnload = () => {
       if (state.phase !== 'title' && state.phase !== 'chapter_intro') {
         try {
-          localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify(state))
+          localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify({ savedAt: new Date().toISOString(), state }))
         } catch { /* ignore */ }
       }
     }
     window.addEventListener('beforeunload', handleUnload)
     return () => window.removeEventListener('beforeunload', handleUnload)
   }, [state])
+
+  // #17: nothing in the trail flow ever called initializeWallet, so the karma
+  // wallet provider's persist effect (gated on isInitialized && walletMode)
+  // never ran — oregon_trail_karma_wallet was never written, taco/cookie
+  // balances lived only in memory + the in-memory offline queue, and every
+  // reload reset them to the 400 starting default (progress loss AND an
+  // infinite-money exploit). Same lazy-init the adventure page uses: create a
+  // brand-new wallet ONLY when nothing is stored. When a stored wallet exists
+  // the provider's own mount-load effect restores it — deliberately NOT the
+  // 'continue' init path, whose offline getBalance() fallback returns the 400
+  // default and would clobber a saved balance.
+  const { isInitialized: walletInitialized, initializeWallet } = useKarmaWallet()
+  useEffect(() => {
+    if (walletInitialized) return
+    try {
+      if (!localStorage.getItem('oregon_trail_karma_wallet')) {
+        initializeWallet('new')
+      }
+    } catch { /* storage unavailable */ }
+  }, [walletInitialized, initializeWallet])
 
   // Initialize audio and start music on game start (user interaction required)
   const handleGameStart = useCallback(async () => {
@@ -208,9 +264,17 @@ function OregonTrailGame() {
       setAudioInitialized(true)
     }
     // Start music based on saved preference (electro swing or Fallout 2 OST)
+    // #21: dispatch to the playlist matching the SAVED mode — previously only
+    // 'fallout' was honored and parov/western silently fell through to synth.
     const savedMode = AudioManager.loadSoundtrackPreference()
     if (savedMode === 'fallout') {
       AudioManager.playFalloutPlaylist()
+    } else if (savedMode === 'parov') {
+      AudioManager.playParovPlaylist()
+    } else if (savedMode === 'western') {
+      AudioManager.playWesternPlaylist()
+    } else if (savedMode === 'steampunk') {
+      AudioManager.playSteampunkPlaylist()
     } else {
       AudioManager.playPlaylist()
     }
@@ -224,52 +288,91 @@ function OregonTrailGame() {
       await AudioManager.initAudio()
       setAudioInitialized(true)
     }
+    // #21: dispatch to the playlist matching the SAVED mode — previously only
+    // 'fallout' was honored and parov/western silently fell through to synth.
     const savedMode = AudioManager.loadSoundtrackPreference()
     if (savedMode === 'fallout') {
       AudioManager.playFalloutPlaylist()
+    } else if (savedMode === 'parov') {
+      AudioManager.playParovPlaylist()
+    } else if (savedMode === 'western') {
+      AudioManager.playWesternPlaylist()
+    } else if (savedMode === 'steampunk') {
+      AudioManager.playSteampunkPlaylist()
     } else {
       AudioManager.playPlaylist()
     }
-    // Try slot-based saves first (authenticated users) — Oregon Trail slots only (C2)
+    // #13: gather BOTH candidates first, then newest-wins. The local autosave
+    // is the continuously-overwritten copy the player last saw, so a stale
+    // auth slot must never shadow it just because slots are checked first.
     const sorted = [...trailSaves].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    if (sorted.length > 0) {
-      console.info(`[Continue] Found ${sorted.length} slot save(s), trying most recent: ${sorted[0].id}`)
-      const result = await loadGame(sorted[0].id)
+    const newestSlot = sorted.length > 0 ? sorted[0] : null
+    const local = readLocalAutosave()
+
+    // Decide which source is newer (only matters when both exist)
+    let preferLocal = local !== null
+    if (local && newestSlot) {
+      if (local.savedAt) {
+        // (a) both wall-clock timestamps present — newer wins
+        preferLocal = new Date(local.savedAt).getTime() >= new Date(newestSlot.timestamp).getTime()
+      } else {
+        // (b) legacy local save with no wall-clock stamp — compare in-game
+        // progress (totalMilesTraveled, then day); higher wins
+        const slotGame = (newestSlot.gameData as { oregonTrail?: Record<string, unknown> } | undefined)?.oregonTrail
+        const slotMiles = typeof slotGame?.totalMilesTraveled === 'number' ? slotGame.totalMilesTraveled : null
+        const localMiles = typeof local.state.totalMilesTraveled === 'number' ? local.state.totalMilesTraveled : null
+        const slotDay = typeof slotGame?.day === 'number' ? slotGame.day : null
+        const localDay = typeof local.state.day === 'number' ? local.state.day : null
+        if (slotMiles !== null && localMiles !== null && slotMiles !== localMiles) {
+          preferLocal = localMiles > slotMiles
+        } else if (slotDay !== null && localDay !== null && slotDay !== localDay) {
+          preferLocal = localDay > slotDay
+        } else {
+          // (c) indeterminate — prefer the local autosave
+          preferLocal = true
+        }
+      }
+      console.info(`[Continue] Both sources present — preferring ${preferLocal ? 'local autosave' : `slot ${newestSlot.id}`}`)
+    }
+
+    // Both apply paths route through the existing loaders so the LOAD_STATE
+    // migration choke point (migrateParty + migrateLivingTrail) still fires.
+    const applyLocal = (): boolean => {
+      if (!local) return false
+      console.info(`[Continue] Local autosave applied (phase: ${local.state.phase})`)
+      loadState(local.state as unknown as Parameters<typeof loadState>[0])
+      return true
+    }
+    const applySlot = async (): Promise<boolean> => {
+      if (!newestSlot) return false
+      console.info(`[Continue] Trying slot save: ${newestSlot.id}`)
+      const result = await loadGame(newestSlot.id)
       // loadGame reports success whenever the registered gameDataLoader ran —
       // even if the slot carried no oregonTrail payload (e.g. an auto-save
       // created on the title screen collects `{}`), in which case the loader
-      // is a no-op, the phase stays 'title', and returning here would softlock
-      // Continue. Only trust the slot if it actually held a playable phase;
-      // otherwise fall through to the local autosave below.
+      // is a no-op, the phase stays 'title', and trusting it would softlock
+      // Continue. Only trust the slot if it actually held a playable phase.
       const slotState = result.data?.oregonTrail as { phase?: unknown } | undefined
       const slotPlayable =
         !!slotState && typeof slotState === 'object' &&
         typeof slotState.phase === 'string' && slotState.phase !== 'title'
       if (result.success && slotPlayable) {
         console.info(`[Continue] Slot save applied (phase: ${slotState.phase})`)
-        return
+        return true
       }
       console.info(
         `[Continue] Slot save not playable (success: ${result.success}` +
-        `${result.error ? `, error: ${result.error}` : ''}) — falling through to local autosave`
+        `${result.error ? `, error: ${result.error}` : ''})`
       )
-    } else {
-      console.info('[Continue] No Oregon Trail slot saves — trying local autosave')
+      return false
     }
-    // Fall back to local auto-save (all users)
-    try {
-      const saved = localStorage.getItem(LOCAL_AUTOSAVE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed && typeof parsed === 'object' && parsed.phase && parsed.phase !== 'title') {
-          console.info(`[Continue] Local autosave applied (phase: ${parsed.phase})`)
-          loadState(parsed)
-          return
-        }
-        console.warn('[Continue] Local save has invalid or title-phase state, ignoring')
-      }
-    } catch (e) {
-      console.warn('[Continue] Failed to parse local save:', e)
+
+    if (preferLocal) {
+      if (applyLocal()) return
+      if (await applySlot()) return
+    } else {
+      if (await applySlot()) return
+      if (applyLocal()) return
     }
     // No valid save found from either source — tell the player honestly
     console.warn('[Continue] No valid save found from auth slots or local storage')
@@ -374,6 +477,11 @@ function OregonTrailGame() {
 
     if (state.phase === 'gold_country_travel') {
       return <GoldCountryTravelScreen />
+    }
+
+    // Living Trail — presence-gated real-world quest chains
+    if (state.phase === 'living_trail') {
+      return <LivingTrailScreen />
     }
 
     // Settlement phase - main settlement building (accessed from BOBR Cabin)

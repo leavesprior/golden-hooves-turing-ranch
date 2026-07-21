@@ -1627,8 +1627,35 @@ export const WESTERN_TRACKS: WesternTrack[] = [
   { id: 'sugar_cane', title: 'Sugar Cane', file: '/rpg/sounds/western/sugar_cane.mp3', year: 1908, context: ['settlement', 'ambient'] },
 ]
 
-// Shared MP3 playback state (used by Fallout, Parov, and Western modes)
-export type SoundtrackMode = 'synth' | 'parov' | 'western' | 'fallout'
+// ═══════════════════════════════════════════════════════════════════════════════
+// STEAMPUNK - Open-source electro-swing / neo-Victorian dance instrumentals
+// ═══════════════════════════════════════════════════════════════════════════════
+// All tracks by Kevin MacLeod (incompetech.com), licensed Creative Commons
+// Attribution 4.0 (CC-BY) — commercial use permitted with attribution.
+// Attribution is captured in public/rpg/sounds/CREDITS.md (required for CC-BY).
+
+export interface SteampunkTrack {
+  id: string
+  title: string
+  file: string
+  context: FalloutTrackContext[]
+  // Licensing provenance (CC-BY requires attribution — kept in-source + CREDITS.md)
+  artist: string
+  license: string
+  source: string
+}
+
+export const STEAMPUNK_TRACKS: SteampunkTrack[] = [
+  { id: 'fig_leaf_times_two', title: 'Fig Leaf Times Two', file: '/rpg/sounds/steampunk/fig_leaf_times_two.mp3', context: ['saloon', 'town', 'title'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+  { id: 'vivacity', title: 'Vivacity', file: '/rpg/sounds/steampunk/vivacity.mp3', context: ['town', 'saloon', 'ambient'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+  { id: 'the_show_must_be_go', title: 'The Show Must Be Go', file: '/rpg/sounds/steampunk/the_show_must_be_go.mp3', context: ['title', 'town', 'saloon'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+  { id: 'there_it_is', title: 'There It Is', file: '/rpg/sounds/steampunk/there_it_is.mp3', context: ['danger', 'travel'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+  { id: 'killers', title: 'Killers', file: '/rpg/sounds/steampunk/killers.mp3', context: ['danger', 'mystery'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+  { id: 'salty_ditty', title: 'Salty Ditty', file: '/rpg/sounds/steampunk/salty_ditty.mp3', context: ['travel', 'wilderness'], artist: 'Kevin MacLeod', license: 'CC-BY 4.0', source: 'https://incompetech.com/' },
+]
+
+// Shared MP3 playback state (used by Fallout, Parov, Western, and Steampunk modes)
+export type SoundtrackMode = 'synth' | 'parov' | 'western' | 'fallout' | 'steampunk'
 
 interface FalloutState {
   mode: SoundtrackMode
@@ -1639,6 +1666,7 @@ interface FalloutState {
   queueIndex: number
   isPlaying: boolean
   currentContext: FalloutTrackContext
+  consecutiveFailures: number  // #20: failed-load streak; triggers synth fallback
 }
 
 const falloutState: FalloutState = {
@@ -1650,7 +1678,12 @@ const falloutState: FalloutState = {
   queueIndex: 0,
   isPlaying: false,
   currentContext: 'ambient',
+  consecutiveFailures: 0,
 }
+
+// #20: after this many consecutive track load failures, assume the whole
+// mode's files are missing and fall back to the procedural synth soundtrack.
+const MAX_CONSECUTIVE_TRACK_FAILURES = 5
 
 // Get the active soundtrack mode
 export function getSoundtrackMode(): SoundtrackMode {
@@ -1683,6 +1716,8 @@ export function setSoundtrackMode(mode: SoundtrackMode): void {
     playParovPlaylist()
   } else if (mode === 'western') {
     playWesternPlaylist()
+  } else if (mode === 'steampunk') {
+    playSteampunkPlaylist()
   } else {
     playFalloutPlaylist()
   }
@@ -1697,7 +1732,7 @@ export function setSoundtrackMode(mode: SoundtrackMode): void {
 export function loadSoundtrackPreference(): SoundtrackMode {
   try {
     const saved = localStorage.getItem('golden-hooves-soundtrack-mode')
-    if (saved === 'fallout' || saved === 'synth' || saved === 'parov' || saved === 'western') return saved
+    if (saved === 'fallout' || saved === 'synth' || saved === 'parov' || saved === 'western' || saved === 'steampunk') return saved
   } catch {}
   return 'synth'
 }
@@ -1724,6 +1759,7 @@ export function playFalloutPlaylist(context: FalloutTrackContext = 'ambient'): v
   falloutState.trackQueue = buildFalloutQueue(context)
   falloutState.queueIndex = 0
   falloutState.isPlaying = true
+  falloutState.consecutiveFailures = 0
 
   playFalloutTrack(falloutState.trackQueue[0])
 }
@@ -1767,8 +1803,42 @@ function playFalloutTrack(track: FalloutTrack): void {
     }, fadeInterval)
   }
 
+  // #20: a failed load never fires `ended`, so without this the playlist
+  // stalls forever on the first 404. Treat load failure like `ended`
+  // (advance), and after MAX_CONSECUTIVE_TRACK_FAILURES in a row assume the
+  // mode's files are absent and fall back to the synth soundtrack.
+  let failureHandled = false // `error` event and play() rejection can both fire
+  const handleLoadFailure = (reason: string) => {
+    if (failureHandled) return
+    failureHandled = true
+    // Superseded element: crossfade fade-out and stopFalloutMusic() both set
+    // src='' on the OLD element, which fires a spurious 'error' (Empty src
+    // attribute). Only the element that is still current may drive advancing.
+    if (falloutState.audioElement !== audio) return
+    falloutState.currentTrackId = null // don't claim "Now Playing" a track that failed
+    falloutState.audioElement = null
+    if (!falloutState.isPlaying) return
+    falloutState.consecutiveFailures++
+    console.warn(`AudioManager: track failed to load (${track.file}): ${reason} — advancing`)
+    if (falloutState.consecutiveFailures >= MAX_CONSECUTIVE_TRACK_FAILURES) {
+      const failedMode = falloutState.mode
+      console.warn(`AudioManager: ${falloutState.consecutiveFailures} consecutive failures in "${failedMode}" mode — files likely missing; falling back to synth soundtrack`)
+      stopFalloutMusic()
+      falloutState.mode = 'synth'
+      falloutState.consecutiveFailures = 0
+      playPlaylist()
+      return
+    }
+    advanceFalloutTrack()
+  }
+
+  audio.addEventListener('error', () => {
+    handleLoadFailure(audio.error?.message || 'media error')
+  })
+
   // Fade in new track
   audio.play().then(() => {
+    falloutState.consecutiveFailures = 0 // a track is actually playing
     const targetVol = 0.8
     const fadeSteps = 20
     const fadeInterval = crossfadeDuration / fadeSteps
@@ -1782,7 +1852,12 @@ function playFalloutTrack(track: FalloutTrack): void {
       }
     }, fadeInterval)
   }).catch(err => {
-    console.warn('AudioManager: Fallout track play failed (user interaction required?):', err.message)
+    if (err?.name === 'NotAllowedError') {
+      // Autoplay blocked — needs user interaction; do NOT burn through the queue
+      console.warn('AudioManager: track play blocked (user interaction required):', err.message)
+    } else {
+      handleLoadFailure(err?.message || 'play() rejected')
+    }
   })
 
   // When track ends, advance to next
@@ -1807,6 +1882,7 @@ function advanceFalloutTrack(): void {
     // Reshuffle and restart using the appropriate queue builder
     const buildQueue = falloutState.mode === 'parov' ? buildParovQueue
       : falloutState.mode === 'western' ? buildWesternQueue
+      : falloutState.mode === 'steampunk' ? buildSteampunkQueue
       : buildFalloutQueue
     falloutState.trackQueue = buildQueue(falloutState.currentContext)
     falloutState.queueIndex = 0
@@ -1843,6 +1919,7 @@ export function setFalloutContext(context: FalloutTrackContext): void {
   const remaining = falloutState.trackQueue.slice(falloutState.queueIndex + 1)
   const buildQueue = falloutState.mode === 'parov' ? buildParovQueue
     : falloutState.mode === 'western' ? buildWesternQueue
+    : falloutState.mode === 'steampunk' ? buildSteampunkQueue
     : buildFalloutQueue
   const newQueue = buildQueue(context).filter(
     t => !remaining.some(r => r.id === t.id)
@@ -1883,6 +1960,7 @@ export function playParovPlaylist(context: FalloutTrackContext = 'ambient'): voi
   falloutState.trackQueue = buildParovQueue(context)
   falloutState.queueIndex = 0
   falloutState.isPlaying = true
+  falloutState.consecutiveFailures = 0
   playFalloutTrack(falloutState.trackQueue[0])
 }
 
@@ -1911,5 +1989,35 @@ export function playWesternPlaylist(context: FalloutTrackContext = 'ambient'): v
   falloutState.trackQueue = buildWesternQueue(context)
   falloutState.queueIndex = 0
   falloutState.isPlaying = true
+  falloutState.consecutiveFailures = 0
+  playFalloutTrack(falloutState.trackQueue[0])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STEAMPUNK PLAYBACK - Open-source electro-swing / neo-Victorian dance
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Get current Steampunk track info
+export function getCurrentSteampunkTrack(): SteampunkTrack | null {
+  if (falloutState.mode !== 'steampunk' || !falloutState.currentTrackId) return null
+  return STEAMPUNK_TRACKS.find(t => t.id === falloutState.currentTrackId) || null
+}
+
+// Build context-aware shuffled Steampunk queue
+function buildSteampunkQueue(context: FalloutTrackContext): FalloutTrack[] {
+  const contextTracks = STEAMPUNK_TRACKS.filter(t => t.context.includes(context))
+  const otherTracks = STEAMPUNK_TRACKS.filter(t => !t.context.includes(context))
+  return [...shuffleArray([...contextTracks]), ...shuffleArray([...otherTracks])]
+}
+
+// Play Steampunk as shuffled playlist
+export function playSteampunkPlaylist(context: FalloutTrackContext = 'ambient'): void {
+  if (!initAudio()) return
+  falloutState.mode = 'steampunk'
+  falloutState.currentContext = context
+  falloutState.trackQueue = buildSteampunkQueue(context)
+  falloutState.queueIndex = 0
+  falloutState.isPlaying = true
+  falloutState.consecutiveFailures = 0
   playFalloutTrack(falloutState.trackQueue[0])
 }

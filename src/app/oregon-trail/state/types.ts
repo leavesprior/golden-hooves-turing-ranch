@@ -32,19 +32,14 @@ export type GamePhase =
   | 'gold_country_travel'   // Travel between locations with encounters
   | 'settlement'          // Settlement building phase (accessed from BOBR Cabin)
   | 'settlement_victory'  // Settlement completion/ending screen
+  | 'living_trail'        // Presence-gated real-world quest chains (Living Trail P1)
   | 'complete'
   | 'game_over'
 
-// Graphics tier system (unlocked through progression)
+// Graphics tiers. The progression-unlock function that once gated these was
+// removed 2026-07-13 (visual64): it was never called, and the tier is pinned
+// to ultra_64bit in DEFAULT_STATE + LOAD_STATE (see graphicsTier.test.ts).
 export type GraphicsTier = 'retro_4bit' | 'classic_8bit' | 'enhanced_16bit' | 'modern_32bit' | 'ultra_64bit'
-
-export function getGraphicsTier(gamesCompleted: number, outlawsCaught: number): GraphicsTier {
-  if (gamesCompleted >= 3 && outlawsCaught >= 10) return 'ultra_64bit'
-  if (gamesCompleted >= 2 && outlawsCaught >= 5) return 'modern_32bit'
-  if (gamesCompleted >= 1 && outlawsCaught >= 2) return 'enhanced_16bit'
-  if (outlawsCaught >= 1) return 'classic_8bit'
-  return 'retro_4bit'
-}
 
 export interface PartyMember {
   id: string
@@ -103,7 +98,8 @@ export interface InvestigationState {
   maxInvestigationHours: number        // Before trail goes cold
   witnessesInterviewed: string[]       // IDs of witnesses talked to
   locationsSearched: string[]          // Places searched at current landmark
-  activeWitness: string | null         // Currently talking to
+  activeWitness: string | null         // Currently talking to (witnessType string)
+  activeNpcId?: string | null          // Real GoldCountryNPC id, when the witness is one (undefined-safe for old saves)
 }
 
 export interface OregonTrailState {
@@ -117,6 +113,10 @@ export interface OregonTrailState {
   // Party
   party: PartyMember[]
   wagonLeader: string
+
+  // Hired trail guide (#11) — persisted so the guide survives reload
+  hiredGuideId: string | null
+  guideRemainingLandmarks: number
 
   // Resources
   food: number           // Pounds
@@ -144,6 +144,12 @@ export interface OregonTrailState {
   currentChapter: number
   currentEvent: RandomEvent | null
   message: string | null
+
+  // #15: day the current landmark was reached — scenic place art (LandmarkScene)
+  // shows only when landmarkArrivalDay === day. Optional: old saves lack it
+  // (undefined never equals a number, so they just show the wagon scene).
+  // currentLandmark itself is load-bearing elsewhere and is never cleared.
+  landmarkArrivalDay?: number
 
   // Statistics
   totalMilesTraveled: number
@@ -183,4 +189,21 @@ export interface OregonTrailState {
   // Seasonal market (trail-side — ranch has its own; this tracks the active event for the trail shop)
   trailMarketEvent: MarketEvent | null       // Active market event affecting trail shop prices
   trailMarketEventEndDay: number             // Game day the event expires
+
+  // Living Trail (presence-gated real-world quest chains)
+  livingTrail: LivingTrailSlice
+}
+
+// === Living Trail (P1) ===
+
+export type LivingTrailNodeStatus = 'locked' | 'available' | 'completed'
+
+export interface LivingTrailNodeState {
+  status: LivingTrailNodeStatus
+  completedAt?: number
+  verifiedPresence?: boolean   // false = completed via the remote "by-lantern-light" variant
+}
+
+export interface LivingTrailSlice {
+  nodes: Record<string, LivingTrailNodeState>
 }

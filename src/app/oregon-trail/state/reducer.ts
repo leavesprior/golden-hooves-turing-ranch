@@ -31,6 +31,10 @@ import {
 } from './goldCountryActions'
 import { applyHirePosseMember, applyDismissPosseMember } from './posseEngine'
 import {
+  applyEnterLivingTrail, applyCompleteLivingTrailNode, migrateLivingTrail,
+} from './livingTrailActions'
+import { applyDmDirectiveState } from './dmDirectiveActions'
+import {
   applySetPhase, applySetCurrentLandmark, applyOpenWorldMap,
   applyStartFromTitle, applyCompleteChapterIntro,
   applyOpenRanchManagement, applyCloseRanchManagement,
@@ -40,6 +44,32 @@ import {
 import { getCriticalDescription } from '../data/criticalDescriptions'
 import { createRelationship, applyDispositionChange } from '../data/npcRelationships'
 import type { PartyRole } from '../data/posseSystem'
+
+/**
+ * Save migration (#8): corrupted/legacy saves can carry duplicate party ids
+ * (e.g. every starting member `id:"leader"`), which produces duplicate React
+ * keys (TownScreen/CampMenu party lists) and multiple LEADER badges in Camp.
+ * Ensures every id is unique and only the first leader keeps role 'leader'.
+ */
+export function migrateParty(party: PartyMember[]): PartyMember[] {
+  const seen = new Set<string>()
+  let leaderSeen = false
+  return party.map((original, i) => {
+    let member = original
+    if (member.role === 'leader') {
+      if (leaderSeen) member = { ...member, role: 'companion' as PartyRole }
+      else leaderSeen = true
+    }
+    if (!member.id || seen.has(member.id)) {
+      let n = i
+      let candidate = `member_${n}`
+      while (seen.has(candidate)) { n += 1; candidate = `member_${n}` }
+      member = { ...member, id: candidate }
+    }
+    seen.add(member.id)
+    return member
+  })
+}
 
 export function gameReducer(state: OregonTrailState, action: GameAction): OregonTrailState {
   switch (action.type) {
@@ -78,8 +108,18 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     case 'RESET_GAME':
       return DEFAULT_STATE
 
-    case 'LOAD_STATE':
-      return { ...DEFAULT_STATE, ...action.savedState }
+    case 'LOAD_STATE': {
+      // graphicsTier pinned: presentation is not save data (visual64) — old
+      // saves carry 'retro_4bit' from the progression-lock era
+      const loaded = { ...DEFAULT_STATE, ...action.savedState, graphicsTier: DEFAULT_STATE.graphicsTier }
+      // #8: migrate saves with duplicate party ids / duplicate leader roles
+      loaded.party = migrateParty(loaded.party ?? [])
+      // Living Trail: old saves have no livingTrail slice — default it, and
+      // merge in any nodes added after the save was written (never clobbers
+      // recorded progress). Same migration choke point as the party fix.
+      loaded.livingTrail = migrateLivingTrail(loaded.livingTrail)
+      return loaded
+    }
 
     // === Settings ===
 
@@ -100,6 +140,16 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         ...member,
         health: Math.max(0, Math.min(100, member.health + (outcome.healthDelta || 0))),
       }))
+      // DM boss encounters (P1) can interrupt the TOWN phase; return the
+      // player there instead of teleporting to the trail. Scoped to dm_boss_*
+      // event ids only — every existing event fires from computeTravel while
+      // traveling (travelEngine never sets previousPhase), so touching the
+      // general case could resurrect a stale previousPhase. For non-DM events
+      // this branch is provably identity: their ids never start with dm_boss_.
+      const postEventPhase: GamePhase =
+        state.currentEvent.id.startsWith('dm_boss_') && state.previousPhase === 'town'
+          ? 'town'
+          : 'traveling'
       return {
         ...state,
         food: Math.max(0, state.food + (outcome.foodDelta || 0)),
@@ -108,7 +158,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         spareParts: Math.max(0, state.spareParts + (outcome.spareParts || 0)),
         day: state.day + (outcome.daysLost || 0),
         party: updatedParty,
-        phase: 'traveling',
+        phase: postEventPhase,
         currentEvent: null,
         message: action.outcomeMessageOverride ?? outcome.message,
       }
@@ -165,7 +215,11 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       const isCritSuccess = roll > 0.95
       const isCritFailure = roll < 0.05
       const ammoUsed = Math.floor(Math.random() * 10) + 5
-      const foodGained = success ? Math.floor(Math.random() * 200) + 50 : 0
+      // Hunt-yield soft-cap (Grok balance fix 2026-07-20): was rand*200+50 (E≈150lb),
+      // which fed the wagon AND printed karma ~22x over cost. Nerf YIELD only — keep the
+      // hunt mechanic + success rate intact — so E≈65lb: still sustains a party of 4,
+      // no longer a karma-printing exploit.
+      const foodGained = success ? Math.floor(Math.random() * 70) + 30 : 0
       let huntMessage = success
         ? `You shot a deer! Gained ${foodGained} pounds of food.`
         : 'The animals got away. Better luck next time.'
@@ -179,7 +233,10 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         ammunition: state.ammunition - ammoUsed,
         food: state.food + foodGained,
         animalsKilled: state.animalsKilled + (success ? 1 : 0),
-        message: huntMessage,
+        // #12: hunting takes a full day (same pattern as applyRestAtInn) —
+        // closes the free-food farm exploit from town Hunt spam
+        day: state.day + 1,
+        message: `${huntMessage} The hunt took a full day.`,
       }
     }
 
@@ -272,7 +329,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     case 'OPEN_INVESTIGATION': return applyOpenInvestigation(state)
     case 'CLOSE_INVESTIGATION': return applyCloseInvestigation(state)
     case 'INVESTIGATE_LOCATION': return applyInvestigateLocation(state, action.locationId)
-    case 'OPEN_WITNESS_DIALOGUE': return applyOpenWitnessDialogue(state, action.witnessType)
+    case 'OPEN_WITNESS_DIALOGUE': return applyOpenWitnessDialogue(state, action.witnessType, action.npcId)
     case 'CLOSE_WITNESS_DIALOGUE': return applyCloseWitnessDialogue(state)
     case 'OPEN_DOSSIER': return applyOpenDossier(state)
     case 'CLOSE_DOSSIER': return applyCloseDossier(state)
@@ -314,9 +371,20 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     case 'ADD_INVENTORY_ITEM': return applyAddInventoryItem(state, action.itemId)
     case 'ADVANCE_GOLD_COUNTRY_DAY': return applyAdvanceGoldCountryDay(state, action.days)
 
+    // === Living Trail (presence-gated real-world chains) ===
+    case 'ENTER_LIVING_TRAIL': return applyEnterLivingTrail(state)
+    case 'COMPLETE_LT_NODE': return applyCompleteLivingTrailNode(state, action.nodeId, action.verifiedPresence)
+
     // === Posse system ===
     case 'HIRE_POSSE_MEMBER': return applyHirePosseMember(state, action.member)
     case 'DISMISS_POSSE_MEMBER': return applyDismissPosseMember(state, action.memberId)
+
+    // === Trail guide (#11) — persisted so the guide survives reload ===
+    case 'HIRE_GUIDE':
+      return { ...state, hiredGuideId: action.guideId, guideRemainingLandmarks: action.duration }
+
+    // === DM directive channel (DM Layer P1) ===
+    case 'APPLY_DM_DIRECTIVE': return applyDmDirectiveState(state, action.directive)
 
     // === NPC relationships ===
     case 'UPDATE_NPC_RELATIONSHIP': {

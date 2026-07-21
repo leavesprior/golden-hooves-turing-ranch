@@ -609,18 +609,8 @@ export function TravelingScene({
   progress,
   terrain = 'plains'
 }: TravelingSceneProps) {
-  const [wagonBob, setWagonBob] = useState(0)
-
-  // Animate wagon bobbing
-  useEffect(() => {
-    if (tier !== 'ultra_64bit') return
-
-    const interval = setInterval(() => {
-      setWagonBob(prev => (prev + 1) % 360)
-    }, 50)
-
-    return () => clearInterval(interval)
-  }, [tier])
+  // Wagon bob is pure CSS (see @keyframes wagonBob below) — the old 50ms
+  // setInterval re-rendered this scene 20x/sec and made clicks flaky.
 
   if (tier !== 'ultra_64bit') {
     return (
@@ -657,16 +647,15 @@ export function TravelingScene({
         }}
       />
 
-      {/* Animated wagon */}
+      {/* Animated wagon — the same covered wagon the title screen drives
+          (the shopping-cart emoji was a placeholder that shipped) */}
       <div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 text-5xl transition-transform"
-        style={{
-          transform: `translateX(-50%) translateY(${Math.sin(wagonBob * Math.PI / 180) * 3}px)`,
-        }}
+        className="absolute bottom-8 left-1/2 -translate-x-1/2"
+        style={{ animation: 'wagonBob 1.6s ease-in-out infinite' }}
       >
-        <span className="drop-shadow-lg">
-          {terrain === 'river' ? '\u{1F6F6}' : '\u{1F6D2}'}
-        </span>
+        {terrain === 'river'
+          ? <span className="text-5xl drop-shadow-lg">{'\u{1F6F6}'}</span>
+          : <CoveredWagonSprite />}
       </div>
 
       {/* Terrain-specific elements */}
@@ -693,8 +682,34 @@ export function TravelingScene({
           0% { background-position: 0 0; }
           100% { background-position: -20px 0; }
         }
+        @keyframes wagonBob {
+          0%, 100% { transform: translateX(-50%) translateY(0); }
+          50% { transform: translateX(-50%) translateY(-3px); }
+        }
       `}</style>
     </div>
+  )
+}
+
+// Covered wagon sprite — mirrors the title screen's authored wagon so the
+// vehicle is consistent from menu to trail
+export function CoveredWagonSprite({ scale = 1 }: { scale?: number }) {
+  return (
+    <svg width={80 * scale} height={50 * scale} viewBox="0 0 80 50" className="drop-shadow-lg">
+      {/* Canvas cover */}
+      <ellipse cx="40" cy="15" rx="30" ry="12" fill="#f5f5dc" />
+      <ellipse cx="40" cy="15" rx="28" ry="10" fill="#fffef0" />
+      {/* Body */}
+      <rect x="12" y="22" width="56" height="18" fill="#8B4513" />
+      <rect x="14" y="24" width="52" height="14" fill="#A0522D" />
+      {/* Wheels */}
+      <circle cx="20" cy="42" r="8" fill="#4a3728" />
+      <circle cx="20" cy="42" r="6" fill="#5c4433" />
+      <circle cx="20" cy="42" r="2" fill="#3d2817" />
+      <circle cx="60" cy="42" r="8" fill="#4a3728" />
+      <circle cx="60" cy="42" r="6" fill="#5c4433" />
+      <circle cx="60" cy="42" r="2" fill="#3d2817" />
+    </svg>
   )
 }
 

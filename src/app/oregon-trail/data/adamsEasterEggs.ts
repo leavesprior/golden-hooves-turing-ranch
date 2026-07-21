@@ -298,6 +298,55 @@ export const BRIDGE_QUESTIONS: BridgeQuestion[] = [
   },
 ]
 
+/**
+ * THE OTHER SERIES (dp-bridge-variant)
+ * ------------------------------------
+ * The first night's questions "were tossed in the chasm." This is the SECOND set
+ * the Bridge Keeper now poses at the secret DM-Table entrance — pure Hitchhiker's
+ * Guide, distinct from the name/quest/color trio above. Every question has a REAL
+ * answer, so a wrong answer genuinely launches the player into the chasm → /hub.
+ * The final entry is a fresh swallow-reversal (coconut-laden this time): questioning
+ * the question still flings the Keeper into the gorge and lets the seeker pass.
+ */
+export const BRIDGE_QUESTIONS_OTHER_SERIES: BridgeQuestion[] = [
+  {
+    question: "What... is the Answer to Life, the Universe, and Everything?",
+    correctAnswer: ['42', 'forty-two', 'forty two'],
+    wrongAnswerEffect: "The Bridge Keeper shakes his head. 'Wrong! Seven and a half million years, and you STILL don't know.' The planks give way.",
+    isSwallowQuestion: false,
+  },
+  {
+    question: "What... must a hitchhiker never, ever forget?",
+    correctAnswer: ['towel', 'a towel', 'my towel', 'your towel'],
+    wrongAnswerEffect: "The Bridge Keeper tuts. 'A frood who does NOT know where his towel is.' Into the gorge you go.",
+    isSwallowQuestion: false,
+  },
+  {
+    question: "What... are the large friendly letters on the cover of the Guide?",
+    correctAnswer: ["don't panic", 'dont panic', 'do not panic', 'panic'],
+    wrongAnswerEffect: "The Bridge Keeper points at the sky. 'You should have PANICKED. Now.' The bridge dissolves beneath you.",
+    isSwallowQuestion: false,
+  },
+  {
+    question: "What... is the airspeed velocity of an unladen swallow carrying a coconut?",
+    correctAnswer: [
+      'african or european',
+      'an african or european swallow',
+      'european or african',
+      'what do you mean',
+      'what do you mean, laden with a coconut',
+    ],
+    wrongAnswerEffect: "The Bridge Keeper cackles. 'Only the wise question the question.' You are not wise. You fall.",
+    isSwallowQuestion: true,
+  },
+]
+
+export const BRIDGE_KEEPER_OTHER_SERIES_INTRO = [
+  "Stop! The first questions were tossed in the chasm. These are the OTHER series. Answer, ere the DM Table you see.",
+  "*a fluorescent flicker in the mist* You seek the room beyond. First — three questions from the Guide.",
+  "Halt! Only a frood who knows their towel may pass to the table of the Dungeon Master.",
+]
+
 export const BRIDGE_KEEPER_SUCCESS = [
   "Right. Off you go. *waves dismissively*",
   "*nods sagely* You may pass.",

@@ -53,6 +53,12 @@ const PLACE_ART: Record<string, string> = {
   ch4_west_point: 'west_point', ch4_jackson: 'jackson', ch4_mokelumne_hill: 'mokelumne_hill',
   ch4_ranch_site: 'bobr_cabin', ch5_ranch_house: 'bobr_cabin',
   ch5_ghost_town: 'ch5_ghost_town', ch5_hydraulic_scar: 'ch5_hydraulic_scar',
+  // --- Oregon Trail landmarks (generated 2026-07-14, Tower batch; vision-judged) ---
+  ot_kansas_river: 'ot_kansas_river', ot_chimney_rock: 'ot_chimney_rock',
+  ot_independence_rock: 'ot_independence_rock', ot_south_pass: 'ot_south_pass',
+  ot_fort_bridger: 'ot_fort_bridger', ot_raft_river: 'ot_raft_river',
+  ot_city_of_rocks: 'ot_city_of_rocks', ot_humboldt_river: 'ot_humboldt_river',
+  ot_humboldt_sink: 'ot_humboldt_sink', ot_forty_mile_desert: 'ot_forty_mile_desert', ot_fort_laramie: 'ot_fort_laramie',
 }
 
 // --- DB32 32/64-bit pixel-art scenes (opt-in, flag-gated) -------------------

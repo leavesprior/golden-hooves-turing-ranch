@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { PixelNavigation, PixelButton } from '@/components/pixel'
 import Link from 'next/link'
 import { readSharedCharacter } from '@/lib/sharedCharacter'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 
 type MenuOption = 'main' | 'qr-hunt' | 'about'
 
@@ -219,6 +220,7 @@ export default function GamePage() {
           </button>
 
           <div className="text-center mb-8">
+            <PlaceBackdrop id="bobr_cabin" className="mb-4 h-32 rounded border-2 border-[var(--pixel-gold-mid)]/60" />
             <h1 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-lg mb-2">
               🏠 AT THE RANCH
             </h1>

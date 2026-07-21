@@ -19,7 +19,9 @@ check('every event has a sane DC (8–20)', PERIL_EVENTS.every(e => e.dc >= 8 &&
 check('injury rolls Agility (SuperGrok delta), not Durability',
   PERIL_EVENTS.filter(e => e.condition === 'injury').every(e => e.gatingStat === 'agility'))
 check('snakebite is a poison track', findPerilEvent('rattlesnake')?.poison === true)
-check('diseases incubate before biting', findPerilEvent('fouled_water')?.incubationTicks! >= 1 && findPerilEvent('river_miasma')?.incubationTicks! >= 1)
+check('diseases incubate before biting',
+  (findPerilEvent('fouled_water')?.incubationTicks ?? 0) >= 1 &&
+  (findPerilEvent('river_miasma')?.incubationTicks ?? 0) >= 1)
 check('exhaustion is the lowest-DC threat', Math.min(...PERIL_EVENTS.filter(e=>e.condition==='exhaustion').map(e=>e.dc)) <= 11)
 check('table covers both travel and dialogue sources',
   PERIL_EVENTS.some(e=>e.source==='travel') && PERIL_EVENTS.some(e=>e.source==='dialogue'))

@@ -64,10 +64,10 @@ export function TownScreen({
   visitedHistoricalIds,
   onHistoricalVisited,
 }: TownScreenProps) {
-  const { state, hunt, leaveTown, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, getAllNPCRelationships } = useOregonTrail()
-  const { earnNeutral } = useKarmaWallet()
+  const { state, hunt, leaveTown, openInvestigation, openDossier, openTelegraph, openJournal, openWorldMap, openRanchManagement, enterLivingTrail, getAllNPCRelationships, buySupplies } = useOregonTrail()
+  const { earnNeutral, earnGood } = useKarmaWallet()
   const { state: mysteryState, getCluesForLocation, getCorrectClueCount, getActiveCase } = useMystery()
-  const { getStat } = useCharacter()
+  const { getStat, addExperience } = useCharacter()
   const { comment } = useNarrator()
   const { progress: chapterProgress } = useChapter()
 
@@ -519,8 +519,8 @@ export function TownScreen({
           </button>
         </div>
 
-        {/* World Map Button */}
-        <div className="flex justify-center mb-6">
+        {/* World Map + Living Trail Buttons */}
+        <div className="flex justify-center gap-4 mb-6 flex-wrap">
           <button
             onClick={openWorldMap}
             className="px-6 py-3 bg-slate-800/80 hover:bg-slate-700/80 border-2 border-slate-500 rounded-lg text-center flex items-center gap-3"
@@ -529,6 +529,16 @@ export function TownScreen({
             <div className="text-left">
               <p className="text-slate-200 text-sm font-pixel">Open World Map</p>
               <p className="text-slate-400 text-xs">Explore Gold Country</p>
+            </div>
+          </button>
+          <button
+            onClick={enterLivingTrail}
+            className="px-6 py-3 bg-emerald-950/80 hover:bg-emerald-900/80 border-2 border-emerald-600 rounded-lg text-center flex items-center gap-3"
+          >
+            <span className="text-2xl">🥾</span>
+            <div className="text-left">
+              <p className="text-emerald-200 text-sm font-pixel">Living Trail (real world)</p>
+              <p className="text-emerald-400/80 text-xs">A real-world walk in West Point, CA</p>
             </div>
           </button>
         </div>
@@ -570,19 +580,19 @@ export function TownScreen({
               }}
               onComplete={(puzzleId, rewards) => {
                 onPuzzleSolved(puzzleId)
-                // Apply rewards
-                if (rewards.food || rewards.ammunition || rewards.medicine || rewards.spareParts) {
-                  // These are applied via the state context
-                }
+                // Apply rewards (#10): resources via trail state, XP via character context
+                if (rewards.food) buySupplies('food', rewards.food, 0)
+                if (rewards.ammunition) buySupplies('ammunition', rewards.ammunition, 0)
+                if (rewards.medicine) buySupplies('medicine', rewards.medicine, 0)
+                if (rewards.spareParts) buySupplies('spareParts', rewards.spareParts, 0)
                 if (rewards.neutralKarma && rewards.neutralKarma > 0) {
                   earnNeutral(rewards.neutralKarma, `Puzzle solved: ${showPuzzle.title}`)
                 }
-                if (rewards.xp) {
-                  // XP would go through character context
+                if (rewards.goodKarma && rewards.goodKarma > 0) {
+                  earnGood(rewards.goodKarma, `Puzzle solved: ${showPuzzle.title}`)
                 }
-                if (rewards.inventoryItem) {
-                  // Add to game inventory
-                }
+                if (rewards.xp) addExperience(rewards.xp)
+                // rewards.inventoryItem: display-only for now (no trail inventory hook)
               }}
               onClose={() => setShowPuzzle(null)}
             />

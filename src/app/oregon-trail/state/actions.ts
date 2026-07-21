@@ -12,6 +12,7 @@ import type { Pace, Rations, GamePhase, OregonTrailState } from './types'
 import type { CrossingOutcome } from '../data/riverCrossings'
 import type { QuestReward } from '../data/goldCountryNPCs'
 import type { PosseMember } from '../data/posseSystem'
+import type { DmDirective } from '@/lib/dmDirectives'
 
 // === Core Gameplay ===
 
@@ -56,7 +57,7 @@ export type GameAction =
   | { type: 'OPEN_INVESTIGATION' }
   | { type: 'CLOSE_INVESTIGATION' }
   | { type: 'INVESTIGATE_LOCATION'; locationId: string }
-  | { type: 'OPEN_WITNESS_DIALOGUE'; witnessType: string }
+  | { type: 'OPEN_WITNESS_DIALOGUE'; witnessType: string; npcId?: string | null }
   | { type: 'CLOSE_WITNESS_DIALOGUE' }
   | { type: 'OPEN_DOSSIER' }
   | { type: 'CLOSE_DOSSIER' }
@@ -99,9 +100,21 @@ export type GameAction =
   | { type: 'ADD_INVENTORY_ITEM'; itemId: string }
   | { type: 'ADVANCE_GOLD_COUNTRY_DAY'; days: number }
 
+  // Living Trail (presence-gated real-world chains)
+  | { type: 'ENTER_LIVING_TRAIL' }
+  // completeLivingTrailNode calls karma hooks before dispatching
+  | { type: 'COMPLETE_LT_NODE'; nodeId: string; verifiedPresence: boolean }
+
   // Posse system
   | { type: 'HIRE_POSSE_MEMBER'; member: PosseMember }
   | { type: 'DISMISS_POSSE_MEMBER'; memberId: string }
 
+  // Trail guide (#11) — GuideHire handles karma cost before dispatching
+  | { type: 'HIRE_GUIDE'; guideId: string; duration: number }
+
   // NPC relationships
   | { type: 'UPDATE_NPC_RELATIONSHIP'; npcId: string; modifierId: string }
+
+  // DM directive channel (DM Layer P1) — applyDmDirective validates + logs
+  // before dispatching; the reducer re-validates (drop, never partial-apply)
+  | { type: 'APPLY_DM_DIRECTIVE'; directive: DmDirective }

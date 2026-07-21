@@ -2,18 +2,32 @@
 
 import { useState, useEffect } from 'react'
 import { PixelNavigation, PixelButton } from '@/components/pixel'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+import { useCrossGame } from '@/lib/crossGameProgressionContext'
 
 export default function ClueGamePage() {
-  const [isUnlocked, setIsUnlocked] = useState(false)
+  const { isUnlocked, recordMilestone } = useCrossGame()
   const [mounted, setMounted] = useState(false)
 
+  // Single reader: derive lock state from the crossGameProgression config
+  // (isUnlocked('clue_game') -> clue_game_unlocked milestone), NOT the legacy
+  // bobr_clue_game_unlocked localStorage flag that used to desync from the hub.
+  // One-time read-migration: players who unlocked under the legacy flag before
+  // this change are promoted to the milestone once, then the flag is never read
+  // or written again.
   useEffect(() => {
     setMounted(true)
-    const unlocked = localStorage.getItem('bobr_clue_game_unlocked') === 'true'
-    setIsUnlocked(unlocked)
-  }, [])
+    try {
+      const legacy = localStorage.getItem('bobr_clue_game_unlocked') === 'true'
+      if (legacy && !isUnlocked('clue_game')) {
+        recordMilestone('clue_game_unlocked', 'clue_game')
+      }
+    } catch { /* storage unavailable */ }
+  }, [isUnlocked, recordMilestone])
 
   if (!mounted) return null
+
+  const unlocked = isUnlocked('clue_game')
 
   return (
     <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
@@ -32,9 +46,9 @@ export default function ClueGamePage() {
 
         {/* Main Content */}
         <div className="border-4 border-[var(--pixel-gold-mid)] bg-[var(--pixel-bg-mid)] p-6 text-center space-y-6">
-          {isUnlocked ? (
+          {unlocked ? (
             <>
-              <div className="text-4xl">🏡</div>
+              <PlaceBackdrop id="bobr_cabin" className="h-36 rounded border-2 border-[var(--pixel-gold-mid)]/60" />
               <h2 className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)]">
                 Quest Unlocked!
               </h2>

@@ -9,7 +9,7 @@ import { NarratorOverlay } from '../components/NarratorOverlay'
 
 export function CharacterCreationScreen() {
   const { state: trailState, beginJourney } = useOregonTrail()
-  const { state: charState, createCharacter, modifyStat, getStat } = useCharacter()
+  const { state: charState, createCharacter, getStat } = useCharacter()
   const { comment } = useNarrator()
 
   // Dice roll state
@@ -113,19 +113,16 @@ export function CharacterCreationScreen() {
     if (pointsRemaining !== 0 || !selectedBackground) return
 
     // Create the character with the selected background
-    const leaderName = trailState.party.find(m => m.id === 'leader')?.name || 'Agent'
-    createCharacter(leaderName, selectedBackground)
-
-    // Apply stat adjustments
-    // - Standard allocation: diff from base 3 (UI display value)
-    // - Rolled stats: diff from BASE_STATS (5) since we're replacing the base entirely
-    Object.entries(statPoints).forEach(([stat, value]) => {
-      const base = hasRolled ? 5 : 3  // BASE_STATS is 5, UI default is 3
-      const diff = value - base
-      if (diff !== 0) {
-        modifyStat(stat as StatName, diff)
-      }
-    })
+    const leaderName = trailState.party.find(m => m.role === 'leader')?.name || 'Agent'
+    // #16: hand the exact on-screen stat block to createCharacter via its
+    // statsOverride param, so the character the player BUILDS is the character
+    // they PLAY. The old path called modifyStat() in a loop right after
+    // createCharacter(), but modifyStat guards on state.character from THIS
+    // render's closure — still null until the create commits — so every
+    // adjustment silently no-oped and only background defaults (base 5 +
+    // background bonuses, e.g. Pinkerton 7/5/5/5/5/7) ever landed in the
+    // character sheet, bobr_ot_character, and skill-check DCs.
+    createCharacter(leaderName, selectedBackground, { ...statPoints })
 
     if (hasRolled && getTotalStats() >= 70) {
       comment("The dice favor the bold. Or perhaps just the persistent.", 'observation')

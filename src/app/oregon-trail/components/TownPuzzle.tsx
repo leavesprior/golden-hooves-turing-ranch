@@ -120,7 +120,8 @@ export default function TownPuzzle({
         <div>
           <h2 className="text-yellow-300 font-bold text-sm">{puzzle.title}</h2>
           <p className="text-yellow-500 text-xs">
-            {completed ? 'Solved!' : `Step ${stepsCompleted + 1} of ${totalSteps}`}
+            {/* clamp: fail-path retries can push stepsCompleted past totalSteps (#10) */}
+            {completed ? 'Solved!' : `Step ${Math.min(stepsCompleted + 1, totalSteps)} of ${totalSteps}`}
             {' \u2022 '}
             <span className={
               puzzle.difficulty === 'easy' ? 'text-green-400' :
@@ -308,7 +309,7 @@ export default function TownPuzzle({
         <div className="w-full bg-yellow-900/30 h-1">
           <div
             className="bg-yellow-500 h-1 transition-all"
-            style={{ width: `${completed ? 100 : (stepsCompleted / totalSteps) * 100}%` }}
+            style={{ width: `${completed ? 100 : Math.min(100, (stepsCompleted / totalSteps) * 100)}%` }}
           />
         </div>
       </div>

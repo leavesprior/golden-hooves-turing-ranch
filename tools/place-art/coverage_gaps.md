@@ -65,3 +65,10 @@ image ("every place looks like that real place"), each gets its OWN 64-bit pictu
 **Total distinct placeholder locations needing their own picture: 22.**
 These are the highest-leverage additions for the "the full game could have more of this" goal —
 all additive, no backend/logic change.
+## Oregon Trail landmark backlog (added 2026-07-13, Neoma hub)
+11 from-scratch entries added to places.json (ids `ot_*`, games:["oregon"]): kansas_river, chimney_rock, fort_laramie, independence_rock, south_pass, fort_bridger, raft_river, city_of_rocks, humboldt_river, humboldt_sink, forty_mile_desert.
+- All currently render via authored SVG fallbacks in LandmarkScene.tsx — safe state, no wrong-art risk. Generation is an upgrade, not a fix.
+- BEFORE generation: a research agent should attach verified LOC/archival `historical_photo` refs (W.H. Jackson et al. exist for Chimney Rock / Fort Laramie / Independence Rock). Coords in the entries are approximate (recall) — verify if Street View refs are wanted.
+- Generation: ComfyUI is installed locally (`/media/granny/larger SSD/ComfyUI`, SDXL base + pixel-art-xl LoRA present) but the server must be started: `./venv/bin/python main.py --listen 127.0.0.1 --port 8188`. Then `tower_batch.py` or per-place `generate.py --place ot_*`. GPU-heavy — run on Tower overnight or when Main is idle (load-awareness rule).
+- AFTER generation+verify: wire ids into PLACE_ART (PlaceBackdrop.tsx) and LANDMARK_PLACE_ART (LandmarkScene.tsx). Do not wire before PNGs exist.
+- Fun-feel guardrails for all trail art: MB `research/oregon_trail_fun_mechanics_20260713` (G5: travel screen is sacred — elevate, never replace; G6: uniform fidelity).

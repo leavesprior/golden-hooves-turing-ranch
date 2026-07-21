@@ -45,6 +45,8 @@ export interface RedeemResult {
   reason?: 'not_found' | 'already_redeemed' | 'expired';
 }
 
+let _warnedTmpDb = false
+
 function getDbPath(): string {
   const volumePath = '/data';
   try {
@@ -53,6 +55,15 @@ function getDbPath(): string {
     }
   } catch {
     // fall through
+  }
+  const isProd =
+    process.env.NODE_ENV === 'production' ||
+    Boolean(process.env.RAILWAY_ENVIRONMENT)
+  if (isProd && !_warnedTmpDb) {
+    _warnedTmpDb = true
+    console.error(
+      '[CRITICAL] /data volume missing — discount_codes.db is on /tmp and WILL vanish on redeploy. Mount a Railway volume at /data.',
+    )
   }
   return path.join('/tmp', 'discount_codes.db');
 }

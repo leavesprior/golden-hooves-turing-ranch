@@ -30,12 +30,25 @@ export function BookingGate({ onUnlocked, onClose }: BookingGateProps) {
       .then(data => {
         if (!cancelled && data?.verified === true) {
           setVerified(true)
+          // Session-restore path: a returning guest already holds a verified
+          // booking session but never re-runs handleVerify, so the
+          // booking_verified milestone would never be minted and any
+          // milestone-gated content (prologue config, future questlines) would
+          // stay locked despite a valid booking. Mint it on restore too;
+          // recordMilestone dedupes, so this is idempotent.
+          recordMilestone('booking_verified', 'prologue', { restored: true })
         }
       })
       .catch(() => {})
     return () => {
       cancelled = true
     }
+    // Run ONCE on mount. recordMilestone is intentionally omitted: its identity
+    // churns on every mint (useCallback dep [state.milestones]), so listing it
+    // re-runs this effect after the restore-mint and re-fires /api/verify-booking
+    // in a request loop until the unlock timer unmounts the gate. recordMilestone
+    // dedupes, so calling the mount-time closure once is correct and idempotent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleVerify = async () => {

@@ -1,17 +1,44 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { useMystery } from '../mysteryContext'
 import { KarmaToastContainer } from '@/components/karma'
+import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import GoldCountryBooking from '../components/GoldCountryBooking'
 
 export function GoldCountryArrivalScreen() {
   const { state, enterSettlement, leaveSettlement, resetGame } = useOregonTrail()
   const { balance } = useKarmaWallet()
   const { autoStartFirstCase } = useMystery()
+  const { recordMilestone } = useCrossGame()
   const [showBooking, setShowBooking] = useState(false)
+
+  // Reaching Gold Country IS the trail victory — this screen mounts exactly
+  // once when the party arrives (travelEngine sets phase gold_country_arrival
+  // at 2000mi). The auto-driver/2000mi victory path never touched the
+  // WorldMap/chapter machine that used to emit this milestone, so a full trail
+  // win left bobr_cross_game_progression.milestones empty and Ranch Treasure
+  // Hunt (gated on reached_west_point) never unlocked. Emit it here — the
+  // single, canonical victory point. recordMilestone dedupes, so a player who
+  // also reached West Point via the WorldMap path is never double-counted.
+  //
+  // A1 (dual-emit): `reached_west_point` is kept for back-compat (the Ranch
+  // Treasure Hunt gate), but it is semantically "beat the trail," NOT "visited
+  // West Point town" — a party can win without ever stopping in the town. Also
+  // emit `trail_victory`, the honestly-named beat-the-trail event, so future
+  // town-quests can gate on a true `visited_west_point` without mis-firing here.
+  //
+  // Run ONCE on mount — recordMilestone is intentionally omitted from deps: its
+  // identity churns on every mint (useCallback dep [state.milestones]), so
+  // listing it re-runs this effect after the mint and re-fires recordMilestone
+  // in a render loop. It dedupes, so the mount-time closure call is correct.
+  useEffect(() => {
+    recordMilestone('reached_west_point', 'prospectors_tale')
+    recordMilestone('trail_victory', 'prospectors_tale')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Calculate karma score and outlaws caught for discount tier
   const karmaScore = balance.good + Math.floor(balance.neutral / 2)

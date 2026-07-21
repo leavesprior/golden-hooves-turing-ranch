@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import { CrossGameStorage, type TimeEchoId } from '@/lib/crossGameProgression'
 import { useKarma } from '@/lib/karmaContext'
+import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 
 const ECHO_RIDDLES: Record<string, { riddle: string; answer: string; story: string }> = {
   norse_runestone: {
@@ -124,7 +125,7 @@ export default function RanchTreasureHuntPage() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Welcome */}
         <div className="text-center mb-10">
-          <div className="text-6xl mb-4">{'\uD83C\uDFDE\uFE0F'}</div>
+          <PlaceBackdrop id="bobr_cabin" className="mb-4 h-44 rounded-lg border-2 border-amber-600" />
           <h2 className="font-pixel text-amber-100 text-2xl mb-2">Welcome to the Ranch</h2>
           <p className="text-amber-300 text-sm max-w-lg mx-auto">
             You've made it to West Point. The ranch holds secrets older than the Gold Rush --

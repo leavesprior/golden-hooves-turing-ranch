@@ -1,0 +1,182 @@
+[
+ {
+  "place": "san_andreas",
+  "file": "/home/granny/place-art/upgrade_20260714/san_andreas/u_d0.66_s2432.png",
+  "ref": "bobr_san_andreas_hist.jpg",
+  "denoise": 0.66,
+  "seed": 2432,
+  "style_pass": true,
+  "colors": 35,
+  "blockiness": 0.776
+ },
+ {
+  "place": "san_andreas",
+  "file": "/home/granny/place-art/upgrade_20260714/san_andreas/u_d0.66_s2529.png",
+  "ref": "bobr_san_andreas_hist.jpg",
+  "denoise": 0.66,
+  "seed": 2529,
+  "style_pass": true,
+  "colors": 33,
+  "blockiness": 0.74
+ },
+ {
+  "place": "san_andreas",
+  "file": "/home/granny/place-art/upgrade_20260714/san_andreas/u_d0.66_s2626.png",
+  "ref": "bobr_san_andreas_hist.jpg",
+  "denoise": 0.66,
+  "seed": 2626,
+  "style_pass": true,
+  "colors": 35,
+  "blockiness": 0.789
+ },
+ {
+  "place": "san_andreas",
+  "file": "/home/granny/place-art/upgrade_20260714/san_andreas/u_d0.74_s2440.png",
+  "ref": "bobr_san_andreas_hist.jpg",
+  "denoise": 0.74,
+  "seed": 2440,
+  "style_pass": true,
+  "colors": 38,
+  "blockiness": 0.782
+ },
+ {
+  "place": "san_andreas",
+  "file": "/home/granny/place-art/upgrade_20260714/san_andreas/u_d0.74_s2537.png",
+  "ref": "bobr_san_andreas_hist.jpg",
+  "denoise": 0.74,
+  "seed": 2537,
+  "style_pass": true,
+  "colors": 35,
+  "blockiness": 0.801
+ },
+ {
+  "place": "san_andreas",
+  "file": "/home/granny/place-art/upgrade_20260714/san_andreas/u_d0.74_s2634.png",
+  "ref": "bobr_san_andreas_hist.jpg",
+  "denoise": 0.74,
+  "seed": 2634,
+  "style_pass": true,
+  "colors": 44,
+  "blockiness": 0.823
+ },
+ {
+  "place": "sandy_gulch",
+  "file": "/home/granny/place-art/upgrade_20260714/sandy_gulch/u_d0.58_s2409.png",
+  "ref": "bobr_sandy_gulch_map_crop.png",
+  "denoise": 0.58,
+  "seed": 2409,
+  "style_pass": true,
+  "colors": 61,
+  "blockiness": 0.731
+ },
+ {
+  "place": "sandy_gulch",
+  "file": "/home/granny/place-art/upgrade_20260714/sandy_gulch/u_d0.58_s2506.png",
+  "ref": "bobr_sandy_gulch_map_crop.png",
+  "denoise": 0.58,
+  "seed": 2506,
+  "style_pass": true,
+  "colors": 64,
+  "blockiness": 0.733
+ },
+ {
+  "place": "sandy_gulch",
+  "file": "/home/granny/place-art/upgrade_20260714/sandy_gulch/u_d0.58_s2603.png",
+  "ref": "bobr_sandy_gulch_map_crop.png",
+  "denoise": 0.58,
+  "seed": 2603,
+  "style_pass": true,
+  "colors": 57,
+  "blockiness": 0.726
+ },
+ {
+  "place": "sandy_gulch",
+  "file": "/home/granny/place-art/upgrade_20260714/sandy_gulch/u_d0.66_s2418.png",
+  "ref": "bobr_sandy_gulch_map_crop.png",
+  "denoise": 0.66,
+  "seed": 2418,
+  "style_pass": true,
+  "colors": 60,
+  "blockiness": 0.752
+ },
+ {
+  "place": "sandy_gulch",
+  "file": "/home/granny/place-art/upgrade_20260714/sandy_gulch/u_d0.66_s2515.png",
+  "ref": "bobr_sandy_gulch_map_crop.png",
+  "denoise": 0.66,
+  "seed": 2515,
+  "style_pass": true,
+  "colors": 63,
+  "blockiness": 0.76
+ },
+ {
+  "place": "sandy_gulch",
+  "file": "/home/granny/place-art/upgrade_20260714/sandy_gulch/u_d0.66_s2612.png",
+  "ref": "bobr_sandy_gulch_map_crop.png",
+  "denoise": 0.66,
+  "seed": 2612,
+  "style_pass": true,
+  "colors": 48,
+  "blockiness": 0.733
+ },
+ {
+  "place": "ch1_fort_kearny",
+  "file": "/home/granny/place-art/upgrade_20260714/ch1_fort_kearny/u_d0.5_s2398.png",
+  "ref": "bobr_ch1_fort_kearny_self.png",
+  "denoise": 0.5,
+  "seed": 2398,
+  "style_pass": true,
+  "colors": 35,
+  "blockiness": 0.841
+ },
+ {
+  "place": "ch1_fort_kearny",
+  "file": "/home/granny/place-art/upgrade_20260714/ch1_fort_kearny/u_d0.5_s2495.png",
+  "ref": "bobr_ch1_fort_kearny_self.png",
+  "denoise": 0.5,
+  "seed": 2495,
+  "style_pass": true,
+  "colors": 30,
+  "blockiness": 0.851
+ },
+ {
+  "place": "ch1_fort_kearny",
+  "file": "/home/granny/place-art/upgrade_20260714/ch1_fort_kearny/u_d0.5_s2592.png",
+  "ref": "bobr_ch1_fort_kearny_self.png",
+  "denoise": 0.5,
+  "seed": 2592,
+  "style_pass": true,
+  "colors": 28,
+  "blockiness": 0.833
+ },
+ {
+  "place": "ch1_fort_kearny",
+  "file": "/home/granny/place-art/upgrade_20260714/ch1_fort_kearny/u_d0.58_s2405.png",
+  "ref": "bobr_ch1_fort_kearny_self.png",
+  "denoise": 0.58,
+  "seed": 2405,
+  "style_pass": true,
+  "colors": 29,
+  "blockiness": 0.845
+ },
+ {
+  "place": "ch1_fort_kearny",
+  "file": "/home/granny/place-art/upgrade_20260714/ch1_fort_kearny/u_d0.58_s2502.png",
+  "ref": "bobr_ch1_fort_kearny_self.png",
+  "denoise": 0.58,
+  "seed": 2502,
+  "style_pass": true,
+  "colors": 34,
+  "blockiness": 0.842
+ },
+ {
+  "place": "ch1_fort_kearny",
+  "file": "/home/granny/place-art/upgrade_20260714/ch1_fort_kearny/u_d0.58_s2599.png",
+  "ref": "bobr_ch1_fort_kearny_self.png",
+  "denoise": 0.58,
+  "seed": 2599,
+  "style_pass": true,
+  "colors": 30,
+  "blockiness": 0.84
+ }
+]

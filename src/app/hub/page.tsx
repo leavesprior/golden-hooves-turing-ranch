@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useKarma, ALIGNMENT_DISPLAY_NAMES } from '@/lib/karmaContext'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
@@ -8,12 +9,13 @@ import { hasAnyCharacter } from '@/lib/sharedCharacter'
 import { AlignmentCompass, KarmaToastContainer, HouseRulesQuiz } from '@/components/karma'
 import { ShareLegacy } from '@/components/ui/ShareLegacy'
 
-// Game card component
+// Game card component — same amber card, now fronted by its real 64-bit place art
 interface GameCardProps {
   title: string
   description: string
   href: string
   icon: string
+  art?: string
   available: boolean
   comingSoon?: boolean
   isNew?: boolean
@@ -22,7 +24,7 @@ interface GameCardProps {
   features?: string[]
 }
 
-function GameCard({ title, description, href, icon, available, comingSoon, isNew, locked, lockHint, features }: GameCardProps) {
+function GameCard({ title, description, href, icon, art, available, comingSoon, isNew, locked, lockHint, features }: GameCardProps) {
   const isAccessible = available && !locked
   const content = (
     <div
@@ -50,7 +52,19 @@ function GameCard({ title, description, href, icon, available, comingSoon, isNew
           Locked
         </div>
       )}
-      <div className="text-4xl mb-4 text-center group-hover:scale-110 transition-transform">
+      {art && (
+        <div className="relative aspect-video -mx-6 -mt-6 mb-4 overflow-hidden rounded-t">
+          <Image
+            src={art}
+            alt={title}
+            fill
+            className={`object-cover transition-transform duration-500 ${isAccessible ? 'group-hover:scale-105' : 'grayscale-[0.6] brightness-75'}`}
+            sizes="(max-width: 640px) 50vw, 260px"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_55%,rgba(69,26,3,0.55))]" aria-hidden="true" />
+        </div>
+      )}
+      <div className={`${art ? 'text-3xl mb-2' : 'text-4xl mb-4'} text-center group-hover:scale-110 transition-transform`}>
         {locked ? '\uD83D\uDD12' : icon}
       </div>
       <h3 className="font-pixel text-amber-200 text-sm text-center mb-2">{title}</h3>
@@ -81,8 +95,8 @@ export default function HubPage() {
   const { isUnlocked, unlockToasts, dismissUnlockToast } = useCrossGame()
   const [showQuiz, setShowQuiz] = useState(false)
 
-  const prologueUnlocked = isUnlocked('prologue')
   const ranchHuntUnlocked = isUnlocked('ranch_treasure_hunt')
+  const clueGameUnlocked = isUnlocked('clue_game')
 
   // /hub is THE menu — cards deep-link straight into play, past secondary
   // lobbies. If any game already has a character (shared read), the RPG
@@ -141,6 +155,7 @@ export default function HubPage() {
             <Link href="/prologue" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">1. The Prologue {'·'} 600–1500</Link>
             <Link href="/adventure/where-in-time" className="font-pixel border-2 border-indigo-400/60 bg-indigo-900/30 px-3 py-1.5 text-indigo-200 hover:bg-indigo-800/40">2. Where in Time? {'·'} the chase</Link>
             <Link href="/oregon-trail" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">3. The Journey {'·'} 1849</Link>
+            <Link href="/playtest" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">4. Gold Country: Volcano {'·'} the case</Link>
             <Link href="/investigations" className="font-pixel border-2 border-indigo-400/60 bg-indigo-900/30 px-3 py-1.5 text-indigo-200 hover:bg-indigo-800/40">{'🔍'} The Tare's Trail {'·'} investigate 10 towns</Link>
           </div>
         </div>
@@ -303,8 +318,9 @@ export default function HubPage() {
                 description="A hidden quest waits for guests at the ranch"
                 href="/clue-game"
                 icon="🔍"
+                art="/place-art/moaning_cavern.png"
                 available={true}
-                locked={true}
+                locked={!clueGameUnlocked}
                 lockHint="Find the key during your stay"
                 features={['Hidden', 'Guests Only', 'Discounts']}
               />
@@ -313,6 +329,7 @@ export default function HubPage() {
                 description="Discover 6 historic towns with 30+ attractions"
                 href="/explore"
                 icon="⛏️"
+                art="/place-art/west_point.png"
                 available={true}
                 isNew={true}
                 features={['XP System', 'Badges', 'Secrets']}
@@ -322,6 +339,7 @@ export default function HubPage() {
                 description="Fallout-style journey from Missouri to Gold Country"
                 href="/oregon-trail"
                 icon="🚐"
+                art="/place-art/ch1_independence.png"
                 available={true}
                 isNew={true}
                 features={['World Map', 'Chapters', 'Easter Eggs']}
@@ -331,6 +349,7 @@ export default function HubPage() {
                 description={hasCharacter ? 'Continue exploring the frontier' : 'Create a character and explore the frontier'}
                 href={hasCharacter ? '/adventure/play' : '/adventure/character-creation'}
                 icon="⚔️"
+                art="/place-art/forester_trail.png"
                 available={true}
                 features={['Character', 'Quests']}
               />
@@ -339,6 +358,7 @@ export default function HubPage() {
                 description="Discover hidden spots around the ranch"
                 href="/game"
                 icon="🗺️"
+                art="/place-art/welcome_gate.png"
                 available={true}
                 features={['Photo Mode', 'Challenges']}
               />
@@ -347,10 +367,9 @@ export default function HubPage() {
                 description="600-1500 AD: Four civilizations, one ancient mystery"
                 href="/prologue"
                 icon={'\uD83C\uDFDB\uFE0F'}
+                art="/place-art/natural_bridges.png"
                 available={true}
                 isNew={true}
-                locked={!prologueUnlocked}
-                lockHint="Verify your booking to unlock"
                 features={['4 Characters', 'Investigation', 'Puzzles']}
               />
               <GameCard
@@ -358,6 +377,7 @@ export default function HubPage() {
                 description="Discover hidden treasures at Back of Beyond Ranch"
                 href="/ranch-treasure-hunt"
                 icon={'\uD83D\uDCE6'}
+                art="/place-art/harris_ranch.png"
                 available={true}
                 isNew={true}
                 locked={!ranchHuntUnlocked}
@@ -369,6 +389,7 @@ export default function HubPage() {
                 description="Support the ranch, trade karma, collect momentos"
                 href="/karma-market"
                 icon={'\uD83C\uDFEA'}
+                art="/place-art/jackson.png"
                 available={true}
                 isNew={true}
                 features={['Donations', 'Animal Treats', 'Momentos', 'Market Tracker']}
@@ -378,6 +399,7 @@ export default function HubPage() {
                 description="Crossroads tavern connecting all adventures"
                 href="/oregon-trail"
                 icon={'\uD83C\uDFE8'}
+                art="/place-art/mh_hotel_leger.png"
                 available={false}
                 comingSoon={true}
                 features={['NPCs', 'Side Quests']}

@@ -22,6 +22,9 @@ import {
   type MarketEvent,
 } from './data/seasonalMarket'
 import { getCurrentSeason, getDayOfYear } from './data/ranchConfig'
+import { getLivingTrailNode, getChainNodes } from './data/livingTrailChains'
+import { CrossGameStorage } from '@/lib/crossGameProgression'
+import { validateDmDirective, type DmDirective } from '@/lib/dmDirectives'
 
 // === State types and constants (extracted to state/ directory) ===
 import type {
@@ -29,7 +32,6 @@ import type {
   PartyMember, RandomEvent, EventChoice, EventOutcome,
   InvestigationState, OregonTrailState,
 } from './state/types'
-import { getGraphicsTier } from './state/types'
 import {
   LANDMARKS, RANDOM_EVENTS, DEFAULT_STATE,
   hasCynthiasInn,
@@ -39,7 +41,6 @@ import { gameReducer } from './state/reducer'
 // Re-export types and constants for backward compatibility (28+ consumers import from this file)
 export type { Pace, Rations, Weather, GamePhase, GraphicsTier }
 export type { PartyMember, RandomEvent, EventChoice, EventOutcome, InvestigationState, OregonTrailState }
-export { getGraphicsTier }
 export { LANDMARKS, RANDOM_EVENTS, DEFAULT_STATE, hasCynthiasInn }
 
 
@@ -72,7 +73,7 @@ interface OregonTrailContextValue {
   openInvestigation: () => void
   closeInvestigation: () => void
   investigateLocation: (locationId: string) => void
-  openWitnessDialogue: (witnessType: string) => void
+  openWitnessDialogue: (witnessType: string, npcId?: string | null) => void
   closeWitnessDialogue: () => void
   openDossier: () => void
   closeDossier: () => void
@@ -114,12 +115,22 @@ interface OregonTrailContextValue {
   addInventoryItem: (itemId: string) => void
   advanceGoldCountryDay: (days: number) => void
 
+  // Living Trail (presence-gated real-world chains)
+  enterLivingTrail: () => void
+  completeLivingTrailNode: (nodeId: string, verifiedPresence: boolean) => void
+
+  // DM directive channel (DM Layer P1)
+  applyDmDirective: (directive: DmDirective) => void
+
   // Save/Load support
   loadState: (savedState: OregonTrailState) => void
 
   // Posse system (#6)
   hirePosseMember: (member: PosseMember) => void
   dismissPosseMember: (memberId: string) => void
+
+  // Trail guide (#11)
+  hireGuide: (guideId: string, duration: number) => void
   getPartyBonuses: () => Record<string, number>
   getScarcityWarnings: () => { resource: ResourceType; level: 'low' | 'critical' | 'depleted'; description: string }[]
   handleDesperationChoice: (choiceId: string) => void
@@ -253,7 +264,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   const openInvestigation = useCallback(() => dispatch({ type: 'OPEN_INVESTIGATION' }), [])
   const closeInvestigation = useCallback(() => dispatch({ type: 'CLOSE_INVESTIGATION' }), [])
   const investigateLocation = useCallback((locationId: string) => dispatch({ type: 'INVESTIGATE_LOCATION', locationId }), [])
-  const openWitnessDialogue = useCallback((witnessType: string) => dispatch({ type: 'OPEN_WITNESS_DIALOGUE', witnessType }), [])
+  const openWitnessDialogue = useCallback((witnessType: string, npcId?: string | null) => dispatch({ type: 'OPEN_WITNESS_DIALOGUE', witnessType, npcId }), [])
   const closeWitnessDialogue = useCallback(() => dispatch({ type: 'CLOSE_WITNESS_DIALOGUE' }), [])
   const openDossier = useCallback(() => dispatch({ type: 'OPEN_DOSSIER' }), [])
   const closeDossier = useCallback(() => dispatch({ type: 'CLOSE_DOSSIER' }), [])
@@ -341,6 +352,72 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   const addInventoryItem = useCallback((itemId: string) => dispatch({ type: 'ADD_INVENTORY_ITEM', itemId }), [])
   const advanceGoldCountryDay = useCallback((days: number) => dispatch({ type: 'ADVANCE_GOLD_COUNTRY_DAY', days }), [])
 
+  // === Living Trail (presence-gated real-world chains) ===
+
+  const enterLivingTrail = useCallback(() => dispatch({ type: 'ENTER_LIVING_TRAIL' }), [])
+
+  // completeLivingTrailNode — karma side effects wrapper (same split as
+  // completeQuestWithReward: reducer owns state, wrapper owns karma).
+  // Remote "by-lantern-light" completions earn karma scaled by
+  // remoteVariant.karmaScale (rounded) and record verifiedPresence: false.
+  const completeLivingTrailNode = useCallback((nodeId: string, verifiedPresence: boolean) => {
+    const node = getLivingTrailNode(nodeId)
+    if (!node) return
+    // Mirror the reducer guard so karma can't be double-granted: only an
+    // 'available' node completes.
+    if (state.livingTrail.nodes[nodeId]?.status !== 'available') return
+
+    dispatch({ type: 'COMPLETE_LT_NODE', nodeId, verifiedPresence })
+
+    const scale = verifiedPresence ? 1 : node.remoteVariant.karmaScale
+    if (node.reward.goodKarma) {
+      earnGood(Math.round(node.reward.goodKarma * scale), `Living Trail: ${node.title}`)
+    }
+    if (node.reward.neutralKarma) {
+      earnNeutral(Math.round(node.reward.neutralKarma * scale), `Living Trail: ${node.title}`)
+    }
+
+    // Chain completion → one cross-game event (fire-and-forget) for the
+    // future town-memory layer.
+    const chainNodes = getChainNodes(node.chainId)
+    const chainComplete = chainNodes.every(
+      n => n.id === nodeId || state.livingTrail.nodes[n.id]?.status === 'completed'
+    )
+    if (chainComplete) {
+      try {
+        CrossGameStorage.logEvent(
+          'prospectors_tale',
+          'living_trail_chain_completed',
+          `Walked the Living Trail: ${node.chainId}`,
+          { detail: `chain=${node.chainId} finalNode=${nodeId} verifiedPresence=${verifiedPresence}` }
+        )
+      } catch { /* fire-and-forget */ }
+    }
+  }, [state.livingTrail.nodes, earnGood, earnNeutral])
+
+  // === DM directive channel (DM Layer P1) ===
+
+  // Validate at this boundary too (the queue validated on write AND read; the
+  // reducer will validate again — a directive that fails here is dropped and
+  // logged, never partially applied). Audit-tape logging is a side effect, so
+  // it lives in this wrapper, not the reducer — same split as the karma hooks.
+  const applyDmDirective = useCallback((directive: DmDirective) => {
+    const v = validateDmDirective(directive)
+    if (!v.ok) {
+      console.warn(`[dm-directive] DROP at client boundary: ${v.reason}`)
+      return
+    }
+    dispatch({ type: 'APPLY_DM_DIRECTIVE', directive: v.directive })
+    try {
+      CrossGameStorage.logEvent(
+        'prospectors_tale',
+        'dm_directive',
+        `DM directive applied: ${v.directive.kind}`,
+        { detail: JSON.stringify(v.directive) }
+      )
+    } catch { /* fire-and-forget */ }
+  }, [])
+
   // === Save/Load ===
 
   const loadState = useCallback((savedState: OregonTrailState) => {
@@ -355,6 +432,11 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
 
   const dismissPosseMember = useCallback((memberId: string) => {
     dispatch({ type: 'DISMISS_POSSE_MEMBER', memberId })
+  }, [])
+
+  // Trail guide (#11) — karma cost handled by GuideHire before this call
+  const hireGuide = useCallback((guideId: string, duration: number) => {
+    dispatch({ type: 'HIRE_GUIDE', guideId, duration })
   }, [])
 
   const handleDesperationChoice = useCallback((choiceId: string) => {
@@ -485,11 +567,18 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     markAreaSearched,
     addInventoryItem,
     advanceGoldCountryDay,
+    // Living Trail
+    enterLivingTrail,
+    completeLivingTrailNode,
+    // DM directive channel (DM Layer P1)
+    applyDmDirective,
     // Save/Load
     loadState,
     // Posse system (#6)
     hirePosseMember,
     dismissPosseMember,
+    // Trail guide (#11)
+    hireGuide,
     getPartyBonuses: getPartyBonusesFn,
     getScarcityWarnings: getScarcityWarningsFn,
     handleDesperationChoice,

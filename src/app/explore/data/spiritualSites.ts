@@ -15,6 +15,12 @@
  * and starvation between 1848 and 1870. The California Legislature
  * funded militia campaigns against Native peoples. These sites survived
  * despite systematic attempts to erase them.
+ *
+ * GAMEPLAY GATE (2026-07-21): Cross-game visitSpiritualSite / town-auto
+ * karma+XP is OFF unless NEXT_PUBLIC_SACRED_SITE_GAMEPLAY=1. Grok
+ * pre-publish: reputational risk of gamifying sacred/burial content on a
+ * live business domain. Re-enable only after Leif + tribal review.
+ * See docs/PREPUBLISH_RAILWAY_CHECKLIST_20260721.md.
  */
 
 // ============================================================================
@@ -95,7 +101,7 @@ export const SPIRITUAL_SITES: SpiritualSite[] = [
     coordinates: { lat: 38.4264, lng: -120.6422 },
     tribe: 'miwok',
     siteType: 'grinding_rock',
-    historicalNote: 'Chaw\'se (meaning "grinding rock" in Northern Sierra Miwok) has been in continuous use for over 3,000 years. The state park was established in 1962 after years of advocacy by local Miwok communities. The reconstructed roundhouse and bark houses on-site are maintained by Miwok cultural practitioners, not park staff.',
+    historicalNote: 'Chaw\'se (meaning "grinding rock" in Northern Sierra Miwok) has been in continuous use for over 3,000 years. The state park was established in 1968 after years of advocacy by local Miwok communities. The reconstructed roundhouse and bark houses on-site are maintained by Miwok cultural practitioners, not park staff.',
     respectfulInteraction: 'Walk quietly. Do not touch the petroglyphs or place anything in the mortar cups. If a ceremony is in progress, observe from a respectful distance or leave entirely. Read the interpretive signs written by Miwok community members. Listen more than you speak.',
     karmaReward: { good: 20 },
     xpReward: 150,

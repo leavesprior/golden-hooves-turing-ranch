@@ -26,6 +26,17 @@ export interface GoldCountryNPC {
   additionalQuests?: GoldCountryQuest[]  // Additional quests from this NPC
   shopKeeper?: boolean
   clueHint?: string  // hint about investigation clue at this location
+  /**
+   * Grounded investigation clue this NPC yields (Town Investigations 1849, insertion 2).
+   * When present, mysteryContext.generateClueForWitness PREFERS this over the random
+   * outlaw-trait generator. `educationalClueId` links to a real fact in
+   * EDUCATIONAL_CLUES (educationalClues.ts) so the clue teaches verified history.
+   */
+  investigationClue?: {
+    text: string               // in-world line / clue text
+    educationalClueId?: string // optional id into EDUCATIONAL_CLUES → real fact
+    isTrue: boolean            // whether the clue is accurate (grounded clues: true)
+  }
 }
 
 export type QuestCategory =
@@ -496,6 +507,12 @@ export const GOLD_COUNTRY_NPCS: GoldCountryNPC[] = [
       'The Chinese tunnels under Jackson are still there. Nobody knows how extensive they are.',
     ],
     clueHint: 'I found a reference to your suspect in the county archives.',
+    // Grounded clue: wired to the real Murphys Hotel register fact (jf_clue_03).
+    investigationClue: {
+      text: 'Check the Murphys Hotel register — the gentleman bandit signed it between robberies.',
+      educationalClueId: 'jf_clue_03',
+      isTrue: true,
+    },
   },
   {
     id: 'traver_stone_merchant',
@@ -1719,6 +1736,172 @@ export const GOLD_COUNTRY_NPCS: GoldCountryNPC[] = [
         },
       ],
     },
+  },
+
+  // === VOLCANO 1849 (volcano) — town-investigation exemplar ===
+  // Historical grounding (verified 2026-07-16): Volcano began as "Soldiers Gulch,"
+  // a placer camp that sprang up after men of Col. Stevenson's New York 7th Regiment
+  // found gold flakes here in 1848; the gulch sits in a crater-like basin and morning
+  // mist rising from it gave the camp its name. The placers were exceedingly rich
+  // (~$100/day per man, richer the deeper dug; gold in potholes worn into the limestone
+  // basin). 1849 = tent-and-canvas EARLY rush — NOT the 1850s stone town: the limestone
+  // stores (1855), Masonic Cave/Lodge 56 (1854) and the Old Abe cannon (Civil War) are
+  // all LATER and are framed here only as "to come"/yarn, never as present 1849 fact.
+  // Sources: Western Mining History (Volcano); Amador County Chamber; en.wikipedia
+  // Volcano, California. Foreign Miners' Tax = 1850 (framed as rumor of what's coming).
+  //
+  // SENSITIVE-HISTORY: pending dedicated review (Grok-before + sensitivity read).
+  // The Northern Sierra Miwok NPC (original people of these foothills, dispossessed by
+  // the rush) and the Sonoran/Mexican + Chilean immigrant miners are authored
+  // conservatively — cited fact over invention, dignity in the present tense, NO
+  // caricature or dialect-minstrelsy. "Ana" is a representative Miwok figure, not a
+  // claimed documented individual; her name and voice must be reviewed before ship.
+  {
+    id: 'volcano_placer_ortiz',
+    name: 'Rafael Ortíz',
+    title: 'Placer Miner from Sonora',
+    location: 'volcano',
+    witnessType: 'miner',
+    portrait: '⛏️',
+    greeting: 'Buenos días, stranger. New to the batea — the pan? Watch how a Sonoran works the gravel, and you will not go home poor.',
+    personality: 'Skilled, proud, generous with the technique but wary of Yankees who resent that he taught it. Speaks measured, dignified English — never dialect or caricature.',
+    ollamaPrompt: 'You are Rafael Ortíz, a placer miner from Sonora, Mexico, working the diggings at Volcano (Soldiers Gulch) in 1849. Sonoran miners were the most skilled placer men in California and taught Anglo-Americans the pan (batea) and dry-washing. You speak plainly and with dignity in measured English — NEVER in phonetic dialect or caricature. The gravel here is exceedingly rich and grows richer the deeper it is dug, with nuggets lifted out by hand; the gold sits in potholes worn into the limestone basin. You have heard talk from Sacramento of a tax on foreign miners argued for next year (1850) and speak of it soberly, as rumor of what may come. Keep responses to 2-3 sentences. Cite only what a man in your place would truly know; frame uncertain news as talk or rumor; never invent history and use nothing out of its time.',
+    dialogueLines: [
+      'The gravel here is the richest I have worked — a hundred dollars in a day is common, and some pockets far more. It only grows richer the deeper we dig.',
+      'We Sonorans brought the batea and the dry-wash from home. Half the Yankees panning this gulch learned the motion from watching our hands.',
+      'The limestone under this basin holds the gold in deep pockets — potholes worn into the rock. Find one, and it can make a season.',
+      'There is talk in Sacramento of a tax on foreign miners, come next year. I hope it stays talk — a man\'s work should not be taxed for the country of his birth.',
+    ],
+    clueHint: 'A Sonoran hand knows this gravel better than any newcomer.',
+    investigationClue: {
+      text: 'A Sonoran placer miner says the Volcano gravels grow richer the deeper they are dug — the gold sits in potholes worn into the limestone basin.',
+      isTrue: true,
+    },
+  },
+  {
+    id: 'volcano_miwok_ana',
+    name: 'Ana',
+    title: 'Northern Sierra Miwok woman',
+    location: 'volcano',
+    witnessType: 'native_trader',
+    portrait: '🧺',
+    greeting: 'You stand on my people\'s ground. We have gathered acorn from these oaks longer than any story your people carry — and now the creek runs brown, and the strangers come like a season that will not end.',
+    personality: 'Dignified, watchful, sorrowful but not broken. Speaks the plain truth of a living people being pushed aside — present tense, never a ghost or a curiosity.',
+    ollamaPrompt: 'You are a Northern Sierra Miwok woman living in the foothills around Volcano in 1849 — these oak-covered hills are your people\'s homeland. You speak with quiet dignity in the PRESENT tense, as one of a living people, never as a ghost or a curiosity. You describe real, documented life: gathering and grinding acorn from the oaks as a staple food, and the mounting disruption as thousands of gold-seekers foul the creeks and take the land. You NEVER caricature yourself, never speak invented "Indian" words, and never use broken English. You name the loss plainly but without lecturing. Keep responses to 2-3 sentences. Say only what is true and documented; if a detail is uncertain, leave it unsaid.',
+    dialogueLines: [
+      'These oaks feed us — we gather the acorn each autumn and grind it into meal. My grandmothers did the same on this same ground.',
+      'The creeks ran clear before your kind came. Now the gravel is torn up and the water is the color of mud, and the fish and the game grow few.',
+      'We are not gone. We are here, watching a flood of strangers that does not recede — people lived well here long before anyone called it a diggings.',
+      'Your people say this land was empty and waiting. It was neither. It was ours, and it is still ours in every way a heart can hold.',
+    ],
+    clueHint: 'The people who were here first see what the newcomers miss.',
+    investigationClue: {
+      text: 'A Miwok woman reminds you these foothills were long inhabited — her people gather acorn from the oaks — and the mining has fouled the once-clear creeks.',
+      isTrue: true,
+    },
+  },
+  {
+    id: 'volcano_saloon_bell',
+    name: 'Josiah Bell',
+    title: 'Canvas-Saloon & Trading-Post Keeper',
+    location: 'volcano',
+    witnessType: 'bartender',
+    portrait: '⛺',
+    greeting: 'Step in out of the sun — mind the canvas, it\'s all the wall I\'ve got. Whiskey\'s dear and the news is free. What\'ll you have?',
+    personality: 'Genial, shrewd trader who watched the camp explode overnight. Loves to tell how the place got its name, and improves a story — but knows fact from yarn.',
+    ollamaPrompt: 'You are Josiah Bell, keeper of a canvas saloon and trading tent at Volcano (still half-called Soldiers Gulch) in 1849. The camp sprang up after soldiers of Stevenson\'s New York regiment found gold flakes here in \'48, and it is growing fast — tents and canvas, NOT yet a stone town. You like to explain the name: the gulch sits in a crater-like basin, and morning mist rising from it made men think of a volcano. Stores and hotels are going up almost weekly. When you mention grander things — a stone lodge, a cannon, fine cut-stone buildings — you frame them as talk of what may come SOMEDAY, never as here now. Keep responses to 2-3 sentences. Tell true history plainly, mark anything uncertain as a yarn, and use nothing out of its time.',
+    dialogueLines: [
+      'They call it Volcano now — this gulch sits in a bowl of hills, and the morning mist boils up out of it like smoke off a crater. Soldiers Gulch was the older name.',
+      'Stevenson\'s New York boys found the first color here back in \'48. Word got out, and now every week another tent or plank store goes up along the flat.',
+      'It\'s canvas and rope for now, friend — but give this camp a few years and I wager they\'ll be building in cut stone. That\'s a yarn for later, though.',
+      'Whiskey, flour, powder, and news — that\'s my stock. The news I throw in free, and it\'s worth about what you pay for it.',
+    ],
+    shopKeeper: true,
+    clueHint: 'The man behind the bar hears every rumor in the gulch.',
+    investigationClue: {
+      text: 'The saloon keeper explains the camp\'s name: Soldiers Gulch sits in a crater-like basin, and the morning mist rising from it made miners call it Volcano.',
+      isTrue: true,
+    },
+  },
+  {
+    id: 'volcano_express_trask',
+    name: 'Amos Trask',
+    title: 'Express Rider',
+    location: 'volcano',
+    witnessType: 'traveler',
+    portrait: '📯',
+    greeting: 'Can\'t stop long — gold dust and letters don\'t ride themselves. But I\'ll trade you the road news for a minute\'s shade.',
+    personality: 'Restless, sharp-eyed courier who carries dust and rumor between the camps. Knows the district\'s traffic and prices; brisk and plainspoken.',
+    ollamaPrompt: 'You are Amos Trask, an express rider carrying gold dust, letters, and news between Volcano and the larger camps in 1849 — before the big express companies took over the trade. You know the district\'s traffic: who is striking it rich, what dust weighs at the stores, and every rumor on the road. You have carried word of the diggings\' richness (a hundred dollars a day is common talk here) and of arguments in Sacramento over a foreign miners\' tax proposed for next year. You speak briskly and plainly. Keep responses to 2-3 sentences. Repeat news as news and rumor as rumor; never invent events and keep to what belongs in 1849.',
+    dialogueLines: [
+      'I carry dust and letters between the camps. Volcano\'s the talk of the road right now — a hundred a day is common, and I\'ve weighed pokes far heavier.',
+      'Careful who you flash color to. A rider learns fast which strangers are counting your poke instead of their own.',
+      'Down in Sacramento they\'re arguing over a tax on foreign miners for next year. If it passes, half the best hands in this gulch are Sonorans and Chileans who\'ll feel it first.',
+      'Before the big companies, it\'s riders like me holding the mail together. Slow, but your letter gets there — mostly.',
+    ],
+    clueHint: 'A rider sees the whole district\'s comings and goings.',
+    investigationClue: {
+      text: 'An express rider confirms Volcano\'s placers are the district\'s richest — a hundred dollars a day in common talk — and warns of a foreign-miners\' tax argued in Sacramento for 1850.',
+      isTrue: true,
+    },
+  },
+
+  // === LIVING TRAIL P1 — chain wp_founders ("The Founders of Indian Gulch") ===
+  // These NPCs live at Living Trail node ids (lt_* — no collision with gold-country
+  // screens; getNPCsAtLocation keys off string match). Ghost stories are fiction
+  // woven around real history: Smith and the Carsners are documented people
+  // (calaverashistory.org; HMDB m=11975); the Gatekeeper is a composite and says so.
+  // Dialogue is scripted in P1 (no LLM); ollamaPrompt is filled for P4 readiness.
+  {
+    id: 'lt_npc_john_r_smith',
+    name: 'John R. Smith',
+    title: 'Blacksmith of Main Street (ghost)',
+    location: 'lt_wp_marker',
+    witnessType: 'townfolk',
+    portrait: '⚒️',
+    greeting: 'Evenin\', traveler. You\'re standin\' where Indian Gulch began. I hammered iron on Main Street for near forty years — the fire\'s long cold, but the stories kept warm.',
+    personality: 'Steady, wry, proud of his town. A working man\'s ghost — speaks plainly, distinguishes what he saw from what folks merely say.',
+    ollamaPrompt: 'You are the ghost of John R. Smith, blacksmith of West Point (formerly Indian Gulch), California, circa 1890 — a real, documented person. You speak plainly and warmly about the town: founded 1852 as Indian Gulch, renamed West Point in 1854. You tell the Kit Carson trail-terminus story only as local tradition ("the marker says... old-timers argued"), never as settled fact, and note Bret Harte "passed through, they say." Keep responses to 2-3 sentences. Never invent facts; when unsure, frame it as town legend.',
+    dialogueLines: [
+      'This town was born Indian Gulch in 1852 — miners thick as mosquitoes on every creek. Two years on, 1854, they took to callin\' it West Point.',
+      'The marker there says Kit Carson\'s trail ended hereabouts. Old-timers argued that one across my anvil for decades — I sell it to you as tradition, not gospel.',
+      'Bret Harte passed through, they say, gatherin\' stories like the rest of us gathered dust. Can\'t swear to it — but it\'s a fine thing to believe on a quiet evening.',
+      'You walked the real ground to hear this. That\'s worth more than any tale I could tell — the town remembers folks who show up.',
+    ],
+  },
+  {
+    id: 'lt_npc_carsner_brothers',
+    name: 'William & Dan Carsner',
+    title: 'The Nugget Brothers (ghosts)',
+    location: 'lt_wp_sandy_gulch',
+    witnessType: 'miner',
+    portrait: '⛏️',
+    greeting: 'Well now — company at the gulch! Carsner\'s the name, both of us. Found what we found here in \'49, and we\'ve been arguin\' over whose pan it was ever since.',
+    personality: 'Two brothers who finish each other\'s sentences and dispute each other\'s memories. Boisterous but respectful — especially about the people who were here first.',
+    ollamaPrompt: 'You are the ghosts of William and Dan Carsner, real documented brothers who found the famous Sandy Gulch gold nuggets in 1849 (HMDB marker m=11975). You banter between yourselves and speak of Sandy Gulch as an 1849 trading center, mention the Hangman\'s Tree soberly, and speak of the Mi-Wuk people who lived here first with plain respect — you never impersonate or caricature them. Keep responses to 2-3 sentences. Never invent facts; frame uncertain details as memory or legend.',
+    dialogueLines: [
+      'Sandy Gulch, 1849 — a whole tradin\' center right here, canvas and timber and more mud than money. Then Will\'s pan came up heavy. MY pan, Dan. — His pan, he says.',
+      'The nuggets made the papers back east. Folks came runnin\' after our luck; most found blisters. That\'s the honest arithmetic of gold country.',
+      'The Hangman\'s Tree stood near the diggings. We don\'t joke about that one — quick justice was often no justice at all.',
+      'Mind you: the Mi-Wuk people were here long before any pan of ours, livin\' with this land, not against it. We were guests who forgot to ask. Say their name with respect on this ground.',
+    ],
+  },
+  {
+    id: 'lt_npc_gatekeeper',
+    name: 'The Gatekeeper',
+    title: 'The one who minds the gate',
+    location: 'lt_wp_cemetery_gate',
+    witnessType: 'settler',
+    portrait: '🏮',
+    greeting: 'You can call me the one who minds the gate — I\'m no one person, you understand; I\'m every neighbor who ever kept this place tended. You\'ve walked far. Stop here at the gate with me.',
+    personality: 'Quiet, kind, unhurried. A composite figure — openly fictional, the voice of a town\'s care for its dead. Asks for stillness, not sorrow.',
+    ollamaPrompt: 'You are the Gatekeeper of the West Point cemetery — an openly fictional composite character, the collective voice of everyone who ever tended this ground ("call me the one who minds the gate — I\'m no one person"). You stay AT THE GATE and keep visitors there; you never direct anyone among the graves, never name specific interred people, and never promise rewards inside. You ask for a quiet, respectful moment. This is an active community cemetery. Keep responses to 1-3 gentle sentences.',
+    dialogueLines: [
+      'This is a living town\'s resting place — folks still bring flowers on Sundays. So we stay here, you and I, at the gate. That\'s the proper distance for strangers.',
+      'Everyone who built the town you just walked — miners, smiths, the ones the stories forgot — they all came through a gate like this in the end.',
+      'I\'ll ask one thing of you, and it\'s the whole of it: stand with them a moment. No words needed. Stillness is how the living say thank you.',
+      'When you\'ve stood your moment, go on down the hill. What you carry out of here isn\'t gold — and it\'s the only treasure this trail was ever about.',
+    ],
   },
 ]
 

@@ -275,7 +275,7 @@ const DEFAULT_CHALLENGES: Challenge[] = [
 const TOBIAS_TIPS = [
   "Did ye know the Kennedy Mine in Jackson goes down 5,912 feet? That's deeper than a mile!",
   "Black Bart robbed 28 stagecoaches and never fired a shot. A gentleman bandit, they called him.",
-  "Mark Twain wrote his famous Jumping Frog story right here in Angels Camp!",
+  "Mark Twain first heard the famous Jumping Frog tale right here in Angels Camp - he wrote it up later!",
   "Volcano once had 17,000 people. Now? About 85 souls remain.",
   "The Hotel Leger in Mokelumne Hill is said to be haunted by George Leger himself!",
   "Look for the Chinese tunnels beneath Volcano - they're still there if ye know where to look.",
@@ -485,10 +485,15 @@ export function ExplorerProvider({
       CrossGameStorage.addHistoricalDepth(1)
     }
 
-    // Cross-game: check if this town has a spiritual site and register visit
-    const spiritualSite: SpiritualSite | undefined = getSiteForTown(townId)
-    if (spiritualSite) {
-      CrossGameStorage.visitSpiritualSite(spiritualSite.id)
+    // Sacred-site gameplay is GATED OFF by default (Grok pre-publish #3).
+    // Visiting a town must not auto-award karma/XP for sacred/burial sites on a
+    // live business domain until Leif + tribal review opt in.
+    // Opt-in: NEXT_PUBLIC_SACRED_SITE_GAMEPLAY=1
+    if (process.env.NEXT_PUBLIC_SACRED_SITE_GAMEPLAY === '1') {
+      const spiritualSite: SpiritualSite | undefined = getSiteForTown(townId)
+      if (spiritualSite) {
+        CrossGameStorage.visitSpiritualSite(spiritualSite.id)
+      }
     }
 
     return { xpGained, levelUp, badgeEarned }

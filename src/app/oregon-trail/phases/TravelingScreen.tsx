@@ -15,6 +15,8 @@ import {
 } from '../components/Graphics64bit'
 import { TravelObservations } from '../components/TravelObservations'
 import { type WeatherMood } from '../data/travelObservations'
+import { LandmarkScene, type LandmarkType } from '../components/LandmarkScene'
+import { LANDMARKS } from '../state/constants'
 import { PossePanel } from '../components/PossePanel'
 import { CharacterSheet } from '../components/CharacterSheet'
 import { type ActiveEffect } from '../data/consumableEffects'
@@ -78,6 +80,22 @@ export function TravelingScreen({
   // Get CSS filter based on graphics tier
   const tierFilter = getTierFilter(state.graphicsTier)
 
+  // Scenic landmarks (landmark/pass/desert) never enter a stopping phase, so
+  // their place art is only reachable here. currentLandmark is set exactly on
+  // the arrival day — show the landmark scene for that day instead of the
+  // generic wagon animation.
+  const passingLandmark = state.currentLandmark
+    ? LANDMARKS.find(l => l.name === state.currentLandmark)
+    : undefined
+  // #15: only on the actual arrival day — currentLandmark is never cleared
+  // (it's load-bearing for towns/Living Trail), so gate on the recorded
+  // arrival day. Old saves lack landmarkArrivalDay (undefined !== number),
+  // so they safely show the wagon scene until the next arrival.
+  const scenicPassing = passingLandmark && ['landmark', 'pass', 'desert'].includes(passingLandmark.type)
+    && state.landmarkArrivalDay === state.day
+    ? passingLandmark
+    : undefined
+
   // Main travel screen with 64-bit graphics wrapper
   return (
     <Graphics64bitWrapper
@@ -113,13 +131,22 @@ export function TravelingScreen({
             </div>
           </header>
 
-          {/* Animated Traveling Scene (64-bit only) */}
-          {state.graphicsTier === 'ultra_64bit' && (
+          {/* Scenic landmark passing — real place art for the arrival day */}
+          {scenicPassing ? (
+            <LandmarkScene
+              landmarkName={scenicPassing.name}
+              landmarkType={(scenicPassing.type === 'desert' ? 'landmark' : scenicPassing.type) as LandmarkType}
+              timeOfDay={timeOfDay}
+              weather={graphicsWeather}
+              className="mb-4"
+            />
+          ) : state.graphicsTier === 'ultra_64bit' && (
+            /* Animated Traveling Scene (64-bit only) */
             <TravelingScene
               tier={state.graphicsTier}
               timeOfDay={timeOfDay}
               weather={graphicsWeather}
-              progress={state.milesUntilNextLandmark > 0 ? Math.round(100 - (state.milesUntilNextLandmark / 100) * 100) : 100}
+              progress={Math.max(0, Math.min(100, state.milesUntilNextLandmark > 0 ? Math.round(100 - (state.milesUntilNextLandmark / 100) * 100) : 100))}
               terrain={getTerrain()}
             />
           )}

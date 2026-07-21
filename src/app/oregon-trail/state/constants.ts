@@ -1,4 +1,5 @@
 import type { InvestigationState, OregonTrailState, RandomEvent, Weather } from './types'
+import { buildDefaultLivingTrailSlice } from './livingTrailActions'
 
 // Landmarks along the trail (Missouri to California Gold Country)
 export const LANDMARKS = [
@@ -531,6 +532,7 @@ export const DEFAULT_INVESTIGATION: InvestigationState = {
   witnessesInterviewed: [],
   locationsSearched: [],
   activeWitness: null,
+  activeNpcId: null,
 }
 
 // Default initial state
@@ -542,6 +544,9 @@ export const DEFAULT_STATE: OregonTrailState = {
   milesUntilNextLandmark: 102,
   party: [],
   wagonLeader: '',
+  // Hired trail guide (#11)
+  hiredGuideId: null,
+  guideRemainingLandmarks: 0,
   food: 0,
   ammunition: 0,
   spareParts: 0,
@@ -565,7 +570,8 @@ export const DEFAULT_STATE: OregonTrailState = {
   // Mystery/RPG defaults
   investigation: DEFAULT_INVESTIGATION,
   previousPhase: null,
-  graphicsTier: 'retro_4bit',
+  // visual64: the best presentation IS the game — no longer a progression lock
+  graphicsTier: 'ultra_64bit',
   gamesCompleted: 0,
   outlawsCaught: 0,
   // Gold Country Free-Roam defaults
@@ -589,6 +595,8 @@ export const DEFAULT_STATE: OregonTrailState = {
   // Seasonal market (trail-side)
   trailMarketEvent: null,
   trailMarketEventEndDay: 0,
+  // Living Trail (presence-gated real-world chains)
+  livingTrail: buildDefaultLivingTrailSlice(),
 }
 
 // Helper function for weather

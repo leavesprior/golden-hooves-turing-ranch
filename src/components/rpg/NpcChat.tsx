@@ -11,6 +11,8 @@
 
 import { useRef, useState } from 'react'
 import { PixelButton } from '@/components/pixel'
+import { babelfishTransform } from '@/app/oregon-trail/lib/babelfishSpell'
+import { getDmPlayerId, storeDmQueueCapability } from '@/app/oregon-trail/hooks/useDmDirectives'
 
 type Disposition = 'hostile' | 'wary' | 'neutral' | 'warming' | 'ally'
 
@@ -28,6 +30,8 @@ interface ChatApiResponse {
   cooldown?: boolean
   timeExpired?: boolean
   maxMessagesReached?: boolean
+  // DM Layer P1: capability token the game poller uses to drain enqueued directives.
+  dmQueueCapability?: string
 }
 
 const DISPOSITION_MOOD: Record<Disposition, string> = {
@@ -45,11 +49,17 @@ export default function NpcChat({
   name,
   portrait,
   intro,
+  communicationSpell = false,
+  karma = 0,
 }: {
   characterId: string
   name: string
   portrait?: string
   intro?: string
+  // dp-babelfish-spell: when true, ALL NPC lines render as Douglas-Adams gestures
+  // (emoji if karma>=100, ASCII otherwise). Off by default → normal dialogue.
+  communicationSpell?: boolean
+  karma?: number
 }) {
   const [open, setOpen] = useState(false)
   const [started, setStarted] = useState(false)
@@ -83,12 +93,17 @@ export default function NpcChat({
   async function start() {
     setStarted(true)
     setLoading(true)
-    const data = await post({ characterId })
+    // DM Layer P1: thread the stable player id so any directives this NPC mints at
+    // session-end enqueue under the id the oregon-trail poller drains (mirrors
+    // WitnessDialogue). Without this, a DM-Table conversation never reaches the game.
+    const playerId = getDmPlayerId()
+    const data = await post({ characterId, playerId })
     setLoading(false)
     if (!data) {
       setLines([{ role: 'npc', text: 'The wind carries nothing back. Try again later.' }])
       return
     }
+    storeDmQueueCapability(data.dmQueueCapability)
     if (data.sessionId) setSessionId(data.sessionId)
     if (data.disposition) setDisposition(data.disposition)
     if (data.response) setLines([{ role: 'npc', text: data.response }])
@@ -171,7 +186,9 @@ export default function NpcChat({
                   }`}
                 >
                   {l.role === 'npc' && <span className="text-[var(--pixel-forest-light)]">{name}: </span>}
-                  {l.text}
+                  {l.role === 'npc' && communicationSpell
+                    ? babelfishTransform(l.text, karma, true)
+                    : l.text}
                 </p>
               </div>
             ))}

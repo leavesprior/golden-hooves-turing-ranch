@@ -164,7 +164,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'at_3',
         attractionId: 'ac_utica_park',
-        text: 'Old mining records show a "J. Smiley" filed a claim near Angels Camp in 1849. A real man, not just fiction.',
+        text: 'Local legend claims a real gambler nicknamed "Smiley" once worked a claim near Angels Camp - but no verified record confirms him. Jim Smiley is best known as Twain\'s fictional character. (In-game dramatization.)',
         discoveryText: 'Among historical mining records posted in the park, one name jumps out...',
         required: false,
         order: 3,
@@ -191,7 +191,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     xpReward: 100,
     badgeId: 'mystery_angels',
     solvedText: 'You\'ve traced the origin of one of America\'s most famous short stories!',
-    historicalNote: 'Mark Twain spent several months in Angels Camp in 1864-65 during an unsuccessful gold mining venture. He heard the frog story from a local (likely Ben Coon at the Angels Hotel) and published "The Celebrated Jumping Frog of Calaveras County" in 1865, launching his literary career.',
+    historicalNote: 'Mark Twain spent several months in Angels Camp in 1864-65 during an unsuccessful gold mining venture. He heard the frog story from a local (likely Ben Coon at the Angels Hotel) and published "The Celebrated Jumping Frog of Calaveras County" in 1865, launching his literary career. (The in-game "J. Smiley mining claim" and 1864 diary are dramatized fiction - Jim Smiley is Twain\'s fictional character, not a documented Angels Camp resident.)',
   },
 
   // === WEST POINT ===
@@ -214,7 +214,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'wp_2',
         attractionId: 'wp_general_store',
-        text: 'A poem scratched into the counter reads: "I\'ve labored long and hard for bread, for honor and for riches. But on my corns too long you\'ve tread, you fine-haired sons of —"',
+        text: 'The store\'s display recalls Black Bart\'s trademark verse, left at two of his real robberies: "I\'ve labored long and hard for bread, for honor and for riches. But on my corns too long you\'ve tread, you fine-haired sons of —" (No such poem was ever found in West Point - this is an in-game dramatization.)',
         discoveryText: 'Etched into the original wooden counter, barely legible...',
         required: true,
         order: 2,
@@ -249,7 +249,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     xpReward: 100,
     badgeId: 'mystery_westpoint',
     solvedText: 'You\'ve cracked the case of Black Bart! A gentleman bandit undone by his own handkerchief.',
-    historicalNote: 'Charles E. Bolles (Black Bart) was indeed caught via laundry mark F.X.O.7 in 1883. He served 4 years in San Quentin, then vanished completely after release. His hidden loot, if it existed, was never found.',
+    historicalNote: 'Charles E. Bolles (Black Bart) was tracked down in 1883 via the laundry mark F.X.O.7 on a handkerchief dropped at a stage robbery - traced to a San Francisco laundry, where he was arrested. He served about four years in San Quentin, then vanished after his release. This West Point "hidden loot" trail is an in-game dramatization; no such cache is documented.',
   },
 
   // === MOKELUMNE HILL ===
@@ -438,7 +438,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'mc_1',
         attractionId: 'mu_mercer_caverns',
-        text: 'Mercer\'s original discovery affidavit reads: "I, Walter J. Mercer, being thirsty, followed cool air to a hole in the limestone, descended by rope, and found a magnificent cavern. Date: September 23, 1885." Notably absent: any mention of prior knowledge of the site.',
+        text: 'Mercer\'s original discovery affidavit reads: "I, Walter J. Mercer, being thirsty, followed cool air to a hole in the limestone, descended by rope, and found a magnificent cavern. Date: September 1, 1885." Notably absent: any mention of prior knowledge of the site.',
         discoveryText: 'At the cavern entrance, a framed reproduction of the original discovery claim is displayed...',
         required: true,
         order: 1,
@@ -713,7 +713,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     xpReward: 150,
     badgeId: 'mystery_jackson',
     solvedText: 'The truth behind Jackson\'s ashes is revealed. Where there\'s smoke, there\'s money.',
-    historicalNote: 'Jackson suffered multiple devastating fires during the Gold Rush era, common in towns built of wood and canvas. While arson was suspected in some cases, the exact causes remain debated by historians. The town was always rebuilt, eventually with more fire-resistant materials.',
+    historicalNote: 'Jackson suffered a major fire in August 1862 (and others during the Gold Rush era), common in towns built of wood and canvas. The "three simultaneous ignition points" and the mining-interest arson plot in this mystery are fictional dramatization - no such evidence exists, and the real fire\'s cause was never proven. The town was always rebuilt, eventually with more fire-resistant materials.',
   },
 
   // === NEVADA CITY ===
@@ -852,7 +852,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'act_2',
         attractionId: 'ac_museum',
-        text: 'A letter from Twain to his brother Orion, February 1865: "I have heard a curious yarn from a dreary old bore at the bar — something about a frog-jumping contest and buckshot. I may write it up if I can find nothing better. It is a villainous backwoods sketch."',
+        text: 'A museum placard dramatizes Twain\'s first, dismissive reaction to the frog yarn - he nearly passed it over as a throwaway backwoods sketch before writing it up. (The exact wording shown here is an in-game dramatization, not a documented Twain letter.)',
         discoveryText: 'In the museum\'s Twain collection, a reproduced letter reveals his first impression...',
         required: true,
         order: 2,
@@ -877,7 +877,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     deduction: {
       question: 'Who told Mark Twain the jumping frog story?',
       options: [
-        { id: 'a', text: 'Ben Coon, the bartender at the Angels Hotel', correct: true, response: 'Correct! Ben Coon, a retired river pilot turned bartender, told Twain the tale in his trademark monotonous style during the winter of 1865. Twain\'s own notebooks identify Coon by name. The irony is rich: Twain considered the story worthless — "a villainous backwoods sketch" — and nearly didn\'t write it at all. When he finally did, it was as a throwaway piece for a friend\'s book. It arrived too late, was published separately, and made Twain famous overnight.' },
+        { id: 'a', text: 'Ben Coon, the bartender at the Angels Hotel', correct: true, response: 'Correct! Ben Coon, a retired river pilot turned bartender, told Twain the tale in his trademark monotonous style during the winter of 1865. Twain\'s own notebooks identify Coon by name. The irony is rich: Twain considered the story a throwaway and nearly didn\'t write it at all. When he finally did, it was as a throwaway piece for a friend\'s book. It arrived too late, was published separately, and made Twain famous overnight.' },
         { id: 'b', text: 'A drunk miner at the saloon', correct: false, response: 'Twain heard many tales from miners, but his notebooks specifically credit Ben Coon — a bartender, not a miner — for the frog story.' },
         { id: 'c', text: 'Ross Coon, Ben\'s brother', correct: false, response: 'There is no documented brother named Ross Coon in the Angels Camp records. Ben Coon alone is credited in Twain\'s personal notebooks.' },
         { id: 'd', text: 'A traveling salesman passing through town', correct: false, response: 'The story came from a local, not a traveler. Ben Coon was a fixture at the Angels Hotel bar — exactly the kind of source a writer mines for material.' },
@@ -1092,7 +1092,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
       {
         id: 'acn_3',
         attractionId: 'ace_twain_cabin',
-        text: 'A list of Twain\'s known notebooks, compiled by the Mark Twain Project at UC Berkeley, identifies "Notebook 4a (Angels Camp, Jan-Feb 1865)" as "missing, presumed lost." A footnote: "References in Twain\'s correspondence suggest Notebook 4a contained early versions of material later reworked for \'Roughing It\' and the jumping frog story. Its recovery would be a significant literary find."',
+        text: 'An in-game exhibit imagines a lost "Notebook 4a (Angels Camp, Jan-Feb 1865)," said to hold early versions of material later reworked for "Roughing It" and the jumping frog story. (Dramatization: the real Mark Twain Project at UC Berkeley has no such catalogued "Notebook 4a" - this missing-notebook mystery is fictional.)',
         discoveryText: 'At the cabin replica, a scholarly poster catalogs Twain\'s notebooks...',
         required: true,
         order: 3,
@@ -1119,7 +1119,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     xpReward: 100,
     badgeId: 'mystery_twain_notebook',
     solvedText: 'Twain\'s lost notebook may still be waiting in a church storage room — a literary treasure hiding in plain sight.',
-    historicalNote: 'Mark Twain kept detailed pocket notebooks throughout his life. The Mark Twain Project at UC Berkeley has catalogued and published most of them. Twain\'s Angels Camp period (winter 1864-65) produced some of his most important early material, including the jumping frog story that launched his career. Several notebooks from this period survive, but gaps in the sequence suggest at least one is missing. Whether it was lost, destroyed, or remains undiscovered is unknown.',
+    historicalNote: 'Mark Twain kept detailed pocket notebooks throughout his life. The Mark Twain Project at UC Berkeley has catalogued and published most of them. Twain\'s Angels Camp period (winter 1864-65) produced some of his most important early material, including the jumping frog story that launched his career. Several notebooks from this period survive. The specific "Notebook 4a," the Twain and Rutherford letters, and the church-Bible trail in this mystery are fictional dramatization created for the game, not documented history.',
   },
 
   // === MARIPOSA — Fremont's Fortune ===

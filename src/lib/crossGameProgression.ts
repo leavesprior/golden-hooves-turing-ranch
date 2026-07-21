@@ -35,6 +35,7 @@ export type GameId =
 export type MilestoneId =
   // Prospector's Tale milestones
   | 'reached_west_point'
+  | 'trail_victory'
   | 'completed_journey_west'
   | 'completed_gold_country'
   | 'captured_black_bart'
@@ -146,13 +147,14 @@ export const GAME_UNLOCK_CONFIGS: GameUnlockConfig[] = [
   {
     gameId: 'clue_game',
     name: "Cynthia's Treasure Hunt",
-    condition: {
-      type: 'composite',
-      conditions: [
-        { type: 'milestone', milestoneId: 'adventure_chapter_5' },
-        // Karma check is handled in the component (ClueGameUnlock)
-      ],
-    },
+    // Single source of truth. The clue_game_unlocked milestone is the ONLY
+    // writer of this unlock — ClueGameUnlock mints it only after the player
+    // finishes all 5 adventure chapters AND meets Cynthia with a worthy karma
+    // alignment, then accepts her quest. Gating the config on that milestone
+    // (rather than adventure_chapter_5 alone, with karma checked separately in
+    // the component) keeps the hub card and /clue-game page reading one source
+    // and preserves the karma gate for both.
+    condition: { type: 'milestone', milestoneId: 'clue_game_unlocked' },
     unlockMessage: 'Cynthia has a quest for you...',
   },
 ]
@@ -426,6 +428,8 @@ export type WorldEventAction =
   | 'treasure_found'
   | 'ally_recruited'
   | 'ranch_visited'
+  | 'living_trail_chain_completed'
+  | 'dm_directive'
   | 'custom'
 
 export interface WorldEvent {
@@ -786,8 +790,14 @@ export const CrossGameStorage = {
   /**
    * Record a sacred/spiritual site visit.
    * Recalculates level and buffs.
+   *
+   * GATED: no-op unless NEXT_PUBLIC_SACRED_SITE_GAMEPLAY=1.
+   * Default OFF for production reputational safety (burial/sacred gamification).
    */
   visitSpiritualSite(siteId: string): SpiritualAwareness {
+    if (process.env.NEXT_PUBLIC_SACRED_SITE_GAMEPLAY !== '1') {
+      return this.getSpiritualAwareness()
+    }
     const state = this.load() || { ...DEFAULT_CROSS_GAME_STATE }
     if (!state.spiritualAwareness) state.spiritualAwareness = { ...DEFAULT_SPIRITUAL_AWARENESS }
 

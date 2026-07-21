@@ -80,6 +80,7 @@ export function GoldCountryExplore({
 
   // GPS for physical correlation (device GPS hardware) with location coords (Google Maps / places.json verified)
   // Correlates for physical presence bonuses (SADDLE stats, AR PlaceBackdrop, bounties, shop deals, NPC engagement)
+  // TODO(P2): consume useVerifiedPresence (lib/useVerifiedPresence.ts) — keeps accuracy, per-call radius, dwell tracking
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null)
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'error'>('idle')
   const [gpsWatchId, setGpsWatchId] = useState<number | null>(null)
