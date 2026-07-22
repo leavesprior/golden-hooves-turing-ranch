@@ -18,6 +18,7 @@ export interface EncounterChoice {
   text: string
   outcome: EncounterOutcome
   statCheck?: { stat: 'strength' | 'athleticism' | 'diplomacy' | 'luck' | 'expertise' | 'shrewdness'; difficulty: number }
+  requiresItem?: string   // choice only shown when this item is in the wagon inventory
 }
 
 export interface EncounterOutcome {
@@ -73,6 +74,16 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
           reputationDelta: 5,
         },
         statCheck: { stat: 'strength', difficulty: 5 },
+      },
+      {
+        id: 'towel_snap',
+        text: 'Snap your towel at them (improvised weapon)',
+        requiresItem: 'towel',
+        outcome: {
+          message: 'You whip the towel with a resounding CRACK across the lead road agent\'s face. The horses bolt, the ambush dissolves into chaos, and the bandits flee — dropping a satchel in their panic. A frood who knows where his towel is is not to be trifled with.',
+          goldDelta: 30,
+          karmaDelta: 2,
+        },
       },
       {
         id: 'negotiate',

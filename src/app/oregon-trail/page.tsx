@@ -7,7 +7,7 @@ import { ShareLegacy } from '@/components/ui/ShareLegacy'
 
 // Context Providers (used in provider tree)
 import { KarmaWalletProvider, useKarmaWallet } from './karmaWalletContext'
-import { CharacterProvider } from './characterContext'
+import { CharacterProvider, useCharacter } from './characterContext'
 import { ReputationProvider } from './reputationContext'
 import { NarratorProvider } from './narratorContext'
 import { MysteryProvider } from './mysteryContext'
@@ -96,6 +96,16 @@ function readLocalAutosave(): { savedAt: string | null; state: Record<string, un
 // (town ↔ traveling ↔ event ↔ river) and dispatches to the appropriate component.
 function TravelScreen() {
   const { state, hireGuide } = useOregonTrail()
+  const { addTrait, hasTrait } = useCharacter()
+
+  // Unify the towel passive: however you got a towel (shop, native trade, or the
+  // rubber-duck aliens), possessing one grants the Hoopy Frood trait (Luck +2,
+  // Durability +1, +5% skill checks). Previously only the shop purchase did.
+  useEffect(() => {
+    if (state.inventory.includes('towel') && !hasTrait('hoopy_frood')) {
+      addTrait('hoopy_frood')
+    }
+  }, [state.inventory, hasTrait, addTrait])
 
   // Shared consumable effects (persists across sub-phase changes)
   const { activeEffects, handleUseConsumable, handleApplyMedicine, handleRepairWagon } = useConsumableEffects()

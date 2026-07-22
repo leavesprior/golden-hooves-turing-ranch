@@ -199,7 +199,7 @@ export function GoldCountryTravel({
 
             {/* Choices */}
             <div className="space-y-3">
-              {encounter.choices.map(choice => (
+              {encounter.choices.filter(choice => !choice.requiresItem || state.inventory.includes(choice.requiresItem)).map(choice => (
                 <button
                   key={choice.id}
                   onClick={() => handleEncounterChoice(choice)}
