@@ -23,6 +23,12 @@
  * See docs/PREPUBLISH_RAILWAY_CHECKLIST_20260721.md.
  */
 
+// SERVER-ONLY. This module carries precise-looking coordinates of burial
+// grounds and living sacred sites plus reward tuning. It must never be imported
+// by a Client Component — doing so is a build error. The client uses the opaque
+// town->site index in ./townSites.ts instead.
+import 'server-only'
+
 // ============================================================================
 // TYPES
 // ============================================================================

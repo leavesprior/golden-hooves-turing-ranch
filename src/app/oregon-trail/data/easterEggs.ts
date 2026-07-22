@@ -619,6 +619,19 @@ export const EASTER_EGGS: EasterEgg[] = [
       description: 'Some mysteries are best left unexplored',
     },
   },
+  {
+    id: 'pan_galactic_hitchhikers',
+    title: 'A Ship Full of Hitchhikers',
+    description: 'A saucer settles into the meadow. The hatch hisses open and out waddle... rubber ducks? Or little grey men — hard to say, and they seem unsure themselves. They squeak something about needing a lift, press a bottle and a battered towel into your hands as thanks, and are gone. Do not panic.',
+    trigger: [{ type: 'random', chance: 0.04 }],
+    hint: 'Some nights in Gold Country, the sky is not empty...',
+    rarity: 'legendary',
+    reward: {
+      type: 'item',
+      value: 'pan_galactic_gargle_blaster',
+      description: 'A Pan Galactic Gargle Blaster, pressed on you by rubber-duck aliens',
+    },
+  },
 ]
 
 // ============================================

@@ -20,6 +20,19 @@ export function middleware(request: NextRequest) {
     return new NextResponse('Not Found', { status: 404 })
   }
 
+  // /dm-table is the "secret" local-only Neoma DM entrance. Its own header
+  // declares NEVER-MAIN, yet it reached main. Gate it to a bare 404 in every
+  // environment unless DM_TABLE_ENABLED=true is explicitly set (mirrors the
+  // /worker gate). It is reached only by direct URL (no public links), so the
+  // 404 breaks nothing visible. Note: /api/neoma/chat is deliberately NOT gated
+  // here — the shipped oregon-trail WitnessDialogue and NpcChat depend on it;
+  // 404ing it would break live game dialogue. Its abuse/rate-limit hardening is
+  // tracked separately.
+  const isDmTableRoute = path === '/dm-table' || path.startsWith('/dm-table/')
+  if (isDmTableRoute && process.env.DM_TABLE_ENABLED !== 'true') {
+    return new NextResponse('Not Found', { status: 404 })
+  }
+
   // Note: HTTPS redirect is handled by Railway's edge proxy.
   // Doing it here breaks Railway's internal healthcheck (HTTP with x-forwarded-proto: http).
 

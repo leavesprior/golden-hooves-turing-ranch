@@ -531,6 +531,11 @@ export function TownScreen({
               <p className="text-slate-400 text-xs">Explore Gold Country</p>
             </div>
           </button>
+          {/* Living Trail unlocks only once the golden frog trail reaches Gold Country
+              (distance >= 2000 — the same test travelEngine uses for arrival). Before
+              that, trail towns are all pre-Gold-Country, so this stays hidden. The
+              intended pre-arrival entry point is the SettlementScreen (Gold Country). */}
+          {state.distance >= 2000 && (
           <button
             onClick={enterLivingTrail}
             className="px-6 py-3 bg-emerald-950/80 hover:bg-emerald-900/80 border-2 border-emerald-600 rounded-lg text-center flex items-center gap-3"
@@ -541,6 +546,7 @@ export function TownScreen({
               <p className="text-emerald-400/80 text-xs">A real-world walk in West Point, CA</p>
             </div>
           </button>
+          )}
         </div>
 
         {/* Message Display */}

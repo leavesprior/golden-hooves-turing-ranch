@@ -147,7 +147,9 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
 
   // Calculate new resource values
   const newFood = Math.max(0, prev.food - foodConsumed + foodCascadeDelta)
-  const newMorale = Math.max(0, Math.min(100, prev.morale + moraleCascadeDelta + (bonuses.morale || 0)))
+  // Pan Galactic Gargle Blaster hangover: a daily morale drag while it lasts.
+  const hangoverDrag = (prev.hangoverUntilDay ?? 0) > prev.day ? -6 : 0
+  const newMorale = Math.max(0, Math.min(100, prev.morale + moraleCascadeDelta + (bonuses.morale || 0) + hangoverDrag))
   const newWagonCond = Math.max(0, Math.min(100,
     prev.wagonCondition + wagonCascadeDelta - wagonDegradation))
   const newOxen = Math.max(0, prev.oxen + oxenCascadeDelta)

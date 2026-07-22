@@ -27,6 +27,7 @@ export function TelegraphOffice({ onClose, onWarrantIssued }: TelegraphOfficePro
   })
   const [showWarrantResult, setShowWarrantResult] = useState(false)
   const [warrantResult, setWarrantResult] = useState<{ success: boolean; message: string; bounty: number } | null>(null)
+  const [showRecklessWarning, setShowRecklessWarning] = useState(false)
 
   const pinkertonRep = getReputation('pinkerton')
   const canAccessTelegraph = pinkertonRep > -50
@@ -34,6 +35,14 @@ export function TelegraphOffice({ onClose, onWarrantIssued }: TelegraphOfficePro
   // Get matching outlaws for current selection
   const matchingOutlaws = findOutlawsByTraits(selectedTraits)
   const { possible } = getNarrowedDown()
+
+  // Traits the player is accusing on that are NOT backed by gathered evidence —
+  // i.e. hunches. Accusing on hunches is the reckless path that risks jailing an
+  // innocent (Leif 2026-07-21). A fully-evidenced warrant (no guessed traits) is
+  // never treated as reckless and never trips the warning or the penalty gate.
+  const guessedTraits = (Object.keys(selectedTraits) as (keyof OutlawTraits)[])
+    .filter(t => mysteryState.knownTraits[t] !== selectedTraits[t])
+  const isThinEvidence = guessedTraits.length > 0
 
   // Toggle a trait value
   const toggleTrait = (trait: keyof OutlawTraits, value: string) => {
@@ -66,7 +75,22 @@ export function TelegraphOffice({ onClose, onWarrantIssued }: TelegraphOfficePro
       return
     }
 
-    // Issue the warrant
+    // Thin evidence (accusing partly on unproven hunches) → warn first and make the
+    // player own the risk. The wrongful-arrest penalty can only follow this explicit
+    // acknowledgment; an honest, fully-evidenced warrant proceeds straight through.
+    if (isThinEvidence) {
+      setShowRecklessWarning(true)
+      setMood('annoyed')
+      return
+    }
+
+    proceedWithWarrant()
+  }
+
+  // The actual warrant issue + execution — called directly for a fully-evidenced
+  // accusation, or from the warning after the player acknowledges acting on a hunch.
+  const proceedWithWarrant = () => {
+    setShowRecklessWarning(false)
     const warrant = issueWarrant(selectedTraits)
 
     if (warrant.valid) {
@@ -112,6 +136,51 @@ export function TelegraphOffice({ onClose, onWarrantIssued }: TelegraphOfficePro
           >
             Leave
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Reckless-accusation warning: the player is about to swear out a warrant using
+  // traits they have NOT verified. Surface the suspect + exactly which details are
+  // hunches, and make them own the risk before the warrant (and its wrongful-arrest
+  // penalty) can proceed. (Leif 2026-07-21: warn → admit rashness → then penalty.)
+  if (showRecklessWarning) {
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-900 border-2 border-amber-600 rounded-lg p-6 max-w-md">
+          <h2 className="text-amber-400 text-xl mb-3">Acting on a Hunch?</h2>
+          <p className="text-gray-300 mb-3 text-sm">
+            You&apos;re about to swear out a warrant on{' '}
+            <span className="text-amber-300">{matchingOutlaws[0]?.alias || 'this suspect'}</span> — but{' '}
+            {guessedTraits.length} of your identifying {guessedTraits.length === 1 ? 'details is a guess' : 'details are guesses'}, not something you&apos;ve proven:
+          </p>
+          <ul className="text-red-300 text-xs mb-3 list-disc list-inside space-y-0.5">
+            {guessedTraits.map(t => (
+              <li key={t}>
+                {t}: {String(selectedTraits[t])} <span className="text-gray-500">(unverified)</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-gray-400 text-xs mb-4">
+            You&apos;ve actually gathered {Object.keys(mysteryState.knownTraits).length} trait
+            {Object.keys(mysteryState.knownTraits).length === 1 ? '' : 's'} of hard evidence. Accuse the wrong person and
+            you jail an innocent — that stains your conscience, not the outlaw&apos;s.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowRecklessWarning(false)}
+              className="flex-1 py-2 bg-emerald-800 text-emerald-100 rounded hover:bg-emerald-700 text-sm"
+            >
+              Keep investigating
+            </button>
+            <button
+              onClick={proceedWithWarrant}
+              className="flex-1 py-2 bg-red-800 text-red-100 rounded hover:bg-red-700 text-sm"
+            >
+              I&apos;m acting rashly — accuse anyway
+            </button>
+          </div>
         </div>
       </div>
     )

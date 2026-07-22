@@ -55,6 +55,7 @@ interface OregonTrailContextValue {
   setRations: (rations: Rations) => void
   handleEventChoice: (choiceId: string, outcomeMessageOverride?: string) => void
   hunt: () => void
+  drinkGargleBlaster: () => void
   crossRiver: (method: 'ford' | 'ferry' | 'caulk') => void
   applyRiverCrossingEffects: (effects: CrossingOutcome['effects'], message: string) => void
   visitTown: () => void
@@ -209,6 +210,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   }, [state.currentEvent, applyKarma])
 
   const hunt = useCallback(() => dispatch({ type: 'HUNT' }), [])
+  const drinkGargleBlaster = useCallback(() => dispatch({ type: 'DRINK_GARGLE_BLASTER' }), [])
 
   // Ferry costs 20🌮 - caller must handle payment via KarmaWalletContext
   const crossRiver = useCallback((method: 'ford' | 'ferry' | 'caulk') => {
@@ -515,6 +517,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     setRations,
     handleEventChoice,
     hunt,
+    drinkGargleBlaster,
     crossRiver,
     applyRiverCrossingEffects,
     visitTown,

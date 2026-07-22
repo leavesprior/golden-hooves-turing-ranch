@@ -8,7 +8,7 @@ import { type ActiveEffect, applyConsumable, tickEffects, getConsumableItem, get
 export type { ActiveEffect }
 
 export function useConsumableEffects() {
-  const { state, buySupplies, buyFood, repairWagon } = useOregonTrail()
+  const { state, buySupplies, buyFood, repairWagon, drinkGargleBlaster } = useOregonTrail()
   const { comment } = useNarrator()
 
   const [activeEffects, setActiveEffects] = useState<ActiveEffect[]>([])
@@ -34,6 +34,16 @@ export function useConsumableEffects() {
   const handleUseConsumable = useCallback((itemId: string) => {
     const item = getConsumableItem(itemId)
     if (!item) return
+    // Pan Galactic Gargle Blaster routes through the reducer (escalation chain +
+    // comical death), and only if the player actually acquired one.
+    if (itemId === 'pan_galactic_gargle_blaster_drink') {
+      if (!state.inventory.includes('pan_galactic_gargle_blaster')) {
+        comment('You reach for a Pan Galactic Gargle Blaster you do not have. Probably for the best.', 'observation')
+        return
+      }
+      drinkGargleBlaster()
+      return
+    }
     // Update active effects (timed buffs/debuffs)
     const updatedEffects = applyConsumable(itemId, activeEffects, state.day)
     setActiveEffects(updatedEffects)
@@ -46,7 +56,7 @@ export function useConsumableEffects() {
       buyFood(0, instant.moraleAmount, 0, false)
     }
     comment(`Used ${item.emoji} ${item.name}.`, 'observation')
-  }, [activeEffects, state.day, buyFood, comment])
+  }, [activeEffects, state.day, state.inventory, buyFood, comment, drinkGargleBlaster])
 
   const handleApplyMedicine = useCallback((_memberId: string) => {
     if (state.medicine > 0) {
