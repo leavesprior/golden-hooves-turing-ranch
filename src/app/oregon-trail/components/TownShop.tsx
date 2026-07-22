@@ -213,8 +213,15 @@ export function TownShop({ onClose }: TownShopProps) {
     return 1.0
   }
 
-  // Combined price modifier: reputation * NPC disposition * seasonal market
-  const priceModifier = reputationModifier * npcDispositionMultiplier
+  // "A frood who knows where his towel is" reads as competent and well-supplied,
+  // so shopkeepers assume he has other goods to trade and offer friend prices.
+  // 25% off per towel carried, hard-capped at 75% so it can never be free.
+  // (Leif 2026-07-21 — towels are rare and each costs a chunk of good karma.)
+  const towelCount = state.inventory.filter(i => i === 'towel').length
+  const towelPriceFactor = 1 - Math.min(0.75, 0.25 * towelCount)
+
+  // Combined price modifier: reputation * NPC disposition * seasonal market * towel aura
+  const priceModifier = reputationModifier * npcDispositionMultiplier * towelPriceFactor
 
   const getPrice = useCallback((item: ShopItem, isSelling: boolean) => {
     const basePrice = isSelling ? item.sellPrice : item.basePrice

@@ -89,6 +89,10 @@ export interface EventOutcome {
   neutralKarmaDelta?: number  // 🌮 Primary currency (replaces gold)
   goodKarmaDelta?: number     // 🍪 Premium/special items
   badKarmaDelta?: number      // 🪨 Debt/consequences
+  // Optional item granted into the wagon inventory. If itemRewardChance is set,
+  // the grant is rolled at that probability (0-1); otherwise it's guaranteed.
+  itemReward?: string
+  itemRewardChance?: number
 }
 
 // Investigation state for mystery system
@@ -150,6 +154,11 @@ export interface OregonTrailState {
   // (undefined never equals a number, so they just show the wagon scene).
   // currentLandmark itself is load-bearing elsewhere and is never cleared.
   landmarkArrivalDay?: number
+
+  // Pan Galactic Gargle Blaster escalation (Hitchhiker's). Persisted so the
+  // hangover chain survives reload. Optional → old saves default to no chain.
+  gargleBlasterShots?: number   // shots taken in the CURRENT hangover chain
+  hangoverUntilDay?: number     // day the current hangover clears
 
   // Statistics
   totalMilesTraveled: number

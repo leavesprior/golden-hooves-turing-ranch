@@ -36,6 +36,9 @@ export type GameAction =
   // Hunting
   | { type: 'HUNT' }
 
+  // Pan Galactic Gargle Blaster — reducer owns the escalation + comical death
+  | { type: 'DRINK_GARGLE_BLASTER' }
+
   // River crossing — crossRiver calls karma hooks before dispatching
   | { type: 'CROSS_RIVER'; method: 'ford' | 'ferry' | 'caulk' }
   | { type: 'APPLY_RIVER_CROSSING_EFFECTS'; effects: CrossingOutcome['effects']; message: string }

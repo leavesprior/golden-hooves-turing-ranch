@@ -112,10 +112,12 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'fair_trade',
         text: 'Trade fairly for supplies',
         outcome: {
-          message: 'The trade is mutually beneficial. You gain food and trust.',
+          message: 'The trade is mutually beneficial. You gain food and trust. Seeing you deal honestly, an elder presses a well-kept traveler\'s towel into your hands — "for the road."',
           neutralKarmaDelta: -15,  // Costs 15🌮
           foodDelta: 50,
           goodKarmaDelta: 10,      // Earns 10🍪 for fair dealing
+          itemReward: 'towel',     // the tribe may gift a towel for fair dealing...
+          itemRewardChance: 0.35,  // ...35% of the time (they are rare)
         },
         karmaLawful: -10,
         karmaGood: -10,

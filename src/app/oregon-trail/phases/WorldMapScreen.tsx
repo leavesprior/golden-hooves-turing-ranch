@@ -14,7 +14,7 @@ import { getLocationById } from '../data/worldMaps'
 import { getRandomTwainQuote } from '../data/easterEggs'
 
 export function WorldMapScreen() {
-  const { state, setPhase, setCurrentLandmark } = useOregonTrail()
+  const { state, setPhase, setCurrentLandmark, addInventoryItem } = useOregonTrail()
   const {
     progress,
     isTransitioning,
@@ -41,8 +41,17 @@ export function WorldMapScreen() {
     if (easterEgg) {
       markEasterEggFound(easterEgg.id)
       comment(`Secret found: ${easterEgg.title}! ${easterEgg.description}`, 'fourth_wall')
+      // Grant item rewards into the wagon inventory (previously a no-op, so item
+      // easter eggs never actually gave anything).
+      if (easterEgg.reward?.type === 'item') {
+        addInventoryItem(String(easterEgg.reward.value))
+      }
+      // The rubber-duck aliens are generous — a towel AND a Gargle Blaster.
+      if (easterEgg.id === 'pan_galactic_hitchhikers') {
+        addInventoryItem('towel')
+      }
     }
-  }, [checkForEasterEggs, markEasterEggFound, comment])
+  }, [checkForEasterEggs, markEasterEggFound, comment, addInventoryItem])
 
   const handleTravel = useCallback(() => {
     if (!selectedLocation) return

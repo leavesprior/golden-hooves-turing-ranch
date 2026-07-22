@@ -740,7 +740,7 @@ function ReputationDisplay() {
 function AdventureContent() {
   const router = useRouter()
   const { state: charState, rollSkillCheck, addExperience, getStat, loadCharacter, modifyStat } = useCharacter()
-  const { balance, earnNeutral, spendNeutral, addBadKarma, initializeWallet, isInitialized: walletInitialized, getKarmaAlignment } = useKarmaWallet()
+  const { balance, earnNeutral, earnGood, spendNeutral, addBadKarma, initializeWallet, isInitialized: walletInitialized, getKarmaAlignment } = useKarmaWallet()
   const { state: repState, modifyReputation, getReputationLevel, getReputation } = useReputation()
   const { comment: narratorComment } = useNarrator()
 
@@ -1004,7 +1004,9 @@ function AdventureContent() {
       // the wallet's bad-karma sink so cruel/reckless quest paths actually cost
       // something (consequences are real — see applyDialogueEffects).
       if (r.karma?.lawful) modifyReputation('pinkerton', r.karma.lawful, `Quest: ${quest.title}`)
-      if (r.karma?.good && r.karma.good > 0) earnNeutral(r.karma.good, `Quest karma: ${quest.title}`)
+      // Good deeds register as visible GOOD karma (small amounts, per Leif 2026-07-21) —
+      // previously routed to neutral tacos so kindness never showed on the 🍪 counter.
+      if (r.karma?.good && r.karma.good > 0) earnGood(r.karma.good, `Quest karma: ${quest.title}`)
       if (r.karma?.good && r.karma.good < 0) addBadKarma(-r.karma.good, `Quest karma: ${quest.title}`)
       r.reputation?.forEach(rep => modifyReputation(rep.faction, rep.amount, `Quest: ${quest.title}`))
       narratorComment(`Quest complete: ${quest.title} — ${path.name}. (+${r.xp} XP)`, 'observation')
@@ -1033,7 +1035,7 @@ function AdventureContent() {
         },
       })
     }
-  }, [handleAddXP, earnNeutral, addBadKarma, modifyReputation, narratorComment, celebrate])
+  }, [handleAddXP, earnNeutral, earnGood, addBadKarma, modifyReputation, narratorComment, celebrate])
 
   // Commit a quest engine result: sync the ref, apply rewards, merge state.
   // setFlag/unlockLocation rewards merge inside the (pure) updater so they
@@ -1204,7 +1206,7 @@ function AdventureContent() {
       if (effects.xp) handleAddXP(effects.xp)
       if (effects.gold && effects.gold > 0) earnNeutral(effects.gold, 'Dialogue')
       if (effects.karma?.lawful) modifyReputation('pinkerton', effects.karma.lawful, 'Dialogue choice')
-      if (effects.karma?.good && effects.karma.good > 0) earnNeutral(effects.karma.good, 'Dialogue karma')
+      if (effects.karma?.good && effects.karma.good > 0) earnGood(effects.karma.good, 'Dialogue karma')
       // Negative 'good' = a cruel/reckless choice: route to the bad-karma sink so
       // it actually registers (previously silently dropped). Gated behind the same
       // once-per-node reward guard so re-walking a tree can't stack the penalty.
@@ -1248,7 +1250,7 @@ function AdventureContent() {
       })
       if (loc) narratorComment('A new location has been marked on your map.', 'observation')
     }
-  }, [handleAddXP, earnNeutral, addBadKarma, spendNeutral, balance.neutral, modifyReputation, activateQuest, fireQuestObjective, fireQuestEvent, acquireItem, narratorComment, rewardClaimKey])
+  }, [handleAddXP, earnNeutral, earnGood, addBadKarma, spendNeutral, balance.neutral, modifyReputation, activateQuest, fireQuestObjective, fireQuestEvent, acquireItem, narratorComment, rewardClaimKey])
 
   // === TRAVEL ===
   // _resuming=true skips the encounter rolls — set by handleEncounterResolved /

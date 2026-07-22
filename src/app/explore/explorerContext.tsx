@@ -744,13 +744,15 @@ export function ExplorerProvider({
   }, [towns, progress.visitedAttractions])
 
   // Persistence
+  // Reads progressRef so it always persists the LATEST committed state and can be
+  // a stable callback (safe to call from an unmount/pagehide flush).
   const saveProgress = useCallback(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(progress))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(progressRef.current))
     } catch (e) {
       console.error('Failed to save explorer progress:', e)
     }
-  }, [progress])
+  }, [])
 
   const loadProgressFromStorage = useCallback(() => {
     try {
@@ -999,11 +1001,25 @@ export function ExplorerProvider({
       .sort((a, b) => b.timestamp - a.timestamp)
   }, [progress.journalEntries])
 
-  // Auto-save on progress changes
+  // Auto-save on progress changes (debounced)
   useEffect(() => {
     const timeoutId = setTimeout(saveProgress, 1000)
     return () => clearTimeout(timeoutId)
   }, [progress, saveProgress])
+
+  // Flush the pending save when leaving /explore. Without this, a change made
+  // inside the 1s debounce window (solve a case, then immediately tap
+  // "Investigate town ▸" / "back to map ▸") was lost when the provider unmounted,
+  // so the finished area showed undone on return. Covers SPA-nav unmount AND a
+  // hard tab close/refresh (pagehide). saveProgress reads progressRef → latest state.
+  useEffect(() => {
+    const flush = () => saveProgress()
+    window.addEventListener('pagehide', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      flush()
+    }
+  }, [saveProgress])
 
   const value: ExplorerContextValue = {
     progress,

@@ -150,8 +150,13 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         state.currentEvent.id.startsWith('dm_boss_') && state.previousPhase === 'town'
           ? 'town'
           : 'traveling'
+      // Optional event item reward (e.g. the tribe's towel on a fair trade),
+      // rolled at itemRewardChance when present, otherwise guaranteed.
+      const grantsEventItem = outcome.itemReward != null &&
+        (outcome.itemRewardChance == null || Math.random() < outcome.itemRewardChance)
       return {
         ...state,
+        inventory: grantsEventItem ? [...state.inventory, outcome.itemReward as string] : state.inventory,
         food: Math.max(0, state.food + (outcome.foodDelta || 0)),
         ammunition: Math.max(0, state.ammunition + (outcome.ammoDelta || 0)),
         medicine: Math.max(0, state.medicine + (outcome.medicineDelta || 0)),
@@ -215,11 +220,12 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       const isCritSuccess = roll > 0.95
       const isCritFailure = roll < 0.05
       const ammoUsed = Math.floor(Math.random() * 10) + 5
-      // Hunt-yield soft-cap (Grok balance fix 2026-07-20): was rand*200+50 (E≈150lb),
-      // which fed the wagon AND printed karma ~22x over cost. Nerf YIELD only — keep the
-      // hunt mechanic + success rate intact — so E≈65lb: still sustains a party of 4,
-      // no longer a karma-printing exploit.
-      const foodGained = success ? Math.floor(Math.random() * 70) + 30 : 0
+      // Hunt yield: rand*200+50 (E≈150lb). RESTORED 2026-07-21 at Leif's explicit
+      // direction after the 2026-07-20 "Grok balance fix" nerf (to *70+30) removed a
+      // hard-earned player strategy. This is the owner's deliberate call — DO NOT
+      // re-nerf without Leif's say-so. If karma-printing via food ever needs a guard,
+      // gate it at the food->karma conversion, NOT by starving the hunt yield.
+      const foodGained = success ? Math.floor(Math.random() * 200) + 50 : 0
       let huntMessage = success
         ? `You shot a deer! Gained ${foodGained} pounds of food.`
         : 'The animals got away. Better luck next time.'
@@ -240,6 +246,48 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       }
     }
 
+    // === Pan Galactic Gargle Blaster (Hitchhiker's) ===
+    // "Like having your brains smashed out by a slice of lemon wrapped round a
+    // large gold brick." One shot → 2-3 day hangover. A second shot DURING the
+    // hangover clears today's misery but DOUBLES the next one. A third shot in the
+    // same bender is a comical death (Adams × classic Oregon Trail). Consumes one
+    // from inventory; escalation state is persisted on OregonTrailState.
+    case 'DRINK_GARGLE_BLASTER': {
+      // The bottle is not consumed — the escalation itself is the limiter. Drink
+      // again while hungover at your peril; a third in one bender is fatal.
+      const hungover = (state.hangoverUntilDay ?? 0) > state.day
+      const shots = hungover ? (state.gargleBlasterShots ?? 0) + 1 : 1
+      const baseDays = 2 + Math.floor(Math.random() * 2) // 2-3
+
+      if (shots >= 3) {
+        return {
+          ...state,
+          phase: 'game_over' as GamePhase,
+          gargleBlasterShots: 0,
+          hangoverUntilDay: state.day,
+          morale: 0,
+          message: 'A third Pan Galactic Gargle Blaster in one bender. Your brains, smashed out once more by a slice of lemon wrapped round a large gold brick, decline to return. You have died of enthusiasm. The wagon rolls on. Someone eats your rations and pockets your towel.',
+        }
+      }
+      if (hungover) {
+        const doubled = baseDays * 2
+        return {
+          ...state,
+          gargleBlasterShots: shots, // 2
+          hangoverUntilDay: state.day + doubled,
+          morale: Math.min(100, state.morale + 25),
+          message: `Another Gargle Blaster and the hangover politely steps aside — for today. But the universe keeps a tab, and it has doubled: ${doubled} days of reckoning are coming. A third would be your last.`,
+        }
+      }
+      return {
+        ...state,
+        gargleBlasterShots: 1,
+        hangoverUntilDay: state.day + baseDays,
+        morale: Math.min(100, state.morale + 35),
+        message: `You drink the Pan Galactic Gargle Blaster. For one incandescent moment you comprehend the entire universe and your place in it. Then the hangover arrives, and stays ${baseDays} days.`,
+      }
+    }
+
     // === River crossing ===
 
     case 'CROSS_RIVER': {
@@ -255,7 +303,11 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
           crossOutcome = { message: 'You caulk the wagon and float across...', damageProbability: 0.25, damageAmount: 15 }
           break
       }
-      const tookDamage = Math.random() < crossOutcome.damageProbability
+      // A towel is a genuinely useful crossing tool — wrap the gear, dry off, wave
+      // down the ferryman. Carrying one lowers the odds of a soggy disaster.
+      const hasTowel = state.inventory.includes('towel')
+      const crossingRisk = hasTowel ? crossOutcome.damageProbability * 0.6 : crossOutcome.damageProbability
+      const tookDamage = Math.random() < crossingRisk
       const foodLost = tookDamage ? Math.floor(state.food * 0.1) : 0
       return {
         ...state,
