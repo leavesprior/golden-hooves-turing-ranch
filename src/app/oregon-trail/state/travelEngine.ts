@@ -239,7 +239,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   // Check for deaths
   const survivors = updatedParty.filter(m => m.health > 0)
   if (survivors.length === 0) {
-    return { ...prev, phase: 'game_over' as GamePhase, message: 'Your entire party has perished...' }
+    return { ...prev, phase: 'game_over' as GamePhase, message: 'The last of the party lay down within sight of the next rise. The trail keeps its own counsel about who reaches the end of it.' }
   }
 
   // Recalculate bonuses after potential desertion
