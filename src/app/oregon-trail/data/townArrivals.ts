@@ -302,11 +302,16 @@ export function getTownArrivalMessage(
   townName: string,
   visitCount: number
 ): TownArrivalMessage | null {
-  const townData = TOWN_ARRIVALS[townName]
-  if (!townData) return null
-
   const tier = getVisitTier(visitCount)
-  const messages = townData[tier]
+
+  // Fall back to the generic set for any landmark not in the authored table,
+  // and for an authored town whose tier happens to be empty. Previously this
+  // returned null in both cases, so unlisted stops said nothing at all —
+  // which is the "never auto-skip a town" rule failing quietly.
+  const townData = TOWN_ARRIVALS[townName]
+  const messages =
+    (townData && townData[tier]?.length ? townData[tier] : undefined) ??
+    (GENERIC_ARRIVALS[tier]?.length ? GENERIC_ARRIVALS[tier] : undefined)
 
   if (!messages || messages.length === 0) return null
 
