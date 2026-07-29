@@ -61,15 +61,16 @@ function transformBearingClasses(cssFiles) {
   // class -> reason
   const classes = new Map()
 
+  // PASS 1 — every @keyframes across EVERY file, before any rule is resolved.
+  // Collecting keyframes and resolving rules in one loop made resolution
+  // order-dependent: a rule in a.css naming a keyframe declared in z.css was
+  // missed, because z.css had not been read yet. CSS has no such ordering rule.
   for (const file of cssFiles) {
     const css = readFileSync(file, 'utf8')
-
-    // @keyframes NAME { ... transform: ... }
     const kfRe = /@keyframes\s+([A-Za-z0-9_-]+)\s*\{/g
     let m
     while ((m = kfRe.exec(css))) {
       const name = m[1]
-      // brace-match the keyframes body
       let depth = 1, i = kfRe.lastIndex
       while (i < css.length && depth > 0) {
         if (css[i] === '{') depth++
@@ -79,8 +80,12 @@ function transformBearingClasses(cssFiles) {
       const body = css.slice(kfRe.lastIndex, i)
       if (/(^|[;{\s])transform\s*:/.test(body)) keyframesWithTransform.add(name)
     }
+  }
 
-    // .class { ... }  — direct transform, or animation naming a transform keyframe
+  // PASS 2 — resolve rules against the complete keyframe set.
+  for (const file of cssFiles) {
+    const css = readFileSync(file, 'utf8')
+    let m
     const ruleRe = /(^|\})\s*([^{}@]+)\{([^{}]*)\}/g
     while ((m = ruleRe.exec(css))) {
       const selector = m[2].trim()
@@ -246,7 +251,12 @@ if (JSON_OUT) {
   console.log(`  tags this parser could not read: ${unparsed.length}${unparsed.length ? '  <-- BLIND SPOT, not coverage' : ''}`)
   for (const u of unparsed.slice(0, 10)) console.log(`      ${u.file}:${u.line} <${u.element}>`)
   console.log('')
-  if (!findings.length) {
+  if (!findings.length && unparsed.length) {
+    // Never a bare PASS while blind. Printing a blind spot without gating on it
+    // is still a rubber stamp -- the exact failure this check exists to prevent.
+    console.log(`  PARTIAL CHECK  no clobber found in what could be read, but ${unparsed.length} tag(s) were unreadable.`)
+    console.log('                 This is NOT a pass. Fix the parser or the source, then re-run.')
+  } else if (!findings.length) {
     console.log('  PASS  no element carries both a transform attribute and a transform-animating class')
   } else {
     for (const f of findings) {
@@ -260,4 +270,10 @@ if (JSON_OUT) {
   }
 }
 
-process.exit(findings.length ? 1 : 0)
+// Exit codes are distinct on purpose, so "incomplete" can never be read as "clean":
+//   0 = every tag was readable and no clobber exists
+//   1 = a clobber was found
+//   2 = the check could not see everything it was asked to see (blind spot)
+// Previously this read findings.length only, so an unparseable tag printed a
+// warning and still exited 0 -- green while blind.
+process.exit(findings.length ? 1 : unparsed.length ? 2 : 0)
