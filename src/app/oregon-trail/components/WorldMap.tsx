@@ -21,6 +21,7 @@ import {
   MapAnimations,
   useMapInteraction,
 } from './map'
+import { MAP_VIEWBOX } from './map/mapViewport'
 
 // ============================================
 // TYPES
@@ -225,7 +226,11 @@ export function WorldMap({
       {...interactionHandlers}
     >
       <svg
-        viewBox="0 0 100 62.5"
+        // Single source of truth. This used to be a literal here while MapCompass
+        // independently assumed the width was 100 — that split is what made the
+        // compass's hand-tuned position silently wrong. Widgets anchor against
+        // MAP_VIEWBOX; nothing re-declares it.
+        viewBox={`0 0 ${MAP_VIEWBOX.width} ${MAP_VIEWBOX.height}`}
         preserveAspectRatio="xMidYMid meet"
         className="absolute inset-0 w-full h-full"
         style={{ transform: svgTransform || undefined }}
