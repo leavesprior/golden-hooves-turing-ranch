@@ -14,22 +14,34 @@ export function MapCompass({ graphicsTier }: MapCompassProps) {
   const highDetail = graphicsTier === 'modern_32bit' || isUltra
 
   if (isRetro) {
-    // Text-only cross
+    // Text-only cross.
+    // NOTE: the positioning transform MUST live on an outer <g> that carries no
+    // animated class. `.map-compass` runs a CSS `transform: translateY(...)`
+    // keyframe, and a CSS transform REPLACES the SVG transform presentation
+    // attribute rather than composing with it — putting both on one element
+    // silently discarded translate(92,5) and parked the compass in the
+    // top-left corner over the chapter title. Position outside, animate inside.
+    // x=88 not 92: the rose spans local x 0..8, so 92 put E at exactly 100 —
+    // the viewBox's right edge — and the glyph was clipped by the map border.
     return (
-      <g className="map-compass" transform="translate(92, 5)">
-        <text x="4" y="3" textAnchor="middle" fill="var(--pixel-ui-text)" fontSize="2.5" fontFamily="monospace">N</text>
-        <text x="0" y="6.5" textAnchor="middle" fill="var(--pixel-ui-text)" fontSize="2.5" fontFamily="monospace">W</text>
-        <text x="4" y="6.5" textAnchor="middle" fill="var(--pixel-gold-light)" fontSize="2" fontFamily="monospace">+</text>
-        <text x="8" y="6.5" textAnchor="middle" fill="var(--pixel-ui-text)" fontSize="2.5" fontFamily="monospace">E</text>
-        <text x="4" y="10" textAnchor="middle" fill="var(--pixel-ui-text)" fontSize="2.5" fontFamily="monospace">S</text>
+      <g transform="translate(88, 5)">
+        <g className="map-compass">
+          <text x="4" y="3" textAnchor="middle" fill="var(--pixel-ui-text)" fontSize="2.5" fontFamily="monospace">N</text>
+          <text x="0" y="6.5" textAnchor="middle" fill="var(--pixel-ui-text)" fontSize="2.5" fontFamily="monospace">W</text>
+          <text x="4" y="6.5" textAnchor="middle" fill="var(--pixel-gold-light)" fontSize="2" fontFamily="monospace">+</text>
+          <text x="8" y="6.5" textAnchor="middle" fill="var(--pixel-ui-text)" fontSize="2.5" fontFamily="monospace">E</text>
+          <text x="4" y="10" textAnchor="middle" fill="var(--pixel-ui-text)" fontSize="2.5" fontFamily="monospace">S</text>
+        </g>
       </g>
     )
   }
 
   if (isClassic) {
     // Simple 4-point compass
+    // x=88: circle spans local 0..8, so 92 ran flush to the viewBox edge.
     return (
-      <g className="map-compass" transform="translate(92, 3)">
+      <g transform="translate(88, 3)">
+        <g className="map-compass">
         <circle cx="4" cy="5" r="4" fill="none" stroke="var(--pixel-ui-border)" strokeWidth="0.3" opacity="0.5" />
         {/* Cardinal points */}
         <line x1="4" y1="1.5" x2="4" y2="3" stroke="var(--pixel-ui-text)" strokeWidth="0.4" />
@@ -38,6 +50,7 @@ export function MapCompass({ graphicsTier }: MapCompassProps) {
         <line x1="6" y1="5" x2="7.5" y2="5" stroke="var(--pixel-ui-text)" strokeWidth="0.3" />
         {/* N label */}
         <text x="4" y="1" textAnchor="middle" fill="var(--pixel-gold-light)" fontSize="1.8" fontFamily="monospace">N</text>
+        </g>
       </g>
     )
   }
@@ -47,8 +60,11 @@ export function MapCompass({ graphicsTier }: MapCompassProps) {
   const cx = 4
   const cy = 5
 
+  // x=86: the E/W labels sit at cx±(compassSize+1) = local -2..10, so 90 pushed
+  // the E label to exactly 100 and the border clipped it.
   return (
-    <g className="map-compass" transform="translate(90, 2)">
+    <g transform="translate(86, 2)">
+      <g className="map-compass">
       {/* Background circle */}
       <circle cx={cx} cy={cy} r={compassSize} fill="rgba(15,15,27,0.6)" stroke="var(--pixel-ui-border)" strokeWidth="0.3" />
 
@@ -93,18 +109,13 @@ export function MapCompass({ graphicsTier }: MapCompassProps) {
         </>
       )}
 
-      {/* Subtle bob animation for ultra */}
-      {isUltra && (
-        <animateTransform
-          attributeName="transform"
-          type="translate"
-          values="90,2;90,2.3;90,2"
-          dur="6s"
-          repeatCount="indefinite"
-        />
-      )}
+      </g>
     </g>
   )
 }
+// The ultra tier previously carried a SMIL <animateTransform> duplicating the
+// same 6s bob the `.map-compass` CSS keyframe already applies to every tier.
+// It also hard-coded absolute values ("90,2") which, now that positioning lives
+// on the outer <g>, would translate a second time. Removed as redundant.
 
 export default MapCompass
