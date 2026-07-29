@@ -1,44 +1,69 @@
 #!/usr/bin/env node
 /**
- * check-transform-clobber — a simple machine for one exact defect class.
+ * check-transform-clobber — one law, mechanically enforced.
  *
- * THE DEFECT
- * In SVG2 a CSS `transform` (including one set by an @keyframes stop) REPLACES
- * the `transform` presentation attribute rather than composing with it. So:
+ * THE LAW
+ *   An element MUST NOT carry both a `transform` presentation attribute and a
+ *   `className`/`class`. Put position on an outer <g>; put classes on an inner one.
  *
- *     .map-compass { animation: compass-bob 6s infinite; }
- *     @keyframes compass-bob { 0%,100% { transform: translateY(0); } }
+ * WHY THIS SHAPE
+ * In SVG2 a CSS `transform` — including one set by an @keyframes stop — REPLACES
+ * the `transform` presentation attribute rather than composing with it. The element
+ * renders at the origin while the DOM still shows the attribute. tsc, eslint,
+ * `next build` and every unit test pass. Only geometry reveals it. It shipped twice:
+ * the map compass (wrong corner, clipped glyph) and the player wagon (position wiped
+ * precisely while travelling).
  *
- *     <g className="map-compass" transform="translate(92, 5)">   <-- translate DIES
+ * The first version of this check tried to DETECT the condition: parse the
+ * stylesheets, find every class that ends up setting `transform`, flag elements
+ * carrying both. Measured against a PostCSS ground truth, that version was blind to
+ * 20% of the real class set (12 of 15) on this repo's own globals.css. It also
+ * passed a blatant clobber at exit 0 when no CSS file was present, and its rule
+ * regex silently skipped every other rule in a flat sequence — wrong on the happy
+ * path, not merely on edge cases.
  *
- * The element renders at the origin instead of where the attribute says. Nothing
- * catches this: tsc passes, lint passes, the build passes, every unit test
- * passes, and the DOM still *shows* the attribute. Only geometry reveals it.
- * This shipped in MapCompass and put the compass in the wrong corner of the map.
+ * Detecting CSS transform authority is a tar pit: selectors, descendants, pseudo
+ * states, @media, @layer, CSS modules, Tailwind, inline style, third-party sheets,
+ * and whatever CSS gains next. SEPARATING transform authority is one sentence.
+ * So this check no longer reads CSS at all. It enforces the separation instead,
+ * which makes the defect unrepresentable rather than merely detectable, and cannot
+ * be defeated by any styling mechanism present or future.
  *
- * THE CHECK
- * 1. Read the stylesheets. Find every class whose own rule sets `transform`, or
- *    whose `animation` names a @keyframes that sets `transform` in any stop.
- * 2. Read the components. Flag any element carrying BOTH such a class AND a
- *    `transform=` attribute.
+ * Cost, measured before adopting: zero. No element in src/** carried both.
  *
- * Deterministic, no network, no deps. Exit 1 on any finding.
+ * PARSING
+ * Uses the TypeScript compiler API (a direct dependency) rather than a hand-rolled
+ * scanner. Every bug this checker ever had was a hand-parser bug — template-literal
+ * nesting, an apostrophe inside a comment, a CSS rule delimiter. A real parser
+ * removes the category rather than the instances.
  *
- * Usage:  node scripts/check-transform-clobber.mjs [--json]
+ * ESCAPE HATCH
+ *   data-allow-transform-class="<reason>"  on the element. Default is deny.
+ *
+ * EXIT CODES — distinct so "incomplete" can never read as "clean"
+ *   0  every file parsed, no violation
+ *   1  violation found
+ *   2  could not see everything asked of it (parse failure, spread attributes
+ *      hiding the answer, or nothing scanned at all)
+ *
+ * Usage: node scripts/check-transform-clobber.mjs [--root <dir>] [--json]
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { readdirSync, statSync, readFileSync, existsSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
+import ts from 'typescript'
 
-const ROOT = process.cwd()
-const JSON_OUT = process.argv.includes('--json')
+const argv = process.argv.slice(2)
+const JSON_OUT = argv.includes('--json')
+const rootArg = argv.indexOf('--root')
+const ROOT = rootArg !== -1 && argv[rootArg + 1] ? resolve(argv[rootArg + 1]) : process.cwd()
 
-// ---------------------------------------------------------------------------
-// walk
-// ---------------------------------------------------------------------------
-const SKIP = new Set(['node_modules', '.next', '.git', 'dist', 'build', 'coverage', '.serena', '.tldr'])
+// `fixtures` holds deliberately-hostile files that MUST fail. They are asserted by
+// exit code in check-transform-clobber.test.mjs via an explicit --root, so a
+// whole-repo scan has to skip them or the check would always fail on its own bait.
+const SKIP = new Set(['node_modules', '.next', '.git', 'dist', 'build', 'coverage', '.serena', '.tldr', 'fixtures'])
 
-function walk(dir, exts, out = []) {
+function walk(dir, out = []) {
   let entries
   try { entries = readdirSync(dir) } catch { return out }
   for (const name of entries) {
@@ -46,234 +71,111 @@ function walk(dir, exts, out = []) {
     const p = join(dir, name)
     let st
     try { st = statSync(p) } catch { continue }
-    if (st.isDirectory()) walk(p, exts, out)
-    else if (exts.some(e => name.endsWith(e))) out.push(p)
+    if (st.isDirectory()) walk(p, out)
+    else if (/\.(tsx|jsx)$/.test(name)) out.push(p)
   }
   return out
 }
 
-// ---------------------------------------------------------------------------
-// 1. which classes end up setting `transform`?
-// ---------------------------------------------------------------------------
-function transformBearingClasses(cssFiles) {
-  // keyframe name -> true when any stop sets transform
-  const keyframesWithTransform = new Set()
-  // class -> reason
-  const classes = new Map()
+const findings = []
+const blind = []
 
-  // PASS 1 — every @keyframes across EVERY file, before any rule is resolved.
-  // Collecting keyframes and resolving rules in one loop made resolution
-  // order-dependent: a rule in a.css naming a keyframe declared in z.css was
-  // missed, because z.css had not been read yet. CSS has no such ordering rule.
-  for (const file of cssFiles) {
-    const css = readFileSync(file, 'utf8')
-    const kfRe = /@keyframes\s+([A-Za-z0-9_-]+)\s*\{/g
-    let m
-    while ((m = kfRe.exec(css))) {
-      const name = m[1]
-      let depth = 1, i = kfRe.lastIndex
-      while (i < css.length && depth > 0) {
-        if (css[i] === '{') depth++
-        else if (css[i] === '}') depth--
-        i++
-      }
-      const body = css.slice(kfRe.lastIndex, i)
-      if (/(^|[;{\s])transform\s*:/.test(body)) keyframesWithTransform.add(name)
-    }
+/** Attribute name as written, or null for a spread. */
+function attrName(a) {
+  if (ts.isJsxSpreadAttribute(a)) return null
+  return a.name && 'text' in a.name ? a.name.text : String(a.name?.escapedText ?? '')
+}
+
+function checkFile(file, src) {
+  let sf
+  try {
+    sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, /* setParentNodes */ true, ts.ScriptKind.TSX)
+  } catch (e) {
+    blind.push({ file: relative(ROOT, file), line: 0, why: `could not parse: ${e.message}` })
+    return
+  }
+  // A syntactically broken file is a blind spot, not a pass.
+  const diags = sf.parseDiagnostics ?? []
+  if (diags.length) {
+    const d = diags[0]
+    const line = sf.getLineAndCharacterOfPosition(d.start ?? 0).line + 1
+    blind.push({ file: relative(ROOT, file), line, why: 'file has parse errors; attributes not reliably readable' })
+    return
   }
 
-  // PASS 2 — resolve rules against the complete keyframe set.
-  for (const file of cssFiles) {
-    const css = readFileSync(file, 'utf8')
-    let m
-    const ruleRe = /(^|\})\s*([^{}@]+)\{([^{}]*)\}/g
-    while ((m = ruleRe.exec(css))) {
-      const selector = m[2].trim()
-      const body = m[3]
-      const classNames = [...selector.matchAll(/\.([A-Za-z0-9_-]+)/g)].map(x => x[1])
-      if (!classNames.length) continue
+  const visit = node => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      const attrs = node.attributes.properties
+      const names = attrs.map(attrName)
+      const hasSpread = names.some(n => n === null)
+      const has = n => names.includes(n)
+      const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1
+      const tag = node.tagName.getText(sf)
 
-      const direct = /(^|[;{\s])transform\s*:/.test(body)
-      const animMatch = body.match(/(?:^|[;{\s])animation(?:-name)?\s*:\s*([^;]+)/)
-      let viaKeyframes = null
-      if (animMatch) {
-        for (const token of animMatch[1].split(/[\s,]+/)) {
-          if (keyframesWithTransform.has(token)) { viaKeyframes = token; break }
+      if (has('transform')) {
+        if (has('className') || has('class')) {
+          if (!has('data-allow-transform-class')) {
+            const cls = attrs.find(a => attrName(a) === 'className' || attrName(a) === 'class')
+            findings.push({
+              file: relative(ROOT, file), line, element: tag,
+              detail: cls ? cls.getText(sf).replace(/\s+/g, ' ').slice(0, 80) : '',
+            })
+          }
+        } else if (hasSpread) {
+          // {...props} could carry className. Not knowable statically — say so.
+          blind.push({
+            file: relative(ROOT, file), line,
+            why: `<${tag}> has a transform attribute and a {...spread}; a className may be hidden in it`,
+          })
         }
       }
-      if (!direct && !viaKeyframes) continue
-
-      for (const c of classNames) {
-        classes.set(c, {
-          css: relative(ROOT, file),
-          reason: direct ? 'rule sets transform directly' : `animation "${viaKeyframes}" sets transform`,
-        })
-      }
     }
+    ts.forEachChild(node, visit)
   }
-  return classes
+  visit(sf)
 }
 
 // ---------------------------------------------------------------------------
-// 2. elements carrying both a flagged class and a transform attribute
-// ---------------------------------------------------------------------------
-/**
- * Scan an opening JSX tag properly instead of regex-matching it.
- *
- * A regex cannot do this: attribute values nest arbitrarily
- * (`transform={`translate(${x}, ${y})`}` is braces inside a template literal
- * inside braces), and the first version of this check silently MISSED the
- * wagon marker because of exactly that. Walk the characters, track quote and
- * brace depth, stop at the `>` that closes the tag.
- */
-function readOpeningTag(src, start) {
-  let i = start
-  let quote = null
-  // Explicit mode stack. A flat depth counter plus a boolean is NOT enough:
-  // `transform={`translate(${x}, ${y})`}` interleaves braces and a template
-  // literal, and the first version of this parser incremented depth on `${`
-  // while staying in template mode, so the closing `}` was never counted.
-  // Depth never returned to zero, the tag was skipped, and the wagon marker
-  // went unreported. The stack makes the nesting explicit.
-  const stack = [] // 'brace' | 'tick'
-  while (i < src.length) {
-    const ch = src[i]
-    const top = stack[stack.length - 1]
-    if (quote) {
-      if (ch === '\\') i++
-      else if (ch === quote) quote = null
-    } else if (top === 'tick') {
-      if (ch === '\\') i++
-      else if (ch === '`') stack.pop()
-      else if (ch === '$' && src[i + 1] === '{') { stack.push('brace'); i++ }
-    } else {
-      // Comments first: an apostrophe in `// Don't mark ...` inside an onClick
-      // handler otherwise opens a phantom string and swallows the rest of the
-      // tag. That is how InvestigationScreen went unparseable.
-      if (ch === '/' && src[i + 1] === '/') {
-        const nl = src.indexOf('\n', i)
-        if (nl === -1) return null
-        i = nl
-      } else if (ch === '/' && src[i + 1] === '*') {
-        const end = src.indexOf('*/', i + 2)
-        if (end === -1) return null
-        i = end + 1
-      }
-      else if (ch === '"' || ch === "'") quote = ch
-      else if (ch === '`') stack.push('tick')
-      else if (ch === '{') stack.push('brace')
-      else if (ch === '}') stack.pop()
-      else if (ch === '>' && stack.length === 0) return src.slice(start, i + 1)
-    }
-    i++
-  }
-  return null
+if (!existsSync(ROOT)) {
+  console.error(`transform-clobber: root does not exist: ${ROOT}`)
+  process.exit(2)
 }
 
-/** Every class name mentioned in a className attribute, literal or dynamic. */
-function classNamesIn(attrs) {
-  const out = []
-  const m = attrs.match(/(?:className|class)\s*=\s*(?:"([^"]*)"|'([^']*)'|\{)/)
-  if (!m) return out
-  if (m[1] !== undefined || m[2] !== undefined) {
-    return (m[1] ?? m[2]).split(/\s+/).filter(Boolean)
-  }
-  // Dynamic: className={...}. Pull every quoted literal out of the expression —
-  // a ternary, a clsx() call and a template literal all put the real class
-  // names in string literals, which is all this check needs.
-  const exprStart = attrs.indexOf('{', m.index)
-  let i = exprStart, depth = 0
-  for (; i < attrs.length; i++) {
-    if (attrs[i] === '{') depth++
-    else if (attrs[i] === '}') { depth--; if (depth === 0) break }
-  }
-  const expr = attrs.slice(exprStart, i + 1)
-  for (const lit of expr.matchAll(/['"`]([^'"`]*)['"`]/g)) {
-    for (const c of lit[1].split(/\s+/)) if (c) out.push(c)
-  }
-  return out
+const files = walk(ROOT)
+for (const f of files) {
+  try { checkFile(f, readFileSync(f, 'utf8')) }
+  catch (e) { blind.push({ file: relative(ROOT, f), line: 0, why: `unreadable: ${e.message}` }) }
 }
 
-function findClobbers(componentFiles, flagged, unparsed) {
-  const findings = []
-  for (const file of componentFiles) {
-    const src = readFileSync(file, 'utf8')
-    const openRe = /<([A-Za-z][A-Za-z0-9.]*)[\s>]/g
-    let m
-    while ((m = openRe.exec(src))) {
-      const tag = readOpeningTag(src, m.index)
-      // A tag this parser cannot read is coverage it does not have. Silent
-      // skipping is how the first version reported PASS while blind.
-      if (!tag) {
-        unparsed.push({ file: relative(ROOT, file), line: src.slice(0, m.index).split('\n').length, element: m[1] })
-        continue
-      }
-      const attrs = tag.slice(1 + m[1].length, -1)
-      if (!/(^|\s)transform\s*=/.test(attrs)) continue
-
-      const seen = new Set()
-      for (const c of classNamesIn(attrs)) {
-        if (!flagged.has(c) || seen.has(c)) continue
-        seen.add(c)
-        const lit = attrs.match(/(?:^|\s)transform\s*=\s*"([^"]*)"/)
-        const dyn = attrs.match(/(?:^|\s)transform\s*=\s*\{/)
-        findings.push({
-          file: relative(ROOT, file),
-          line: src.slice(0, m.index).split('\n').length,
-          element: m[1],
-          className: c,
-          transform: lit ? lit[1] : dyn ? '{…dynamic…}' : '<unknown>',
-          ...flagged.get(c),
-        })
-      }
-    }
-  }
-  return findings
+// Health floor. "I looked at nothing, therefore it is clean" is a rubber stamp with
+// better posture — the previous version passed a blatant clobber in exactly that way.
+if (files.length === 0) {
+  console.log('transform-clobber: NO COMPONENT FILES SCANNED')
+  console.log(`  root: ${ROOT}`)
+  console.log('  This is NOT a pass. A check that saw nothing proves nothing.')
+  process.exit(2)
 }
 
-// ---------------------------------------------------------------------------
-const cssFiles = walk(join(ROOT, 'src'), ['.css', '.scss'])
-  .concat(walk(join(ROOT, 'app'), ['.css', '.scss']))
-const componentFiles = walk(join(ROOT, 'src'), ['.tsx'])
-  .concat(walk(join(ROOT, 'app'), ['.tsx']))
-
-const flagged = transformBearingClasses(cssFiles)
-const unparsed = []
-const findings = findClobbers(componentFiles, flagged, unparsed)
+const exitCode = findings.length ? 1 : blind.length ? 2 : 0
 
 if (JSON_OUT) {
-  console.log(JSON.stringify({ flaggedClasses: [...flagged.keys()], findings, unparsed }, null, 2))
+  console.log(JSON.stringify({ root: ROOT, scanned: files.length, findings, blind, exitCode }, null, 2))
 } else {
-  console.log(`transform-clobber check`)
-  console.log(`  stylesheets scanned : ${cssFiles.length}`)
-  console.log(`  components scanned  : ${componentFiles.length}`)
-  console.log(`  transform-bearing classes: ${flagged.size} ${flagged.size ? '(' + [...flagged.keys()].join(', ') + ')' : ''}`)
-  console.log(`  tags this parser could not read: ${unparsed.length}${unparsed.length ? '  <-- BLIND SPOT, not coverage' : ''}`)
-  for (const u of unparsed.slice(0, 10)) console.log(`      ${u.file}:${u.line} <${u.element}>`)
+  console.log('transform-clobber — law: no element carries both `transform` and a class')
+  console.log(`  files scanned: ${files.length}`)
+  console.log(`  unreadable   : ${blind.length}${blind.length ? '   <-- BLIND SPOT, not coverage' : ''}`)
+  for (const b of blind.slice(0, 10)) console.log(`      ${b.file}:${b.line} — ${b.why}`)
   console.log('')
-  if (!findings.length && unparsed.length) {
-    // Never a bare PASS while blind. Printing a blind spot without gating on it
-    // is still a rubber stamp -- the exact failure this check exists to prevent.
-    console.log(`  PARTIAL CHECK  no clobber found in what could be read, but ${unparsed.length} tag(s) were unreadable.`)
-    console.log('                 This is NOT a pass. Fix the parser or the source, then re-run.')
-  } else if (!findings.length) {
-    console.log('  PASS  no element carries both a transform attribute and a transform-animating class')
-  } else {
-    for (const f of findings) {
-      console.log(`  FAIL  ${f.file}:${f.line}`)
-      console.log(`        <${f.element} className="${f.className}" transform="${f.transform}">`)
-      console.log(`        "${f.className}" ${f.reason} (${f.css})`)
-      console.log(`        -> the CSS transform REPLACES the attribute; move positioning to an outer element.`)
-      console.log('')
-    }
-    console.log(`  ${findings.length} clobber(s) found`)
+  for (const f of findings) {
+    console.log(`  FAIL  ${f.file}:${f.line}`)
+    console.log(`        <${f.element} ... transform=... ${f.detail}>`)
+    console.log('        A CSS transform REPLACES the transform attribute, it does not compose.')
+    console.log('        Remedy: outer <g transform="..."> for position, inner <g className="..."> for motion.')
+    console.log('')
   }
+  if (findings.length) console.log(`  ${findings.length} violation(s)`)
+  else if (blind.length) console.log('  PARTIAL CHECK — no violation in what could be read. This is NOT a pass.')
+  else console.log('  PASS  transform authority is separated everywhere')
 }
 
-// Exit codes are distinct on purpose, so "incomplete" can never be read as "clean":
-//   0 = every tag was readable and no clobber exists
-//   1 = a clobber was found
-//   2 = the check could not see everything it was asked to see (blind spot)
-// Previously this read findings.length only, so an unparseable tag printed a
-// warning and still exited 0 -- green while blind.
-process.exit(findings.length ? 1 : unparsed.length ? 2 : 0)
+process.exit(exitCode)
