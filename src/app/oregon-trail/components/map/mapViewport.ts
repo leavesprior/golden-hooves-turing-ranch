@@ -25,17 +25,52 @@
  * is to stop the class of error at authoring time.
  */
 
-/** The main map SVG's viewBox. WorldMap.tsx renders from this — do not re-declare it. */
+/**
+ * WorldMap's viewBox, and the DEFAULT for anchored widgets — not the only one.
+ * GoldCountryExplore mounts MapCompass inside `viewBox="0 0 100 75"`. The anchor is
+ * correct in both hosts today only because the widths coincide; a host with a
+ * different width would silently mis-anchor. Anchored widgets therefore take the
+ * host's viewBox as a parameter rather than assuming this one.
+ */
 export const MAP_VIEWBOX = { width: 100, height: 62.5 } as const
 
 /**
- * Keep-out band inside the viewBox edge. Absorbs font-metric approximation and the
- * `compass-bob` keyframe, which translates by 0.3 user units.
+ * Intentional design keep-out from the viewBox edge — visual breathing room, nothing
+ * more. It is deliberately NOT the place where modelling error goes to hide.
+ *
+ * The first version of this file had a single `MAP_SAFE_INSET = 2` doing both jobs,
+ * and that is exactly why a 12% glyph-ascent underestimate shipped invisibly: the
+ * margin quietly ate it and review saw green. An inset big enough to be safe is big
+ * enough to conceal the next modelling bug, so the two are now separate and the
+ * tolerance is asserted small.
  */
-export const MAP_SAFE_INSET = 2
+export const MAP_MARGIN = 2
 
-/** Vertical travel of the `.map-compass` bob keyframe, in user units. */
-export const BOB_AMPLITUDE = 0.3
+/**
+ * Allowance for residual error in the glyph metric model. Asserted to stay small in
+ * mapCompass.test.ts. If a metric correction ever needs more than this, the model is
+ * wrong and must be fixed — not absorbed.
+ */
+export const MODEL_TOLERANCE = 0.05
+
+/** Total inset used when anchoring: design margin plus the small model allowance. */
+export const MAP_SAFE_INSET = MAP_MARGIN + MODEL_TOLERANCE
+
+/**
+ * Padding for the `.map-compass` bob.
+ *
+ * globals.css: `@keyframes compass-bob { 0%,100% { translateY(0) } 50% { translateY(0.3px) } }`
+ *
+ * Two honest caveats. First, the motion is VERTICAL and DOWNWARD-ONLY, so padding all
+ * four sides (as the first version did) shifted the anchor left for no reason. Second,
+ * the keyframe is written in `px` while this file works in user units; on this map one
+ * user unit is roughly eight CSS px, so 0.3px is nearer 0.04 user units than 0.3.
+ * The pad below is therefore an over-allowance, kept because over-allowing motion is
+ * cheap and it is honest about not having measured the conversion. It is NOT
+ * mechanically linked to the CSS — nothing fails if the keyframe changes, which is a
+ * real remaining gap.
+ */
+export const BOB_PAD = { top: 0, bottom: 0.3, left: 0, right: 0 } as const
 
 /**
  * Monospace glyph box as a fraction of font-size. Half-advance is horizontal reach
@@ -67,14 +102,36 @@ export interface LocalExtent {
   bottom: number
 }
 
+/** Bold widens the advance. Unmodelled in the first version; the ornate N is bold. */
+export const BOLD_ADVANCE_FACTOR = 1.15
+
 /** Extent of a middle-anchored text glyph drawn at (x, baselineY). */
-export function glyphExtent(x: number, baselineY: number, fontSize: number): LocalExtent {
-  const half = fontSize * GLYPH.halfAdvance
+export function glyphExtent(x: number, baselineY: number, fontSize: number, bold = false): LocalExtent {
+  const half = fontSize * GLYPH.halfAdvance * (bold ? BOLD_ADVANCE_FACTOR : 1)
   return {
     left: x - half,
     right: x + half,
     top: baselineY - fontSize * GLYPH.ascent,
     bottom: baselineY + fontSize * GLYPH.descent,
+  }
+}
+
+/** Extent of a stroked circle. Stroke straddles the path, so half sits outside. */
+export function circleExtent(cx: number, cy: number, r: number, strokeWidth = 0): LocalExtent {
+  const reach = r + strokeWidth / 2
+  return { left: cx - reach, right: cx + reach, top: cy - reach, bottom: cy + reach }
+}
+
+/** Grow an extent per-side — for motion that only travels one way. */
+export function padExtentAsymmetric(
+  e: LocalExtent,
+  pad: { top: number; bottom: number; left: number; right: number },
+): LocalExtent {
+  return {
+    left: e.left - pad.left,
+    right: e.right + pad.right,
+    top: e.top - pad.top,
+    bottom: e.bottom + pad.bottom,
   }
 }
 

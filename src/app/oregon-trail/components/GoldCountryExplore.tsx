@@ -290,7 +290,7 @@ export function GoldCountryExplore({
               />
 
               {/* Compass */}
-              <MapCompass graphicsTier="enhanced_16bit" />
+              <MapCompass graphicsTier="enhanced_16bit" view={{ width: 100, height: 75 }} />
             </svg>
 
             {/* Location markers (HTML overlay for click handling) */}

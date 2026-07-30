@@ -13,6 +13,8 @@
 import {
   GLYPH,
   GLYPH_OBSERVED,
+  MAP_MARGIN,
+  MODEL_TOLERANCE,
   MAP_VIEWBOX,
   MAP_SAFE_INSET,
   anchorTopRight,
@@ -24,6 +26,7 @@ import {
   unionExtents,
 } from './mapViewport'
 import { CLASSIC_EXTENT, ORNATE_EXTENT, RETRO_EXTENT, extentForTier } from './MapCompass'
+import { readFileSync } from 'node:fs'
 
 let failures = 0
 function ok(label: string, cond: boolean, detail = '') {
@@ -136,6 +139,31 @@ ok('an oversized widget is reported as overflowing, not silently accepted',
     const huge = { left: 0, right: MAP_VIEWBOX.width + 10, top: 0, bottom: 5 }
     return !fitsWithinSafeArea(placedBounds(huge, anchorTopRight(huge))).ok
   })())
+
+console.log('\nthe model tolerance must stay small, not become a sponge')
+ok(`MODEL_TOLERANCE ${MODEL_TOLERANCE} is small`, MODEL_TOLERANCE <= 0.05,
+  'a large tolerance hides the next metric bug, which is how the 12% ascent error shipped')
+ok('the design margin is separate from the model tolerance',
+  MAP_MARGIN > 0 && MAP_SAFE_INSET === MAP_MARGIN + MODEL_TOLERANCE)
+
+console.log('\nDUAL-SOURCE REGRESSION — one table must feed both draw and extent')
+// A reviewer broke the first version by moving the drawn E from x=8 to x=11 while
+// leaving a separate extent table alone: the suite said "fits" while the ink
+// overflowed by 3 units. Guard the property that made that possible: the component
+// must not contain hard-coded <text x=...> coordinates for the compass glyphs, because
+// those are what used to drift from the extent model.
+{
+  const src = readFileSync(new URL('./MapCompass.tsx', import.meta.url), 'utf8')
+  // `<text\s[^>]*\sx="` was the first attempt and it required TWO whitespace runs,
+  // so `<text x="20"` — the exact shape it existed to catch — slipped through and the
+  // guard silently passed. Verified against a deliberate reintroduction before trusting.
+  const literalTextCoords = src.match(/<text\s[^>]*x="/g) || []
+  ok('no compass glyph is drawn from a hard-coded x= literal',
+    literalTextCoords.length === 0,
+    `${literalTextCoords.length} literal <text x="..."> found — those can drift from the extent table`)
+  ok('glyph tables exist and are the draw source',
+    /RETRO_GLYPHS/.test(src) && /<Glyphs glyphs=/.test(src))
+}
 
 console.log(failures ? `\nmapCompass: ${failures} FAILED` : '\nmapCompass: ALL PASS')
 if (failures) process.exit(1)
