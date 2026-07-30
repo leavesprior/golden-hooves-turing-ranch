@@ -17,3 +17,12 @@ export {
   meetsMinTier,
 } from './terrainData'
 export type { TerrainFeature, PathControlPoint } from './terrainData'
+export {
+  MAP_VIEWBOX,
+  MAP_SAFE_INSET,
+  anchorTopRight,
+  fitsWithinSafeArea,
+  placedBounds,
+  translate as svgTranslate,
+} from './mapViewport'
+export type { LocalExtent } from './mapViewport'

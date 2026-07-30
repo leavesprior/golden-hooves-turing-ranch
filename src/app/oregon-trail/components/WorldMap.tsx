@@ -21,6 +21,7 @@ import {
   MapAnimations,
   useMapInteraction,
 } from './map'
+import { MAP_VIEWBOX } from './map/mapViewport'
 
 // ============================================
 // TYPES
@@ -225,7 +226,11 @@ export function WorldMap({
       {...interactionHandlers}
     >
       <svg
-        viewBox="0 0 100 62.5"
+        // Single source of truth. This used to be a literal here while MapCompass
+        // independently assumed the width was 100 — that split is what made the
+        // compass's hand-tuned position silently wrong. Widgets anchor against
+        // MAP_VIEWBOX; nothing re-declares it.
+        viewBox={`0 0 ${MAP_VIEWBOX.width} ${MAP_VIEWBOX.height}`}
         preserveAspectRatio="xMidYMid meet"
         className="absolute inset-0 w-full h-full"
         style={{ transform: svgTransform || undefined }}
@@ -383,19 +388,26 @@ export function WorldMap({
         })}
 
         {/* Player marker */}
+        {/* Position on the outer <g>, bob on the inner one. `map-wagon-bob`
+            animates `transform`, and a CSS transform REPLACES the transform
+            presentation attribute rather than composing with it — so while the
+            wagon was moving (exactly when the class is applied) its
+            translate() was wiped and the marker snapped to the map origin.
+            Same defect as the compass; see scripts/check-transform-clobber.mjs. */}
         <g
           transform={`translate(${playerPosition.x}, ${playerPosition.y})`}
-          className={(travelAnimation.active || isMoving) ? 'map-wagon-bob' : undefined}
           style={{ transition: (travelAnimation.active || isMoving) ? 'none' : 'transform 0.5s ease' }}
         >
-          <foreignObject x="-6" y="-6" width="12" height="12" style={{ overflow: 'visible' }}>
-            <MapIcon type="player" tier={graphicsTier} size={isRetro ? 10 : 14} glow />
-          </foreignObject>
-          {(travelAnimation.active || isMoving) && !isRetro && (
-            <text x="0" y="-7" textAnchor="middle" fill="var(--pixel-gold-light)" fontSize="1.5" fontFamily="monospace" opacity="0.8">
-              Traveling...
-            </text>
-          )}
+          <g className={(travelAnimation.active || isMoving) ? 'map-wagon-bob' : undefined}>
+            <foreignObject x="-6" y="-6" width="12" height="12" style={{ overflow: 'visible' }}>
+              <MapIcon type="player" tier={graphicsTier} size={isRetro ? 10 : 14} glow />
+            </foreignObject>
+            {(travelAnimation.active || isMoving) && !isRetro && (
+              <text x="0" y="-7" textAnchor="middle" fill="var(--pixel-gold-light)" fontSize="1.5" fontFamily="monospace" opacity="0.8">
+                Traveling...
+              </text>
+            )}
+          </g>
         </g>
 
         {/* Animations overlay */}
