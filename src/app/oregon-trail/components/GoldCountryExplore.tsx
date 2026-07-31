@@ -18,6 +18,7 @@ import {
   goldCountryIconToType,
 } from './map'
 import { type MapLocation } from '../data/worldMaps'
+import { caseFor, hasCaseAtTrailLocation } from '../data/trailTownBridge'
 
 // Haversine for GPS vs location coords
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -350,6 +351,20 @@ export function GoldCountryExplore({
                     )}
                   </div>
 
+                  {/* A Pinkerton case is authored for this town. The registry always
+                      knew; the trail simply never asked. See data/trailTownBridge.ts */}
+                  {isDiscovered && hasCaseAtTrailLocation(loc.id) && (
+                    <div
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500
+                                 border border-amber-200 flex items-center justify-center
+                                 text-[8px] leading-none text-amber-950 font-bold"
+                      title="An open case waits here"
+                      aria-label="An open case waits here"
+                    >
+                      !
+                    </div>
+                  )}
+
                   {/* Label */}
                   {isDiscovered && (isHovered || isCurrent || isSelected) && (
                     <div className={`absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap
@@ -393,6 +408,21 @@ export function GoldCountryExplore({
                       <span className="text-amber-500 ml-2">[ENCOUNTER POSSIBLE]</span>
                     )}
                   </p>
+                  {/* Tell the agent a case is here BEFORE they commit to travelling.
+                      Links to the route that already renders the authored case. */}
+                  {(() => {
+                    const openCase = caseFor(selectedLocation)
+                    if (!openCase) return null
+                    return (
+                      <a
+                        href={openCase.href}
+                        className="inline-block mt-2 text-amber-300 hover:text-amber-200 text-xs
+                                   font-mono underline decoration-amber-600/60 underline-offset-2"
+                      >
+                        🕵 An open case waits in {openCase.townName}, {openCase.county} County →
+                      </a>
+                    )
+                  })()}
                 </div>
                 <div className="flex gap-2">
                   <button
