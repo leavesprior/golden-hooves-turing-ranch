@@ -22,6 +22,23 @@
  * the trail. `/town/[townId]` already renders a full TownInvestigation. This
  * resolves and points; the destination already exists.
  *
+ * RENDER-VERIFIED 2026-07-30 (not merely unit-tested)
+ * A unit test plus a source grep is not proof that anything paints — this repo
+ * shipped an ASCII layer that was silently dead behind tsc, lint, build and 282
+ * green tests. So the affordances were checked in a live browser in the
+ * gold_country_explore phase, by measured geometry and by identity rather than
+ * by DOM order:
+ *
+ *   Angels Camp  case → badge present      Moke Hill  case → badge present
+ *   Jackson      case → badge present      Big Trees  landmark → badge ABSENT
+ *
+ *   pre-travel link: "An open case waits in Angels Camp, Calaveras County →"
+ *   href /town/angels_camp, box 404x16 px; badges 14x14 px; 0 console errors.
+ *   Negative control: selecting Big Trees renders NO case link.
+ *
+ * Marker identity was read by hovering each marker for its label. Assuming DOM
+ * order matched the source array would have named two wrong towns.
+ *
  * ON LINKING ONLY WHERE A CASE EXISTS
  * `/town/[townId]` calls notFound() when a town has no authored case. In dev
  * that not-found page still answers HTTP 200, so a broken link would not show up
