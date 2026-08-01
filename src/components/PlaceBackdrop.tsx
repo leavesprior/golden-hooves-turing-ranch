@@ -89,6 +89,14 @@ const DB32_SCENE_BY_PLACE: Record<string, Db32SceneKey> = {
   mokelumne_hill: 'mokehill', ch4_mokelumne_hill: 'mokehill', mh_hotel_leger: 'mokehill',
   // Kennedy Mine + the hydraulic scar
   kennedy_mine: 'mine', ch5_hydraulic_scar: 'mine',
+  // Emigrant-trail river crossings. `drawRiver` is a GENERIC ford — banks, water
+  // bands, stepping stones, a ferry structure — and it reacts to karma (the water
+  // runs cyan/blue when your good outweighs your bad, rose/plum when it doesn't).
+  // Its META caption names Mokelumne Ford, but PlaceBackdrop renders with
+  // hud={false}, which suppresses captions (db32Renderer: `opts.hud!==false`), so
+  // no Gold Country label leaks onto a Nebraska river. RiverCrossing.tsx builds
+  // exactly these ids from the crossing name.
+  ot_kansas_river: 'river', ot_raft_river: 'river', ot_humboldt_river: 'river',
 }
 
 export function PlaceBackdrop({ id, className = '' }: { id: string; className?: string }) {

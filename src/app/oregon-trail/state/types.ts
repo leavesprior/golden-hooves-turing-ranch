@@ -165,6 +165,12 @@ export interface OregonTrailState {
    * saves written before hazards existed still load.
    */
   lastHazard?: { id: string; name: string; avoided: boolean; text: string }
+  /**
+   * Times each landmark has been arrived at, keyed by landmark name. Drives the
+   * tiered arrival prose in data/townArrivals (first / return / familiar /
+   * regular). Optional so pre-existing saves load.
+   */
+  landmarkVisits?: Record<string, number>
 
   // Statistics
   totalMilesTraveled: number
