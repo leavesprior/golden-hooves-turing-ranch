@@ -7,6 +7,7 @@
 import React from 'react'
 import { VANE, type WantedTrait } from './chaseData'
 import { ChaseArt } from './ChaseArt'
+import PixelScene from '@/components/PixelScene'
 
 interface WantedPosterProps {
   traits: WantedTrait[]
@@ -18,7 +19,11 @@ interface WantedPosterProps {
   villainName?: string
   villainDescription?: string
   villainCharge?: string
-  /** Poster portrait path; per-case art lands here when drawn. */
+  /**
+   * Poster portrait path; per-case art lands here when drawn. Leave undefined
+   * when no PNG exists — the component then renders the authored DB32 `vane`
+   * portrait rather than requesting a file that isn't there.
+   */
   posterArt?: string
 }
 
@@ -29,8 +34,13 @@ export function WantedPoster({
   villainName = VANE.name,
   villainDescription = VANE.baseDescription,
   villainCharge = VANE.charge,
-  posterArt = '/chase/vane-poster.png',
+  // No default path: `/chase/vane-poster.png` was never drawn, so defaulting to
+  // it meant every render fetched a 404 before falling back. Undefined = go
+  // straight to the authored portrait.
+  posterArt,
 }: WantedPosterProps) {
+  // If the DB32 renderer itself can't draw, drop to the parchment silhouette.
+  const [vanePixelFailed, setVanePixelFailed] = React.useState(false)
   return (
     <div
       className="relative border-4 border-[var(--pixel-earth-dark)] bg-[#e9dcc0] text-[#3b2a1f] p-3 sm:p-4 shadow-[4px_4px_0_0_rgba(0,0,0,0.45)]"
@@ -50,27 +60,46 @@ export function WantedPoster({
         {complete ? 'IN CUSTODY' : 'DEAD OR ALIVE'}
       </p>
 
-      {/* Portrait slot — real pixel portrait at /chase/vane-poster.png when it
-          lands; until then a simple pixel silhouette in parchment ink. */}
-      <div className="mx-auto my-3 h-24 w-24 overflow-hidden border-2 border-[var(--pixel-earth-dark)] bg-[#d8c7a2]">
+      {/* Portrait slot — a three-step fallback chain, best art first:
+            1. the per-case PNG (`/chase/poster-<caseId>.png`) when one is drawn
+            2. the AUTHORED DB32 scene `vane` — "Cyrus Vane, 'the Tare' — the scar
+               that threads every con." It has existed in db32Renderer since the
+               pixel-art batch but was reachable only from /pixel-preview, so the
+               chase showed a generic silhouette while the real portrait sat
+               unwired and the missing PNG 404'd on every case load.
+            3. the flat parchment silhouette, if the renderer itself fails.
+          The Tare forges presence; it is fitting that his own face was the one
+          thing in this game that was never actually there. Now it is. */}
+      <div className="mx-auto my-3 h-24 w-24 overflow-hidden border-2 border-[var(--pixel-earth-dark)] bg-[#d8c7a2] [image-rendering:pixelated]">
         <ChaseArt
           src={posterArt}
           alt={villainName}
           className="h-full w-full object-cover"
           fallback={
-            <div className="flex h-full w-full items-center justify-center">
-              <svg viewBox="0 0 24 24" className="h-20 w-20" aria-hidden>
-                {/* hat */}
-                <rect x="5" y="3" width="14" height="2" fill="#3b2a1f" />
-                <rect x="7" y="1" width="10" height="3" fill="#3b2a1f" />
-                {/* head + shoulders */}
-                <rect x="8" y="6" width="8" height="7" fill="#5c3d2e" />
-                <rect x="6" y="13" width="12" height="8" fill="#3b2a1f" />
-                {/* eyes */}
-                <rect x="9" y="8" width="2" height="2" fill="#e9dcc0" />
-                <rect x="13" y="8" width="2" height="2" fill="#e9dcc0" />
-              </svg>
-            </div>
+            vanePixelFailed ? (
+              <div className="flex h-full w-full items-center justify-center">
+                <svg viewBox="0 0 24 24" className="h-20 w-20" aria-hidden>
+                  {/* hat */}
+                  <rect x="5" y="3" width="14" height="2" fill="#3b2a1f" />
+                  <rect x="7" y="1" width="10" height="3" fill="#3b2a1f" />
+                  {/* head + shoulders */}
+                  <rect x="8" y="6" width="8" height="7" fill="#5c3d2e" />
+                  <rect x="6" y="13" width="12" height="8" fill="#3b2a1f" />
+                  {/* eyes */}
+                  <rect x="9" y="8" width="2" height="2" fill="#e9dcc0" />
+                  <rect x="13" y="8" width="2" height="2" fill="#e9dcc0" />
+                </svg>
+              </div>
+            ) : (
+              <PixelScene
+                loc="vane"
+                hud={false}
+                width={240}
+                height={240}
+                className="h-full w-full object-cover"
+                onError={() => setVanePixelFailed(true)}
+              />
+            )
           }
         />
       </div>

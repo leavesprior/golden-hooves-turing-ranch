@@ -7,20 +7,28 @@
 
 import { useState } from 'react'
 
-/** Loads an asset; on 404/error renders the supplied fallback. */
+/**
+ * Loads an asset; on 404/error renders the supplied fallback.
+ *
+ * An undefined/empty `src` means "no art exists for this slot" and goes straight
+ * to the fallback WITHOUT a network request. Previously every art-less slot
+ * fetched a known-missing PNG first, so the console carried a standing 404 per
+ * slot per render — noise that hides real errors and costs a round trip to learn
+ * something the caller already knew.
+ */
 export function ChaseArt({
   src,
   alt,
   fallback,
   className,
 }: {
-  src: string
+  src?: string
   alt: string
   fallback: React.ReactNode
   className?: string
 }) {
   const [failed, setFailed] = useState(false)
-  if (failed) return <>{fallback}</>
+  if (failed || !src) return <>{fallback}</>
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -35,11 +43,19 @@ export function ChaseArt({
 // Old-style pixel NPC sprite for the witness dialogue (toward the Welcome-Gate
 // composition: backdrop + pixel NPC + JRPG dialogue box). Real per-witness art at
 // /chase/npc-{key}.png replaces the drawn prospector fallback when it lands.
+/**
+ * Witness portraits that actually exist in /public/chase. Deliberately EMPTY —
+ * no npc-*.png has been drawn, so building the path unconditionally meant a 404
+ * on every witness render. Add a key here when the art lands; anything not
+ * listed uses the drawn prospector, which is the intended look until then.
+ */
+const WITNESS_ART: Record<string, string | undefined> = {}
+
 export function WitnessSprite({ npcKey }: { npcKey?: string }) {
   return (
     <div className="h-16 w-12 shrink-0 self-end sm:h-20 sm:w-16">
       <ChaseArt
-        src={`/chase/npc-${npcKey || 'witness'}.png`}
+        src={WITNESS_ART[npcKey || 'witness']}
         alt="witness"
         className="h-full w-full object-contain [image-rendering:pixelated]"
         fallback={<ProspectorSvg />}

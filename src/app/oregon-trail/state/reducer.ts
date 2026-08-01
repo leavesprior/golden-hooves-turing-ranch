@@ -103,7 +103,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       return { ...state, phase: 'traveling', message: 'Your journey to Gold Country begins!' }
 
     case 'TRAVEL':
-      return computeTravel(state)
+      return computeTravel(state, action.stats)
 
     case 'RESET_GAME':
       return DEFAULT_STATE

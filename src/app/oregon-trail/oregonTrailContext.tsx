@@ -4,6 +4,7 @@ import React, { createContext, useContext, useReducer, useCallback, ReactNode } 
 import { useKarma } from '@/lib/karmaContext'
 import { useKarmaWallet } from './karmaWalletContext'
 import { type CrossingOutcome } from './data/riverCrossings'
+import { type SaddleStats } from './characterContext'
 import { type QuestReward } from './data/goldCountryNPCs'
 import {
   getScarcityWarnings,
@@ -50,7 +51,7 @@ interface OregonTrailContextValue {
   startGame: (leaderName: string, partyNames: string[]) => void
   purchaseSupplies: (supplies: { food: number; ammo: number; parts: number; medicine: number; oxen: number }) => void
   beginJourney: () => void
-  travel: () => void
+  travel: (stats?: SaddleStats) => void
   setPace: (pace: Pace) => void
   setRations: (rations: Rations) => void
   handleEventChoice: (choiceId: string, outcomeMessageOverride?: string) => void
@@ -183,7 +184,12 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   }, [])
 
   const beginJourney = useCallback(() => dispatch({ type: 'BEGIN_JOURNEY' }), [])
-  const travel = useCallback(() => dispatch({ type: 'TRAVEL' }), [])
+  // Callers with a character pass its S.A.D.D.L.E. stats so region hazards
+  // resolve against the actual agent. Omitted, the engine uses NEUTRAL_STATS.
+  const travel = useCallback(
+    (stats?: SaddleStats) => dispatch({ type: 'TRAVEL', stats }),
+    [],
+  )
   const setPace = useCallback((pace: Pace) => dispatch({ type: 'SET_PACE', pace }), [])
   const setRations = useCallback((rations: Rations) => dispatch({ type: 'SET_RATIONS', rations }), [])
 
