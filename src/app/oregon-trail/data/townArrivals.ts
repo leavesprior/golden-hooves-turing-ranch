@@ -297,30 +297,25 @@ export const TOWN_ARRIVALS: Record<string, TownArrivalSet> = {
   },
 }
 
-/**
- * Arrival line for a town, tiered by how often you've been.
- *
- * Falls back to GENERIC_ARRIVALS (declared below) for towns without authored
- * prose, and for authored towns whose tier happens to be empty. Before this,
- * both this function and GENERIC_ARRIVALS returned/held content nothing could
- * reach: unknown towns got `null` while the generic set sat exported and unused.
- *
- * `rng` is injectable so callers in the reducer keep their determinism story.
- */
+// Get a random message for a town visit
 export function getTownArrivalMessage(
   townName: string,
-  visitCount: number,
-  rng: () => number = Math.random,
+  visitCount: number
 ): TownArrivalMessage | null {
   const tier = getVisitTier(visitCount)
-  const townData = TOWN_ARRIVALS[townName]
 
+  // Fall back to the generic set for any landmark not in the authored table,
+  // and for an authored town whose tier happens to be empty. Previously this
+  // returned null in both cases, so unlisted stops said nothing at all —
+  // which is the "never auto-skip a town" rule failing quietly.
+  const townData = TOWN_ARRIVALS[townName]
   const messages =
     (townData && townData[tier]?.length ? townData[tier] : undefined) ??
     (GENERIC_ARRIVALS[tier]?.length ? GENERIC_ARRIVALS[tier] : undefined)
 
   if (!messages || messages.length === 0) return null
-  return messages[Math.floor(rng() * messages.length)]
+
+  return messages[Math.floor(Math.random() * messages.length)]
 }
 
 // Generic messages for unknown towns

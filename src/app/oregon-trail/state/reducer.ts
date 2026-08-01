@@ -44,6 +44,7 @@ import {
 import { getCriticalDescription } from '../data/criticalDescriptions'
 import { createRelationship, applyDispositionChange } from '../data/npcRelationships'
 import type { PartyRole } from '../data/posseSystem'
+import { getHuntingMessage } from '../data/eventMessages'
 
 /**
  * Save migration (#8): corrupted/legacy saves can carry duplicate party ids
@@ -226,9 +227,13 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       // re-nerf without Leif's say-so. If karma-printing via food ever needs a guard,
       // gate it at the food->karma conversion, NOT by starving the hunt yield.
       const foodGained = success ? Math.floor(Math.random() * 200) + 50 : 0
+      // Flavor comes from the authored HUNTING_MESSAGES bank (data/eventMessages)
+      // so no two hunts read the same; the concrete yield is appended so the
+      // player still gets the number they need.
+      const huntFlavor = getHuntingMessage(success, isCritSuccess || isCritFailure)
       let huntMessage = success
-        ? `You shot a deer! Gained ${foodGained} pounds of food.`
-        : 'The animals got away. Better luck next time.'
+        ? `${huntFlavor} Gained ${foodGained} pounds of food.`
+        : huntFlavor
       if (isCritSuccess) {
         huntMessage = `${getCriticalDescription(true, 'hunting', undefined, 'Agility')} ${huntMessage}`
       } else if (isCritFailure) {

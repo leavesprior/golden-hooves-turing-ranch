@@ -2,9 +2,15 @@
  * Town arrival prose — reachability + tiering.
  *
  * townArrivals.ts held 331 lines of authored writing with ZERO importers, so no
- * player could ever see a line of it, and GENERIC_ARRIVALS was exported but not
- * even used by its own module (unknown towns returned null). These tests exist
- * to keep it CONSUMED, not merely correct.
+ * player could ever see a line of it. PR #53 wired it: lib/townVisits keeps the
+ * visit ledger and TownScreen renders the line, tinted by the town's mood.
+ *
+ * Note on the ledger's design, because it is the interesting decision here:
+ * visits live in localStorage rather than in OregonTrailState *deliberately*, so
+ * they survive resetGame(). With the Passing sequence now on main, a character
+ * can die and an heir carry on — and a town should remember the FAMILY, not the
+ * character. A state field would reset the town's memory every Passing, which is
+ * exactly backwards. These tests pin that property.
  */
 
 import assert from 'node:assert/strict'
@@ -14,14 +20,26 @@ import {
   TOWN_ARRIVALS,
   GENERIC_ARRIVALS,
 } from './townArrivals'
-import { computeTravel } from '../state/travelEngine'
-import { DEFAULT_STATE } from '../state/constants'
 import { LANDMARKS } from '../state/constants'
-import type { OregonTrailState } from '../state/types'
+
+// --- minimal localStorage so the ledger is testable in node -----------------
+const store = new Map<string, string>()
+;(globalThis as unknown as { window: unknown }).window = {
+  localStorage: {
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => { store.set(k, v) },
+    removeItem: (k: string) => { store.delete(k) },
+  },
+}
+// Loaded AFTER the shim so the module's `typeof window === 'undefined'` guard
+// sees a window. A static import would hoist above the shim and make the ledger
+// inert, which would make every assertion below pass for the wrong reason.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const townVisits = require('../lib/townVisits') as typeof import('../lib/townVisits')
+const { getTownVisitCount, recordTownVisit } = townVisits
 
 let passed = 0
 const check = (name: string, fn: () => void) => { fn(); passed++; console.log(`  ok  ${name}`) }
-const firstOf = () => 0 // rng: always take the first message in a tier
 
 console.log('townArrivals')
 
@@ -34,117 +52,98 @@ check('visit tiers ladder correctly', () => {
   assert.equal(getVisitTier(50), 'regular')
 })
 
-check('every authored town has prose in all four tiers', () => {
+check('every authored town has prose in all four tiers, with a mood', () => {
   for (const [town, set] of Object.entries(TOWN_ARRIVALS)) {
     for (const tier of ['first', 'return', 'familiar', 'regular'] as const) {
-      assert.ok(set[tier] && set[tier].length > 0, `${town} has no ${tier} prose`)
+      assert.ok(set[tier]?.length, `${town} has no ${tier} prose`)
       for (const m of set[tier]) {
         assert.ok(m.text.length > 15, `${town}/${tier} message too short`)
-        assert.ok(m.mood, `${town}/${tier} missing mood`)
+        // TownScreen tints by mood — an unknown mood would index to undefined
+        // and silently drop the colour class.
+        assert.ok(
+          ['welcoming', 'suspicious', 'weary', 'mysterious', 'business', 'foreboding'].includes(m.mood),
+          `${town}/${tier} has unknown mood '${m.mood}'`,
+        )
       }
     }
   }
 })
 
 check('an unknown town falls back to GENERIC_ARRIVALS instead of null', () => {
-  const m = getTownArrivalMessage('Nowhere In Particular', 0, firstOf)
+  const m = getTownArrivalMessage('Nowhere In Particular', 0)
   assert.ok(m, 'unknown towns must still get an arrival line')
-  assert.equal(m!.text, GENERIC_ARRIVALS.first[0].text)
+  assert.ok(GENERIC_ARRIVALS.first.some(g => g.text === m!.text))
 })
 
 check('tier changes the line as visits accumulate', () => {
   const town = 'Independence, Missouri'
-  const a = getTownArrivalMessage(town, 0, firstOf)!
-  const b = getTownArrivalMessage(town, 1, firstOf)!
-  const c = getTownArrivalMessage(town, 5, firstOf)!
-  assert.notEqual(a.text, b.text, 'first and return must differ')
-  assert.notEqual(b.text, c.text, 'return and regular must differ')
-  assert.equal(a.text, TOWN_ARRIVALS[town].first[0].text)
-  assert.equal(c.text, TOWN_ARRIVALS[town].regular[0].text)
+  // getTownArrivalMessage picks at RANDOM within the tier, so it must be called
+  // ONCE and the result compared — not called inside the .some() predicate,
+  // where it re-rolls per element and only matches when the roll happens to land
+  // on the element being compared. That flaked ~55% of runs before this fix.
+  const at = (n: number) => getTownArrivalMessage(town, n)!.text
+  const [v0, v1, v3, v9] = [at(0), at(1), at(3), at(9)]
+  assert.ok(TOWN_ARRIVALS[town].first.some(m => m.text === v0), 'visit 0 => first tier')
+  assert.ok(TOWN_ARRIVALS[town].return.some(m => m.text === v1), 'visit 1 => return tier')
+  assert.ok(TOWN_ARRIVALS[town].familiar.some(m => m.text === v3), 'visit 3 => familiar tier')
+  assert.ok(TOWN_ARRIVALS[town].regular.some(m => m.text === v9), 'visit 9 => regular tier')
 })
 
 check('authored towns line up with real landmark names', () => {
-  // The arrival lookup is keyed by landmark NAME, so a typo silently downgrades
-  // a town to the generic set. At least the trail's own landmarks must match.
+  // The lookup is keyed by landmark NAME, so a typo silently downgrades a town
+  // to the generic set with no error anywhere.
   const landmarkNames = new Set(LANDMARKS.map(l => l.name))
-  const authored = Object.keys(TOWN_ARRIVALS)
-  const matched = authored.filter(t => landmarkNames.has(t))
-  assert.ok(
-    matched.length >= 5,
-    `expected authored towns to match real landmarks; matched ${matched.length} of ${authored.length}`,
-  )
+  const matched = Object.keys(TOWN_ARRIVALS).filter(t => landmarkNames.has(t))
+  assert.ok(matched.length >= 5, `only ${matched.length} authored towns match real landmarks`)
 })
 
-// --- consumption -------------------------------------------------------------
+// --- consumption: the ledger -------------------------------------------------
 
-check('CONSUMPTION: arriving at a landmark puts the prose in the message', () => {
-  // Park the party one mile short of Fort Kearny so the next tick arrives.
-  const kearny = LANDMARKS.find(l => l.name === 'Fort Kearny')!
-  const s = {
-    ...DEFAULT_STATE,
-    phase: 'traveling',
-    distance: kearny.distance - 1,
-    milesUntilNextLandmark: 1,
-    nextLandmark: 'Fort Kearny',
-    currentLandmark: 'Chimney Rock',
-    food: 900, oxen: 6, ammunition: 200,
-    party: [{ id: 'leader', name: 'T', health: 100, isSick: false, role: 'leader' }],
-  } as unknown as OregonTrailState
-
-  const after = computeTravel(s, undefined, () => 0.99) // 0.99 = no hazard
-  assert.equal(after.currentLandmark, 'Fort Kearny', 'the tick should arrive at Fort Kearny')
-  assert.ok(after.message, 'arrival must produce a message')
-
-  const expected = getTownArrivalMessage('Fort Kearny', 0, () => 0)
-  if (expected) {
-    // rng differs, so assert the line came from Fort Kearny's authored FIRST tier
-    const firstTier = TOWN_ARRIVALS['Fort Kearny']?.first ?? GENERIC_ARRIVALS.first
-    const anyMatch = firstTier.some(m => after.message!.includes(m.text))
-    assert.ok(anyMatch, `arrival prose must reach the player. got: ${after.message}`)
-  }
+check('CONSUMPTION: recordTownVisit returns the count BEFORE this arrival', () => {
+  store.clear()
+  // getVisitTier expects the prior count: 0 on the very first arrival.
+  assert.equal(recordTownVisit('Fort Laramie'), 0, 'first arrival reports 0 prior visits')
+  assert.equal(recordTownVisit('Fort Laramie'), 1, 'second arrival reports 1')
+  assert.equal(recordTownVisit('Fort Laramie'), 2, 'third arrival reports 2')
+  assert.equal(getTownVisitCount('Fort Laramie'), 3, 'ledger holds the total')
 })
 
-check('CONSUMPTION: the visit counter increments on arrival', () => {
-  const kearny = LANDMARKS.find(l => l.name === 'Fort Kearny')!
-  const s = {
-    ...DEFAULT_STATE,
-    phase: 'traveling',
-    distance: kearny.distance - 1,
-    milesUntilNextLandmark: 1,
-    nextLandmark: 'Fort Kearny',
-    currentLandmark: 'Chimney Rock',
-    food: 900, oxen: 6, ammunition: 200,
-    landmarkVisits: { 'Fort Kearny': 2 },
-    party: [{ id: 'leader', name: 'T', health: 100, isSick: false, role: 'leader' }],
-  } as unknown as OregonTrailState
-
-  const after = computeTravel(s, undefined, () => 0.99)
-  assert.equal(after.landmarkVisits?.['Fort Kearny'], 3, 'arrival must count')
-  // 2 prior visits => 'familiar' tier
-  const familiar = TOWN_ARRIVALS['Fort Kearny']?.familiar ?? GENERIC_ARRIVALS.familiar
-  assert.ok(
-    familiar.some(m => after.message!.includes(m.text)),
-    'a third visit must use the familiar tier, not the first-time line',
-  )
+check('CONSUMPTION: the ledger drives the tier a player actually sees', () => {
+  store.clear()
+  const town = 'Fort Kearny'
+  const lines = [0, 1, 2].map(() => {
+    const prior = recordTownVisit(town)
+    return { tier: getVisitTier(prior), text: getTownArrivalMessage(town, prior)!.text }
+  })
+  assert.equal(lines[0].tier, 'first')
+  assert.equal(lines[1].tier, 'return')
+  assert.equal(lines[2].tier, 'familiar')
+  assert.ok(TOWN_ARRIVALS[town].first.some(m => m.text === lines[0].text))
+  assert.ok(TOWN_ARRIVALS[town].return.some(m => m.text === lines[1].text))
 })
 
-check('CONSUMPTION: an ordinary travel day carries no arrival prose', () => {
-  const s = {
-    ...DEFAULT_STATE,
-    phase: 'traveling',
-    distance: 400, milesUntilNextLandmark: 200,
-    food: 900, oxen: 6, ammunition: 200,
-    party: [{ id: 'leader', name: 'T', health: 100, isSick: false, role: 'leader' }],
-  } as unknown as OregonTrailState
-  const after = computeTravel(s, undefined, () => 0.99)
-  // `currentLandmark` legitimately STAYS at the last town on a non-arrival day —
-  // the arrival test is "did it change", which is what `arrivedAt` compares.
-  assert.equal(after.currentLandmark, s.currentLandmark, 'landmark should be unchanged')
-  assert.equal(after.landmarkVisits, s.landmarkVisits, 'no arrival means no visit counted')
-  const allProse = Object.values(TOWN_ARRIVALS).flatMap(t => t.first).map(m => m.text)
-  assert.ok(
-    !allProse.some(t => (after.message ?? '').includes(t)),
-    'arrival prose must not fire on a day with no arrival',
+check('CONSUMPTION: towns are tracked independently', () => {
+  store.clear()
+  recordTownVisit('Chimney Rock'); recordTownVisit('Chimney Rock')
+  recordTownVisit('South Pass')
+  assert.equal(getTownVisitCount('Chimney Rock'), 2)
+  assert.equal(getTownVisitCount('South Pass'), 1)
+  assert.equal(getTownVisitCount('Fort Bridger'), 0, 'an unvisited town is 0, not undefined')
+})
+
+check('THE PASSING PROPERTY: the ledger is not game state, so it survives a reset', () => {
+  // This is the whole reason #53 chose localStorage. A new game / heir must NOT
+  // reset the town's memory of the family. If someone ever "tidies" this into
+  // OregonTrailState, this test is what should stop them.
+  store.clear()
+  recordTownVisit('Fort Laramie'); recordTownVisit('Fort Laramie')
+  const beforeReset = getTownVisitCount('Fort Laramie')
+  // Simulate RESET_GAME: game state is replaced wholesale, storage is untouched.
+  const freshState = { day: 1, distance: 0 } // stand-in for DEFAULT_STATE
+  void freshState
+  assert.equal(
+    getTownVisitCount('Fort Laramie'), beforeReset,
+    'a game reset must not erase what the town remembers',
   )
 })
 

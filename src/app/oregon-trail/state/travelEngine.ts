@@ -27,7 +27,6 @@ import {
   type SaddleStats,
   type HazardResult,
 } from '../data/trailHazards'
-import { getTownArrivalMessage } from '../data/townArrivals'
 
 /** Compute landmark state after traveling to newDistance */
 function computeLandmarkState(
@@ -132,29 +131,6 @@ export function computeTravel(
   const hazardRecord = hazard
     ? { id: hazard.hazard.id, name: hazard.hazard.name, avoided: hazard.avoided, text: hazard.text }
     : undefined
-
-  // === TOWN ARRIVAL PROSE ===
-  // data/townArrivals holds 331 lines of authored arrival writing tiered by how
-  // often you've been somewhere (first / return / familiar / regular) — and had
-  // ZERO importers, so no player could ever see a line of it. Arriving at a
-  // landmark is the moment it was written for.
-  //
-  // These are helpers rather than one hoisted value because the three return
-  // paths below (normal, random event, desperation) each resolve their OWN
-  // landmark, and a single precomputed value would be wrong on two of them.
-  const arrivedAt = (name: string | undefined | null) =>
-    name && name !== prev.currentLandmark ? name : null
-  const priorVisitsOf = (name: string) => prev.landmarkVisits?.[name] ?? 0
-  const arrivalLineFor = (name: string | undefined | null) => {
-    const at = arrivedAt(name)
-    return at ? getTownArrivalMessage(at, priorVisitsOf(at), rng) : null
-  }
-  const bumpVisits = (name: string | undefined | null) => {
-    const at = arrivedAt(name)
-    return at
-      ? { ...(prev.landmarkVisits ?? {}), [at]: priorVisitsOf(at) + 1 }
-      : prev.landmarkVisits
-  }
 
   // === SCARCITY CASCADES (#8) ===
   // Build resource snapshot for cascade calculation
@@ -311,6 +287,12 @@ export function computeTravel(
     // full health behind an "everyone has perished" screen. Carry the day that
     // actually happened: the party as it died, the ground it covered, the empty
     // larder that did it. The ending has to be able to explain itself.
+    //
+    // The general-case line is #52's (the Passing sequence) — kept verbatim, since
+    // GameOverScreen now renders "The Trail Claims Its Own" / "The Name Goes On"
+    // around it and the prose has to sit inside that. When we KNOW what killed
+    // them, say so instead: an ending that can name its own cause is better than
+    // one that can't.
     return {
       ...prev,
       phase: 'game_over' as GamePhase,
@@ -330,7 +312,7 @@ export function computeTravel(
         ? `${hazard.text}\n\nThe party does not rise from this camp.`
         : starving
           ? 'The last of the food went days ago. The party does not rise from this camp.'
-          : 'Your entire party has perished...',
+          : 'The last of the party lay down within sight of the next rise. The trail keeps its own counsel about who reaches the end of it.',
     }
   }
 
@@ -365,7 +347,6 @@ export function computeTravel(
       totalMilesTraveled: prev.totalMilesTraveled + dailyDistance,
       daysOnTrail: prev.daysOnTrail + 1,
       scarcityDays: newScarcityDays,
-      landmarkVisits: bumpVisits(despLandmark.currentLandmark),
       activeDesperationEvent: despEvent,
       lastDesperationEventDay: prev.day + 1,
       firedDesperationEvents: despEvent.oneTimeOnly
@@ -398,8 +379,7 @@ export function computeTravel(
       // A desperation beat owns the screen, but the trail message it returns to
       // must still carry the town's authored welcome and the day's hazard —
       // otherwise arriving on a scarcity day silently costs both.
-      message: [arrivalLineFor(despLandmark.currentLandmark)?.text ?? null,
-                desertionMessage, dayMessage].filter(Boolean).join('\n\n') || null,
+      message: [desertionMessage, dayMessage].filter(Boolean).join('\n\n') || null,
     }
   }
 
@@ -466,19 +446,12 @@ export function computeTravel(
       // An event taking the screen must not silently swallow the day's hazard —
       // its costs were already applied above, so its account has to survive too.
       lastHazard: hazardRecord,
-      landmarkVisits: bumpVisits(newLandmark),
-      // An event on the arrival tick must not cost the player the town's
-      // authored welcome — stack it rather than dropping it.
-      message: [arrivalLineFor(newLandmark)?.text ?? null, desertionMessage, dayMessage]
-        .filter(Boolean).join('\n\n') || null,
+      message: [desertionMessage, dayMessage].filter(Boolean).join('\n\n') || null,
     }
   }
 
   // Normal weather changes
   const newWeather = Math.random() < 0.15 ? getRandomWeather(newDistance) : prev.weather
-
-  // Arrival prose + visit count for whichever landmark THIS return path reached.
-  const arrivalLine = arrivalLineFor(newLandmark)
 
   return {
     ...prev,
@@ -495,7 +468,6 @@ export function computeTravel(
     ammunition: newAmmunition,
     clothing: newClothing,
     lastHazard: hazardRecord,
-    landmarkVisits: bumpVisits(newLandmark),
     party: survivors,
     totalMilesTraveled: prev.totalMilesTraveled + dailyDistance,
     daysOnTrail: prev.daysOnTrail + 1,
@@ -504,12 +476,13 @@ export function computeTravel(
     scarcityDays: newScarcityDays,
     partyBonuses: newBonuses,
     compositionBonusNames: activeComps.map(c => c.name),
-    // Precedence: losing a person outranks everything; then the authored arrival
-    // line, then what the player must act on, then the day's hazard. These stack
-    // rather than one silently eating the other.
+    // Precedence: losing a person outranks everything; then what the player must
+    // act on; then the day's hazard. These stack rather than one silently eating
+    // the other. The town's ARRIVAL prose is NOT here — TownScreen owns it, via
+    // the lib/townVisits localStorage ledger from #53, which deliberately
+    // survives resetGame() so a town remembers the FAMILY across a Passing.
     message: desertionMessage ||
              [
-               arrivalLine?.text ?? null,
                newPhase === 'river' ? `You have arrived at ${newLandmark}. The river must be crossed.` :
                newPhase === 'town' ? `You have arrived at ${newLandmark}.` : null,
                dayMessage,
