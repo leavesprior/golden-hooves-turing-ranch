@@ -29,6 +29,19 @@ import { type ActiveEffect } from '../data/consumableEffects'
 import { CampMenu } from '../components/CampMenu'
 import { PipBoyMenu } from '../components/GameMenu'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
+import { getTownArrivalMessage, type TownArrivalMessage } from '../data/townArrivals'
+import { recordTownVisit } from '../lib/townVisits'
+
+// Each authored arrival line carries a mood; tint the text so the town's
+// disposition reads at a glance instead of every stop sounding the same.
+const ARRIVAL_MOOD_CLASS: Record<TownArrivalMessage['mood'], string> = {
+  welcoming: 'text-emerald-300/90',
+  suspicious: 'text-orange-300/90',
+  weary: 'text-stone-400',
+  mysterious: 'text-violet-300/90',
+  business: 'text-amber-300/90',
+  foreboding: 'text-red-300/90',
+}
 
 // Lazy-loaded components
 const TownPuzzle = lazy(() => import('../components/TownPuzzle'))
@@ -152,15 +165,24 @@ export function TownScreen({
     setShowGuideHire(false)
   }, [onHireGuide])
 
-  // Log landmark arrival events for cross-game narrator
+  // Log landmark arrival events for cross-game narrator, and pick the town's
+  // arrival line. The town remembers how many times you've walked in (pillar #3:
+  // living towns that remember) — recordTownVisit returns the count BEFORE this
+  // arrival, which is what getVisitTier expects (0 => 'first').
+  const [arrivalMessage, setArrivalMessage] = useState<TownArrivalMessage | null>(null)
   const lastLoggedLandmarkRef = useRef('')
   useEffect(() => {
     if (state.currentLandmark && state.currentLandmark !== lastLoggedLandmarkRef.current) {
       lastLoggedLandmarkRef.current = state.currentLandmark
+      const priorVisits = recordTownVisit(state.currentLandmark)
+      setArrivalMessage(getTownArrivalMessage(state.currentLandmark, priorVisits))
       CrossGameStorage.logEvent(
         'prospectors_tale', 'landmark_reached',
         `Arrived at ${state.currentLandmark}`,
-        { locationId: state.currentLandmark.toLowerCase().replace(/[^a-z]/g, '_'), detail: `Day ${state.day}` }
+        {
+          locationId: state.currentLandmark.toLowerCase().replace(/[^a-z]/g, '_'),
+          detail: `Day ${state.day}, visit #${priorVisits + 1}`,
+        }
       )
     }
   }, [state.currentLandmark, state.day])
@@ -204,6 +226,14 @@ export function TownScreen({
         <div className="text-center mb-6">
           <h2 className="font-pixel text-amber-200 text-xl">{state.currentLandmark}</h2>
           <p className="text-amber-400 text-sm">Day {state.day} | {state.distance} miles traveled</p>
+          {arrivalMessage && (
+            <p
+              className={`mt-3 mx-auto max-w-lg text-sm italic leading-relaxed ${ARRIVAL_MOOD_CLASS[arrivalMessage.mood]}`}
+              data-testid="town-arrival-message"
+            >
+              {arrivalMessage.text}
+            </p>
+          )}
         </div>
 
         {/* Quick Actions Bar */}
