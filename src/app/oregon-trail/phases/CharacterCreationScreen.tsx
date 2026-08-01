@@ -3,6 +3,12 @@
 import React, { useState } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useCharacter, BACKGROUND_DESCRIPTIONS, type StatName, type CharacterBackground } from '../characterContext'
+import {
+  applyAdjustment,
+  allocationLabel,
+  pointsRemaining as remainingPoints,
+  type StatBlock,
+} from './statAllocation'
 import { useNarrator } from '../narratorContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { NarratorOverlay } from '../components/NarratorOverlay'
@@ -36,7 +42,12 @@ export function CharacterCreationScreen() {
     Luck: 3,
     Expertise: 3,
   })
-  const [pointsRemaining, setPointsRemaining] = useState(12)
+  // DERIVED, never stored. Two states that must agree can disagree: the old code
+  // kept `pointsRemaining` beside `statPoints` and guarded on a closure copy, so a
+  // fast run of `+` clicks inside one React batch all passed the same stale check
+  // and folded the pool to -24. Deriving it makes that disagreement unrepresentable.
+  // See statAllocation.ts.
+  const pointsRemaining = remainingPoints(statPoints, baseStats, hasRolled)
 
   // Roll 3d6 for each stat (like classic D&D)
   const rollDice = () => {
@@ -70,9 +81,9 @@ export function CharacterCreationScreen() {
         setIsRolling(false)
         setHasRolled(true)
 
-        // Reset bonus points to 0 (base stats from roll are the foundation)
+        // The rolled block becomes both the stats AND their baseline, so the derived
+        // pool lands on POOL_ROLLED with nothing spent. No separate counter to reset.
         setStatPoints(tempStats as typeof statPoints)
-        setPointsRemaining(6) // Fewer bonus points when rolling (6 instead of 12)
       }
     }, 80)
   }
@@ -95,18 +106,13 @@ export function CharacterCreationScreen() {
           id === 'outlaw_reformed' ? '\u{1F3AD}' : '\u{1F464}'
   }))
 
+  // Every rule is checked against `prev` inside the updater, so a hundred clicks in
+  // one batch fold correctly instead of racing a captured value. applyAdjustment
+  // returns the same reference when the move is illegal, so a refused click is free.
   const adjustStat = (stat: StatName, delta: number) => {
-    const currentValue = statPoints[stat]
-    const minValue = hasRolled ? baseStats[stat] : 1
-    const maxValue = 18  // Max stat value (like D&D)
-    const newValue = currentValue + delta
-
-    if (newValue < minValue || newValue > maxValue) return
-    if (delta > 0 && pointsRemaining <= 0) return
-    if (delta < 0 && currentValue <= minValue) return
-
-    setStatPoints(prev => ({ ...prev, [stat]: newValue }))
-    setPointsRemaining(prev => prev - delta)
+    setStatPoints(prev =>
+      applyAdjustment(prev as StatBlock, baseStats as StatBlock, hasRolled, stat as never, delta),
+    )
   }
 
   const handleFinalize = () => {
@@ -304,7 +310,7 @@ export function CharacterCreationScreen() {
           disabled={pointsRemaining !== 0 || !selectedBackground}
           className="w-full py-4 md:py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 font-pixel text-base md:text-sm rounded border-4 border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
         >
-          {!selectedBackground ? 'Select a background' : pointsRemaining > 0 ? `Assign ${pointsRemaining} more points` : 'Begin the Hunt'}
+          {allocationLabel(pointsRemaining, !!selectedBackground)}
         </button>
       </div>
     </div>

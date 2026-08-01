@@ -21,6 +21,12 @@ import {
   updateScarcityDays,
   type ResourceType,
 } from '../data/scarcityCascades'
+import {
+  rollHazard,
+  NEUTRAL_STATS,
+  type SaddleStats,
+  type HazardResult,
+} from '../data/trailHazards'
 
 /** Compute landmark state after traveling to newDistance */
 function computeLandmarkState(
@@ -41,7 +47,11 @@ function computeLandmarkState(
   return { currentLandmark: '', nextLandmark: prevNextLandmark, milesUntilNextLandmark: newMilesUntil, landmarkPhase: 'traveling' }
 }
 
-export function computeTravel(prev: OregonTrailState): OregonTrailState {
+export function computeTravel(
+  prev: OregonTrailState,
+  stats: SaddleStats = NEUTRAL_STATS,
+  rng: () => number = Math.random,
+): OregonTrailState {
   if (prev.phase !== 'traveling') return prev
 
   // === POSSE BONUSES (#6) ===
@@ -92,6 +102,35 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
     if (prev.pace === 'grueling') healthChange -= 2  // Extra penalty for pushing hard in heat
   }
   healthChange += medicBonus  // Medic slightly reduces health loss
+
+  // === STARVATION ===
+  // An empty larder used to cost only posse loyalty, which meant a party could
+  // walk to California on nothing at all. Food is consumed BELOW (newFood), so
+  // test the projected larder, not yesterday's. Rations set the severity: a
+  // company on `filling` that runs dry falls furthest, because it was eating.
+  const projectedFood = prev.food - foodConsumed
+  let starving = false
+  if (projectedFood <= 0) {
+    starving = true
+    const deficit = Math.min(4, Math.ceil(Math.abs(projectedFood) / Math.max(1, prev.party.length)))
+    healthChange -= 6 + deficit
+    if (prev.pace === 'grueling') healthChange -= 3  // marching hungry is worse
+  }
+
+  // === REGION HAZARDS ===
+  // Snakes, storms, grizzlies, wolves, cholera, alkali water, the Sierra snow —
+  // drawn from the pool for THIS stretch of trail and resolved against S.A.D.D.L.E.
+  // A starving, exhausted party attracts more trouble than a fed one.
+  const hazardChance = 0.18 + (starving ? 0.08 : 0) + (prev.pace === 'grueling' ? 0.04 : 0)
+  const hazard: HazardResult | null = rollHazard(prev, stats, rng, hazardChance)
+  const hz = hazard?.effects ?? {}
+  healthChange += hz.healthDelta ?? 0
+  // The hazard's account of the day. Every return path below carries it, so an
+  // event or a desperation beat taking the screen cannot silently eat it.
+  const dayMessage = hazard?.text ?? null
+  const hazardRecord = hazard
+    ? { id: hazard.hazard.id, name: hazard.hazard.name, avoided: hazard.avoided, text: hazard.text }
+    : undefined
 
   // === SCARCITY CASCADES (#8) ===
   // Build resource snapshot for cascade calculation
@@ -146,13 +185,17 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   )
 
   // Calculate new resource values
-  const newFood = Math.max(0, prev.food - foodConsumed + foodCascadeDelta)
+  // Hazard resource effects. `foodLost` is signed: a negative value is a GAIN,
+  // which is how the honest-trade branch of `native_encounter` pays out.
+  const newFood = Math.max(0, prev.food - foodConsumed + foodCascadeDelta - (hz.foodLost ?? 0))
   // Pan Galactic Gargle Blaster hangover: a daily morale drag while it lasts.
   const hangoverDrag = (prev.hangoverUntilDay ?? 0) > prev.day ? -6 : 0
-  const newMorale = Math.max(0, Math.min(100, prev.morale + moraleCascadeDelta + (bonuses.morale || 0) + hangoverDrag))
+  const newMorale = Math.max(0, Math.min(100,
+    prev.morale + moraleCascadeDelta + (bonuses.morale || 0) + hangoverDrag + (hz.moraleDelta ?? 0)))
   const newWagonCond = Math.max(0, Math.min(100,
-    prev.wagonCondition + wagonCascadeDelta - wagonDegradation))
-  const newOxen = Math.max(0, prev.oxen + oxenCascadeDelta)
+    prev.wagonCondition + wagonCascadeDelta - wagonDegradation - (hz.wagonDamage ?? 0)))
+  const newOxen = Math.max(0, prev.oxen + oxenCascadeDelta - (hz.oxenLost ?? 0))
+  const newAmmunition = Math.max(0, prev.ammunition - (hz.ammoLost ?? 0))
   const newClothing = Math.max(0, prev.clothing - clothingDegradation)
 
   // === LOYALTY CHECK (#6) — hired posse members may desert ===
@@ -239,7 +282,38 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   // Check for deaths
   const survivors = updatedParty.filter(m => m.health > 0)
   if (survivors.length === 0) {
-    return { ...prev, phase: 'game_over' as GamePhase, message: 'The last of the party lay down within sight of the next rise. The trail keeps its own counsel about who reaches the end of it.' }
+    // Spreading `prev` here used to DISCARD `updatedParty` — the very object whose
+    // zeroed health triggered this branch — so the save persisted a living party at
+    // full health behind an "everyone has perished" screen. Carry the day that
+    // actually happened: the party as it died, the ground it covered, the empty
+    // larder that did it. The ending has to be able to explain itself.
+    //
+    // The general-case line is #52's (the Passing sequence) — kept verbatim, since
+    // GameOverScreen now renders "The Trail Claims Its Own" / "The Name Goes On"
+    // around it and the prose has to sit inside that. When we KNOW what killed
+    // them, say so instead: an ending that can name its own cause is better than
+    // one that can't.
+    return {
+      ...prev,
+      phase: 'game_over' as GamePhase,
+      party: updatedParty,
+      day: prev.day + 1,
+      distance: prev.distance + dailyDistance,
+      totalMilesTraveled: prev.totalMilesTraveled + dailyDistance,
+      daysOnTrail: prev.daysOnTrail + 1,
+      food: newFood,
+      oxen: newOxen,
+      ammunition: newAmmunition,
+      morale: newMorale,
+      wagonCondition: newWagonCond,
+      clothing: newClothing,
+      scarcityDays: newScarcityDays,
+      message: hazard && !hazard.avoided
+        ? `${hazard.text}\n\nThe party does not rise from this camp.`
+        : starving
+          ? 'The last of the food went days ago. The party does not rise from this camp.'
+          : 'The last of the party lay down within sight of the next rise. The trail keeps its own counsel about who reaches the end of it.',
+    }
   }
 
   // Recalculate bonuses after potential desertion
@@ -264,7 +338,11 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
       morale: newMorale,
       wagonCondition: newWagonCond,
       oxen: newOxen,
+      ammunition: newAmmunition,
       clothing: newClothing,
+      // A desperation beat must not swallow the day's hazard either — its costs
+      // were already applied, so its account travels with them.
+      lastHazard: hazardRecord,
       party: survivors,
       totalMilesTraveled: prev.totalMilesTraveled + dailyDistance,
       daysOnTrail: prev.daysOnTrail + 1,
@@ -298,7 +376,10 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
       weather: getRandomWeather(prev.distance + dailyDistance),
       partyBonuses: newBonuses,
       compositionBonusNames: activeComps.map(c => c.name),
-      message: desertionMessage,
+      // A desperation beat owns the screen, but the trail message it returns to
+      // must still carry the town's authored welcome and the day's hazard —
+      // otherwise arriving on a scarcity day silently costs both.
+      message: [desertionMessage, dayMessage].filter(Boolean).join('\n\n') || null,
     }
   }
 
@@ -357,11 +438,15 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
       daysOnTrail: prev.daysOnTrail + 1,
       phase: 'event',
       currentEvent: event,
+      ammunition: newAmmunition,
       weather: getRandomWeather(newDistance),
       scarcityDays: newScarcityDays,
       partyBonuses: newBonuses,
       compositionBonusNames: activeComps.map(c => c.name),
-      message: desertionMessage,
+      // An event taking the screen must not silently swallow the day's hazard —
+      // its costs were already applied above, so its account has to survive too.
+      lastHazard: hazardRecord,
+      message: [desertionMessage, dayMessage].filter(Boolean).join('\n\n') || null,
     }
   }
 
@@ -380,7 +465,9 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
     morale: newMorale,
     wagonCondition: newWagonCond,
     oxen: newOxen,
+    ammunition: newAmmunition,
     clothing: newClothing,
+    lastHazard: hazardRecord,
     party: survivors,
     totalMilesTraveled: prev.totalMilesTraveled + dailyDistance,
     daysOnTrail: prev.daysOnTrail + 1,
@@ -389,9 +476,16 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
     scarcityDays: newScarcityDays,
     partyBonuses: newBonuses,
     compositionBonusNames: activeComps.map(c => c.name),
+    // Precedence: losing a person outranks everything; then what the player must
+    // act on; then the day's hazard. These stack rather than one silently eating
+    // the other. The town's ARRIVAL prose is NOT here — TownScreen owns it, via
+    // the lib/townVisits localStorage ledger from #53, which deliberately
+    // survives resetGame() so a town remembers the FAMILY across a Passing.
     message: desertionMessage ||
-             (newPhase === 'river' ? `You have arrived at ${newLandmark}. The river must be crossed.` :
-              newPhase === 'town' ? `You have arrived at ${newLandmark}.` :
-              null),
+             [
+               newPhase === 'river' ? `You have arrived at ${newLandmark}. The river must be crossed.` :
+               newPhase === 'town' ? `You have arrived at ${newLandmark}.` : null,
+               dayMessage,
+             ].filter(Boolean).join('\n\n') || null,
   }
 }

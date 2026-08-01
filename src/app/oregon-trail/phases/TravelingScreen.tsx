@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useOregonTrail } from '../oregonTrailContext'
+import { useCharacter } from '../characterContext'
 import { useChapter } from '../chapterContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { KarmaWallet } from '../components/KarmaWallet'
@@ -40,6 +41,9 @@ export function TravelingScreen({
   lastStatVariant,
 }: TravelingScreenProps) {
   const { state, travel, setPace, setRations, hunt } = useOregonTrail()
+  // The agent's S.A.D.D.L.E. stats decide region hazards — whether you spot the
+  // rattler, read the green in the hail cloud, or camp off the grizzly's trail.
+  const { state: hazardCharState } = useCharacter()
   const { progress: chapterProgress } = useChapter()
 
   // Local modal states
@@ -340,7 +344,7 @@ export function TravelingScreen({
         {/* Actions */}
         <div className="flex gap-4 justify-center flex-wrap">
           <button
-            onClick={travel}
+            onClick={() => travel(hazardCharState.character?.stats)}
             className="px-8 py-3 bg-green-700 hover:bg-green-600 text-green-100 font-pixel text-sm rounded border-4 border-green-500 transition-colors"
           >
             Continue Trail

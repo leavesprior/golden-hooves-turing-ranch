@@ -120,6 +120,15 @@ function fmtDays(d: number): string {
   return Number.isInteger(d) ? String(d) : d.toFixed(1)
 }
 
+/**
+ * Per-case wanted-poster art, by case id. Deliberately EMPTY: no per-case poster
+ * PNG has been drawn, and `/chase/poster-<id>.png` 404'd on every case load while
+ * the authored DB32 `vane` portrait sat unused. An id absent here means
+ * WantedPoster renders that portrait instead. Add entries as art lands — and only
+ * for files that actually exist in /public/chase.
+ */
+const CASE_POSTER_ART: Record<string, string | undefined> = {}
+
 export default function ChaseDemoPage() {
   const [state, setState] = useState<ChaseState>(() => initialState(0))
   const [phase, setPhase] = useState<Phase>('clue')
@@ -651,7 +660,12 @@ export default function ChaseDemoPage() {
               villainName={villain.name}
               villainDescription={villain.baseDescription}
               villainCharge={villain.charge}
-              posterArt={`/chase/poster-${activeCase.id}.png`}
+              // Per-case poster PNGs have not been drawn yet, and requesting one
+              // 404'd on every case load — noise that hides real errors. Ask only
+              // for art that exists; with none, WantedPoster falls through to the
+              // authored DB32 `vane` portrait. Re-add a path here (gated on a real
+              // existence list) when per-case posters land.
+              posterArt={CASE_POSTER_ART[activeCase.id]}
             />
             <p className="mt-3 px-1 font-[var(--font-pixel)] text-[9px] leading-relaxed text-[var(--pixel-ui-text)]/40">
               {villain.charge}. Real Gold Country towns; clues describe each town&apos;s true history without naming it.

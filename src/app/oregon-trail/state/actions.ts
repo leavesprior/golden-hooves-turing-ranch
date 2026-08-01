@@ -10,6 +10,7 @@
 
 import type { Pace, Rations, GamePhase, OregonTrailState } from './types'
 import type { CrossingOutcome } from '../data/riverCrossings'
+import type { SaddleStats } from '../characterContext'
 import type { QuestReward } from '../data/goldCountryNPCs'
 import type { PosseMember } from '../data/posseSystem'
 import type { DmDirective } from '@/lib/dmDirectives'
@@ -21,7 +22,9 @@ export type GameAction =
   | { type: 'START_GAME'; leaderName: string; partyNames: string[] }
   | { type: 'PURCHASE_SUPPLIES'; supplies: { food: number; ammo: number; parts: number; medicine: number; oxen: number } }
   | { type: 'BEGIN_JOURNEY' }
-  | { type: 'TRAVEL' }
+  // `stats` lets the travel tick resolve region hazards against S.A.D.D.L.E.
+  // Optional: omitted, the engine falls back to NEUTRAL_STATS.
+  | { type: 'TRAVEL'; stats?: SaddleStats }
   | { type: 'RESET_GAME' }
   | { type: 'LOAD_STATE'; savedState: OregonTrailState }
 

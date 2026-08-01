@@ -159,6 +159,12 @@ export interface OregonTrailState {
   // hangover chain survives reload. Optional → old saves default to no chain.
   gargleBlasterShots?: number   // shots taken in the CURRENT hangover chain
   hangoverUntilDay?: number     // day the current hangover clears
+  /**
+   * The most recent region hazard (snake, storm, grizzly, cholera, alkali water,
+   * Sierra snow…) and whether S.A.D.D.L.E. carried the party past it. Optional so
+   * saves written before hazards existed still load.
+   */
+  lastHazard?: { id: string; name: string; avoided: boolean; text: string }
 
   // Statistics
   totalMilesTraveled: number
