@@ -6,6 +6,7 @@ import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { KarmaStorage, getAlignmentPosition, getDiscountMultiplier, type AlignmentPosition } from '@/lib/karmaStorage'
 import { trackPageView, trackBookingClick } from '@/lib/eventTracker'
 import { airbnbBookingLink, airbnbRetreatLink } from '@/lib/airbnbLink'
+import { HomeHeroStill } from '@/components/HomeHeroStill'
 
 const cabinPhotos = [
   '/cabin-photos/cabin-1.jpg',
@@ -163,6 +164,7 @@ export default function Home() {
       {/*  HERO - The Full Pixel Art Scene                          */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <section className="relative min-h-[90vh] overflow-hidden">
+        <HomeHeroStill />
         {/* Rotating Photo Background */}
         <div className="absolute inset-0">
           {cabinPhotos.map((photo, index) => (

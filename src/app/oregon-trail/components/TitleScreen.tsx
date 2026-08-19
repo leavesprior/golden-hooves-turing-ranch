@@ -53,7 +53,7 @@ export function TitleScreen({ onStart, hasSaves, onContinue, continueError }: Ti
           An 1849 expedition. Wagon, warrant, and the river that started a country over.
         </p>
         {showPrompt && (
-          <div className="mt-8 inline-flex flex-col gap-3 items-start">
+          <div className="mt-8 inline-flex flex-col gap-3 items-start max-w-[14rem]">
             {hasSaves && onContinue && (
               <button
                 onClick={(e) => { e.stopPropagation(); onContinue(); }}
