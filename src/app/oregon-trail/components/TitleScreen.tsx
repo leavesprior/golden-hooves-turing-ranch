@@ -36,12 +36,13 @@ export function TitleScreen({ onStart, hasSaves, onContinue, continueError }: Ti
         <img
           src="/place-art/ot_title_prairie_editorial.jpg"
           alt=""
-          className="h-full w-full object-cover object-[center_70%]"
+          className="h-full w-full object-cover object-[center_35%]"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/15 to-transparent" />
       </div>
 
-      <div className="absolute inset-x-0 bottom-[28vh] z-10 px-8 text-left md:px-16">
+      {/* Type + buttons in the dusk sky, stacked, not on the cabin. */}
+      <div className="absolute inset-x-0 top-16 z-10 px-8 text-left md:top-20 md:px-16">
         <p className="font-serif text-[11px] uppercase tracking-[0.28em] text-amber-100/80">
           Neoma keeps the tables
         </p>
@@ -51,11 +52,8 @@ export function TitleScreen({ onStart, hasSaves, onContinue, continueError }: Ti
         <p className="mt-3 max-w-md font-serif text-base text-amber-100/85">
           An 1849 expedition. Wagon, warrant, and the river that started a country over.
         </p>
-      </div>
-
-      {showPrompt && (
-        <div className="absolute inset-x-0 bottom-[16vh] z-10 px-8 text-left md:px-16">
-          <div className="inline-flex flex-col gap-3 items-start">
+        {showPrompt && (
+          <div className="mt-8 inline-flex flex-col gap-3 items-start">
             {hasSaves && onContinue && (
               <button
                 onClick={(e) => { e.stopPropagation(); onContinue(); }}
@@ -76,8 +74,8 @@ export function TitleScreen({ onStart, hasSaves, onContinue, continueError }: Ti
               New expedition
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="absolute inset-x-0 bottom-4 text-center z-10">
         <p className="text-amber-600/60 text-xs">
