@@ -637,9 +637,9 @@ export default function Home() {
           ))}
         </div>
 
-        {/* ─── HERO TEXT CONTENT ─── */}
-        <div className="relative z-[25] flex flex-col items-center justify-center min-h-[90vh] px-4 text-center">
-          <div className="mb-6">
+        {/* Type + CTAs in the night sky, not on the wagon. Same stack as TitleScreen. */}
+        <div className="absolute inset-x-0 top-6 z-[25] px-4 text-left sm:px-8 md:top-8 md:px-16">
+          <div className="mb-4">
             <p className="font-[var(--font-pixel)] text-[6px] sm:text-[8px] text-[var(--pixel-fire-orange)] tracking-[0.3em] uppercase mb-3" style={{ animation: 'fadeSlideIn 1s ease-out' }}>
               Gold Country, California
             </p>
@@ -652,15 +652,15 @@ export default function Home() {
             <div className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)] tracking-widest" style={{ animation: 'fadeSlideIn 1s ease-out 0.4s both' }}>
               ═══════════════════════
             </div>
-            <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-sky-light)] mt-2 max-w-md mx-auto leading-relaxed" style={{ animation: 'fadeSlideIn 1s ease-out 0.6s both' }}>
+            <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-sky-light)] mt-2 max-w-md leading-relaxed" style={{ animation: 'fadeSlideIn 1s ease-out 0.6s both' }}>
               60-acre mountain retreat with hot tub, ranch animals,
               game room & Gold Country adventures
             </p>
           </div>
 
-          <div className="mt-6 flex flex-col items-center gap-5" style={{ animation: 'fadeSlideIn 1s ease-out 0.8s both' }}>
+          <div className="mt-4 flex flex-col items-start gap-3" style={{ animation: 'fadeSlideIn 1s ease-out 0.8s both' }}>
             {/* Retreat (A/B) listing paused — RETREAT_LIVE gates its button so one env flip restores the dual hero */}
-            <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex flex-wrap items-start gap-3">
               {RETREAT_LIVE && (
                 <span onClick={() => trackBookingClick('hero-retreat')}>
                   <PixelButton href={airbnbRetreatLink('site')} variant="orange" size="lg">
@@ -673,6 +673,12 @@ export default function Home() {
                   🏡 Book Your Stay · Sleeps 12
                 </PixelButton>
               </span>
+              <PixelButton href="/oregon-trail" variant="gold" size="md">
+                ⚔️ Start Quest
+              </PixelButton>
+              <PixelButton href="/explore" variant="green" size="md">
+                🗺️ Explore Map
+              </PixelButton>
             </div>
             <div
               className="font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] tracking-wider border border-[var(--pixel-gold-mid)]/40 bg-black/30 px-3 py-1.5 rounded-sm"
@@ -682,25 +688,15 @@ export default function Home() {
               <span className="opacity-60"> &middot; </span>
               <span>6 bedrooms &middot; whole ranch sleeps 12</span>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <PixelButton href="/oregon-trail" variant="gold" size="md">
-                ⚔️ Start Quest
-              </PixelButton>
-              <PixelButton href="/explore" variant="green" size="md">
-                🗺️ Explore Map
-              </PixelButton>
-            </div>
           </div>
 
-          <div className="mt-10 font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
-            <span className={showCursor ? 'opacity-100' : 'opacity-30'}>
-              ▶ Press START to begin your adventure ◀
-            </span>
-          </div>
         </div>
 
         {/* Stats Bar */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[25] flex gap-4 sm:gap-8 font-[var(--font-pixel)] text-[6px] sm:text-[8px] text-[var(--pixel-ui-text)] bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <span className={showCursor ? 'opacity-100' : 'opacity-30'}>▶ START</span>
+          </div>
           <div className="flex items-center gap-1 sm:gap-2">
             <span>⭐</span>
             <span>268 Reviews</span>
