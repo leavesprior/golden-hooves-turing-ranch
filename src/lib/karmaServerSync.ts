@@ -47,6 +47,14 @@ export async function fetchServerBalance(sessionId: string): Promise<ServerBalan
   }
 }
 
+// Client-side throttle: the wallet posts on every earn/spend. A persist loop
+// (or a few shops/hunts in a row) used to hammer /api/karma/event, get 429s,
+// and stall the Next dev server so the tab went white mid-run.
+let karmaBackoffUntil = 0
+let karmaLastPostAt = 0
+const KARMA_MIN_GAP_MS = 400
+const KARMA_BACKOFF_MS = 8000
+
 /** Persist an in-game earn/spend to the server ledger. Idempotent on eventId. Fire-and-forget safe. */
 export async function postKarmaEvent(params: {
   sessionId: string
@@ -54,6 +62,10 @@ export async function postKarmaEvent(params: {
   delta: number
   source: string
 }): Promise<ServerBalanceResult> {
+  const now = Date.now()
+  if (now < karmaBackoffUntil) return { ok: false }
+  if (now - karmaLastPostAt < KARMA_MIN_GAP_MS) return { ok: false }
+  karmaLastPostAt = now
   try {
     const eventId = `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     const res = await fetch('/api/karma/event', {
@@ -61,6 +73,10 @@ export async function postKarmaEvent(params: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...params, eventId }),
     })
+    if (res.status === 429 || res.status >= 500) {
+      karmaBackoffUntil = Date.now() + KARMA_BACKOFF_MS
+      return { ok: false }
+    }
     if (!res.ok) return { ok: false }
     const data = await res.json()
     if (!data?.ok || !data?.balance) return { ok: false }

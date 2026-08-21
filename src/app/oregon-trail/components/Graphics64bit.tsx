@@ -507,6 +507,8 @@ interface Graphics64bitWrapperProps {
   children: React.ReactNode
   showLandmarks?: boolean
   currentLandmark?: string
+  /** Immediate country. Mountains are a place, not the default wallpaper. */
+  terrain?: 'plains' | 'mountains' | 'desert' | 'forest' | 'river'
 }
 
 export function Graphics64bitWrapper({
@@ -515,7 +517,8 @@ export function Graphics64bitWrapper({
   weather,
   children,
   showLandmarks = false,
-  currentLandmark
+  currentLandmark,
+  terrain = 'plains',
 }: Graphics64bitWrapperProps) {
   // Only show enhanced graphics for 64-bit tier
   if (tier !== 'ultra_64bit') {
@@ -533,20 +536,20 @@ export function Graphics64bitWrapper({
       {/* Stars (night only) */}
       {timeOfDay === 'night' && <Stars count={80} />}
 
-      {/* Far mountain layer - moves slowest */}
-      <ParallaxLayer speed={0.1} className="h-[30vh] bottom-0 top-auto">
-        <MountainSilhouette layer="far" timeOfDay={timeOfDay} />
-      </ParallaxLayer>
-
-      {/* Mid mountain layer */}
-      <ParallaxLayer speed={0.3} className="h-[35vh] bottom-0 top-auto">
-        <MountainSilhouette layer="mid" timeOfDay={timeOfDay} />
-      </ParallaxLayer>
-
-      {/* Near mountain layer - moves fastest */}
-      <ParallaxLayer speed={0.5} className="h-[40vh] bottom-0 top-auto">
-        <MountainSilhouette layer="near" timeOfDay={timeOfDay} />
-      </ParallaxLayer>
+      {/* Ranges only when this stretch is mountains. Independence is prairie. */}
+      {terrain === 'mountains' && (
+        <>
+          <ParallaxLayer speed={0.1} className="h-[30vh] bottom-0 top-auto">
+            <MountainSilhouette layer="far" timeOfDay={timeOfDay} />
+          </ParallaxLayer>
+          <ParallaxLayer speed={0.3} className="h-[35vh] bottom-0 top-auto">
+            <MountainSilhouette layer="mid" timeOfDay={timeOfDay} />
+          </ParallaxLayer>
+          <ParallaxLayer speed={0.5} className="h-[40vh] bottom-0 top-auto">
+            <MountainSilhouette layer="near" timeOfDay={timeOfDay} />
+          </ParallaxLayer>
+        </>
+      )}
 
       {/* Ambient light overlay */}
       <div
@@ -598,8 +601,11 @@ interface TravelingSceneProps {
   tier: GraphicsTier
   timeOfDay: TimeOfDay
   weather: WeatherType
-  progress: number  // 0-100 distance to next landmark
+  progress: number  // 0-100 of the full trail
   terrain?: 'plains' | 'mountains' | 'desert' | 'forest' | 'river'
+  nextStop?: string
+  milesLeft?: number
+  artSrc?: string
 }
 
 export function TravelingScene({
@@ -607,11 +613,11 @@ export function TravelingScene({
   timeOfDay,
   weather,
   progress,
-  terrain = 'plains'
+  terrain = 'plains',
+  nextStop,
+  milesLeft,
+  artSrc,
 }: TravelingSceneProps) {
-  // Wagon bob is pure CSS (see @keyframes wagonBob below) — the old 50ms
-  // setInterval re-rendered this scene 20x/sec and made clicks flaky.
-
   if (tier !== 'ultra_64bit') {
     return (
       <div className="h-32 bg-amber-100 relative">
@@ -622,71 +628,38 @@ export function TravelingScene({
     )
   }
 
-  const terrainColors = {
-    plains: '#8B7355',
-    mountains: '#6B5344',
-    desert: '#D2B48C',
-    forest: '#4A5D23',
-    river: '#4A6FA5',
-  }
+  const pip = Math.max(4, Math.min(96, progress))
+  const weatherNote = weather === 'clear' ? 'fair' : weather.replace('_', ' ')
 
   return (
-    <div className="relative h-48 overflow-hidden">
-      {/* Ground */}
-      <div
-        className="absolute bottom-0 w-full h-16"
-        style={{ background: terrainColors[terrain] }}
+    <div className="relative mb-2 h-52 overflow-hidden rounded-2xl border border-[rgba(232,220,196,0.12)]">
+      <img
+        src={artSrc || '/place-art/ot_title_prairie_editorial.jpg'}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover object-[center_45%]"
       />
-
-      {/* Trail dust/tracks */}
-      <div
-        className="absolute bottom-4 w-full h-2"
-        style={{
-          background: 'repeating-linear-gradient(90deg, transparent 0px, rgba(139,115,85,0.5) 10px, transparent 20px)',
-          animation: 'trailScroll 1s linear infinite',
-        }}
-      />
-
-      {/* Animated wagon — the same covered wagon the title screen drives
-          (the shopping-cart emoji was a placeholder that shipped) */}
-      <div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2"
-        style={{ animation: 'wagonBob 1.6s ease-in-out infinite' }}
-      >
-        {terrain === 'river'
-          ? <span className="text-5xl drop-shadow-lg">{'\u{1F6F6}'}</span>
-          : <CoveredWagonSprite />}
-      </div>
-
-      {/* Terrain-specific elements */}
-      {terrain === 'forest' && (
-        <>
-          <SwayingTree x={10} y={60} height={50} variant="pine" />
-          <SwayingTree x={25} y={55} height={60} variant="pine" />
-          <SwayingTree x={75} y={58} height={55} variant="oak" />
-          <SwayingTree x={90} y={62} height={45} variant="pine" />
-        </>
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0e0c0a] via-[#0e0c0a]/25 to-black/15" />
+      <p className="absolute left-4 top-3 font-serif text-[11px] uppercase tracking-[0.28em] text-[#e8dcc4]/80">
+        {terrain} · {timeOfDay} · {weatherNote}
+      </p>
+      {nextStop != null && milesLeft != null && (
+        <p className="absolute right-4 top-3 font-serif text-xs text-[#e8dcc4]">
+          {milesLeft} mi to {nextStop}
+        </p>
       )}
-
-      {terrain === 'river' && (
-        <WaterEffect className="absolute bottom-0" height="40px" />
-      )}
-
-      {/* Distance marker */}
-      <div className="absolute top-2 right-4 bg-black/50 px-2 py-1 rounded text-xs text-white">
-        {progress}% to landmark
+      <div className="absolute inset-x-4 bottom-3">
+        <div className="relative h-[2px] bg-[rgba(232,220,196,0.28)]">
+          <div
+            className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#e8dcc4] shadow-[0_0_8px_rgba(232,220,196,0.55)]"
+            style={{ left: `${pip}%` }}
+            title="The wagon"
+          />
+        </div>
+        <div className="mt-2 flex justify-between font-serif text-[11px] text-[#b8a88a]">
+          <span>Independence</span>
+          <span>Gold Country</span>
+        </div>
       </div>
-
-      <style jsx>{`
-        @keyframes trailScroll {
-          0% { background-position: 0 0; }
-          100% { background-position: -20px 0; }
-        }
-        @keyframes wagonBob {
-          0%, 100% { transform: translateX(-50%) translateY(0); }
-          50% { transform: translateX(-50%) translateY(-3px); }
-        }
-      `}</style>
     </div>
   )
 }

@@ -6,7 +6,7 @@ import { useKarmaWallet } from '../karmaWalletContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { KarmaWallet } from '../components/KarmaWallet'
 import { KarmaConvertModal } from '../components/KarmaConvertModal'
-import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+import { editorialForLandmark } from '@/lib/californiaTrailArt'
 
 export function OutfittingScreen() {
   const { state, purchaseSupplies, goToCharacterCreation } = useOregonTrail()
@@ -35,222 +35,146 @@ export function OutfittingScreen() {
     supplies.oxen * prices.oxen
 
   const handlePurchase = async () => {
-    const totalKarmaCost = Math.ceil(totalCost) // Round up to whole karma
+    const totalKarmaCost = Math.ceil(totalCost)
 
-    // Check if we can afford it
     if (!canAfford('neutral', totalKarmaCost)) {
-      // Show convert modal to get more karma
       setConvertModalContext({ needed: totalKarmaCost, karmaType: 'neutral' })
       setShowConvertModal(true)
       return
     }
 
-    // Spend the karma
-    const success = await spendNeutral(totalKarmaCost, 'Matt\'s General Store - Outfitting')
+    const success = await spendNeutral(totalKarmaCost, "Matt's General Store - Outfitting")
     if (success) {
       purchaseSupplies(supplies)
       setSupplies({ food: 0, ammo: 0, parts: 0, medicine: 0, oxen: 0 })
     }
   }
 
+  const onHand = {
+    food: state.food,
+    ammo: state.ammunition,
+    parts: state.spareParts,
+    medicine: state.medicine,
+    oxen: state.oxen,
+  }
+
+  const rows: Array<{
+    key: keyof typeof supplies
+    name: string
+    blurb: string
+    unit: string
+    step: number
+    price: number
+  }> = [
+    { key: 'food', name: 'Flour', blurb: 'Joseph Ware, 1849: about 180 lb per person.', unit: 'lb', step: 50, price: prices.food },
+    { key: 'ammo', name: 'Powder & lead', blurb: 'Hunting and the occasional warrant.', unit: 'box', step: 1, price: prices.ammo },
+    { key: 'parts', name: 'Spare axle', blurb: 'A broken axle without a spare ends a company.', unit: 'ea', step: 1, price: prices.parts },
+    { key: 'medicine', name: 'Medicine chest', blurb: 'Laudanum, quinine, and more hope than science.', unit: 'kit', step: 1, price: prices.medicine },
+    { key: 'oxen', name: 'Oxen (pair)', blurb: 'Slow, sure, and they eat grass you do not have to pack.', unit: 'yoke', step: 1, price: prices.oxen },
+  ]
+
+  const still =
+    editorialForLandmark('Independence, Missouri') || '/place-art/editorial/independence.jpg'
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-950 via-amber-900 to-amber-950 p-4">
+    <div className="relative min-h-screen">
       <KarmaToastContainer />
 
-      <div className="max-w-2xl mx-auto">
-        <header className="text-center mb-8 pt-8">
-          <h1 className="font-pixel text-amber-200 text-xl mb-2">Matt's General Store</h1>
-          <p className="text-amber-400 text-sm">Independence, Missouri</p>
-        </header>
+      {/* Existing Independence pixels as the face. Shop stays React, off the courthouse. */}
+      <div className="pointer-events-none fixed inset-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={still}
+          alt=""
+          className="h-full w-full object-cover object-[center_38%]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
+      </div>
 
-        {/* Independence itself — real-place raster art (visual64) */}
-        <PlaceBackdrop id="ch1_independence" className="h-36 rounded-lg border-2 border-amber-700/60 mb-6" />
+      <div className="relative z-10 px-4 py-8 pb-28 sm:px-8 md:max-w-xl md:px-16">
+        <p className="font-serif text-[11px] uppercase tracking-[0.28em] text-amber-100/80">
+          First camp · Independence, Missouri
+        </p>
+        <h1 className="west-face-title mt-2">Independence outfitters</h1>
+        <p className="west-face-body mt-3 max-w-xl text-[#e8dcc4]/85">
+          1849 prices, more or less. Joseph Ware told three people to pack a thousand pounds
+          of flour. You are not three people, but the prairie does not grade on a curve.
+        </p>
 
+        <article className="west-face-paper mt-6">
+          <div className="flex items-start justify-between gap-4">
+            <p className="font-serif text-sm text-[#e8dcc4]">
+              {Math.max(0, Math.floor((balance?.neutral ?? 0) - Math.ceil(totalCost)))} remaining
+            </p>
+          </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Store */}
-          <div className="bg-amber-900/60 border-4 border-amber-600 rounded-lg p-4">
-            <h2 className="font-pixel text-amber-200 text-sm mb-4 border-b border-amber-600 pb-2">
-              Purchase Supplies
-            </h2>
-
-            <div className="space-y-4">
-              {/* Food */}
-              <div className="flex items-center justify-between">
+          <div className="mt-6">
+            {rows.map((row) => (
+              <div className="west-face-row" key={row.key}>
                 <div>
-                  <span className="text-amber-200 text-xs font-pixel">Food (lbs)</span>
-                  <span className="text-amber-500 text-[10px] ml-2">${prices.food.toFixed(2)}/lb</span>
+                  <h2 className="font-serif text-lg text-[#f3ead8]">{row.name}</h2>
+                  <p className="west-face-body mt-1">
+                    ${row.price} buy · {row.unit}. On hand: {onHand[row.key]}
+                    {row.key === 'food' ? ' lb' : ''}. Adding {supplies[row.key]}.
+                  </p>
+                  <p className="mt-1 text-sm text-[#9a8b70]">{row.blurb}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <button
-                    onClick={() => setSupplies(s => ({ ...s, food: Math.max(0, s.food - 50) }))}
-                    className="w-8 h-6 bg-amber-700 text-amber-200 rounded text-[10px] font-pixel"
-                  >-50</button>
-                  <span className="text-amber-100 font-pixel text-sm w-12 text-center">{supplies.food}</span>
+                    type="button"
+                    className="west-face-pill"
+                    onClick={() => setSupplies((s) => ({ ...s, [row.key]: Math.max(0, s[row.key] - row.step) }))}
+                  >
+                    −
+                  </button>
+                  <span className="w-10 text-center font-serif">{supplies[row.key]}</span>
                   <button
-                    onClick={() => setSupplies(s => ({ ...s, food: s.food + 50 }))}
-                    className="w-8 h-6 bg-amber-700 text-amber-200 rounded text-[10px] font-pixel"
-                  >+50</button>
+                    type="button"
+                    className="west-face-pill"
+                    onClick={() => setSupplies((s) => ({ ...s, [row.key]: s[row.key] + row.step }))}
+                  >
+                    +
+                  </button>
                 </div>
               </div>
+            ))}
+          </div>
 
-              {/* Ammo */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-amber-200 text-xs font-pixel">Ammo (boxes)</span>
-                  <span className="text-amber-500 text-[10px] ml-2">${prices.ammo}/box</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSupplies(s => ({ ...s, ammo: Math.max(0, s.ammo - 1) }))}
-                    className="w-6 h-6 bg-amber-700 text-amber-200 rounded"
-                  >-</button>
-                  <span className="text-amber-100 font-pixel text-sm w-12 text-center">{supplies.ammo}</span>
-                  <button
-                    onClick={() => setSupplies(s => ({ ...s, ammo: s.ammo + 1 }))}
-                    className="w-6 h-6 bg-amber-700 text-amber-200 rounded"
-                  >+</button>
-                </div>
-              </div>
-
-              {/* Spare Parts */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-amber-200 text-xs font-pixel">Spare Parts</span>
-                  <span className="text-amber-500 text-[10px] ml-2">${prices.parts}/ea</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSupplies(s => ({ ...s, parts: Math.max(0, s.parts - 1) }))}
-                    className="w-6 h-6 bg-amber-700 text-amber-200 rounded"
-                  >-</button>
-                  <span className="text-amber-100 font-pixel text-sm w-12 text-center">{supplies.parts}</span>
-                  <button
-                    onClick={() => setSupplies(s => ({ ...s, parts: s.parts + 1 }))}
-                    className="w-6 h-6 bg-amber-700 text-amber-200 rounded"
-                  >+</button>
-                </div>
-              </div>
-
-              {/* Medicine */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-amber-200 text-xs font-pixel">Medicine</span>
-                  <span className="text-amber-500 text-[10px] ml-2">${prices.medicine}/unit</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSupplies(s => ({ ...s, medicine: Math.max(0, s.medicine - 1) }))}
-                    className="w-6 h-6 bg-amber-700 text-amber-200 rounded"
-                  >-</button>
-                  <span className="text-amber-100 font-pixel text-sm w-12 text-center">{supplies.medicine}</span>
-                  <button
-                    onClick={() => setSupplies(s => ({ ...s, medicine: s.medicine + 1 }))}
-                    className="w-6 h-6 bg-amber-700 text-amber-200 rounded"
-                  >+</button>
-                </div>
-              </div>
-
-              {/* Oxen */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-amber-200 text-xs font-pixel">Oxen</span>
-                  <span className="text-amber-500 text-[10px] ml-2">${prices.oxen}/ea</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSupplies(s => ({ ...s, oxen: Math.max(0, s.oxen - 1) }))}
-                    className="w-6 h-6 bg-amber-700 text-amber-200 rounded"
-                  >-</button>
-                  <span className="text-amber-100 font-pixel text-sm w-12 text-center">{supplies.oxen}</span>
-                  <button
-                    onClick={() => setSupplies(s => ({ ...s, oxen: s.oxen + 1 }))}
-                    className="w-6 h-6 bg-amber-700 text-amber-200 rounded"
-                  >+</button>
-                </div>
-              </div>
+          <div className="west-face-row items-center">
+            <div>
+              <p className="font-serif text-[#f3ead8]">This load</p>
+              <div className="mt-2"><KarmaWallet compact showBadKarma={false} /></div>
             </div>
-
-            <div className="mt-4 pt-4 border-t border-amber-600">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-amber-400 text-xs font-pixel">Total Cost:</span>
-                <span className={`font-pixel text-sm ${!canAfford('neutral', Math.ceil(totalCost)) ? 'text-red-400' : 'text-amber-200'}`}>
-                  {Math.ceil(totalCost)}{'\uD83C\uDF2E'}
-                </span>
-              </div>
+            <div className="flex flex-col items-end gap-2">
+              <p className={`font-serif ${!canAfford('neutral', Math.ceil(totalCost)) ? 'text-red-300' : 'text-[#e8dcc4]'}`}>
+                {Math.ceil(totalCost)} tacos
+              </p>
               <button
+                type="button"
                 onClick={handlePurchase}
                 disabled={totalCost === 0}
-                className="w-full py-2 bg-amber-700 hover:bg-amber-600 text-amber-100 font-pixel text-xs rounded border-2 border-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="west-face-pill west-face-pill-cream"
               >
-                {canAfford('neutral', Math.ceil(totalCost)) ? 'Purchase' : 'Get More Karma & Purchase'}
+                {canAfford('neutral', Math.ceil(totalCost)) ? 'Buy this load' : 'Need more tacos'}
               </button>
             </div>
           </div>
 
-          {/* Inventory */}
-          <div className="bg-amber-900/60 border-4 border-amber-600 rounded-lg p-4">
-            <h2 className="font-pixel text-amber-200 text-sm mb-4 border-b border-amber-600 pb-2">
-              Your Wagon
-            </h2>
-
-            <div className="space-y-3 text-xs">
-              {/* Karma Balance Display */}
-              <div className="mb-3 pb-2 border-b border-amber-600">
-                <KarmaWallet compact showBadKarma={false} />
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-400">Food:</span>
-                <span className="text-amber-200 font-pixel">{state.food} lbs</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-400">Ammunition:</span>
-                <span className="text-amber-200 font-pixel">{state.ammunition} rounds</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-400">Spare Parts:</span>
-                <span className="text-amber-200 font-pixel">{state.spareParts}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-400">Medicine:</span>
-                <span className="text-amber-200 font-pixel">{state.medicine}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-400">Oxen:</span>
-                <span className="text-amber-200 font-pixel">{state.oxen}</span>
-              </div>
-            </div>
-
-            {/* Party */}
-            <div className="mt-4 pt-4 border-t border-amber-600">
-              <h3 className="text-amber-400 text-xs mb-2">Party ({state.party.length} members):</h3>
-              <ul className="space-y-1">
-                {state.party.map(member => (
-                  <li key={member.id} className="text-amber-200 text-xs">
-                    {member.name} {member.role === 'leader' && '(Leader)'}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Begin Journey - Now goes to character creation first */}
-            <button
-              onClick={goToCharacterCreation}
-              disabled={state.oxen < 2 || state.food < 100}
-              className="w-full mt-4 py-3 bg-green-700 hover:bg-green-600 text-green-100 font-pixel text-sm rounded border-4 border-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Create Your Agent
-            </button>
-            {(state.oxen < 2 || state.food < 100) && (
-              <p className="text-red-400 text-[10px] mt-2 text-center">
-                Need at least 2 oxen and 100 lbs of food
-              </p>
-            )}
-          </div>
-        </div>
+          <button
+            type="button"
+            onClick={goToCharacterCreation}
+            disabled={state.oxen < 2 || state.food < 100}
+            className="west-face-pill west-face-pill-cream mt-4"
+          >
+            Wagons west
+          </button>
+          {(state.oxen < 2 || state.food < 100) && (
+            <p className="mt-2 text-sm text-red-300">Need at least 2 oxen and 100 lbs of food</p>
+          )}
+          <p className="west-face-footer">First camp: Independence, Missouri. Mode: Adult Warrant. NEOMA, DM.</p>
+        </article>
       </div>
 
-      {/* Karma Convert Modal */}
       {showConvertModal && convertModalContext && (
         <KarmaConvertModal
           isOpen={showConvertModal}
@@ -261,7 +185,6 @@ export function OutfittingScreen() {
           neededAmount={convertModalContext.needed}
           karmaType={convertModalContext.karmaType === 'good' ? 'good' : 'neutral'}
           onSuccess={() => {
-            // Re-trigger purchase after successful conversion
             handlePurchase()
           }}
         />

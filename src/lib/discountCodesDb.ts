@@ -69,9 +69,14 @@ function getDbPath(): string {
 }
 
 let _db: Database.Database | null = null;
+let _dbLoadError: Error | null = null;
 
 function getDb(): Database.Database {
-  if (!_db) {
+  if (_db) return _db
+  // Native better-sqlite3 can fail to re-register after Next HMR. Cache the
+  // failure so we do not DLOPEN-storm and take the whole dev server down.
+  if (_dbLoadError) throw _dbLoadError
+  try {
     const dbPath = getDbPath();
     _db = new Database(dbPath);
     _db.pragma('journal_mode = WAL');
@@ -131,6 +136,9 @@ function getDb(): Database.Database {
       CREATE INDEX IF NOT EXISTS idx_bobr_karma_ledger_session
         ON bobr_karma_ledger (session_id);
     `);
+  } catch (err) {
+    _dbLoadError = err instanceof Error ? err : new Error(String(err))
+    throw _dbLoadError
   }
   return _db;
 }

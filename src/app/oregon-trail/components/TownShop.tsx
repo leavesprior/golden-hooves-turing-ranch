@@ -412,14 +412,13 @@ export function TownShop({ onClose }: TownShopProps) {
 
   return (
     <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
-      <div ref={shopRef} className="bg-amber-950 border-2 border-amber-600 rounded-lg w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col relative">
+      <div ref={shopRef} className="west-face-paper w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col relative">
         {/* Header */}
-        <div className="bg-amber-900 p-4 border-b border-amber-600 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🏪</span>
-            <div>
-              <h2 className="text-amber-200 font-bold">General Store</h2>
-              <p className="text-amber-400 text-xs">{state.currentLandmark}</p>
+        <div className="flex justify-between items-start gap-4 pb-3">
+          <div>
+              <p className="west-face-eyebrow">{state.currentLandmark}</p>
+              <h2 className="west-face-title mt-1">Outfitters</h2>
+              <p className="west-face-body mt-2">1849 prices, more or less. Sell is about half.</p>
               {settlerBonus > 0 && (
                 <p className="text-green-400 text-xs">Settler Discount: {Math.round(settlerBonus * 2)}%</p>
               )}
@@ -431,7 +430,6 @@ export function TownShop({ onClose }: TownShopProps) {
                 </p>
               )}
             </div>
-          </div>
           <div className="text-right">
             <KarmaWallet compact showBadKarma={false} />
           </div>
@@ -484,26 +482,40 @@ export function TownShop({ onClose }: TownShopProps) {
               return (
                 <div
                   key={item.id}
-                  className={`bg-amber-900/50 border rounded-lg p-3 ${
-                    itemAffordable
-                      ? 'border-amber-600 hover:bg-amber-800/50 cursor-pointer'
-                      : 'border-gray-700 opacity-50'
-                  }`}
+                  className={`west-face-row ${itemAffordable ? 'cursor-pointer' : 'opacity-50'}`}
                   onClick={() => itemAffordable && setSelectedItem(item)}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{item.emoji}</span>
+                  <div className="flex items-start gap-3 w-full">
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h3 className="text-amber-200 font-bold">{item.name}</h3>
-                          <p className="text-amber-400 text-xs">{item.description}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`font-bold ${mode === 'sell' ? 'text-green-400' : 'text-yellow-300'}`}>
-                            {mode === 'sell' ? displayPrice.toFixed(2) : displayPrice}🌮
+                          <h3 className="font-serif text-lg text-[#f3ead8]">{item.name}</h3>
+                          <p className="west-face-body mt-1">
+                            ${Math.ceil(getPrice(item, false) * item.quantity)} buy / ${item.sellPrice} sell · {item.quantity} {item.unit}. On hand: {stock}. {item.description}
                           </p>
-                          <p className="text-amber-500 text-xs">
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              type="button"
+                              className="west-face-pill"
+                              onClick={(e) => { e.stopPropagation(); void handleBuy(item, 1) }}
+                            >
+                              Buy
+                            </button>
+                            <button
+                              type="button"
+                              className="west-face-pill"
+                              disabled={stock < 1}
+                              onClick={(e) => { e.stopPropagation(); void handleSell(item, item.resource === 'food' ? Math.min(50, stock) : 1) }}
+                            >
+                              Sell
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-serif text-[#e8dcc4]">
+                            {mode === 'sell' ? displayPrice.toFixed(2) : displayPrice} tacos
+                          </p>
+                          <p className="text-xs text-[#9a8b70]">
                             {mode === 'buy' ? `per ${item.quantity} ${item.unit}` : `per ${item.unit}`}
                           </p>
                         </div>

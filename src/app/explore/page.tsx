@@ -23,6 +23,12 @@ import {
   type TownMystery,
 } from './data/townMysteries'
 import { hasInvestigation } from '@/lib/townInvestigations'
+import { KarmaToastContainer } from '@/components/karma'
+import { useKarma } from '@/lib/karmaContext'
+import { readSharedCharacter } from '@/lib/sharedCharacter'
+import { VolcanoStayShow } from '@/components/VolcanoStayShow'
+import { InteractiveTown } from '@/components/explore/InteractiveTown'
+import { GOLD_COUNTRY_MAP_ART, exploreMapPosition } from '@/lib/goldCountryEditorial'
 
 // ============================================
 // TOWN & ATTRACTION DATA
@@ -411,11 +417,11 @@ const TOWNS: Town[] = [
   },
   {
     id: 'bobr_ranch',
-    name: 'BOBR Ranch',
+    name: 'Back of Beyond Ranch',
     tagline: 'Your Base Camp',
-    description: 'Your adventure headquarters in Gold Country. Where the games begin and the real explorations start.',
-    townStory: 'BOBR Ranch combines the best of Gold Country hospitality with modern amenities. Your staging point for both virtual adventures and real-world exploration.',
-    coordinates: { lat: 38.4000, lng: -120.5000 },
+    description: 'The real guest ranch in the Calaveras oak foothills — greenhouse porch, oaks, and the camp from which the Gold Country towns are walked.',
+    townStory: 'Back of Beyond Ranch is the home place: a two-story cedar house with a glass sun porch under valley oaks, a few miles of West Point. Staging point for virtual adventures and the real explorations that start from the porch.',
+    coordinates: { lat: 38.3947, lng: -120.5269 },
     attractions: [
       {
         id: 'bobr_cabin',
@@ -904,6 +910,7 @@ function TownDrawer({
   isOpen: boolean
   onClose: () => void
 }) {
+  const { applyKarma } = useKarma()
   const {
     progress,
     currentLevel,
@@ -970,6 +977,7 @@ function TownDrawer({
     if (!isAttractionVisited(attraction.id)) {
       visitTown(town.id)
       const result = visitAttraction(attraction.id, town.id)
+      applyKarma('gold_country_explore', `Scouted ${attraction.name} in ${town.name}`, -2, -1)
 
       // Check for mystery clue discovery
       if (mystery && !mysterySolved) {
@@ -1089,9 +1097,12 @@ function TownDrawer({
           </div>
         </div>
 
-        {/* 64-bit period backdrop of the real place (centered band so the scene reads) */}
-        <div className="border-b-2 border-amber-600/30 bg-black/40">
-          <PlaceBackdrop id={town.id} className="mx-auto h-40 max-w-md object-top" />
+        {/* Full Main Street painting stays pinned while you walk the town. */}
+        <div className="sticky top-0 z-10 border-b-2 border-amber-600/30 bg-[#0e0c0a]">
+          <PlaceBackdrop
+            id={expandedAttraction || town.id}
+            className="mx-auto h-64 max-w-4xl object-contain visual64-scene-image md:h-80"
+          />
         </div>
 
         {/* Scrollable body — town story, clue notice, mystery + deduction, and
@@ -1119,10 +1130,6 @@ function TownDrawer({
         {/* Mystery Panel */}
         {mystery && (
           <div className="mx-4 mt-3 p-3 bg-slate-800 border-2 border-indigo-500/50 rounded-lg">
-            {/* 2026-06-17: lead the CASE with the real place picture (the Where-in-Time
-                "#2" hallmark Leif praised) so each investigation is picture-led, not
-                text-only. Graceful — renders nothing if a town has no art. */}
-            <PlaceBackdrop id={town.id} className="mb-3 h-28 rounded-md border border-indigo-500/40 object-top" />
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="text-lg">{mysterySolved ? '✅' : '🔎'}</span>
@@ -1309,6 +1316,12 @@ function TownDrawer({
                 {/* Expanded Details */}
                 {expanded && (
                   <div className="px-3 pb-3 space-y-3">
+                    {town.id === 'volcano' && (
+                      <PlaceBackdrop
+                        id={attraction.id}
+                        className="h-28 rounded-md border border-amber-700/40 visual64-scene-image"
+                      />
+                    )}
                     <p className="text-slate-300 text-xs">{attraction.description}</p>
 
                     {/* Fun Fact */}
@@ -1324,6 +1337,8 @@ function TownDrawer({
                         <p className="text-purple-200 text-xs mt-1">{attraction.insiderTip}</p>
                       </div>
                     )}
+
+                    {attraction.id === 'vol_theatre' && <VolcanoStayShow />}
 
                     {/* Duration & Actions */}
                     <div className="flex items-center justify-between">
@@ -1433,13 +1448,18 @@ function TownDrawer({
 // Progress HUD
 function ExplorerHUD() {
   const { progress, currentLevel, xpToNextLevel, progressPercent, getRandomTobiasTip, checkStreak } = useExplorer()
+  const { applyKarma, alignmentPosition, karma } = useKarma()
+  const [partyName, setPartyName] = useState<string | null>(null)
   const [showTip, setShowTip] = useState(false)
   const [tip, setTip] = useState('')
   const [showBadges, setShowBadges] = useState(false)
+  const [encounter, setEncounter] = useState<string | null>(null)
 
   // Check streak on mount
   useEffect(() => {
     checkStreak()
+    const c = readSharedCharacter()
+    setPartyName(c ? `${c.name}${c.background ? ' · ' + c.background : ''}` : null)
   }, [checkStreak])
 
   const handleTobiasTip = () => {
@@ -1457,6 +1477,39 @@ function ExplorerHUD() {
         nextLevelXP={EXPLORER_LEVELS[currentLevel.level]?.xpRequired || progress.totalXP}
         progressPercent={progressPercent}
       />
+
+      {/* Shining Force-style party strip */}
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        {['Scout', 'Talk', 'Search', 'Camp'].map((act) => (
+          <button
+            key={act}
+            type="button"
+            className="west-face-pill text-[10px]"
+            onClick={() => {
+              const line =
+                act === 'Scout' ? 'You read the ridgeline before the town sees you.' :
+                act === 'Talk' ? 'You ask first, and the town answers slower.' :
+                act === 'Search' ? 'You turn a board, not a rumor.' :
+                'You rest the party. Tomorrow the map still waits.'
+              applyKarma(
+                'gold_country_explore',
+                `${act}: ${line}`,
+                act === 'Talk' ? 0 : -2,
+                act === 'Talk' ? -3 : act === 'Camp' ? -1 : -1
+              )
+              setEncounter(line)
+            }}
+          >
+            {act}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 font-serif text-[11px] text-[#b8a88a]">
+        {partyName || 'No named party yet — the map still takes a scout.'}
+        {' · '}{alignmentPosition.replace('_', ' ')}
+        {' · '}law {karma.alignment.lawfulChaotic} / good {karma.alignment.goodEvil}
+      </p>
+      {encounter && <p className="mt-1 font-serif text-xs italic text-[#e8dcc4]">{encounter}</p>}
 
       {/* Stats Row */}
       <div className="flex items-center justify-between mt-3 text-xs">
@@ -1531,19 +1584,39 @@ function ExplorerHUD() {
 function ExplorerMap() {
   const [selectedTown, setSelectedTown] = useState<Town | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [inTown, setInTown] = useState(false)
   const { progress, isTownVisited, getTownCompletionPercent, isMysterySolved, getMysteryProgress } = useExplorer()
 
   useEffect(() => {
     trackPageView('/explore')
+    try {
+      const q = new URLSearchParams(window.location.search).get('town')
+      if (q) {
+        const hit = TOWNS.find((t) => t.id === q)
+        if (hit) {
+          setSelectedTown(hit)
+          setInTown(true)
+        }
+      }
+    } catch { /* ignore */ }
   }, [])
 
   const handleTownClick = (town: Town) => {
     setSelectedTown(town)
-    setDrawerOpen(true)
+    setInTown(true)
+  }
+
+  const posById = Object.fromEntries(
+    TOWNS.map((t) => [t.id, exploreMapPosition(t.id, t.coordinates.lat, t.coordinates.lng)]),
+  ) as Record<string, { x: number; y: number }>
+
+  if (inTown && selectedTown) {
+    return <InteractiveTown town={selectedTown} onLeave={() => setInTown(false)} />
   }
 
   return (
     <div className="min-h-screen bg-[var(--pixel-bg-dark)]">
+      <KarmaToastContainer />
       <PixelNavigation />
 
       <div className="max-w-6xl mx-auto px-4 py-8">
@@ -1559,122 +1632,50 @@ function ExplorerMap() {
         <ExplorerHUD />
 
         {/* Map */}
-        <div className="relative bg-gradient-to-b from-[var(--pixel-forest-dark)] to-[var(--pixel-earth-dark)] border-4 border-[var(--pixel-ui-border)] aspect-[4/3] overflow-hidden rounded-lg">
-          {/* Grid overlay */}
-          <div className="absolute inset-0 opacity-10">
-            {[...Array(10)].map((_, i) => (
-              <div key={`h-${i}`} className="absolute w-full h-px bg-[var(--pixel-ui-text)]" style={{ top: `${i * 10}%` }} />
-            ))}
-            {[...Array(10)].map((_, i) => (
-              <div key={`v-${i}`} className="absolute h-full w-px bg-[var(--pixel-ui-text)]" style={{ left: `${i * 10}%` }} />
-            ))}
-          </div>
+        <div className="relative bg-[#2a261c] border-4 border-[var(--pixel-ui-border)] aspect-[4/3] overflow-hidden rounded-lg">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={GOLD_COUNTRY_MAP_ART}
+            alt="Gold Country relief map"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-[#1a1610]/35" />
 
-          {/* Gold Country Map Background */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 75" preserveAspectRatio="xMidYMid slice">
-            {/* Mountain ranges */}
-            <polygon points="0,20 8,8 16,14 24,3 32,12 40,6 48,14 56,4 64,10 72,2 80,12 88,7 96,14 100,10 100,22 0,22"
-              fill="var(--pixel-earth-mid)" opacity="0.2" />
-            <polygon points="0,26 12,16 20,22 28,12 36,18 44,10 52,20 60,14 68,8 76,18 84,13 92,20 100,16 100,28 0,28"
-              fill="var(--pixel-earth-dark)" opacity="0.15" />
-
-            {/* Rivers — Mokelumne and Calaveras */}
-            <path d="M 0,35 Q 10,32 18,38 Q 26,44 35,40 Q 42,36 50,42 Q 58,48 65,44 Q 75,38 85,45 Q 92,50 100,48"
-              fill="none" stroke="#4a90d9" strokeWidth="0.6" opacity="0.35" strokeLinecap="round" />
-            <path d="M 0,55 Q 8,52 15,56 Q 22,60 30,58 Q 38,54 45,60 Q 52,65 60,62 Q 68,58 78,64 Q 88,68 100,65"
-              fill="none" stroke="#4a90d9" strokeWidth="0.5" opacity="0.25" strokeLinecap="round" />
-
-            {/* Mother Lode gold belt — diagonal band NW to SE */}
-            <path d="M 10,15 Q 20,25 25,35 Q 30,45 35,55 Q 42,65 50,75"
-              fill="none" stroke="var(--pixel-gold-mid)" strokeWidth="8" opacity="0.06" strokeLinecap="round" />
-
-            {/* Trail connections between towns */}
-            {/* Volcano (35,35) -> West Point (55,40) */}
-            <path d="M 35,26 Q 42,28 48,30 Q 52,32 55,30"
-              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
-            {/* Volcano (35,35) -> Mokelumne Hill (20,50) */}
-            <path d="M 35,26 Q 30,32 26,38 Q 22,43 20,38"
-              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
-            {/* Mokelumne Hill (20,50) -> Angels Camp (25,65) */}
-            <path d="M 20,38 Q 20,45 22,52 Q 24,58 25,49"
-              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
-            {/* Mokelumne Hill (20,50) -> San Andreas (35,75) */}
-            <path d="M 20,38 Q 24,45 28,52 Q 32,58 35,56"
-              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
-            {/* San Andreas (35,75) -> Angels Camp (25,65) */}
-            <path d="M 35,56 Q 32,52 28,50 Q 26,49 25,49"
-              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
-            {/* West Point (55,40) -> BOBR Ranch (50,50) */}
-            <path d="M 55,30 Q 54,35 52,38 Q 51,42 50,38"
-              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
-            {/* Nevada City (72,18) -> Grass Valley (82,28) */}
-            <path d="M 72,14 Q 76,18 79,22 Q 81,25 82,20"
-              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
-            {/* Volcano (35,35) -> Nevada City (72,18) — long northern trail */}
-            <path d="M 35,26 Q 45,20 55,17 Q 63,15 72,14"
-              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.3" opacity="0.3" strokeDasharray="2,2" />
-            {/* Angels Camp (25,65) -> Angels Camp Expanded (15,72) */}
-            <path d="M 25,49 Q 20,55 17,60 Q 16,64 15,56"
-              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
-            {/* San Andreas (35,75) -> Mariposa (42,88) */}
-            <path d="M 35,56 Q 37,62 39,68 Q 40,74 42,66"
-              fill="none" stroke="var(--pixel-earth-light)" strokeWidth="0.4" opacity="0.4" strokeDasharray="2,1" />
-
-            {/* Forest patches — scattered pine treeline shapes */}
-            <g opacity="0.12" fill="var(--pixel-forest-mid)">
-              <polygon points="5,30 7,22 9,30" />
-              <polygon points="8,31 10,24 12,31" />
-              <polygon points="60,20 62,13 64,20" />
-              <polygon points="63,21 65,15 67,21" />
-              <polygon points="75,28 77,21 79,28" />
-              <polygon points="85,35 87,28 89,35" />
-              <polygon points="12,45 14,38 16,45" />
-              <polygon points="70,50 72,43 74,50" />
-              <polygon points="80,55 82,48 84,55" />
-              <polygon points="45,22 47,15 49,22" />
-              <polygon points="90,42 92,35 94,42" />
-            </g>
-
-            {/* Mining symbols along the Mother Lode */}
-            <g opacity="0.15" fill="var(--pixel-gold-dark)">
-              <circle cx="22" cy="33" r="0.8" />
-              <circle cx="28" cy="42" r="0.6" />
-              <circle cx="33" cy="52" r="0.7" />
-              <circle cx="38" cy="60" r="0.5" />
-              <circle cx="30" cy="48" r="0.5" />
-            </g>
-
-            {/* Compass rose — bottom right */}
-            <g transform="translate(88,65)" opacity="0.2">
-              <line x1="0" y1="-4" x2="0" y2="4" stroke="var(--pixel-gold-light)" strokeWidth="0.3" />
-              <line x1="-4" y1="0" x2="4" y2="0" stroke="var(--pixel-gold-light)" strokeWidth="0.3" />
-              <polygon points="0,-5 -1,-2 1,-2" fill="var(--pixel-gold-mid)" />
-              <text x="0" y="-6" textAnchor="middle" fontSize="2.5" fill="var(--pixel-gold-light)" fontFamily="serif">N</text>
-            </g>
-
-            {/* "GOLD COUNTRY" label */}
-            <text x="50" y="72" textAnchor="middle" fontSize="3" fill="var(--pixel-gold-mid)" opacity="0.15"
-              fontFamily="serif" letterSpacing="3">GOLD COUNTRY</text>
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <text x="8" y="52" fill="#c4b896" fontSize="3.2" opacity="0.45" fontFamily="serif" transform="rotate(-90 8 52)">CENTRAL VALLEY</text>
+            <text x="92" y="48" fill="#d8e4ea" fontSize="3.2" opacity="0.5" fontFamily="serif" transform="rotate(90 92 48)">SIERRA NEVADA</text>
+            {([
+              ['nevada_city', 'grass_valley'],
+              ['grass_valley', 'volcano'],
+              ['volcano', 'west_point'],
+              ['west_point', 'bobr_ranch'],
+              ['volcano', 'mokelumne_hill'],
+              ['mokelumne_hill', 'san_andreas'],
+              ['san_andreas', 'angels_camp'],
+              ['angels_camp', 'angels_camp_expanded'],
+              ['angels_camp', 'mariposa'],
+            ] as const).map(([from, to]) => {
+              const a = posById[from]
+              const b = posById[to]
+              if (!a || !b) return null
+              return (
+                <line
+                  key={`${from}-${to}`}
+                  x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                  stroke="#e8d5a3"
+                  strokeWidth="0.35"
+                  opacity="0.55"
+                  strokeDasharray="1.6 1.2"
+                />
+              )
+            })}
           </svg>
 
-          {/* Town markers */}
-          {TOWNS.map((town, index) => {
+          {/* Town markers — lat/lng on the Gold Country map frame */}
+          {TOWNS.map((town) => {
             const visited = isTownVisited(town.id)
             const completion = getTownCompletionPercent(town.id)
-            // Arrange towns in a rough geographic pattern
-            const positions: Record<string, { x: number; y: number }> = {
-              volcano: { x: 35, y: 35 },
-              angels_camp: { x: 25, y: 65 },
-              west_point: { x: 55, y: 40 },
-              mokelumne_hill: { x: 20, y: 50 },
-              san_andreas: { x: 35, y: 75 },
-              bobr_ranch: { x: 50, y: 50 },
-              nevada_city: { x: 72, y: 18 },
-              grass_valley: { x: 82, y: 28 },
-              angels_camp_expanded: { x: 15, y: 72 },
-              mariposa: { x: 42, y: 88 },
-            }
-            const pos = positions[town.id] || { x: 50, y: 50 }
+            const pos = posById[town.id] || { x: 50, y: 50 }
 
             return (
               <button
@@ -1731,8 +1732,8 @@ function ExplorerMap() {
                   })()}
 
                   {/* Label */}
-                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="font-[var(--font-pixel)] text-[8px] text-white bg-black/70 px-2 py-1 rounded">
+                  <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                    <span className="font-[var(--font-pixel)] text-[7px] text-white bg-black/75 px-1.5 py-0.5 rounded shadow">
                       {town.name}
                     </span>
                   </div>
@@ -1783,7 +1784,7 @@ function ExplorerMap() {
           </Link>
           <Link href="/rentals" className="block">
             <PixelButton variant="blue" size="sm" className="w-full">
-              🏠 Book Your Stay
+              🏡 The ranch in this country
             </PixelButton>
           </Link>
         </div>

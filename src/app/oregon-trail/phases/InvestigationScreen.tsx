@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useMystery } from '../mysteryContext'
 import { useNarrator } from '../narratorContext'
@@ -8,6 +8,7 @@ import { useReputation } from '../reputationContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { NarratorOverlay, ReliabilityIndicator } from '../components/NarratorOverlay'
 import { getNPCsAtLocation } from '../data/goldCountryNPCs'
+import { CRIME_DESCRIPTIONS } from '../data/clueTemplates'
 
 export function InvestigationScreen() {
   const { state, closeInvestigation, openWitnessDialogue, openDossier, openTelegraph, openJournal, investigateLocation } = useOregonTrail()
@@ -16,6 +17,16 @@ export function InvestigationScreen() {
   const { getReputation } = useReputation()
 
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
+
+  // The crime generator existed but was never called from this screen, so
+  // Investigate was a map of empty saloons. Open a case when none is live.
+  useEffect(() => {
+    if (!mysteryState.currentCrime) {
+      generateCrimeAtLocation(state.currentLandmark || 'Independence, Missouri')
+    }
+    // once per visit — a fresh crime every render would wipe clues
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Available investigation locations based on landmark type
   const investigationLocations = [
@@ -56,6 +67,21 @@ export function InvestigationScreen() {
             <ReliabilityIndicator compact />
           </div>
         </header>
+
+        {mysteryState.currentCrime && (
+          <div className="mb-6 rounded-lg border-2 border-amber-700/70 bg-black/30 p-4">
+            <p className="font-pixel text-amber-200 text-sm">
+              {CRIME_DESCRIPTIONS[mysteryState.currentCrime.type]?.title || 'A crime on the books'}
+            </p>
+            <p className="text-amber-400/90 text-sm mt-2 leading-relaxed">
+              {CRIME_DESCRIPTIONS[mysteryState.currentCrime.type]?.description ||
+                'Someone left a mess. The paper on the spike wants a name.'}
+            </p>
+            <p className="text-stone-500 text-xs mt-2">
+              Ask around. Traits go in the journal. The telegraph is for the warrant.
+            </p>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="flex gap-2 mb-6">

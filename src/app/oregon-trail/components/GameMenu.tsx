@@ -17,6 +17,9 @@ import { NPCRelationshipPanel } from './NPCRelationshipPanel'
 import { playSFX } from '../lib/audioManager'
 import { useEscapeKey } from '../lib/useEscapeKey'
 import type { StatName, SaddleStats } from '../characterContext'
+import Link from 'next/link'
+import { ProximityNpcs } from '@/components/westFace/ProximityNpcs'
+import { readDiscovered } from '@/lib/oneMapDiscovery'
 
 interface GameMenuProps {
   isOpen: boolean
@@ -88,47 +91,30 @@ export function PipBoyMenu({ isOpen, onClose, onOpenCamp }: GameMenuProps) {
     switch (selectedSection) {
       // ── Trail Map ─────────────────────────────────────────────────
       case 'trail_map': {
-        const landmarks = [
-          'Independence', 'Kansas River', 'Fort Kearney', 'Chimney Rock',
-          'Fort Laramie', 'Independence Rock', 'South Pass', 'Fort Bridger',
-          'Soda Springs', 'Fort Hall', 'Snake River', 'Fort Boise',
-          'Blue Mountains', 'The Dalles', 'Willamette Valley',
-        ]
-        const currentIdx = landmarks.indexOf(state.currentLandmark)
+        const known = typeof window !== 'undefined' ? readDiscovered() : ['independence']
         return (
-          <div className="space-y-1">
-            <h3 className="font-pixel text-amber-200 text-sm mb-3">
-              {'\ud83d\uddfa\ufe0f'} Trail Progress
-            </h3>
-            <p className="text-amber-400/60 text-[10px] font-pixel mb-3">
-              {state.distance} miles traveled {'\u2022'} Next: {state.nextLandmark} ({state.milesUntilNextLandmark}mi)
+          <div className="space-y-3">
+            <h3 className="west-face-title text-xl">The one map</h3>
+            <p className="west-face-body">
+              Destination is Gold Country / Back of Beyond, not the Willamette.
+              Fog lifts as you travel or walk into a place (GPS).
             </p>
-            <div className="space-y-1">
-              {landmarks.map((lm, i) => {
-                const visited = i <= currentIdx
-                const isCurrent = i === currentIdx
-                return (
-                  <div
-                    key={lm}
-                    className={`flex items-center gap-2 text-[10px] font-pixel py-0.5 ${
-                      isCurrent
-                        ? 'text-amber-200'
-                        : visited
-                        ? 'text-amber-400/40'
-                        : 'text-amber-400/20'
-                    }`}
-                  >
-                    <span>
-                      {isCurrent ? '\ud83d\udea9' : visited ? '\u2713' : '\u2022'}
-                    </span>
-                    <span>{lm}</span>
-                  </div>
-                )
-              })}
-            </div>
+            <p className="west-face-body">
+              Wagon: {state.distance} mi · here: {state.currentLandmark || 'Independence'} · next: {state.nextLandmark} ({state.milesUntilNextLandmark} mi)
+            </p>
+            <ul className="west-face-body list-disc pl-5">
+              {known.map((id) => (
+                <li key={id}>{id.replace(/_/g, ' ')}</li>
+              ))}
+            </ul>
+            <Link href="/map" className="west-face-pill west-face-pill-cream inline-flex">
+              Open map
+            </Link>
           </div>
         )
       }
+      case 'nearby':
+        return <ProximityNpcs />
 
       // ── Party & Posse ─────────────────────────────────────────────
       case 'party_posse':

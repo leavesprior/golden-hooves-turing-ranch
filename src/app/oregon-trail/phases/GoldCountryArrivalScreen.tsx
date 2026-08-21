@@ -11,7 +11,7 @@ import GoldCountryBooking from '../components/GoldCountryBooking'
 export function GoldCountryArrivalScreen() {
   const { state, enterSettlement, leaveSettlement, resetGame } = useOregonTrail()
   const { balance } = useKarmaWallet()
-  const { autoStartFirstCase } = useMystery()
+  const { autoStartFirstCase, state: mysteryState } = useMystery()
   const { recordMilestone } = useCrossGame()
   const [showBooking, setShowBooking] = useState(false)
 
@@ -42,7 +42,8 @@ export function GoldCountryArrivalScreen() {
 
   // Calculate karma score and outlaws caught for discount tier
   const karmaScore = balance.good + Math.floor(balance.neutral / 2)
-  const outlawsCaught = state.outlawsCaught || 0
+  // Trail reducer never writes outlawsCaught; the Pinkerton catch lives on mysteryState.
+  const outlawsCaught = Math.max(state.outlawsCaught || 0, mysteryState.outlawsCaught || 0)
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-yellow-950 via-amber-900 to-amber-950 flex items-center justify-center p-4">

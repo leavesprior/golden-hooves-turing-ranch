@@ -1,11 +1,14 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Book Your Stay | Back of Beyond Ranch',
-  description: 'Book Back of Beyond Ranch in Gold Country, California. 6 bedrooms, sleeps 12, solar EV charging, hot tub, and ranch animals on 10 private acres near Kirkwood ski resort.',
+  title: 'West Point ranch stay | Back of Beyond Ranch',
+  description:
+    'Stay at Back of Beyond Ranch in West Point, Gold Country. 6 bedrooms, sleeps 12, solar Level 2 overnight EV charging, hot tub, 60 acres near Kirkwood.',
+  alternates: { canonical: '/rentals' },
   openGraph: {
-    title: 'Book Your Stay | Back of Beyond Ranch',
-    description: 'Book Back of Beyond Ranch in Gold Country, California. 6 bedrooms, sleeps 12, solar EV charging, hot tub, and ranch animals on 10 private acres near Kirkwood ski resort.',
+    title: 'West Point ranch stay | Back of Beyond Ranch',
+    description:
+      '60-acre house in Gold Country with overnight Level 2 EV charging. Kirkwood about 45 minutes.',
     type: 'website',
   },
 }

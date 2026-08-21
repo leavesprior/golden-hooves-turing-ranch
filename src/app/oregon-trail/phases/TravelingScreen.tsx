@@ -17,6 +17,7 @@ import { TravelObservations } from '../components/TravelObservations'
 import { type WeatherMood } from '../data/travelObservations'
 import { LandmarkScene, type LandmarkType } from '../components/LandmarkScene'
 import { LANDMARKS } from '../state/constants'
+import { editorialForDistance, terrainForDistance } from '@/lib/californiaTrailArt'
 import { PossePanel } from '../components/PossePanel'
 import { CharacterSheet } from '../components/CharacterSheet'
 import { type ActiveEffect } from '../data/consumableEffects'
@@ -68,14 +69,10 @@ export function TravelingScreen({
     : state.weather === 'snow' ? 'snow'
     : 'clear'
 
-  // Determine terrain type based on distance
-  const getTerrain = (): 'plains' | 'mountains' | 'desert' | 'forest' | 'river' => {
-    if (state.distance < 400) return 'plains'
-    if (state.distance < 800) return 'forest'
-    if (state.distance < 1200) return 'mountains'
-    if (state.distance < 1600) return 'desert'
-    return 'plains'
-  }
+  const getTerrain = (): 'plains' | 'mountains' | 'desert' | 'forest' | 'river' =>
+    terrainForDistance(state.distance)
+
+  const trailArt = editorialForDistance(state.distance)
 
   // Get CSS filter based on graphics tier
   const tierFilter = getTierFilter(state.graphicsTier)
@@ -104,31 +101,26 @@ export function TravelingScreen({
       weather={graphicsWeather}
       showLandmarks
       currentLandmark={state.currentLandmark}
+      terrain={getTerrain()}
     >
-      <div className="min-h-screen p-4 crt-scanlines" style={{ filter: tierFilter }}>
+      <div className="min-h-screen p-4" style={{ filter: tierFilter }}>
         <KarmaToastContainer />
 
         <div className="max-w-3xl mx-auto">
-          {/* Header */}
-          <header className="flex items-center justify-between mb-4 pt-4">
+          <header className="mb-4 flex items-center justify-between pt-4">
             <div>
-              <h1 className="font-pixel text-amber-200 text-lg">Day {state.day}</h1>
-              <p className="text-amber-400 text-xs">{weatherEmoji} {state.weather}</p>
-              {state.graphicsTier === 'ultra_64bit' && (
-                <p className="text-purple-400 text-[10px]">{timeOfDay} | {getTerrain()}</p>
-              )}
+              <p className="west-face-eyebrow">On the trail</p>
+              <h1 className="west-face-title mt-1 text-2xl">Day {state.day}</h1>
+              <p className="mt-1 font-serif text-sm text-[#b8a88a]">
+                {weatherEmoji} {state.weather}
+              </p>
             </div>
-            <div className="flex items-center gap-3">
-              {state.graphicsTier === 'ultra_64bit' && (
-                <span className="text-purple-400 text-[10px] px-2 py-0.5 bg-purple-900/50 rounded">64-bit</span>
-              )}
-              <Link
-                href="/hub"
-                className="text-amber-400 hover:text-amber-200 text-xs font-pixel"
-              >
-                Quit Game
-              </Link>
-            </div>
+            <Link
+              href="/hub"
+              className="west-face-pill text-xs"
+            >
+              Quit Game
+            </Link>
           </header>
 
           {/* Scenic landmark passing — real place art for the arrival day */}
@@ -146,36 +138,18 @@ export function TravelingScreen({
               tier={state.graphicsTier}
               timeOfDay={timeOfDay}
               weather={graphicsWeather}
-              progress={Math.max(0, Math.min(100, state.milesUntilNextLandmark > 0 ? Math.round(100 - (state.milesUntilNextLandmark / 100) * 100) : 100))}
+              progress={Math.max(0, Math.min(100, progress))}
               terrain={getTerrain()}
+              nextStop={state.nextLandmark}
+              milesLeft={state.milesUntilNextLandmark}
+              artSrc={trailArt.src}
             />
           )}
 
-          {/* Progress bar */}
-          <div className="mb-6">
-            <div className="flex justify-between text-xs text-amber-400 mb-1">
-              <span>Independence, MO</span>
-              <span>Gold Country, CA</span>
-            </div>
-            <div className="h-4 bg-amber-950 rounded-full overflow-hidden border-2 border-amber-600">
-              <div
-                className="h-full bg-gradient-to-r from-green-600 to-yellow-500 transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="text-center text-amber-300 text-xs mt-1">
-              {state.distance} / 2000 miles
-            </div>
-          </div>
-
-          {/* Current location */}
-          <div className="text-center mb-6">
-          <p className="text-amber-400 text-xs">Near</p>
-          <p className="font-pixel text-amber-200 text-lg">{state.currentLandmark}</p>
-          <p className="text-amber-500 text-xs mt-1">
-            {state.milesUntilNextLandmark} miles to {state.nextLandmark}
+          <p className="mb-6 text-center font-serif text-sm text-[#b8a88a]">
+            {state.distance} of 2000 miles
+            {state.currentLandmark ? ` · near ${state.currentLandmark}` : ''}
           </p>
-        </div>
 
         {/* Message */}
         {state.message && (

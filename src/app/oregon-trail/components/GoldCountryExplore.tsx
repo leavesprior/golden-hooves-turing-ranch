@@ -18,18 +18,7 @@ import {
   goldCountryIconToType,
 } from './map'
 import { type MapLocation } from '../data/worldMaps'
-
-// Haversine for GPS vs location coords
-function getDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
+import { readDiscovered, metersBetween } from '@/lib/oneMapDiscovery'
 
 interface GoldCountryExploreProps {
   onVisitLocation: (locationId: string) => void
@@ -51,7 +40,7 @@ function toMapLocations(
     y: positions[loc.id]?.y ?? 50,
     type: 'town' as const,
     chapter: 'gold_country' as const,
-    discovered: true,
+    discovered: false,
     lore: {
       founded: '',
       peakPopulation: 0,
@@ -117,7 +106,11 @@ export function GoldCountryExplore({
   }, [requestGPS])
 
   const currentLoc = state.currentGoldCountryLocation || 'bobr_cabin'
-  const discovered = state.discoveredGoldLocations
+  const discovered = useMemo(() => {
+    const wagon = state.discoveredGoldLocations || []
+    const one = typeof window !== 'undefined' ? readDiscovered() : []
+    return Array.from(new Set([...wagon, ...one]))
+  }, [state.discoveredGoldLocations])
 
   // Map location positions (relative to SVG viewBox 0-100)
   const locationPositions: Record<string, { x: number; y: number }> = useMemo(() => ({
@@ -145,11 +138,11 @@ export function GoldCountryExplore({
     if (!userLocation) return false
     const loc = GOLD_COUNTRY_LOCATIONS.find(l => l.id === locId)
     if (!loc) return false
-    const dist = getDistance(
-      userLocation.lat, userLocation.lng,
-      loc.coordinates.lat, loc.coordinates.lng
+    const meters = metersBetween(
+      { lat: userLocation.lat, lng: userLocation.lng },
+      { lat: loc.coordinates.lat, lng: loc.coordinates.lng },
     )
-    return dist < 5 // ~5km for "at location" (tune per real)
+    return meters < 500
   }
 
   // Create discovered/scoutable sets

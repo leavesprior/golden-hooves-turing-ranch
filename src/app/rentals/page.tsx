@@ -2,9 +2,15 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { useGame } from '@/lib/gameContext'
 import { airbnbBookingLink } from '@/lib/airbnbLink'
+
+const RANCH_ORIGIN = '38.3947,-120.5269'
+function mapsDir(destination: string): string {
+  return `https://www.google.com/maps/dir/?api=1&origin=${RANCH_ORIGIN}&destination=${encodeURIComponent(destination)}`
+}
 
 // Real BOBR property photos shipped in /public/cabin-photos.
 // Hero = cabin-1; gallery = the rest. cabin-6 is .png; the rest are .jpg.
@@ -28,13 +34,48 @@ const amenities = [
   { icon: '🍳', name: 'Full Kitchen', desc: 'Chef-ready' },
   { icon: '📶', name: 'Fast WiFi', desc: 'Work remotely' },
   { icon: '🚗', name: 'Free Parking', desc: '6+ vehicles' },
+  { icon: '⚡', name: 'Level 2 EV', desc: 'Solar overnight · Tesla adapter' },
 ]
 
-const nearby = [
-  { name: 'Kirkwood Ski Resort', time: '25 min', icon: '⛷️' },
-  { name: 'Bear Valley Ski', time: '35 min', icon: '🏂' },
-  { name: 'Wine Country', time: '20 min', icon: '🍷' },
-  { name: 'Historic Gold Mines', time: '15 min', icon: '⛏️' },
+const nearby: Array<{
+  name: string
+  time: string
+  icon: string
+  href: string
+  external?: boolean
+  go: string
+}> = [
+  {
+    name: 'Kirkwood Ski Resort',
+    time: '45 min',
+    icon: '⛷️',
+    href: mapsDir('Kirkwood Mountain Resort, California'),
+    external: true,
+    go: 'Directions',
+  },
+  {
+    name: 'Bear Valley Ski',
+    time: '1 hr',
+    icon: '🏂',
+    href: mapsDir('Bear Valley Mountain Resort, California'),
+    external: true,
+    go: 'Directions',
+  },
+  {
+    name: 'Wine Country',
+    time: '50 min',
+    icon: '🍷',
+    href: mapsDir('Ironstone Vineyards, Murphys, California'),
+    external: true,
+    go: 'Ironstone · Murphys',
+  },
+  {
+    name: 'Historic Gold Mines',
+    time: '15 min',
+    icon: '⛏️',
+    href: '/explore',
+    go: 'Gold Country map',
+  },
 ]
 
 export default function RentalsPage() {
@@ -93,10 +134,10 @@ export default function RentalsPage() {
         {/* Hero */}
         <div className="text-center mb-12">
           <h1 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-lg sm:text-xl mb-4">
-            🏨 THE INN 🏨
+            West Point, Calaveras County
           </h1>
           <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
-            Your base camp for Gold Country adventure
+            A house in Gold Country — the towns, mines, and theatre are a drive from the porch
           </p>
         </div>
 
@@ -104,11 +145,11 @@ export default function RentalsPage() {
         <div className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-ui-border)] p-4 mb-8">
           <div className="flex flex-wrap justify-center gap-4 sm:gap-8 font-[var(--font-pixel)] text-[8px]">
             <div className="text-center">
-              <span className="text-[var(--pixel-gold-light)] text-lg">4.85</span>
+              <span className="text-[var(--pixel-gold-light)] text-lg">4.84</span>
               <p className="text-[var(--pixel-ui-text)]">⭐ Rating</p>
             </div>
             <div className="text-center">
-              <span className="text-[var(--pixel-gold-light)] text-lg">268</span>
+              <span className="text-[var(--pixel-gold-light)] text-lg">290</span>
               <p className="text-[var(--pixel-ui-text)]">Reviews</p>
             </div>
             <div className="text-center">
@@ -223,7 +264,9 @@ export default function RentalsPage() {
                   Our 6-bedroom retreat sleeps up to 12 guests comfortably, with modern amenities and rustic charm. Relax in the hot tub under starlit skies, gather around the fire pit for stories, or challenge friends to pool in the game room.
                 </p>
                 <p>
-                  Minutes from world-class skiing, historic gold mines, and wine country—adventure awaits in every direction!
+                  Kirkwood and Bear Valley sit up the mountain; Ironstone and Murphys hold the wine country;
+                  Volcano and the Mother Lode keep the Gold Rush towns. Walk them on the map below, then stay
+                  if the country has hold of you.
                 </p>
               </div>
             </PixelCard>
@@ -231,19 +274,40 @@ export default function RentalsPage() {
             {/* Nearby */}
             <PixelCard title="🗺️ Nearby Adventures">
               <div className="grid sm:grid-cols-2 gap-4">
-                {nearby.map((place) => (
-                  <div key={place.name} className="flex items-center gap-3 bg-[var(--pixel-bg-dark)] p-3 border-2 border-[var(--pixel-ui-border)]">
-                    <span className="text-2xl">{place.icon}</span>
-                    <div>
-                      <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)]">
-                        {place.name}
-                      </p>
-                      <p className="font-[var(--font-pixel)] text-[6px] text-[var(--pixel-forest-light)]">
-                        {place.time} drive
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                {nearby.map((place) => {
+                  const className = 'flex items-center gap-3 bg-[var(--pixel-bg-dark)] p-3 border-2 border-[var(--pixel-ui-border)] hover:border-[var(--pixel-gold-mid)] transition-colors cursor-pointer'
+                  const inner = (
+                    <>
+                      <span className="text-2xl">{place.icon}</span>
+                      <div className="min-w-0">
+                        <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)]">
+                          {place.name}
+                        </p>
+                        <p className="font-[var(--font-pixel)] text-[6px] text-[var(--pixel-forest-light)]">
+                          {place.time} drive · {place.go} →
+                        </p>
+                      </div>
+                    </>
+                  )
+                  if (place.external) {
+                    return (
+                      <a
+                        key={place.name}
+                        href={place.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={className}
+                      >
+                        {inner}
+                      </a>
+                    )
+                  }
+                  return (
+                    <Link key={place.name} href={place.href} className={className}>
+                      {inner}
+                    </Link>
+                  )
+                })}
               </div>
             </PixelCard>
           </div>
@@ -268,7 +332,7 @@ export default function RentalsPage() {
                   <p className="font-[var(--font-pixel)] text-[6px] text-center text-[var(--pixel-ui-text)]">
                     or contact us directly
                   </p>
-                  <PixelButton variant="green" size="sm">
+                  <PixelButton href="mailto:contact@backofbeyondranch.farm" variant="green" size="sm">
                     📧 Send Message
                   </PixelButton>
                 </div>

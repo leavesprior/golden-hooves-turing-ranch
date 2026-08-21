@@ -134,6 +134,10 @@ export function WorldMapScreen() {
       <NarratorOverlay position="corner" />
 
       <div className="max-w-4xl mx-auto pt-4">
+        <p className="west-face-body mb-3">
+          All maps lead to the one map.{' '}
+          <Link href="/map" className="underline">Open the growing Gold Country map</Link>.
+        </p>
         {/* Header */}
         <header className="flex items-center justify-between mb-4">
           <div>

@@ -450,7 +450,7 @@ const ANGELS_CAMP: TownInvestigation = {
   title: "The Counterfeit Frog at Angels Camp",
   villain: 'Cyrus Vane — "the Tare"',
   setup:
-    'Angels Camp — founded by the Angel brothers, Henry and George, in 1848, grown rich on deep quartz, and made immortal one rainy fortnight in 1865 when a stranger named Sam Clemens sat at the Angels Hotel bar and wrote down a tall tale about a jumping frog. Now another stranger trades in tall tales. Cyrus Vane is selling a story he swears is true — a champion frog, a famous wager, a fortune in the Utica vein, all of it claiming HIS name and HIS presence. But this is the town that invented the tall tale; it knows a counterfeit when it hears one. Read the real places of Angels Camp by their true grain, and you will find where the lie was actually told.',
+    'Angels Camp — founded by Henry Pinkney Angell in 1848, grown rich on deep quartz, and made immortal one rainy fortnight in 1865 when a stranger named Sam Clemens sat at the Angels Hotel bar and wrote down a tall tale about a jumping frog. Now another stranger trades in tall tales. Cyrus Vane is selling a story he swears is true — a champion frog, a famous wager, a fortune in the Utica vein, all of it claiming HIS name and HIS presence. But this is the town that invented the tall tale; it knows a counterfeit when it hears one. Read the real places of Angels Camp by their true grain, and you will find where the lie was actually told.',
   scenes: [
     {
       id: 'angels_hotel',
@@ -524,7 +524,7 @@ const ANGELS_CAMP: TownInvestigation = {
   ],
   verdict:
     'You corner Cyrus Vane at the Jubilee, his frog-box in his hands, and the con collapses in the order he built it: wager gold laundered through the Utica\'s good name, a stolen seat on a disaster only three men survived, and a claim on fame that a published story has owned since 1865. One crime under all of it — the forgery of PRESENCE: claiming to have struck, survived, and authored where he never honestly was. ' +
-    'Which is the one thing Angels Camp cannot do. Henry and George Angel really founded the camp in 1848. The Utica really threw off millions in deep quartz, and its North Shaft really crushed seventeen men in December 1889 — only three walking out. Sam Clemens really sat at the Angels Hotel bar in 1865 and wrote the tall tale that made him famous, and the town really crowns that frog every year since 1928. This is the country that invented the tall tale; it keeps an honest record of who really told it — and that record is exactly what catches a man who only pretended to.',
+    'Which is the one thing Angels Camp cannot do. Henry Pinkney Angell really founded the camp in 1848. The Utica really threw off millions in deep quartz, and its North Shaft really crushed seventeen men in December 1889 — only three walking out. Sam Clemens really sat at the Angels Hotel bar in 1865 and wrote the tall tale that made him famous, and the town really crowns that frog every year since 1928. This is the country that invented the tall tale; it keeps an honest record of who really told it — and that record is exactly what catches a man who only pretended to.',
   sources: [
     'Angels Camp founding: brothers George and Henry Angel mined the site from 1848.',
     'Angels Hotel: begun as a canvas tent (C. C. Lake, 1851), rebuilt in stone in 1855 with a second story added in 1857; bartender Ben Coon told Mark Twain the frog-jump tale here in early 1865. California Historical Landmark #734.',

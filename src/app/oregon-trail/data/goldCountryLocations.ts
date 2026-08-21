@@ -59,7 +59,7 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     id: 'angels_camp',
     name: 'Angels Camp',
     shortName: 'Angels Camp',
-    description: 'Founded as a trading post by Henry and George Angel in 1848, this town struck it rich twice — first in the creeks, then in quartz mines that produced more than $100 million in gold. At the stone Angels Hotel (built 1855, still standing on Main Street), a broke young Mark Twain heard the frog story in 1865 that launched his career. Locals also tell of merchant Bennager Rasberry, whose jammed rifle ramrod blasted into a hillside in 1856 and uncovered $7,000 in gold inside three days. The annual Jumping Frog Jubilee keeps the legend leaping.',
+    description: 'Founded as a trading post by Henry Pinkney Angell in 1848, this town struck it rich twice — first in the creeks, then in quartz mines that produced more than $100 million in gold. At the stone Angels Hotel (built 1855, still standing on Main Street), a broke young Mark Twain heard the frog story in 1865 that launched his career. Locals also tell of merchant Bennager Rasberry, whose jammed rifle ramrod blasted into a hillside in 1856 and uncovered $7,000 in gold inside three days. The annual Jumping Frog Jubilee keeps the legend leaping.',
     region: 'calaveras',
     coordinates: { lat: 38.0680, lng: -120.5396 },
     driveTime: '55 min from BOBR',

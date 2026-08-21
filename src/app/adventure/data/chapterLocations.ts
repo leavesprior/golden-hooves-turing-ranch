@@ -65,9 +65,10 @@ export interface TravelEncounter {
 }
 
 // ============================================
-// CHAPTER 1: SACRAMENTO & THE JOURNEY WEST
-// The great jumping-off point — from Missouri to the tent city
-// on the Sacramento River where the Gold Rush began in earnest.
+// CHAPTER 1 (PREQUEL, 1849): THE ROAD TO THE DIGGINGS
+// Independence, Missouri is the jumping-off — not the Mother Lode.
+// /adventure/play starts in chapter 2 (Volcano). This chapter is the prequel
+// (?prequel=1). The full wagon is /oregon-trail.
 // ============================================
 
 export const CHAPTER_1_LOCATIONS: ChapterLocation[] = [
@@ -116,30 +117,7 @@ export const CHAPTER_1_LOCATIONS: ChapterLocation[] = [
         karmaReward: { lawful: 1, good: 2 },
         difficulty: 'hard',
       },
-      {
-        id: 'ch1_ind_bedrooms',
-        question: 'How many bedrooms does Pryor\'s Back of Beyond Ranch have waiting in California?',
-        answer: '6',
-        acceptableAnswers: ['6', 'six'],
-        hintText: 'Check the Airbnb listing for Pryor\'s Back of Beyond Ranch to see the accommodations.',
-        hintUrl: 'https://www.airbnb.com/rooms/30045739',
-        isListingClue: true,
-        xpReward: 10,
-        karmaReward: { lawful: 0, good: 1 },
-        difficulty: 'easy',
-      },
-      {
-        id: 'ch1_ind_guests',
-        question: 'How many guests can shelter at Pryor\'s Back of Beyond Ranch?',
-        answer: '12',
-        acceptableAnswers: ['12', 'twelve'],
-        hintText: 'The ranch listing shows the maximum capacity for weary travelers.',
-        hintUrl: 'https://www.airbnb.com/rooms/30045739',
-        isListingClue: true,
-        xpReward: 10,
-        karmaReward: { lawful: 0, good: 1 },
-        difficulty: 'easy',
-      },
+
     ],
   },
   {
@@ -169,18 +147,7 @@ export const CHAPTER_1_LOCATIONS: ChapterLocation[] = [
         karmaReward: { lawful: 1, good: 0 },
         difficulty: 'medium',
       },
-      {
-        id: 'ch1_alcove_hottub',
-        question: 'What outdoor luxury feature awaits at Pryor\'s Back of Beyond Ranch that a trail-weary pioneer would dream of?',
-        answer: 'hot tub',
-        acceptableAnswers: ['hot tub', 'hottub', 'spa', 'hot tub spa'],
-        hintText: 'Check the Airbnb listing for a relaxing amenity perfect after a long journey.',
-        hintUrl: 'https://www.airbnb.com/rooms/30045739',
-        isListingClue: true,
-        xpReward: 10,
-        karmaReward: { lawful: 0, good: 1 },
-        difficulty: 'easy',
-      },
+
     ],
   },
   {
@@ -212,18 +179,7 @@ export const CHAPTER_1_LOCATIONS: ChapterLocation[] = [
         karmaReward: { lawful: 1, good: 0 },
         difficulty: 'medium',
       },
-      {
-        id: 'ch1_blue_animals',
-        question: 'What animals live at Pryor\'s Back of Beyond Ranch property? (Name one)',
-        answer: 'horses',
-        acceptableAnswers: ['horses', 'chickens', 'goats', 'horse', 'chicken', 'goat'],
-        hintText: 'The Airbnb listing mentions several farm animals that call the ranch home.',
-        hintUrl: 'https://www.airbnb.com/rooms/30045739',
-        isListingClue: true,
-        xpReward: 10,
-        karmaReward: { lawful: 0, good: 1 },
-        difficulty: 'easy',
-      },
+
       {
         id: 'ch1_blue_ford',
         question: 'What dangerous river crossing method did pioneers use when they couldn\'t afford the ferry?',
@@ -311,18 +267,7 @@ export const CHAPTER_1_LOCATIONS: ChapterLocation[] = [
         karmaReward: { lawful: 1, good: 0 },
         difficulty: 'easy',
       },
-      {
-        id: 'ch1_platte_view',
-        question: 'What kind of view feature does Pryor\'s Back of Beyond Ranch property have?',
-        answer: 'mountain view',
-        acceptableAnswers: ['mountain view', 'mountain', 'mountains', 'mountain views', 'sierra view'],
-        hintText: 'Check the Airbnb listing for the scenic views from the property.',
-        hintUrl: 'https://www.airbnb.com/rooms/30045739',
-        isListingClue: true,
-        xpReward: 10,
-        karmaReward: { lawful: 0, good: 1 },
-        difficulty: 'medium',
-      },
+
     ],
   },
   {
@@ -356,18 +301,7 @@ export const CHAPTER_1_LOCATIONS: ChapterLocation[] = [
         karmaReward: { lawful: 0, good: 1 },
         difficulty: 'easy',
       },
-      {
-        id: 'ch1_pawnee_acres',
-        question: 'How many acres is Pryor\'s Back of Beyond Ranch?',
-        answer: '60',
-        acceptableAnswers: ['60', '60 acres', 'sixty', 'sixty acres'],
-        hintText: 'Check the Airbnb listing for the ranch\'s acreage.',
-        hintUrl: 'https://www.airbnb.com/rooms/30045739',
-        isListingClue: true,
-        xpReward: 15,
-        karmaReward: { lawful: 1, good: 0 },
-        difficulty: 'medium',
-      },
+
     ],
   },
   // --- Sacramento & Sutter's Fort: the Gold Rush epicenter ---
@@ -1075,7 +1009,7 @@ export const CHAPTER_3_LOCATIONS: ChapterLocation[] = [
   {
     id: 'ch3_angels_camp',
     name: 'Angels Camp',
-    description: 'Henry and George Angel set up a trading post in this ravine in 1848, and the camp that grew around it made Calaveras County famous twice over — once for gold, once for a frog. The creek placers gave out fast, but the quartz below ran deep: the hard-rock mines here would pull more than $100 million from the ground. Locals still tell of Bennager Rasberry, who in 1856 fired his jammed musket into the dirt to clear a stuck ramrod and blew the cover off a gold vein — $700 the first day, $2,000 the second, $7,000 the third, or so the story grew in the telling. In the stone-walled Angels Hotel bar, a jumping frog story is waiting for a young reporter named Sam Clemens. Angels Camp still celebrates that frog with a Jubilee every year.',
+    description: 'Henry Pinkney Angell set up a trading post in this ravine in 1848, and the camp that grew around it made Calaveras County famous twice over — once for gold, once for a frog. The creek placers gave out fast, but the quartz below ran deep: the hard-rock mines here would pull more than $100 million from the ground. Locals still tell of Bennager Rasberry, who in 1856 fired his jammed musket into the dirt to clear a stuck ramrod and blew the cover off a gold vein — $700 the first day, $2,000 the second, $7,000 the third, or so the story grew in the telling. In the stone-walled Angels Hotel bar, a jumping frog story is waiting for a young reporter named Sam Clemens. Angels Camp still celebrates that frog with a Jubilee every year.',
     chapter: 3,
     x: 45, y: 30,
     icon: '\uD83C\uDFD8\uFE0F',

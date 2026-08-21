@@ -8,6 +8,7 @@
 
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
+import { editorialForExplorePlace, volcanoArtObjectPosition } from '@/lib/goldCountryEditorial'
 
 // Lazy-load the DB32 renderer so its ~320-LOC code is NOT pulled into the client
 // bundle on the default (flag-OFF) build — it only loads when the flag-ON branch
@@ -60,6 +61,8 @@ const PLACE_ART: Record<string, string> = {
   ot_city_of_rocks: 'ot_city_of_rocks', ot_humboldt_river: 'ot_humboldt_river',
   ot_humboldt_sink: 'ot_humboldt_sink', ot_forty_mile_desert: 'ot_forty_mile_desert', ot_fort_laramie: 'ot_fort_laramie',
 }
+
+
 
 // --- DB32 32/64-bit pixel-art scenes (opt-in, flag-gated) -------------------
 // The DB32 renderer (src/lib/pixelArt/db32Renderer.ts, previewed at
@@ -125,6 +128,20 @@ export function PlaceBackdrop({ id, className = '' }: { id: string; className?: 
     }
   }
 
+  const editorial = editorialForExplorePlace(id)
+  if (editorial) {
+    const contain = className.includes('object-contain')
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={editorial}
+        alt=""
+        aria-hidden
+        className={`${contain ? 'w-full object-contain' : `w-full object-cover ${volcanoArtObjectPosition(id)}`} ${className}`}
+      />
+    )
+  }
+
   const art = PLACE_ART[id]
   if (!art || failed) return null
   return (
@@ -134,7 +151,7 @@ export function PlaceBackdrop({ id, className = '' }: { id: string; className?: 
       alt=""
       aria-hidden
       onError={() => setFailed(true)}
-      className={`w-full object-cover [image-rendering:pixelated] ${className}`}
+      className={`w-full object-cover ${className.includes('visual64-scene-image') ? '' : '[image-rendering:pixelated]'} ${className}`}
     />
   )
 }

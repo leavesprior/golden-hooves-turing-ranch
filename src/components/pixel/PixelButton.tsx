@@ -37,8 +37,13 @@ export default function PixelButton({
   const baseStyles = `font-[var(--font-pixel)] border-b-4 transition-all duration-150 pixel-btn-press inline-block text-center ${variantStyles[variant]} ${sizeStyles[size]} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${className}`
 
   if (href && !disabled) {
+    const external = /^https?:\/\//i.test(href)
     return (
-      <Link href={href} className={baseStyles}>
+      <Link
+        href={href}
+        className={`${baseStyles} min-h-11`}
+        {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      >
         {children}
       </Link>
     )

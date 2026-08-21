@@ -9,6 +9,15 @@ import { SaveLoadProvider } from "@/lib/saveLoadContext";
 import { CrossGameProgressionProvider } from "@/lib/crossGameProgressionContext";
 import { CeremonyProvider } from "@/lib/ceremonyContext";
 import { RegisterSW } from "@/components/pwa/RegisterSW";
+import { WestFaceRoot } from "@/components/westFace/WestFaceRoot";
+import { HydrationWatch } from "@/components/westFace/HydrationWatch";
+import { GuestIntentBanner } from "@/components/GuestIntentBanner";
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
+};
 
 const pressStart2P = Press_Start_2P({
   weight: "400",
@@ -24,11 +33,12 @@ export const metadata: Metadata = {
     "Airbnb", "Calaveras County", "Bear Valley", "Sierra-at-Tahoe",
     "hot tub", "pet friendly", "ranch", "West Point California",
     "adventure", "treasure hunt", "Golden Frog Trail",
+    "Tesla destination charger", "Level 2 EV charger cabin",
+    "overnight EV charging West Point", "last minute stay Gold Country",
   ],
   metadataBase: new URL("https://backofbeyondranch.farm"),
-  alternates: {
-    canonical: "/",
-  },
+  // Child routes set their own canonical. A root "/" canonical inherited by
+  // /rentals and /explore would collapse those pages into home for Google.
   openGraph: {
     title: "Back of Beyond Ranch | Gold Country Vacation Rental with EV Charging",
     description: "60-acre mountain retreat near 3 ski resorts. Solar-powered EV charger, hot tub, game room, ranch animals. Sleeps 12 in Gold Country, CA.",
@@ -101,8 +111,8 @@ const jsonLd = {
       numberOfBathroomsTotal: 3,
       aggregateRating: {
         "@type": "AggregateRating",
-        ratingValue: 4.85,
-        reviewCount: 268,
+        ratingValue: 4.84,
+        reviewCount: 290,
         bestRating: 5,
       },
       occupancy: {
@@ -120,7 +130,7 @@ const jsonLd = {
           name: "Does Back of Beyond Ranch have EV charging?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes. Back of Beyond Ranch has a solar-powered Level 2 (220V) EV charger available for guests. It can fully charge most electric vehicles overnight. The charger is powered by the ranch's solar panel system.",
+            text: "Yes. Back of Beyond Ranch has a solar-powered Level 2 (220V) J1772 charger for overnight guest use, with a Tesla adapter on site. It is not a Supercharger — a full battery by morning, and a bed in West Point.",
           },
         },
         {
@@ -144,7 +154,7 @@ const jsonLd = {
           name: "How many guests can Back of Beyond Ranch accommodate?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "The ranch accommodates up to 12 guests across 6 bedrooms and 3 bathrooms. The property sits on 10 private acres in Gold Country, California.",
+            text: "The ranch accommodates up to 12 guests across 6 bedrooms and 3 bathrooms. The property sits on 60 acres in Gold Country, California.",
           },
         },
         {
@@ -198,6 +208,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <RegisterSW />
+        <HydrationWatch />
         <CeremonyProvider>
         <AuthProvider>
           <KarmaProvider>
@@ -205,7 +216,10 @@ export default function RootLayout({
               <SaveLoadProvider>
                 <GameProvider>
                   <RPGProvider>
-                    {children}
+                    <WestFaceRoot>
+                      <GuestIntentBanner />
+                      {children}
+                    </WestFaceRoot>
                   </RPGProvider>
                 </GameProvider>
               </SaveLoadProvider>

@@ -238,24 +238,29 @@ export function LocationView({
 
   return (
     <div className={`bg-gradient-to-b ${gradient} min-h-[500px] animate-slide-in-up`}>
-      {/* Location Header */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <h2 className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)]">
+          {location.icon} {location.name}
+        </h2>
+        <button
+          onClick={onReturnToMap}
+          className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] px-3 py-1 border border-[var(--pixel-ui-border)] hover:border-[var(--pixel-gold-dark)]"
+        >
+          {'\u2190'} MAP
+        </button>
+      </div>
+
+      <div className="bg-[#0e0c0a]">
+        <PlaceBackdrop
+          id={location.id}
+          className="h-[min(52vh,28rem)] object-contain object-center"
+        />
+      </div>
+
       <div className="p-4 border-b-2 border-[var(--pixel-ui-border)]/30">
-        <div className="flex justify-between items-start">
-          <div>
-            <h2 className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)]">
-              {location.icon} {location.name}
-            </h2>
-            <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70 mt-1">
-              {location.description}
-            </p>
-          </div>
-          <button
-            onClick={onReturnToMap}
-            className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] px-3 py-1 border border-[var(--pixel-ui-border)] hover:border-[var(--pixel-gold-dark)]"
-          >
-            {'\u2190'} MAP
-          </button>
-        </div>
+        <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] opacity-70">
+          {location.description}
+        </p>
         {location.historicalFact && (
           <div className="mt-3 p-3 bg-[var(--pixel-gold-dark)]/15 border-2 border-[var(--pixel-gold-dark)]/60 border-l-4 border-l-[var(--pixel-gold-mid)]">
             <span className="font-[var(--font-pixel)] text-[10px] tracking-wider text-[var(--pixel-gold-light)]">
@@ -267,9 +272,6 @@ export function LocationView({
           </div>
         )}
       </div>
-
-      {/* 64-bit period backdrop of the real place */}
-      <PlaceBackdrop id={location.id} className="h-44 border-y-2 border-[var(--pixel-ui-border)]/40" />
 
       {/* Main Actions */}
       {view === 'main' && (

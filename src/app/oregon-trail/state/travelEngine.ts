@@ -30,7 +30,16 @@ function computeLandmarkState(
 ): { currentLandmark: string; nextLandmark: string; milesUntilNextLandmark: number; landmarkPhase: GamePhase } {
   if (newMilesUntil <= 0) {
     const currentIndex = LANDMARKS.findIndex(l => l.name === prevNextLandmark)
-    const landmark = LANDMARKS[currentIndex]
+    const landmark = currentIndex >= 0 ? LANDMARKS[currentIndex] : undefined
+    if (!landmark) {
+      // Unknown / stale nextLandmark from an old save must not throw on Continue.
+      return {
+        currentLandmark: prevNextLandmark || '',
+        nextLandmark: prevNextLandmark || 'Gold Country',
+        milesUntilNextLandmark: Math.max(0, newMilesUntil),
+        landmarkPhase: 'traveling',
+      }
+    }
     const nextName = LANDMARKS[currentIndex + 1]?.name || 'Gold Country'
     const nextMiles = (LANDMARKS[currentIndex + 1]?.distance || 2000) - newDistance
     let phase: GamePhase = 'traveling'
@@ -45,15 +54,16 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   if (prev.phase !== 'traveling') return prev
 
   // === POSSE BONUSES (#6) ===
-  const roles = prev.party.map(m => m.role)
+  const party = (Array.isArray(prev.party) ? prev.party : []).filter(Boolean)
+  const roles = party.map(m => m.role)
   const bonuses = calculatePartyBonuses(roles)
   const speedBonus = 1 + (bonuses.travel_speed || 0) / 100
   const foodEfficiency = 1 - (bonuses.food_efficiency || 0) / 100
   const wagonProtection = 1 - (bonuses.wagon_repair || 0) / 100
 
   // Calculate daily distance based on pace and conditions
-  const paceMultiplier = { steady: 1, strenuous: 1.5, grueling: 2 }[prev.pace]
-  const weatherPenalty = { fair: 0, rain: 0.2, storm: 0.5, snow: 0.6 }[prev.weather]
+  const paceMultiplier = { steady: 1, strenuous: 1.5, grueling: 2 }[prev.pace] ?? 1
+  const weatherPenalty = { fair: 0, rain: 0.2, storm: 0.5, snow: 0.6 }[prev.weather] ?? 0
   const baseDistance = 15 // Miles per day with good conditions
   let dailyDistance = Math.round(baseDistance * paceMultiplier * (1 - weatherPenalty) * speedBonus)
 
@@ -74,9 +84,9 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   const inDesertTerrain = prev.distance >= 1380 && prev.distance <= 1700
 
   // Food consumption based on rations (modified by cook/hunter posse bonus)
-  const rationMultiplier = { filling: 3, meager: 2, bare_bones: 1 }[prev.rations]
+  const rationMultiplier = { filling: 3, meager: 2, bare_bones: 1 }[prev.rations] ?? 2
   const desertFoodMultiplier = inDesertTerrain ? 1.5 : 1.0
-  const foodConsumed = Math.ceil(prev.party.length * rationMultiplier * desertFoodMultiplier * foodEfficiency)
+  const foodConsumed = Math.ceil(party.length * rationMultiplier * desertFoodMultiplier * foodEfficiency)
 
   // Health effects (medic bonus: disease_resist reduces health loss slightly)
   const medicBonus = (bonuses.disease_resist || 0) > 0 ? 1 : 0
@@ -159,7 +169,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   let desertionMessage: string | null = null
 
   // Update party health and check loyalty
-  const updatedParty = prev.party.map(member => {
+  const updatedParty = party.map(member => {
     const updated = {
       ...member,
       health: Math.max(0, Math.min(100, member.health + healthChange)),
@@ -196,7 +206,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
           // Sister Grace: values compassion, healing, party wellbeing
           if (healthChange >= 0) loyaltyDelta += 1  // Party not suffering
           if (newMorale >= 50) loyaltyDelta += 1     // People's spirits are up
-          if (prev.party.some(m => m.health < 30)) loyaltyDelta -= 1 // Someone suffering
+          if (party.some(m => m.health < 30)) loyaltyDelta -= 1 // Someone suffering
           break
         case 'scout':
           // Hawkeye respects steady progress

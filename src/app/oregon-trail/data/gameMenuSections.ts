@@ -28,18 +28,28 @@ export interface MenuSection {
 export const MENU_SECTIONS: MenuSection[] = [
   {
     id: 'trail_map',
-    label: 'Trail Map',
+    label: 'Map',
     icon: '\ud83d\uddfa\ufe0f',
     category: 'journey',
     availablePhases: [
       'traveling', 'town', 'world_map',
       'gold_country_arrival', 'gold_country_explore',
       'gold_country_location', 'gold_country_travel',
+      'outfitting', 'event', 'river',
     ],
+    alwaysVisible: true,
+  },
+  {
+    id: 'nearby',
+    label: 'Nearby',
+    icon: '\ud83d\udccd',
+    category: 'world',
+    availablePhases: [],
+    alwaysVisible: true,
   },
   {
     id: 'party_posse',
-    label: 'Party & Posse',
+    label: 'Party',
     icon: '\ud83e\udd20',
     category: 'party',
     availablePhases: [
@@ -50,28 +60,14 @@ export const MENU_SECTIONS: MenuSection[] = [
   },
   {
     id: 'bounty_journal',
-    label: 'Bounty Journal',
+    label: 'Journal',
     icon: '\ud83d\udcdc',
     category: 'investigation',
     availablePhases: [
       'traveling', 'town', 'investigation', 'witness',
       'gold_country_arrival', 'gold_country_explore',
       'gold_country_location', 'gold_country_travel',
-    ],
-  },
-  {
-    id: 'notebook',
-    label: 'Notebook',
-    icon: '\ud83d\udcd3',
-    category: 'investigation',
-    availablePhases: [
-      'title', 'chapter_intro', 'menu', 'character_creation',
-      'outfitting', 'traveling', 'event', 'town', 'hunting',
-      'river', 'investigation', 'witness', 'dossier', 'telegraph',
-      'journal', 'world_map', 'ranch_management',
-      'gold_country_arrival', 'gold_country_explore',
-      'gold_country_location', 'gold_country_travel',
-      'settlement', 'settlement_victory', 'complete', 'game_over',
+      'journal',
     ],
   },
   {
@@ -86,19 +82,8 @@ export const MENU_SECTIONS: MenuSection[] = [
     ],
   },
   {
-    id: 'karma_wallet',
-    label: 'Karma Wallet',
-    icon: '\u2696\ufe0f',
-    category: 'economy',
-    availablePhases: [
-      'traveling', 'town', 'outfitting', 'settlement',
-      'gold_country_arrival', 'gold_country_explore',
-      'gold_country_location', 'gold_country_travel',
-    ],
-  },
-  {
     id: 'character_sheet',
-    label: 'Character Sheet',
+    label: 'Character',
     icon: '\ud83d\udcc4',
     category: 'party',
     availablePhases: [
@@ -110,45 +95,6 @@ export const MENU_SECTIONS: MenuSection[] = [
       'gold_country_location', 'gold_country_travel',
       'settlement', 'settlement_victory', 'complete', 'game_over',
     ],
-  },
-  {
-    id: 'reputation',
-    label: 'Reputation',
-    icon: '\u2b50',
-    category: 'party',
-    availablePhases: [
-      'traveling', 'town', 'settlement',
-      'gold_country_arrival', 'gold_country_explore',
-      'gold_country_location', 'gold_country_travel',
-    ],
-  },
-  {
-    id: 'npc_relations',
-    label: 'NPC Relations',
-    icon: '\ud83e\udd1d',
-    category: 'party',
-    availablePhases: [
-      'traveling', 'town',
-      'gold_country_arrival', 'gold_country_explore',
-      'gold_country_location', 'gold_country_travel',
-    ],
-  },
-  {
-    id: 'camp_services',
-    label: 'Camp Services',
-    icon: '\u26fa',
-    category: 'party',
-    availablePhases: [
-      'traveling', 'town', 'settlement',
-    ],
-  },
-  {
-    id: 'book_your_stay',
-    label: 'Book Your Stay',
-    icon: '\ud83c\udfe8',
-    category: 'meta',
-    availablePhases: [],
-    alwaysVisible: true,
   },
   {
     id: 'settings',

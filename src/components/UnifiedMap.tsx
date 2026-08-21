@@ -14,7 +14,8 @@
 // Higher-resolution / unlocked detail can later hang off the LOCAL level.
 // ============================================================================
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { readDiscovered, isDiscovered } from '@/lib/oneMapDiscovery'
 import Link from 'next/link'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 import { hasInvestigation } from '@/lib/townInvestigations'
@@ -37,9 +38,13 @@ const GOLD = 'var(--pixel-gold-light)'
 
 export function UnifiedMap() {
   const [view, setView] = useState<View>({ level: 'state' })
+  const [known, setKnown] = useState<string[]>(['independence', 'bobr_ranch'])
+  useEffect(() => { setKnown(readDiscovered()) }, [view])
 
   return (
     <div className="mx-auto max-w-4xl px-3 py-4">
+      <p className="west-face-eyebrow">The one map · grows as you walk</p>
+      <p className="west-face-body mb-3">Known places: {known.length}. Fog stays until you arrive or GPS puts you there.</p>
       {/* Breadcrumb / zoom path */}
       <nav className="mb-4 flex items-center gap-2 font-[var(--font-pixel)] text-[11px]">
         <button onClick={() => setView({ level: 'state' })} className="text-[var(--pixel-gold-light)] hover:underline">
@@ -129,24 +134,27 @@ function CountyView({ county, onPickTown, onBack }: { county: County; onPickTown
         <svg viewBox="0 0 100 100" className="h-full w-full" preserveAspectRatio="xMidYMid meet">
           {towns.map((t, i) => {
             const p = projectToSvg(t, bounds)
+            const seen = isDiscovered(t.id)
             return (
-              <g key={t.id} className="cursor-pointer" onClick={() => onPickTown(t.id)}>
-                {/* generous transparent hit target */}
+              <g key={t.id} className={seen ? 'cursor-pointer' : 'cursor-default'} onClick={() => seen && onPickTown(t.id)}>
                 <circle cx={p.x} cy={p.y} r="5" fill="transparent" />
-                <circle cx={p.x} cy={p.y} r="3" fill="var(--pixel-gold-mid)" stroke="var(--pixel-gold-light)" strokeWidth="0.6" />
-                <text x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central" fontSize="3" fontWeight="bold" fill="#15131f" style={{ pointerEvents: 'none' }}>{i + 1}</text>
+                <circle cx={p.x} cy={p.y} r="3" fill={seen ? 'var(--pixel-gold-mid)' : '#3a342c'} stroke={seen ? 'var(--pixel-gold-light)' : '#5a5044'} strokeWidth="0.6" />
+                <text x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central" fontSize="3" fontWeight="bold" fill="#15131f" style={{ pointerEvents: 'none' }}>{seen ? i + 1 : '?'}</text>
               </g>
             )
           })}
         </svg>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {towns.map((t, i) => (
-          <button key={t.id} onClick={() => onPickTown(t.id)} className="flex items-center gap-2 border border-[var(--pixel-ui-border)] bg-black/30 px-2 py-1.5 text-left font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] transition-colors hover:bg-[var(--pixel-gold-dark)]/20">
-            <span className="inline-flex h-4 w-4 flex-none items-center justify-center rounded-full bg-[var(--pixel-gold-mid)] text-[8px] text-[#15131f]">{i + 1}</span>
-            {t.name}
+        {towns.map((t, i) => {
+          const seen = isDiscovered(t.id)
+          return (
+          <button key={t.id} disabled={!seen} onClick={() => seen && onPickTown(t.id)} className="flex items-center gap-2 border border-[var(--pixel-ui-border)] bg-black/30 px-2 py-1.5 text-left font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)] transition-colors hover:bg-[var(--pixel-gold-dark)]/20 disabled:opacity-40">
+            <span className="inline-flex h-4 w-4 flex-none items-center justify-center rounded-full bg-[var(--pixel-gold-mid)] text-[8px] text-[#15131f]">{seen ? i + 1 : '?'}</span>
+            {seen ? t.name : 'Unmapped'}
           </button>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

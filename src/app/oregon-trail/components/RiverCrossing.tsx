@@ -19,6 +19,7 @@ import { useCharacter, type StatName } from '../characterContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { useNarrator } from '../narratorContext'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+import { editorialForLandmark } from '@/lib/californiaTrailArt'
 // NEW: Douglas Adams / Monty Python Easter Egg imports
 import { RiverAnimation } from './RiverAnimation'
 import { BridgeKeeper } from './BridgeKeeper'
@@ -77,6 +78,7 @@ export function RiverCrossing({
   // Bridge Keeper: 15% chance normally, 100% if player has bridge_keepers_bane trait
   const hasBridgeKeeperTrait = playerTraits.includes('bridge_keepers_bane')
   const [showBridgeKeeper] = useState(() => hasBridgeKeeperTrait || Math.random() < 0.15)
+  const riverArt = editorialForLandmark(riverName)
 
   // Generate river state on mount
   useEffect(() => {
@@ -105,11 +107,6 @@ export function RiverCrossing({
     }
     return stats
   }, [getStat])
-
-  const handleChoiceSelect = (choice: CrossingChoice) => {
-    if (!choice.available) return
-    setSelectedChoice(choice.id)
-  }
 
   const handleConfirmCrossing = async () => {
     if (!selectedChoice || !riverState) return
@@ -168,6 +165,17 @@ export function RiverCrossing({
     } else if (result.critical && !result.success) {
       comment('The river always collects its due. Today, it collected interest.', 'warning')
     }
+  }
+
+  const handleChoiceSelect = (choice: CrossingChoice) => {
+    if (!choice.available) return
+    // Second click on the same method starts the crossing. Players kept
+    // tapping Ferry at Kansas and thought the trail had crashed.
+    if (selectedChoice === choice.id) {
+      void handleConfirmCrossing()
+      return
+    }
+    setSelectedChoice(choice.id)
   }
 
   const handleContinue = () => {
@@ -283,11 +291,19 @@ export function RiverCrossing({
 
         {phase === 'assess' && (
           <div className="text-center mb-6">
-            {/* The real river (visual64) — renders only when art exists for this crossing */}
-            <PlaceBackdrop
-              id={'ot_' + riverName.toLowerCase().replace(/ crossing$/, '').replace(/[^a-z]+/g, '_')}
-              className="mb-4 h-36 rounded-lg border-2 border-cyan-700/50"
-            />
+            {riverArt ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={riverArt}
+                alt=""
+                className="mb-4 h-44 w-full rounded-lg border-2 border-cyan-700/50 object-cover object-[center_45%]"
+              />
+            ) : (
+              <PlaceBackdrop
+                id={'ot_' + riverName.toLowerCase().replace(/ crossing$/, '').replace(/[^a-z]+/g, '_')}
+                className="mb-4 h-36 rounded-lg border-2 border-cyan-700/50"
+              />
+            )}
             {/* Show RiverAnimation in assessment phase too */}
             {riverState && (
               <div className="mb-4">
