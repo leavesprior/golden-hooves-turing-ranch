@@ -5,7 +5,7 @@
  *   npx tsx src/app/oregon-trail/state/playToWin.test.ts
  */
 
-import { writeFileSync } from 'fs'
+import { mkdirSync, writeFileSync } from 'fs'
 import { DEFAULT_STATE, RANDOM_EVENTS } from './constants'
 import { gameReducer } from './reducer'
 import type { OregonTrailState } from './types'
@@ -88,6 +88,7 @@ if (won) {
       graphicsTier: 'ultra_64bit',
     },
   }
+  mkdirSync('/tmp/bobr-play', { recursive: true })
   writeFileSync('/tmp/bobr-play/win-save.json', JSON.stringify(payload))
   console.log('wrote /tmp/bobr-play/win-save.json')
 }
