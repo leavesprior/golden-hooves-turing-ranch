@@ -3,26 +3,34 @@
 import React from 'react'
 import { type GraphicsTier } from '../../oregonTrailContext'
 import { type ChapterType } from '../../data/worldMaps'
-import { CHAPTER_1_TERRAIN, CHAPTER_2_TERRAIN, meetsMinTier } from './terrainData'
+import { CHAPTER_1_TERRAIN, CHAPTER_2_TERRAIN, meetsMinTier, type TerrainFeature } from './terrainData'
+import { type MapViewBox, terrainInImmediateArea } from './immediateArea'
 
 interface MapTerrainProps {
   chapter: ChapterType
   graphicsTier: GraphicsTier
+  /** When set, only terrain that intersects this neighborhood is drawn. */
+  area?: MapViewBox
 }
 
-export function MapTerrain({ chapter, graphicsTier }: MapTerrainProps) {
+export function MapTerrain({ chapter, graphicsTier, area }: MapTerrainProps) {
   const terrainFeatures = React.useMemo(() => {
+    let features: TerrainFeature[]
     switch (chapter) {
       case 'journey_west':
-        return CHAPTER_1_TERRAIN
+        features = CHAPTER_1_TERRAIN
+        break
       case 'gold_country':
-        return CHAPTER_2_TERRAIN
+        features = CHAPTER_2_TERRAIN
+        break
       case 'return_visit':
-        return [...CHAPTER_1_TERRAIN, ...CHAPTER_2_TERRAIN]
+        features = [...CHAPTER_1_TERRAIN, ...CHAPTER_2_TERRAIN]
+        break
       default:
-        return []
+        features = []
     }
-  }, [chapter])
+    return area ? terrainInImmediateArea(features, area) : features
+  }, [chapter, area])
 
   const visibleFeatures = terrainFeatures.filter(f => meetsMinTier(graphicsTier, f.minTier))
 

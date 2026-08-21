@@ -325,38 +325,34 @@ export default function AdventureRewardTracker({
                 Welcome, Prospector!
               </h2>
               <p className="text-[10px] text-[var(--pixel-ui-text)] mb-4">
-                You&apos;ve earned 5% off your stay at Back of Beyond Ranch
+                The road remembers you. A welcome at the ranch is noted if you stay later — the map comes first.
               </p>
             </div>
 
             <div className="mb-4 p-3 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-mid)]">
-              <div className="text-[11px] text-[var(--pixel-ui-text)] uppercase mb-2 text-center">Host Verification Required</div>
+              <div className="text-[11px] text-[var(--pixel-ui-text)] uppercase mb-2 text-center">A mark in the ledger</div>
               <p className="text-[11px] text-[var(--pixel-gold-light)] text-center leading-relaxed">
-                Your Welcome tier is tracked here, but booking discounts must be verified by the host before a code is issued.
+                Welcome tier is tracked here. Any stay discount is host-verified later — never minted by the game.
               </p>
             </div>
 
-            <a
-              href="/rentals"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full p-3 bg-[var(--pixel-fire-orange)] hover:bg-[var(--pixel-gold-mid)] border-2 border-[var(--pixel-ui-border)] text-center text-[var(--pixel-bg-dark)] text-[10px] uppercase font-bold mb-3 transition-colors"
-            >
-              Book Now
-            </a>
-
-            <p className="text-[11px] text-[var(--pixel-ui-text)] text-center mb-4">
-              Keep playing to unlock bigger discounts!
-              <br />
-              Next tier: <span className="text-[var(--pixel-gold-light)]">Bronze Deputy (8%)</span>
-            </p>
-
             <button
               onClick={dismissWelcomeModal}
-              className="w-full p-2 bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-ui-border)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] text-[11px] uppercase transition-colors"
+              className="w-full p-3 bg-[var(--pixel-gold-mid)] hover:bg-[var(--pixel-gold-light)] border-2 border-[var(--pixel-gold-dark)] text-center text-[var(--pixel-bg-dark)] text-[10px] uppercase font-bold mb-3 transition-colors"
             >
               Continue Playing
             </button>
+
+            <p className="text-[11px] text-[var(--pixel-ui-text)] text-center mb-3">
+              Next trail mark: <span className="text-[var(--pixel-gold-light)]">Bronze Deputy</span>
+            </p>
+
+            <a
+              href="/rentals"
+              className="block w-full p-2 bg-[var(--pixel-bg-mid)] hover:bg-[var(--pixel-ui-border)] border-2 border-[var(--pixel-ui-border)] text-center text-[var(--pixel-ui-text)] text-[11px] uppercase transition-colors"
+            >
+              The ranch, if you stay
+            </a>
           </div>
         </div>
       )}

@@ -66,6 +66,143 @@ body {
   background: linear-gradient(rgba(8, 12, 11, 0.94), rgba(8, 12, 11, 0.98)), url('/treasure-map.png') center / cover fixed;
 }
 
+/* Where in the West FACE chrome — pulled from grok.com outfitters card 2026-08-19 */
+.west-face-shell {
+  --west-bg: #0e0c0a;
+  --west-paper: #16130f;
+  --west-ink: #e8dcc4;
+  --west-muted: #b8a88a;
+  --west-line: rgba(232, 220, 196, 0.12);
+  --west-cream: #e8dcc4;
+  --west-cream-ink: #1a1208;
+  --west-pill: #2a241c;
+  min-height: 100vh;
+  background: var(--west-bg);
+  color: var(--west-ink);
+}
+
+.west-face-shell .font-pixel {
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: 0.01em;
+}
+
+.west-face-shell .min-h-screen.bg-gradient-to-b,
+.west-face-shell [class*="from-amber-950"],
+.west-face-shell [class*="from-slate-900"],
+.west-face-shell [class*="from-stone-900"] {
+  background-image: none;
+  background-color: var(--west-bg);
+}
+
+.west-face-shell .bg-amber-900\/60,
+.west-face-shell .bg-amber-900\/50,
+.west-face-shell .bg-amber-950,
+.west-face-shell .bg-amber-900 {
+  background-color: var(--west-paper);
+}
+
+.west-face-shell .border-amber-600,
+.west-face-shell .border-amber-700,
+.west-face-shell .border-amber-500,
+.west-face-shell .border-4.border-amber-600 {
+  border-color: var(--west-line);
+  border-width: 1px;
+}
+
+.west-face-shell button.bg-amber-700,
+.west-face-shell button.bg-amber-800,
+.west-face-shell button.bg-green-700 {
+  background: var(--west-pill);
+  color: var(--west-ink);
+  border: 1px solid var(--west-line);
+  border-radius: 999px;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.west-face-paper {
+  background: var(--west-paper);
+  color: var(--west-ink);
+  border: 1px solid var(--west-line);
+  border-radius: 1.25rem;
+  padding: 1.75rem 1.5rem 1.25rem;
+}
+
+.west-face-eyebrow {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--west-ink) 70%, transparent);
+}
+
+.west-face-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 500;
+  color: #f3ead8;
+  line-height: 1.2;
+}
+
+.west-face-body {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--west-muted);
+}
+
+.west-face-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--west-line);
+}
+
+.west-face-pill {
+  min-height: 2.25rem;
+  min-width: 4.25rem;
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--west-line);
+  background: var(--west-pill);
+  color: var(--west-ink);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.west-face-pill:hover:not(:disabled) {
+  background: #3a3228;
+}
+
+.west-face-pill:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.west-face-pill-cream {
+  background: var(--west-cream);
+  color: var(--west-cream-ink);
+  border-color: transparent;
+}
+
+.west-face-pill-cream:hover:not(:disabled) {
+  opacity: 0.92;
+  background: var(--west-cream);
+}
+
+.west-face-footer {
+  margin-top: 1.25rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--west-line);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--west-muted) 85%, transparent);
+}
+
 .visual64-shell button,
 .visual64-shell input,
 .visual64-shell select,

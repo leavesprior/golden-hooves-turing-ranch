@@ -267,15 +267,15 @@ function OregonTrailGame() {
     } catch { /* storage unavailable */ }
   }, [walletInitialized, initializeWallet])
 
-  // Initialize audio and start music on game start (user interaction required)
-  const handleGameStart = useCallback(async () => {
-    if (!audioInitialized) {
-      await AudioManager.initAudio()
-      setAudioInitialized(true)
-    }
-    // Start music based on saved preference (electro swing or Fallout 2 OST)
-    // #21: dispatch to the playlist matching the SAVED mode — previously only
-    // 'fallout' was honored and parov/western silently fell through to synth.
+  const startSoundtrackIfUnmuted = useCallback(() => {
+    try {
+      const raw = localStorage.getItem('golden-hooves-audio-settings')
+      if (raw && JSON.parse(raw).isMuted) {
+        AudioManager.setVolume('master', 0)
+        AudioManager.stopMusic()
+        return
+      }
+    } catch { /* storage unavailable — start music */ }
     const savedMode = AudioManager.loadSoundtrackPreference()
     if (savedMode === 'fallout') {
       AudioManager.playFalloutPlaylist()
@@ -288,9 +288,18 @@ function OregonTrailGame() {
     } else {
       AudioManager.playPlaylist()
     }
-    trackGameStart('oregon-trail')
+  }, [])
+
+  // Initialize audio and start music on game start (user interaction required)
+  const handleGameStart = useCallback(async () => {
     startFromTitle()
-  }, [audioInitialized, startFromTitle])
+    if (!audioInitialized) {
+      await AudioManager.initAudio()
+      setAudioInitialized(true)
+    }
+    startSoundtrackIfUnmuted()
+    trackGameStart('oregon-trail')
+  }, [audioInitialized, startFromTitle, startSoundtrackIfUnmuted])
 
   // Continue from most recent save (auth slots first, then local fallback)
   const handleContinue = useCallback(async () => {
@@ -298,20 +307,7 @@ function OregonTrailGame() {
       await AudioManager.initAudio()
       setAudioInitialized(true)
     }
-    // #21: dispatch to the playlist matching the SAVED mode — previously only
-    // 'fallout' was honored and parov/western silently fell through to synth.
-    const savedMode = AudioManager.loadSoundtrackPreference()
-    if (savedMode === 'fallout') {
-      AudioManager.playFalloutPlaylist()
-    } else if (savedMode === 'parov') {
-      AudioManager.playParovPlaylist()
-    } else if (savedMode === 'western') {
-      AudioManager.playWesternPlaylist()
-    } else if (savedMode === 'steampunk') {
-      AudioManager.playSteampunkPlaylist()
-    } else {
-      AudioManager.playPlaylist()
-    }
+    startSoundtrackIfUnmuted()
     // #13: gather BOTH candidates first, then newest-wins. The local autosave
     // is the continuously-overwritten copy the player last saw, so a stale
     // auth slot must never shadow it just because slots are checked first.
@@ -388,7 +384,7 @@ function OregonTrailGame() {
     console.warn('[Continue] No valid save found from auth slots or local storage')
     setContinueError(true)
     setTimeout(() => setContinueError(false), 5000)
-  }, [audioInitialized, trailSaves, loadGame, loadState])
+  }, [audioInitialized, trailSaves, loadGame, loadState, startSoundtrackIfUnmuted])
 
   // Playlist auto-cycles tracks via AudioManager - no manual switching needed
 
@@ -534,14 +530,14 @@ function OregonTrailGame() {
         <button
           onClick={() => { unlockRanch(); openRanchManagement() }}
           title="Go to your homestead — Back of Beyond Ranch (manage livestock, fields & buildings)"
-          className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-lg border-2 border-amber-500 bg-amber-900/90 px-3 py-2 font-[var(--font-pixel)] text-[11px] text-amber-100 shadow-lg transition-colors hover:bg-amber-800"
+          className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-lg border-2 border-amber-500 bg-amber-900/90 px-3 py-2 font-[var(--font-pixel)] text-[11px] text-amber-100 shadow-lg transition-colors hover:bg-amber-800"
         >
           🏡 My Farm
         </button>
       )}
       <SaveLoadIntegration />
       {showSavePanel && <AuthSavePanel gameType="oregon-trail" />}
-      <ShareLegacy />
+      {state.phase === 'complete' && <ShareLegacy />}
     </>
   )
 }

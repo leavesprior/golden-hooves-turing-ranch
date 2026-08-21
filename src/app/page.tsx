@@ -6,6 +6,7 @@ import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
 import { KarmaStorage, getAlignmentPosition, getDiscountMultiplier, type AlignmentPosition } from '@/lib/karmaStorage'
 import { trackPageView, trackBookingClick } from '@/lib/eventTracker'
 import { airbnbBookingLink, airbnbRetreatLink } from '@/lib/airbnbLink'
+import { HomeHeroStill } from '@/components/HomeHeroStill'
 
 const cabinPhotos = [
   '/cabin-photos/cabin-1.jpg',
@@ -19,9 +20,6 @@ const cabinPhotos = [
 
 // Retreat (2nd) listing visibility — OFF while the A/B listing is paused; flip env to restore.
 const RETREAT_LIVE = process.env.NEXT_PUBLIC_RETREAT_LIVE === '1'
-const AIRBNB_HERO_URL = airbnbBookingLink('site')
-const AIRBNB_CTA_URL = airbnbBookingLink('site', 'may2026-cta')
-const AIRBNB_CARD_URL = airbnbBookingLink('site', 'may2026-card')
 const AIRBNB_FOOTER_URL = airbnbBookingLink('footer')
 
 const amenities = [
@@ -33,6 +31,7 @@ const amenities = [
   { icon: '\ud83d\udd25', name: 'Fire Pit', desc: 'Outdoor gathering spot' },
   { icon: '\ud83c\udf77', name: 'Wine Country', desc: 'Minutes from vineyards' },
   { icon: '\u26f7\ufe0f', name: 'Near Bear Valley', desc: 'Ski season access' },
+  { icon: '\u26a1', name: 'Level 2 EV', desc: 'Solar, overnight, Tesla adapter' },
 ]
 
 const nearbyAttractions = [
@@ -163,6 +162,7 @@ export default function Home() {
       {/*  HERO - The Full Pixel Art Scene                          */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <section className="relative min-h-[90vh] overflow-hidden">
+        <HomeHeroStill />
         {/* Rotating Photo Background */}
         <div className="absolute inset-0">
           {cabinPhotos.map((photo, index) => (
@@ -635,9 +635,9 @@ export default function Home() {
           ))}
         </div>
 
-        {/* ─── HERO TEXT CONTENT ─── */}
-        <div className="relative z-[25] flex flex-col items-center justify-center min-h-[90vh] px-4 text-center">
-          <div className="mb-6">
+        {/* Type + CTAs in the night sky, not on the wagon. Same stack as TitleScreen. */}
+        <div className="absolute inset-x-0 top-6 z-[25] px-4 text-left sm:px-8 md:top-8 md:px-16">
+          <div className="mb-4">
             <p className="font-[var(--font-pixel)] text-[6px] sm:text-[8px] text-[var(--pixel-fire-orange)] tracking-[0.3em] uppercase mb-3" style={{ animation: 'fadeSlideIn 1s ease-out' }}>
               Gold Country, California
             </p>
@@ -650,27 +650,31 @@ export default function Home() {
             <div className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-ui-text)] tracking-widest" style={{ animation: 'fadeSlideIn 1s ease-out 0.4s both' }}>
               ═══════════════════════
             </div>
-            <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-sky-light)] mt-2 max-w-md mx-auto leading-relaxed" style={{ animation: 'fadeSlideIn 1s ease-out 0.6s both' }}>
-              60-acre mountain retreat with hot tub, ranch animals,
-              game room & Gold Country adventures
+            <p className="font-[var(--font-pixel)] text-[8px] sm:text-[10px] text-[var(--pixel-sky-light)] mt-2 max-w-md leading-relaxed" style={{ animation: 'fadeSlideIn 1s ease-out 0.6s both' }}>
+              West Point, Calaveras County — a house in Gold Country,
+              from which the towns, mines, and theatre are walked.
             </p>
           </div>
 
-          <div className="mt-6 flex flex-col items-center gap-5" style={{ animation: 'fadeSlideIn 1s ease-out 0.8s both' }}>
+          <div className="mt-4 flex flex-col items-start gap-3" style={{ animation: 'fadeSlideIn 1s ease-out 0.8s both' }}>
             {/* Retreat (A/B) listing paused — RETREAT_LIVE gates its button so one env flip restores the dual hero */}
-            <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex flex-wrap items-start gap-3">
+              <PixelButton href="/explore" variant="green" size="lg">
+                🗺️ Walk Gold Country
+              </PixelButton>
+              <PixelButton href="/oregon-trail" variant="gold" size="md">
+                ⚔️ The wagon road
+              </PixelButton>
               {RETREAT_LIVE && (
                 <span onClick={() => trackBookingClick('hero-retreat')}>
-                  <PixelButton href={airbnbRetreatLink('site')} variant="orange" size="lg">
+                  <PixelButton href={airbnbRetreatLink('site')} variant="orange" size="md">
                     🛖 Couples & Small Groups
                   </PixelButton>
                 </span>
               )}
-              <span onClick={() => trackBookingClick('hero-ranch')}>
-                <PixelButton href={AIRBNB_HERO_URL} variant="orange" size="lg">
-                  🏡 Book Your Stay · Sleeps 12
-                </PixelButton>
-              </span>
+              <PixelButton href="/rentals" variant="orange" size="md">
+                🏡 The ranch in this country
+              </PixelButton>
             </div>
             <div
               className="font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] tracking-wider border border-[var(--pixel-gold-mid)]/40 bg-black/30 px-3 py-1.5 rounded-sm"
@@ -680,28 +684,18 @@ export default function Home() {
               <span className="opacity-60"> &middot; </span>
               <span>6 bedrooms &middot; whole ranch sleeps 12</span>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <PixelButton href="/oregon-trail" variant="gold" size="md">
-                ⚔️ Start Quest
-              </PixelButton>
-              <PixelButton href="/explore" variant="green" size="md">
-                🗺️ Explore Map
-              </PixelButton>
-            </div>
           </div>
 
-          <div className="mt-10 font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
-            <span className={showCursor ? 'opacity-100' : 'opacity-30'}>
-              ▶ Press START to begin your adventure ◀
-            </span>
-          </div>
         </div>
 
         {/* Stats Bar */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[25] flex gap-4 sm:gap-8 font-[var(--font-pixel)] text-[6px] sm:text-[8px] text-[var(--pixel-ui-text)] bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
           <div className="flex items-center gap-1 sm:gap-2">
+            <span className={showCursor ? 'opacity-100' : 'opacity-30'}>▶ START</span>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-2">
             <span>⭐</span>
-            <span>268 Reviews</span>
+            <span>290 Reviews</span>
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
             <span>🏆</span>
@@ -892,8 +886,7 @@ export default function Home() {
             Choose Your Path
           </h2>
           <p className="font-[var(--font-pixel)] text-[7px] sm:text-[8px] text-[var(--pixel-ui-text)] text-center mb-10 max-w-md mx-auto leading-relaxed">
-            Play games, complete quests, and earn real discounts on your stay.
-            Your karma alignment shapes your experience.
+            The games are how the history arrives — real towns, real mines, a theatre that still keeps fifty.
           </p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -922,17 +915,17 @@ export default function Home() {
               <div className="absolute inset-0 rounded-lg overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-b from-[#1a1c2c] to-[#29366f] opacity-20 group-hover:opacity-40 transition-opacity" />
               </div>
-              <PixelCard title="🎮 Prospector&#39;s Tale">
+              <PixelCard title="🎮 The Diggings">
                 <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed mb-3">
-                  Play the prequel! Experience Tobias&apos;s 1852 Gold Rush journey in this browser RPG.
+                  Five chapters in the Mother Lode after the wagon — Volcano, Angels Camp, the ranch.
                 </p>
                 <div className="flex flex-wrap gap-1 mb-3">
                   <span className="adventure-tag bg-[var(--pixel-ui-bg)]/50">5 Chapters</span>
-                  <span className="adventure-tag bg-[var(--pixel-ui-bg)]/50">Branching Story</span>
-                  <span className="adventure-tag bg-[var(--pixel-gold-dark)]/50">Earn Discounts</span>
+                  <span className="adventure-tag bg-[var(--pixel-ui-bg)]/50">Towns</span>
+                  <span className="adventure-tag bg-[var(--pixel-ui-bg)]/50">1852</span>
                 </div>
                 <PixelButton href="/adventure" variant="blue" size="sm">
-                  Play Now
+                  Enter the Diggings
                 </PixelButton>
               </PixelCard>
             </div>
@@ -964,15 +957,15 @@ export default function Home() {
               </div>
               <PixelCard title="🗺️ Gold Country">
                 <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed mb-3">
-                  Explore real locations! 40+ quests with moral choices across 11 Gold Country towns.
+                  Real towns on a real map — Volcano, Angels Camp, West Point, the Mother Lode.
                 </p>
                 <div className="flex flex-wrap gap-1 mb-3">
-                  <span className="adventure-tag bg-[var(--pixel-forest-dark)]/50">40+ Quests</span>
-                  <span className="adventure-tag bg-[var(--pixel-sky-mid)]/30">Moral Choices</span>
-                  <span className="adventure-tag bg-[var(--pixel-forest-dark)]/50">Karma System</span>
+                  <span className="adventure-tag bg-[var(--pixel-forest-dark)]/50">Towns</span>
+                  <span className="adventure-tag bg-[var(--pixel-sky-mid)]/30">Mysteries</span>
+                  <span className="adventure-tag bg-[var(--pixel-forest-dark)]/50">History</span>
                 </div>
-                <PixelButton href="/oregon-trail" variant="green" size="sm">
-                  Start Quest
+                <PixelButton href="/explore" variant="green" size="sm">
+                  Walk the map
                 </PixelButton>
               </PixelCard>
             </div>
@@ -982,20 +975,18 @@ export default function Home() {
               <div className="absolute inset-0 rounded-lg overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-b from-[#3a2010] to-[#5c3d2e] opacity-20 group-hover:opacity-40 transition-opacity" />
               </div>
-              <PixelCard title="🏨 The Inn">
+              <PixelCard title="🏨 The ranch">
                 <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed mb-3">
-                  Your home base. Hot tub, game room, 60 acres of ranch land, and ranch animals.
+                  A house in West Point from which the towns are walked — oaks, porch, Gold Country nights.
                 </p>
                 <div className="flex flex-wrap gap-1 mb-3">
-                  <span className="adventure-tag bg-[var(--pixel-earth-dark)]/50">Sleeps 12</span>
-                  <span className="adventure-tag bg-[var(--pixel-earth-dark)]/50">Hot Tub & Games</span>
-                  <span className="adventure-tag bg-[var(--pixel-fire-orange)]/30">Book & Save</span>
+                  <span className="adventure-tag bg-[var(--pixel-earth-dark)]/50">West Point</span>
+                  <span className="adventure-tag bg-[var(--pixel-earth-dark)]/50">Calaveras</span>
+                  <span className="adventure-tag bg-[var(--pixel-earth-dark)]/50">Base camp</span>
                 </div>
-                <span onClick={() => trackBookingClick('cabin-card')}>
-                  <PixelButton href={AIRBNB_CARD_URL} variant="orange" size="sm">
-                    Book Stay
-                  </PixelButton>
-                </span>
+                <PixelButton href="/rentals" variant="orange" size="sm">
+                  See the place
+                </PixelButton>
               </PixelCard>
             </div>
           </div>
@@ -1076,24 +1067,21 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--pixel-bg-mid)] via-transparent to-[var(--pixel-bg-mid)] opacity-60" />
         <div className="relative z-10 max-w-3xl mx-auto text-center">
           <h2 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-sm sm:text-lg mb-3">
-            Ready for an Adventure?
+            The country is still here
           </h2>
           <p className="font-[var(--font-pixel)] text-[8px] sm:text-[9px] text-[var(--pixel-ui-text)] leading-relaxed mb-8 max-w-lg mx-auto">
-            Book Back of Beyond Ranch on Airbnb. 6 bedrooms, 3 baths,
-            hot tub, game room, and 60 acres of Gold Country.
-            Your quest begins at check-in.
+            Volcano, Angels Camp, West Point, the Mother Lode — walk them on the map.
+            The ranch is one house in that country, not the reason for it.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <span onClick={() => trackBookingClick('cta-section')}>
-              <PixelButton href={AIRBNB_CTA_URL} variant="orange" size="lg">
-                🏨 Book on Airbnb
-              </PixelButton>
-            </span>
-            <PixelButton href="/hub" variant="gold" size="lg">
-              🎮 Game Hub
+            <PixelButton href="/explore" variant="green" size="lg">
+              🗺️ Walk Gold Country
             </PixelButton>
-            <PixelButton href="/karma-market" variant="gold" size="lg">
-              🏪 Karma Market
+            <PixelButton href="/hub" variant="gold" size="lg">
+              🎮 Play the years
+            </PixelButton>
+            <PixelButton href="/rentals" variant="orange" size="md">
+              🏡 If you stay
             </PixelButton>
           </div>
         </div>
@@ -1148,7 +1136,7 @@ export default function Home() {
             <div className="space-y-3">
               <div>
                 <p className="text-[var(--pixel-gold-mid)]">Does Back of Beyond Ranch have EV charging?</p>
-                <p>Yes. The ranch has a solar-powered Level 2 (220V) EV charger available for all guests. It can fully charge most electric vehicles overnight and is powered by the ranch&apos;s own solar panel system.</p>
+                <p>Yes. Solar Level 2 (220V) J1772 with a Tesla adapter on site. Overnight — not a Supercharger. Plug in at dusk, leave full in the morning. Kirkwood is about 45 minutes; there is no DC fast charge at the mountain.</p>
               </div>
               <div>
                 <p className="text-[var(--pixel-gold-mid)]">How far is the ranch from Kirkwood?</p>
@@ -1187,7 +1175,7 @@ export default function Home() {
               <div className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] space-y-1">
                 <p>6 Bedrooms, 3 Baths</p>
                 <p>Sleeps 12 Guests</p>
-                <p>10 Acres, Gold Country CA</p>
+                <p>60 acres, Gold Country CA</p>
               </div>
             </div>
             <div className="text-center">

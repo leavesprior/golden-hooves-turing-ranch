@@ -144,7 +144,19 @@ export default function HubPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 pb-16">
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <Link href="/explore?town=volcano" className="mb-8 block">
+          <article className="west-face-paper">
+            <p className="west-face-eyebrow">Volcano · Cobblestone Theatre</p>
+            <h2 className="west-face-title mt-1 text-2xl">A Gold Rush town that still keeps a stage</h2>
+            <p className="west-face-body mt-3 max-w-2xl">
+              Volcano&apos;s Cobblestone still seats about fifty. Walk Main Street first — scout, talk,
+              search — then match a weekend to the season if you want a box and a night in the hills.
+            </p>
+            <p className="mt-4 font-serif text-sm text-[#e8dcc4]">Open Gold Country Explorer →</p>
+          </article>
+        </Link>
+
         {/* PLAY THE COMPLETE JOURNEY — the games as one story, in time-order */}
         <div className="mb-8 rounded-lg border-4 border-amber-400 bg-gradient-to-b from-amber-950/50 to-indigo-950/40 p-4">
           <h2 className="font-pixel text-amber-300 text-sm tracking-wider">{'▶'} PLAY THE COMPLETE JOURNEY</h2>
@@ -155,7 +167,9 @@ export default function HubPage() {
             <Link href="/prologue" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">1. The Prologue {'·'} 600–1500</Link>
             <Link href="/adventure/where-in-time" className="font-pixel border-2 border-indigo-400/60 bg-indigo-900/30 px-3 py-1.5 text-indigo-200 hover:bg-indigo-800/40">2. Where in Time? {'·'} the chase</Link>
             <Link href="/oregon-trail" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">3. The Journey {'·'} 1849</Link>
-            <Link href="/playtest" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">4. Gold Country: Volcano {'·'} the case</Link>
+            <Link href="/adventure/play?prequel=1" className="font-pixel border-2 border-stone-500/60 bg-stone-900/30 px-3 py-1.5 text-amber-200/80 hover:bg-stone-800/40">3b. Prequel {'·'} Independence</Link>
+            <Link href="/adventure" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">4. The Diggings {'·'} 1852</Link>
+            <Link href="/playtest" className="font-pixel border-2 border-amber-600/60 bg-amber-900/30 px-3 py-1.5 text-amber-200 hover:bg-amber-800/40">5. Gold Country: Volcano {'·'} the case</Link>
             <Link href="/investigations" className="font-pixel border-2 border-indigo-400/60 bg-indigo-900/30 px-3 py-1.5 text-indigo-200 hover:bg-indigo-800/40">{'🔍'} The Tare's Trail {'·'} investigate 10 towns</Link>
           </div>
         </div>
@@ -345,13 +359,13 @@ export default function HubPage() {
                 features={['World Map', 'Chapters', 'Easter Eggs']}
               />
               <GameCard
-                title="RPG Adventure"
-                description={hasCharacter ? 'Continue exploring the frontier' : 'Create a character and explore the frontier'}
+                title="The Diggings"
+                description={hasCharacter ? 'Continue the years in Gold Country after the wagon' : 'Volcano, 1852 — the Mother Lode after the trail'}
                 href={hasCharacter ? '/adventure/play' : '/adventure/character-creation'}
                 icon="⚔️"
-                art="/place-art/forester_trail.png"
+                art="/place-art/editorial/bobr_ranch.jpg"
                 available={true}
-                features={['Character', 'Quests']}
+                features={['Towns', 'Quests', 'Ranch']}
               />
               <GameCard
                 title="Location Hunt"
@@ -503,17 +517,19 @@ export default function HubPage() {
         </div>
       </main>
 
-      {/* Book Your Stay CTA */}
-      <div className="fixed bottom-0 inset-x-0 bg-amber-950/90 border-t border-amber-700 p-3 text-center z-40 backdrop-blur-sm">
-        <a href="/rentals" className="text-amber-200 font-pixel text-sm hover:text-amber-100 transition-colors">
-          {'\uD83C\uDFE1'} Book Your Stay at Back of Beyond Ranch {'\u2192'}
-        </a>
-      </div>
-
-      {/* Footer */}
-      <footer className="border-t-2 border-amber-800 bg-amber-950/50 px-4 py-4 mt-8">
-        <div className="max-w-4xl mx-auto text-center text-amber-600 text-xs">
-          &copy; 2026 Back of Beyond Ranch | Gold Country, California
+      <footer className="border-t-2 border-amber-800 bg-amber-950/50 px-4 py-6 mt-8">
+        <div className="max-w-4xl mx-auto text-center space-y-2">
+          <p className="text-amber-200/90 text-xs leading-relaxed">
+            West Point, Volcano, and Angels Camp are real Gold Country towns. The ranch sits among them.
+          </p>
+          <p className="text-amber-400 text-[11px]">
+            <Link href="/explore" className="hover:text-amber-200">Walk the map</Link>
+            <span className="mx-2 opacity-50">·</span>
+            <Link href="/rentals" className="hover:text-amber-200">If you stay</Link>
+          </p>
+          <p className="text-amber-600 text-xs pt-2">
+            &copy; 2026 Back of Beyond Ranch | Gold Country, California
+          </p>
         </div>
       </footer>
 

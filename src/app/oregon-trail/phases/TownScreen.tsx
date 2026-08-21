@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useEffect, useRef, Suspense, lazy } from 'react'
+import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react'
 import { useOregonTrail, LANDMARKS, hasCynthiasInn } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { useMystery } from '../mysteryContext'
@@ -16,6 +16,7 @@ import { ResearchStation, type TrailLandmarkInfo } from '../components/ResearchS
 import { DiscountReward, DiscountProgressBar } from '../components/DiscountReward'
 import { ReputationBar } from '../components/ReputationBar'
 import { getGoldCountryLocation } from '../data/goldCountryLocations'
+import { revealOnMap } from '@/lib/oneMapDiscovery'
 import { rollHistoricalEncounter, type HistoricalCharacterEvent, type HistoricalCharacterChoice } from '../data/historicalCharacters'
 import { LandmarkScene, type LandmarkType } from '../components/LandmarkScene'
 import { getTimeOfDay, type WeatherType } from '../components/Graphics64bit'
@@ -30,7 +31,7 @@ import { CampMenu } from '../components/CampMenu'
 import { PipBoyMenu } from '../components/GameMenu'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
 import { getTownArrivalMessage, type TownArrivalMessage } from '../data/townArrivals'
-import { recordTownVisit } from '../lib/townVisits'
+import { recordTownArrival } from '../lib/townVisits'
 
 // Each authored arrival line carries a mood; tint the text so the town's
 // disposition reads at a glance instead of every stop sounding the same.
@@ -104,7 +105,7 @@ export function TownScreen({
 
   // Computed location data
   const activeCaseData = getActiveCase()
-  const currentLocationId = state.currentLandmark.toLowerCase().replace(/[^a-z]/g, '_')
+  const currentLocationId = (state.currentLandmark || '').toLowerCase().replace(/[^a-z]/g, '_')
   const currentGoldCountryLocation = getGoldCountryLocation(currentLocationId)
   const currentLocationClues = getCluesForLocation(currentLocationId)
   const hasResearchAvailable = currentLocationClues.length > 0
@@ -166,41 +167,31 @@ export function TownScreen({
   }, [onHireGuide])
 
   // Log landmark arrival events for cross-game narrator, and pick the town's
-  // arrival line. The town remembers how many times you've walked in (pillar #3:
-  // living towns that remember) — recordTownVisit returns the count BEFORE this
-  // arrival, which is what getVisitTier expects (0 => 'first').
+  // arrival line. Count is keyed on (landmark, arrivalDay) so Journal /
+  // Investigate remounts and React Strict Mode cannot increment twice.
+  // recordTownArrival returns the count BEFORE this arrival (0 => 'first').
   const [arrivalMessage, setArrivalMessage] = useState<TownArrivalMessage | null>(null)
-  const lastLoggedLandmarkRef = useRef('')
+  const arrivalDay = state.landmarkArrivalDay ?? state.day
   useEffect(() => {
-    if (state.currentLandmark && state.currentLandmark !== lastLoggedLandmarkRef.current) {
-      lastLoggedLandmarkRef.current = state.currentLandmark
-      const priorVisits = recordTownVisit(state.currentLandmark)
-      setArrivalMessage(getTownArrivalMessage(state.currentLandmark, priorVisits))
+    if (!state.currentLandmark) return
+    revealOnMap(state.currentLandmark.toLowerCase().replace(/[^a-z]+/g, '_'))
+    const { prior, recorded } = recordTownArrival(state.currentLandmark, arrivalDay)
+    setArrivalMessage(getTownArrivalMessage(state.currentLandmark, prior))
+    if (recorded) {
       CrossGameStorage.logEvent(
         'prospectors_tale', 'landmark_reached',
         `Arrived at ${state.currentLandmark}`,
         {
           locationId: state.currentLandmark.toLowerCase().replace(/[^a-z]/g, '_'),
-          detail: `Day ${state.day}, visit #${priorVisits + 1}`,
+          detail: `Day ${state.day}, visit #${prior + 1}`,
         }
       )
     }
-  }, [state.currentLandmark, state.day])
+  }, [state.currentLandmark, arrivalDay, state.day])
 
   // Landmark type and gradients
   const currentLandmarkData = LANDMARKS.find(l => l.name === state.currentLandmark)
   const landmarkType: LandmarkType = (currentLandmarkData?.type as LandmarkType) || 'town'
-
-  const landmarkGradients: Record<LandmarkType, string> = {
-    town: 'from-amber-950 via-amber-900 to-amber-950',
-    river: 'from-slate-900 via-blue-900 to-slate-950',
-    fort: 'from-stone-900 via-stone-800 to-stone-950',
-    landmark: 'from-orange-950 via-orange-900 to-amber-950',
-    pass: 'from-slate-950 via-slate-800 to-gray-900',
-    spring: 'from-teal-950 via-emerald-900 to-teal-950',
-    mountains: 'from-indigo-950 via-purple-900 to-indigo-950',
-    destination: 'from-yellow-900 via-amber-800 to-yellow-950',
-  }
 
   // Scene weather and time
   const gameHour = (state.day % 1) * 24 || 12
@@ -210,25 +201,26 @@ export function TownScreen({
                                     state.weather === 'storm' ? 'rain' : 'clear'
 
   return (
-    <div className={`min-h-screen bg-gradient-to-b ${landmarkGradients[landmarkType]} p-4`}>
+    <div className={`visual64-shell min-h-screen bg-[#0c0906] text-[#e8dcc4]`}>
       <KarmaToastContainer />
       <NarratorOverlay position="corner" />
-      <div className="max-w-2xl mx-auto pt-4">
-        {/* Landmark Scene - unique visual for each location */}
-        <LandmarkScene
-          landmarkName={state.currentLandmark}
-          landmarkType={landmarkType}
-          timeOfDay={timeOfDay}
-          weather={sceneWeather}
-          className="mb-4"
-        />
-
-        <div className="text-center mb-6">
-          <h2 className="font-pixel text-amber-200 text-xl">{state.currentLandmark}</h2>
-          <p className="text-amber-400 text-sm">Day {state.day} | {state.distance} miles traveled</p>
+      <LandmarkScene
+        landmarkName={state.currentLandmark}
+        landmarkType={landmarkType}
+        timeOfDay={timeOfDay}
+        weather={sceneWeather}
+        cinematic
+      />
+      <div className="mx-auto max-w-5xl px-4 py-5">
+        <div className="mb-5 rounded-xl border border-amber-900/40 bg-black/45 p-5">
+          <p className="font-serif text-[11px] uppercase tracking-[0.28em] text-amber-200/70">
+            1849 layer · {landmarkType}
+          </p>
+          <h2 className="mt-2 font-serif text-3xl font-medium text-amber-50">{state.currentLandmark}</h2>
+          <p className="mt-1 text-sm text-amber-200/70">Day {state.day} · {state.distance} miles traveled</p>
           {arrivalMessage && (
             <p
-              className={`mt-3 mx-auto max-w-lg text-sm italic leading-relaxed ${ARRIVAL_MOOD_CLASS[arrivalMessage.mood]}`}
+              className={`mt-3 max-w-2xl font-serif text-base italic leading-relaxed ${ARRIVAL_MOOD_CLASS[arrivalMessage.mood]}`}
               data-testid="town-arrival-message"
             >
               {arrivalMessage.text}
@@ -398,10 +390,15 @@ export function TownScreen({
           </button>
           <button
             onClick={openInvestigation}
-            className="p-3 bg-red-900/60 hover:bg-red-800/60 border-2 border-red-600 rounded-lg text-center"
+            className={`p-3 bg-red-900/60 hover:bg-red-800/60 border-2 border-red-600 rounded-lg text-center ${
+              (mysteryState.collectedClues?.length || 0) === 0 ? 'animate-pulse' : ''
+            }`}
           >
             <span className="text-2xl">🔍</span>
             <p className="text-red-200 text-xs mt-1">Investigate</p>
+            {(mysteryState.collectedClues?.length || 0) === 0 && (
+              <p className="text-red-300/80 text-[10px] mt-0.5">A warrant waits</p>
+            )}
           </button>
           <button
             onClick={openTelegraph}

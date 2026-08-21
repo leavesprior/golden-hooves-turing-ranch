@@ -373,7 +373,7 @@ export const TOWN_MYSTERIES: TownMystery[] = [
     id: 'bobr_founders',
     townId: 'bobr_ranch',
     title: 'The Cabin\'s First Owner',
-    briefing: 'The main cabin at BOBR Ranch was built using timber from Gold Rush-era structures, but records suggest the original homestead here dates to 1852 — and its first occupant vanished under mysterious circumstances. A journal found in the wall cavity raises more questions than it answers.',
+    briefing: 'The main cabin at Back of Beyond Ranch was built using timber from Gold Rush-era structures, but records suggest the original homestead here dates to 1852 — and its first occupant vanished under mysterious circumstances. A journal found in the wall cavity raises more questions than it answers.',
     era: '1852',
     difficulty: 'easy',
     clues: [

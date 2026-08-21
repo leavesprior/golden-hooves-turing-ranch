@@ -21,7 +21,12 @@ import {
   MapAnimations,
   useMapInteraction,
 } from './map'
-import { MAP_VIEWBOX } from './map/mapViewport'
+import {
+  type MapScope,
+  ATLAS_VIEWBOX,
+  immediateViewBox,
+  viewBoxToAttr,
+} from './map/immediateArea'
 
 // ============================================
 // TYPES
@@ -86,7 +91,13 @@ export function WorldMap({
   })
   const [scoutingLocation, setScoutingLocation] = useState<string | null>(null)
   const [scoutAnimation, setScoutAnimation] = useState(false)
+  const [mapScope, setMapScope] = useState<MapScope>('here')
   const mapContainerRef = useRef<HTMLDivElement>(null)
+
+  const areaBox = useMemo(
+    () => (mapScope === 'here' ? immediateViewBox(currentLocationId) : ATLAS_VIEWBOX),
+    [mapScope, currentLocationId],
+  )
 
   const isRetro = graphicsTier === 'retro_4bit'
 
@@ -226,11 +237,8 @@ export function WorldMap({
       {...interactionHandlers}
     >
       <svg
-        // Single source of truth. This used to be a literal here while MapCompass
-        // independently assumed the width was 100 — that split is what made the
-        // compass's hand-tuned position silently wrong. Widgets anchor against
-        // MAP_VIEWBOX; nothing re-declares it.
-        viewBox={`0 0 ${MAP_VIEWBOX.width} ${MAP_VIEWBOX.height}`}
+        // Immediate-area zoom uses areaBox; compass still anchors to this same box.
+        viewBox={viewBoxToAttr(areaBox)}
         preserveAspectRatio="xMidYMid meet"
         className="absolute inset-0 w-full h-full"
         style={{ transform: svgTransform || undefined }}
@@ -238,20 +246,28 @@ export function WorldMap({
         <MapSVGDefs graphicsTier={graphicsTier} chapter={chapter} />
 
         {/* Background */}
-        <rect x="0" y="0" width="100" height="62.5" fill={bgGradient} />
+        <rect x={areaBox.x} y={areaBox.y} width={areaBox.w} height={areaBox.h} fill={bgGradient} />
 
         {/* Grid overlay */}
         <g opacity="0.1">
           {[...Array(10)].map((_, i) => (
             <React.Fragment key={`grid-${i}`}>
-              <line x1={i * 10} y1="0" x2={i * 10} y2="62.5" stroke="var(--pixel-ui-text)" strokeWidth="0.1" />
-              <line x1="0" y1={i * 6.25} x2="100" y2={i * 6.25} stroke="var(--pixel-ui-text)" strokeWidth="0.1" />
+              <line
+                x1={areaBox.x + (i / 9) * areaBox.w} y1={areaBox.y}
+                x2={areaBox.x + (i / 9) * areaBox.w} y2={areaBox.y + areaBox.h}
+                stroke="var(--pixel-ui-text)" strokeWidth="0.1"
+              />
+              <line
+                x1={areaBox.x} y1={areaBox.y + (i / 9) * areaBox.h}
+                x2={areaBox.x + areaBox.w} y2={areaBox.y + (i / 9) * areaBox.h}
+                stroke="var(--pixel-ui-text)" strokeWidth="0.1"
+              />
             </React.Fragment>
           ))}
         </g>
 
-        {/* Terrain */}
-        <MapTerrain chapter={chapter} graphicsTier={graphicsTier} />
+        {/* Terrain — here-scope drops ranges that are not in this neighborhood */}
+        <MapTerrain chapter={chapter} graphicsTier={graphicsTier} area={mapScope === 'here' ? areaBox : undefined} />
 
         {/* Encounter zones */}
         {chapter !== 'journey_west' && ENCOUNTER_ZONES.map(zone => (
@@ -420,7 +436,7 @@ export function WorldMap({
         />
 
         {/* Compass */}
-        <MapCompass graphicsTier={graphicsTier} />
+        <MapCompass graphicsTier={graphicsTier} view={{ width: areaBox.w, height: areaBox.h }} />
       </svg>
 
       {/* Chapter title (HTML overlay) */}
@@ -429,7 +445,7 @@ export function WorldMap({
           {chapterTitle}
         </div>
         <div className="font-[var(--font-pixel)] text-[9px] text-[var(--pixel-ui-text)]">
-          {discoveredLocations.size} / {chapterLocations.length} locations discovered
+          {mapScope === 'here' ? 'This place' : 'Full trail'} · {discoveredLocations.size} / {chapterLocations.length} locations discovered
         </div>
         {expertiseStat > 0 && (
           <div className="font-[var(--font-pixel)] text-[8px] mt-0.5" style={{ color: '#8b6914' }}>
@@ -437,6 +453,14 @@ export function WorldMap({
           </div>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={() => setMapScope((s) => (s === 'here' ? 'atlas' : 'here'))}
+        className="absolute top-3 right-3 z-10 px-2 py-1 text-[9px] font-[var(--font-pixel)] border border-[var(--pixel-ui-border)] rounded bg-black/50 text-[var(--pixel-gold-light)]"
+      >
+        {mapScope === 'here' ? 'Atlas' : 'This place'}
+      </button>
 
       {/* Tooltip (HTML overlay) */}
       <MapTooltip

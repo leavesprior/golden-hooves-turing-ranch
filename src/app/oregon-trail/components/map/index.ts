@@ -26,3 +26,11 @@ export {
   translate as svgTranslate,
 } from './mapViewport'
 export type { LocalExtent } from './mapViewport'
+export {
+  ATLAS_VIEWBOX,
+  immediateViewBox,
+  terrainInImmediateArea,
+  viewBoxToAttr,
+  compassOrigin,
+} from './immediateArea'
+export type { MapScope, MapViewBox } from './immediateArea'

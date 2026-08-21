@@ -3669,9 +3669,9 @@ export interface ChapterMeta {
 export const chapters: Record<ChapterId, ChapterMeta> = {
   1: {
     id: 1,
-    title: 'The Journey West',
-    subtitle: 'Missouri to California, 1852',
-    description: 'Join young Tobias as he leaves everything behind for the promise of gold. Navigate the Oregon Trail, make allies, and survive the river crossing.',
+    title: 'Prequel: Independence',
+    subtitle: 'Missouri, 1849 — the road to the diggings',
+    description: 'The jumping-off at Independence. This is the 1849 departure, not the Mother Lode. The Diggings open at Volcano in 1852; the full wagon is The Journey.',
     maps: ['ch1_trail', 'ch1_river'],
     startMap: 'ch1_trail',
     puzzleType: 'navigation',

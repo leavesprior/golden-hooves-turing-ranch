@@ -30,6 +30,8 @@ export type KarmaSource =
   | 'rpg_adventure'
   | 'oregon_trail'
   | 'house_rules_quiz'
+  | 'gold_country_explore'
+  | 'volcano_stay_show'
   | 'manual_adjustment';
 
 export interface KarmaAlignment {

@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react'
 import { SmokeEffect, WaterEffect, SwayingTree, MountainSilhouette, WeatherParticles, CoveredWagonSprite, type TimeOfDay, type WeatherType } from './Graphics64bit'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+import { editorialForLandmark } from '@/lib/californiaTrailArt'
 
 // visual64: real-place raster art (public/place-art) elevates the scene when a
 // confident match exists. Only exact matches are mapped — every other landmark
@@ -184,6 +185,8 @@ interface LandmarkSceneProps {
   timeOfDay?: TimeOfDay
   weather?: WeatherType
   className?: string
+  /** Photo-art hero: no pixel lock, no emoji stamp. TownScreen uses this. */
+  cinematic?: boolean
 }
 
 // Deterministic positions for scene elements
@@ -206,6 +209,7 @@ export function LandmarkScene({
   timeOfDay = 'day',
   weather = 'clear',
   className = '',
+  cinematic = false,
 }: LandmarkSceneProps) {
   const baseConfig = LANDMARK_CONFIGS[landmarkType]
   const specificConfig = SPECIFIC_LANDMARKS[landmarkName]
@@ -253,21 +257,31 @@ export function LandmarkScene({
     }
   }
 
-  const placeArt = LANDMARK_PLACE_ART[landmarkName]
+  const editorial = editorialForLandmark(landmarkName)
+  const placeArt = editorial ? undefined : LANDMARK_PLACE_ART[landmarkName]
+  const hasRaster = Boolean(editorial || placeArt)
 
   return (
-    <div className={`relative w-full h-48 md:h-64 overflow-hidden rounded-lg border-2 border-${config.accentColor}-600 ${className}`}>
+    <div className={`relative w-full overflow-hidden ${cinematic ? 'h-56 md:h-80 border-0 rounded-none' : `h-48 md:h-64 rounded-lg border-2 border-${config.accentColor}-600`} ${className}`}>
       {/* Sky gradient background */}
       <div
         className={`absolute inset-0 bg-gradient-to-b ${config.gradient}`}
         style={{ zIndex: 0 }}
       />
 
-      {/* Real-place raster art (visual64) — sits over the gradient; if the
-          image fails PlaceBackdrop returns null and the gradient still shows */}
-      {placeArt && (
-        <PlaceBackdrop id={placeArt} className="absolute inset-0 h-full" />
-      )}
+      {editorial ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={editorial}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-[center_42%]"
+        />
+      ) : placeArt ? (
+        <PlaceBackdrop
+          id={placeArt}
+          className={`absolute inset-0 h-full ${cinematic ? 'visual64-scene-image' : ''}`}
+        />
+      ) : null}
 
       {/* Weather effects */}
       {weather !== 'clear' && (
@@ -275,16 +289,18 @@ export function LandmarkScene({
       )}
 
       {/* Scene content — authored SVG scene carries the stops without art */}
-      {!placeArt && (
+      {!hasRaster && (
         <div className="relative h-full" style={{ zIndex: 10 }}>
           {renderScene()}
         </div>
       )}
 
-      {/* Location label */}
-      <div className="absolute bottom-2 left-2 right-2 text-center" style={{ zIndex: 30 }}>
-        <span className="text-4xl">{config.emoji}</span>
-      </div>
+      {/* Location label — hidden on the cinematic hero (title lives in the card) */}
+      {!cinematic && !editorial && (
+        <div className="absolute bottom-2 left-2 right-2 text-center" style={{ zIndex: 30 }}>
+          <span className="text-4xl">{config.emoji}</span>
+        </div>
+      )}
     </div>
   )
 }

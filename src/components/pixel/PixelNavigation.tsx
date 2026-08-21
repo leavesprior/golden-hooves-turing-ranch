@@ -40,7 +40,7 @@ export default function PixelNavigation() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors"
+                className="font-[var(--font-pixel)] text-[11px] sm:text-[8px] text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors min-h-11 inline-flex items-center"
               >
                 {item.label}
               </Link>
@@ -50,7 +50,7 @@ export default function PixelNavigation() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden font-[var(--font-pixel)] text-[var(--pixel-ui-text)] text-[10px]"
+            className="md:hidden font-[var(--font-pixel)] text-[var(--pixel-ui-text)] text-[16px] min-h-11 min-w-11"
           >
             {isOpen ? '✕' : '☰'}
           </button>

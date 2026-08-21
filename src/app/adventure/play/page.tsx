@@ -83,12 +83,18 @@ const PERIL_ON = process.env.NEXT_PUBLIC_PERIL === '1'
 // (ch2 = claims & claim-jumpers, ch3 = gold theft + the jumping-frog, ch4 = land
 // and water disputes, ch5 = Tobias's legacy). Falls back to a neutral line.
 const CHAPTER_TITLES: Record<number, string> = {
-  1: 'The Road to the Diggings',
+  1: 'Prequel · The Road to the Diggings',
   2: 'Claims and Claim-Jumpers',
   3: 'The Weight of Gold',
   4: 'Boundary Lines',
   5: 'The Reckoning',
 }
+
+/** Diggings (Gold Country, 1852) starts at Volcano. Chapter 1 is the 1849 Missouri prequel. */
+const DIGGINGS_START_CHAPTER = 2
+const PREQUEL_CHAPTER = 1
+const PREQUEL_START_ID = 'ch1_independence'
+const DIGGINGS_START_ID = 'ch2_volcano_main'
 
 // ============================================
 // ADVENTURE STATE
@@ -139,8 +145,12 @@ function loadAdventureState(): AdventureState | null {
     // undefined and crash the first .filter/.includes/comparison on load.
     return {
       ...parsed,
-      chapter: parsed.chapter ?? 1,
-      currentLocationId: parsed.currentLocationId ?? 'ch1_independence',
+      chapter: parsed.chapter ?? DIGGINGS_START_CHAPTER,
+      currentLocationId: parsed.currentLocationId ?? (
+        (parsed.chapter ?? DIGGINGS_START_CHAPTER) <= PREQUEL_CHAPTER
+          ? PREQUEL_START_ID
+          : DIGGINGS_START_ID
+      ),
       discoveredLocationIds: parsed.discoveredLocationIds ?? [],
       visitedLocationIds: parsed.visitedLocationIds ?? [],
       phase: parsed.phase ?? 'exploring',
@@ -179,24 +189,34 @@ function saveAdventureState(state: AdventureState): boolean {
   }
 }
 
-function createNewAdventureState(): AdventureState {
-  const defaultLoc = getDefaultLocation(1)
-  const chapterLocs = getChapterLocations(1)
+function startAtChapter(chapter: number): Pick<
+  AdventureState,
+  'chapter' | 'currentLocationId' | 'discoveredLocationIds' | 'visitedLocationIds' | 'phase'
+> {
+  const fallback = chapter <= PREQUEL_CHAPTER ? PREQUEL_START_ID : DIGGINGS_START_ID
+  const defaultLoc = getDefaultLocation(chapter)
+  const chapterLocs = getChapterLocations(chapter)
   const defaultDiscovered = chapterLocs.filter(l => l.discoveredByDefault).map(l => l.id)
-  // Also discover connectedTo neighbors of default locations (fog-of-war fix)
   const neighborIds = new Set(defaultDiscovered)
   for (const locId of defaultDiscovered) {
     const loc = chapterLocs.find(l => l.id === locId)
     if (loc) loc.connectedTo.forEach(id => neighborIds.add(id))
   }
-  const discovered = Array.from(neighborIds)
+  const id = defaultLoc?.id ?? fallback
+  return {
+    chapter,
+    currentLocationId: id,
+    discoveredLocationIds: Array.from(neighborIds),
+    visitedLocationIds: [id],
+    phase: 'exploring',
+  }
+}
+
+function createNewAdventureState(chapter = DIGGINGS_START_CHAPTER): AdventureState {
+  const start = startAtChapter(chapter)
 
   return {
-    chapter: 1,
-    currentLocationId: defaultLoc?.id ?? 'ch1_independence',
-    discoveredLocationIds: discovered,
-    visitedLocationIds: [defaultLoc?.id ?? 'ch1_independence'],
-    phase: 'exploring',
+    ...start,
     unlockedSkillNodes: [],
     skillPoints: 0,
     totalXP: 0,
@@ -656,7 +676,7 @@ function StatsSidebar({
             {'\u2601'} CLOUD LOAD
           </button>
         )}
-        <PixelButton href="/game" variant="orange" size="sm">
+        <PixelButton href="/adventure" variant="orange" size="sm">
           {'\u2190'} EXIT TO MENU
         </PixelButton>
       </div>
@@ -771,17 +791,19 @@ function AdventureContent() {
     trackPageView('/adventure/play')
   }, [])
 
-  // Initialize state
+  // Initialize state. New games open in the Diggings (Volcano, 1852). Independence
+  // is the 1849 prequel — only a fresh save with ?prequel=1 starts there.
   useEffect(() => {
     const saved = loadAdventureState()
     if (saved) {
       setAdventureState(saved)
-    } else {
-      const newState = createNewAdventureState()
-      setAdventureState(newState)
-      saveAdventureState(newState)
-      trackGameStart('adventure')
+      return
     }
+    const wantPrequel = new URLSearchParams(window.location.search).get('prequel') === '1'
+    const newState = createNewAdventureState(wantPrequel ? PREQUEL_CHAPTER : DIGGINGS_START_CHAPTER)
+    setAdventureState(newState)
+    saveAdventureState(newState)
+    trackGameStart('adventure')
   }, [])
 
   // Initialize the karma wallet for the adventure path. Oregon Trail initializes
@@ -874,6 +896,25 @@ function AdventureContent() {
     // effect above (was a synchronous full-state write here on every change).
     setAdventureState(prev => (prev ? { ...prev, ...updates } : prev))
   }, [])
+
+  const handleSkipToDiggings = useCallback(() => {
+    setAdventureState(prev => {
+      if (!prev) return prev
+      const start = startAtChapter(DIGGINGS_START_CHAPTER)
+      const next: AdventureState = {
+        ...prev,
+        ...start,
+        discoveredLocationIds: [...new Set([...prev.discoveredLocationIds, ...start.discoveredLocationIds])],
+        visitedLocationIds: [...new Set([...prev.visitedLocationIds, ...start.visitedLocationIds])],
+      }
+      saveAdventureState(next)
+      return next
+    })
+    narratorComment(
+      'The wagon years fall behind. Volcano, 1852 — the diggings open in a stone bowl of a valley.',
+      'observation',
+    )
+  }, [narratorComment])
 
   // Apply one-time "Start with +X reputation" abilities from the player's picks.
   // Guarded by startingAbilitiesApplied so it fires exactly once per game (not on
@@ -1608,31 +1649,22 @@ function AdventureContent() {
   const handleCampComplete = useCallback(() => {
     if (!adventureState) return
     const nextChapter = adventureState.chapter + 1
-    const defaultLoc = getDefaultLocation(nextChapter)
-    const nextLocs = getChapterLocations(nextChapter)
-    const defaultDiscoveredIds = nextLocs.filter(l => l.discoveredByDefault).map(l => l.id)
-    // Also discover connectedTo neighbors (fog-of-war fix)
-    const neighborIds = new Set(defaultDiscoveredIds)
-    for (const locId of defaultDiscoveredIds) {
-      const loc = nextLocs.find(l => l.id === locId)
-      if (loc) loc.connectedTo.forEach(id => neighborIds.add(id))
-    }
-    const defaultDiscovered = Array.from(neighborIds)
+    const start = startAtChapter(nextChapter)
 
     updateState({
-      chapter: nextChapter,
-      currentLocationId: defaultLoc?.id ?? nextLocs[0]?.id ?? adventureState.currentLocationId,
+      ...start,
       discoveredLocationIds: [
         ...adventureState.discoveredLocationIds,
-        ...defaultDiscovered,
+        ...start.discoveredLocationIds,
       ],
-      visitedLocationIds: [...adventureState.visitedLocationIds, defaultLoc?.id ?? ''],
-      phase: 'exploring',
+      visitedLocationIds: [...adventureState.visitedLocationIds, ...start.visitedLocationIds],
     })
     setShowCamp(false)
 
     narratorComment(
-      `Chapter ${nextChapter} begins. The road stretches on, indifferent to your hopes.`,
+      nextChapter === DIGGINGS_START_CHAPTER
+        ? 'The road is done. Volcano, 1852 — the diggings open.'
+        : `Chapter ${nextChapter} begins. The road stretches on, indifferent to your hopes.`,
       'observation'
     )
   }, [adventureState, updateState, narratorComment])
@@ -1834,10 +1866,15 @@ function AdventureContent() {
         <div className="max-w-5xl mx-auto flex flex-wrap justify-between items-center gap-2">
           <div>
             <span className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-gold-light)]">
-              Chapter {adventureState.chapter}
+              {adventureState.chapter === PREQUEL_CHAPTER
+                ? 'Prequel · 1849'
+                : `Chapter ${adventureState.chapter}`}
             </span>
             <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] ml-3">
               {currentLoc?.icon} {currentLoc?.name ?? 'Unknown'}
+            </span>
+            <span className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-mid)] ml-3 hidden sm:inline">
+              {CHAPTER_TITLES[adventureState.chapter]}
             </span>
           </div>
           <div className="flex items-center gap-4">
@@ -1879,6 +1916,25 @@ function AdventureContent() {
           </div>
         </div>
       </div>
+
+      {adventureState.chapter === PREQUEL_CHAPTER && (
+        <div className="border-b-2 border-[var(--pixel-gold-dark)] bg-[#1a140c] px-4 py-3">
+          <div className="mx-auto flex max-w-5xl flex-col gap-2 pr-4 sm:pr-80">
+            <p className="font-[var(--font-pixel)] text-[10px] leading-relaxed text-[var(--pixel-ui-text)] sm:text-[11px]">
+              Independence, Missouri is the 1849 jumping-off — a prequel, not the diggings.
+              Gold Country opens at Volcano in 1852. The full wagon is The Journey.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <PixelButton onClick={handleSkipToDiggings} variant="gold" size="sm">
+                Skip to Volcano, 1852
+              </PixelButton>
+              <PixelButton href="/oregon-trail" variant="blue" size="sm">
+                The Journey
+              </PixelButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Death → successor (NEXT_PUBLIC_PERIL). DEFAULT framing — the specific
           heir narrative is Leif's call (see PERIL_DESIGN.md); this is a sensible

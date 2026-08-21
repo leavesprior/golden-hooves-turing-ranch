@@ -7,6 +7,7 @@ import {
   type ChapterLocation,
 } from '@/app/adventure/data/chapterLocations'
 import type { FactionId } from '@/app/oregon-trail/reputationContext'
+import { chapterMapArt } from '@/lib/goldCountryEditorial'
 
 interface ChapterMapProps {
   chapter: number
@@ -161,7 +162,14 @@ export function ChapterMap({
 
       {/* SVG Map */}
       <div className="relative">
-        <svg viewBox="0 0 100 100" className="w-full aspect-square bg-[var(--pixel-bg-dark)]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={chapterMapArt(chapter)}
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-50"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[#1a1610]/40" />
+        <svg viewBox="0 0 100 100" className="relative w-full aspect-square">
           {/* Connection lines */}
           {allLocations.map(loc => {
             if (!discoveredSet.has(loc.id)) return null

@@ -10,6 +10,7 @@
 import type { OregonTrailState, GamePhase, PartyMember } from './types'
 import type { GameAction } from './actions'
 import { DEFAULT_STATE, DEFAULT_INVESTIGATION } from './constants'
+import { getTownArrivalMessage } from '../data/townArrivals'
 import { computeTravel } from './travelEngine'
 import {
   applyBuySupplies, applySellSupplies, applyRepairWagon,
@@ -100,8 +101,17 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         oxen: state.oxen + action.supplies.oxen,
       }
 
-    case 'BEGIN_JOURNEY':
-      return { ...state, phase: 'traveling', message: 'Your journey to Gold Country begins!' }
+    case 'BEGIN_JOURNEY': {
+      // G7: first wagon west is an Independence arrival, not a skip to generic traveling.
+      // Visit count 0 is the prior (G2: pick the line from prior, not count-after-write).
+      const first = getTownArrivalMessage('Independence, Missouri', 0)
+      return {
+        ...state,
+        phase: 'town',
+        currentLandmark: 'Independence, Missouri',
+        message: first?.text ?? 'The jumping-off point. Everything west of here is either adventure or regret—often both.',
+      }
+    }
 
     case 'TRAVEL':
       return computeTravel(state)
@@ -306,6 +316,9 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
           break
         case 'caulk':
           crossOutcome = { message: 'You caulk the wagon and float across...', damageProbability: 0.25, damageAmount: 15 }
+          break
+        default:
+          crossOutcome = { message: 'You find a shallow place and ease the wagon across...', damageProbability: 0.3, damageAmount: 12 }
           break
       }
       // A towel is a genuinely useful crossing tool — wrap the gear, dry off, wave
