@@ -332,7 +332,7 @@ export default function HubPage() {
                 description="A hidden quest waits for guests at the ranch"
                 href="/clue-game"
                 icon="🔍"
-                art="/place-art/moaning_cavern.png"
+                art="/place-art/editorial/moaning_cavern.jpg"
                 available={true}
                 locked={!clueGameUnlocked}
                 lockHint="Find the key during your stay"
@@ -343,7 +343,7 @@ export default function HubPage() {
                 description="Discover 6 historic towns with 30+ attractions"
                 href="/explore"
                 icon="⛏️"
-                art="/place-art/west_point.png"
+                art="/place-art/editorial/west_point.jpg"
                 available={true}
                 isNew={true}
                 features={['XP System', 'Badges', 'Secrets']}
@@ -353,7 +353,7 @@ export default function HubPage() {
                 description="Fallout-style journey from Missouri to Gold Country"
                 href="/oregon-trail"
                 icon="🚐"
-                art="/place-art/ch1_independence.png"
+                art="/place-art/editorial/independence.jpg"
                 available={true}
                 isNew={true}
                 features={['World Map', 'Chapters', 'Easter Eggs']}
@@ -372,7 +372,7 @@ export default function HubPage() {
                 description="Discover hidden spots around the ranch"
                 href="/game"
                 icon="🗺️"
-                art="/place-art/welcome_gate.png"
+                art="/place-art/editorial/welcome_gate.jpg"
                 available={true}
                 features={['Photo Mode', 'Challenges']}
               />
@@ -381,7 +381,7 @@ export default function HubPage() {
                 description="600-1500 AD: Four civilizations, one ancient mystery"
                 href="/prologue"
                 icon={'\uD83C\uDFDB\uFE0F'}
-                art="/place-art/natural_bridges.png"
+                art="/place-art/editorial/natural_bridges.jpg"
                 available={true}
                 isNew={true}
                 features={['4 Characters', 'Investigation', 'Puzzles']}
@@ -391,7 +391,7 @@ export default function HubPage() {
                 description="Discover hidden treasures at Back of Beyond Ranch"
                 href="/ranch-treasure-hunt"
                 icon={'\uD83D\uDCE6'}
-                art="/place-art/harris_ranch.png"
+                art="/place-art/editorial/harris_ranch.jpg"
                 available={true}
                 isNew={true}
                 locked={!ranchHuntUnlocked}
@@ -403,7 +403,7 @@ export default function HubPage() {
                 description="Support the ranch, trade karma, collect momentos"
                 href="/karma-market"
                 icon={'\uD83C\uDFEA'}
-                art="/place-art/jackson.png"
+                art="/place-art/editorial/jackson.jpg"
                 available={true}
                 isNew={true}
                 features={['Donations', 'Animal Treats', 'Momentos', 'Market Tracker']}
@@ -413,7 +413,7 @@ export default function HubPage() {
                 description="Crossroads tavern connecting all adventures"
                 href="/oregon-trail"
                 icon={'\uD83C\uDFE8'}
-                art="/place-art/mh_hotel_leger.png"
+                art="/place-art/editorial/mokelumne_hill.jpg"
                 available={false}
                 comingSoon={true}
                 features={['NPCs', 'Side Quests']}
