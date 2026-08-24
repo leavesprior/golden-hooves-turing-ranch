@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { useOregonTrail } from '../oregonTrailContext'
 import { KarmaToastContainer } from '@/components/karma'
 
+/** Level 1 wagon-name step. Not a second game. Pinkerton/Bart wait in Gold Country. */
 export function GameMenu() {
-  const { state, startGame } = useOregonTrail()
+  const { startGame } = useOregonTrail()
   const [leaderName, setLeaderName] = useState('')
   const [partyNames, setPartyNames] = useState(['', '', ''])
 
@@ -24,90 +25,70 @@ export function GameMenu() {
     })
   }
 
+  const field =
+    'w-full min-h-11 px-4 py-3 bg-black/40 border-2 border-amber-700/70 rounded text-amber-50 font-serif text-lg placeholder-amber-700/80 focus:outline-none focus:border-amber-400'
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-950 via-green-900 to-amber-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-[#0f0f1b] via-amber-950 to-black flex items-center justify-center p-4">
       <KarmaToastContainer />
 
       <div className="max-w-md w-full">
-        {/* Title */}
         <div className="text-center mb-8">
-          <div className="text-6xl mb-4">{'\uD83E\uDD20'}</div>
-          <h1 className="font-pixel text-amber-200 text-2xl mb-2">Where in Gold Country</h1>
-          <h2 className="font-pixel text-red-400 text-xl mb-2">is Black Bart?</h2>
-          <p className="text-amber-400 text-sm">A Pinkerton Mystery</p>
-          <p className="text-amber-600 text-xs mt-2 italic">
-            The Emigrant Trail {'\u00D7'} Carmen Sandiego {'\u00D7'} Fallout
+          <p className="font-serif text-base uppercase tracking-[0.22em] text-amber-200/80">Golden Frog Trail</p>
+          <h1 className="mt-2 font-serif text-4xl text-amber-50">Name the wagon</h1>
+          <p className="mt-3 font-serif text-lg text-amber-100/90">
+            First camp: Independence. Kansas keeps a Bridge of Death.
+            Answer the questions three. A towel is never wasted.
           </p>
         </div>
 
-        {/* Start form */}
-        <div className="bg-amber-900/60 border-4 border-amber-600 rounded-lg p-6">
-          <h2 className="font-pixel text-amber-200 text-sm mb-4 text-center">
-            Begin Your Journey
-          </h2>
+        <div className="bg-amber-950/50 border-2 border-amber-700 rounded-lg p-6">
+          <label className="block font-serif text-lg text-amber-200 mb-2">Wagon leader</label>
+          <input
+            type="text"
+            value={leaderName}
+            onChange={(e) => setLeaderName(e.target.value)}
+            placeholder="Your name"
+            className={field}
+            autoComplete="nickname"
+          />
 
-          {/* Leader name */}
-          <div className="mb-4">
-            <label className="block text-amber-400 text-xs mb-1 font-pixel">
-              Wagon Leader Name:
-            </label>
-            <input
-              type="text"
-              value={leaderName}
-              onChange={(e) => setLeaderName(e.target.value)}
-              placeholder="Your name"
-              className="w-full px-3 py-2 bg-amber-950 border-2 border-amber-600 rounded text-amber-100 font-pixel text-sm placeholder-amber-700 focus:outline-none focus:border-amber-400"
-            />
+          <p className="mt-6 font-serif text-lg text-amber-200 mb-2">Party (optional)</p>
+          <div className="space-y-2">
+            {partyNames.map((name, index) => (
+              <input
+                key={index}
+                type="text"
+                value={name}
+                onChange={(e) => updatePartyName(index, e.target.value)}
+                placeholder={`Companion ${index + 1}`}
+                className={field}
+              />
+            ))}
           </div>
 
-          {/* Party members */}
-          <div className="mb-6">
-            <label className="block text-amber-400 text-xs mb-2 font-pixel">
-              Party Members (optional):
-            </label>
-            <div className="space-y-2">
-              {partyNames.map((name, index) => (
-                <input
-                  key={index}
-                  type="text"
-                  value={name}
-                  onChange={(e) => updatePartyName(index, e.target.value)}
-                  placeholder={`Party member ${index + 1}`}
-                  className="w-full px-3 py-2 bg-amber-950 border-2 border-amber-700 rounded text-amber-100 font-pixel text-xs placeholder-amber-700 focus:outline-none focus:border-amber-500"
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Start button */}
           <button
+            type="button"
             onClick={handleStart}
             disabled={!leaderName.trim()}
-            className={`
-              w-full py-3 font-pixel text-sm rounded border-4 transition-all
-              ${leaderName.trim()
-                ? 'bg-green-700 border-green-500 text-green-100 hover:bg-green-600'
-                : 'bg-gray-700 border-gray-600 text-gray-400 cursor-not-allowed'}
-            `}
+            className={`w-full min-h-11 mt-6 py-3 font-serif text-xl rounded transition-colors ${
+              leaderName.trim()
+                ? 'bg-[#e8dcc4] text-[#1a1208] hover:opacity-90'
+                : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+            }`}
           >
-            Start Journey
+            Outfit the wagon
           </button>
         </div>
 
-        {/* Game info */}
-        <div className="mt-6 text-center">
-          <p className="text-amber-500 text-xs mb-4">
-            You're a Pinkerton agent pursuing the notorious Black Bart gang
-            across 2,000 miles of frontier. Gather clues, interview witnesses,
-            and issue warrants. But beware - your narrator may not be reliable...
-          </p>
-          <Link
-            href="/hub"
-            className="text-amber-400 hover:text-amber-200 text-xs font-pixel transition-colors"
-          >
-            &larr; Back to Hub
+        <p className="mt-6 text-center font-serif text-base text-amber-200/80">
+          A warrant rides along. The Sandiego chase waits in Gold Country.
+        </p>
+        <p className="mt-4 text-center">
+          <Link href="/" className="font-serif text-lg text-amber-100 underline underline-offset-4">
+            Back to the ranch
           </Link>
-        </div>
+        </p>
       </div>
     </div>
   )

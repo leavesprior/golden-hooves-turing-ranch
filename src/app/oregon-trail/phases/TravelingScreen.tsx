@@ -24,6 +24,7 @@ import { type ActiveEffect } from '../data/consumableEffects'
 import { CampMenu } from '../components/CampMenu'
 import { PipBoyMenu } from '../components/GameMenu'
 import HunkerDown from '../components/HunkerDown'
+import { readArcadeAccess } from '@/lib/arcadeFirstLevel'
 
 export interface TravelingScreenProps {
   activeEffects: ActiveEffect[]
@@ -116,10 +117,10 @@ export function TravelingScreen({
               </p>
             </div>
             <Link
-              href="/hub"
+              href="/"
               className="west-face-pill text-xs"
             >
-              Quit Game
+              Quit
             </Link>
           </header>
 
@@ -171,6 +172,48 @@ export function TravelingScreen({
             <p className="text-amber-200 text-sm">{state.message}</p>
           </div>
         )}
+
+        {/* Primary verbs first — iPhone first paint must include Continue Trail. */}
+        <div className="mb-6 flex gap-3 justify-center flex-wrap">
+          <button
+            data-testid="continue-trail"
+            onClick={travel}
+            className="px-8 py-3 bg-green-700 hover:bg-green-600 text-green-100 font-pixel text-sm rounded border-4 border-green-500 transition-colors"
+          >
+            Continue Trail
+          </button>
+          <button
+            onClick={hunt}
+            disabled={state.ammunition < 10}
+            className="px-4 py-3 bg-amber-700 hover:bg-amber-600 text-amber-100 font-pixel text-sm rounded border-4 border-amber-500 disabled:opacity-50 transition-colors"
+          >
+            Hunt
+          </button>
+          <button
+            onClick={() => setShowCharacterSheet(true)}
+            className="px-4 py-3 bg-stone-700 hover:bg-stone-600 text-stone-100 font-pixel text-sm rounded border-4 border-stone-500 transition-colors relative"
+          >
+            Character
+            {activeEffects.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full text-[9px] text-white flex items-center justify-center">
+                {activeEffects.length}
+              </span>
+            )}
+          </button>
+          <HunkerDown
+            currentLandmark={state.currentLandmark}
+            milesRemaining={2000 - state.distance}
+            partySize={state.party.length}
+            onHunkerDown={() => {}}
+            graphicsTier={state.graphicsTier}
+          />
+          <button
+            onClick={() => setShowCampMenu(true)}
+            className="px-4 py-3 bg-amber-800 hover:bg-amber-700 text-amber-100 font-pixel text-sm rounded border-4 border-amber-600 transition-colors"
+          >
+            {'\u26FA'} Camp
+          </button>
+        </div>
 
         {/* Trail Observations - Hitchhiker's Guide Style Commentary */}
         <div className="mb-6">
@@ -311,49 +354,6 @@ export function TravelingScreen({
           </div>
         )}
 
-        {/* Actions */}
-        <div className="flex gap-4 justify-center flex-wrap">
-          <button
-            onClick={travel}
-            className="px-8 py-3 bg-green-700 hover:bg-green-600 text-green-100 font-pixel text-sm rounded border-4 border-green-500 transition-colors"
-          >
-            Continue Trail
-          </button>
-          <button
-            onClick={hunt}
-            disabled={state.ammunition < 10}
-            className="px-4 py-3 bg-amber-700 hover:bg-amber-600 text-amber-100 font-pixel text-sm rounded border-4 border-amber-500 disabled:opacity-50 transition-colors"
-          >
-            Hunt
-          </button>
-          <button
-            onClick={() => setShowCharacterSheet(true)}
-            className="px-4 py-3 bg-stone-700 hover:bg-stone-600 text-stone-100 font-pixel text-sm rounded border-4 border-stone-500 transition-colors relative"
-          >
-            Character
-            {activeEffects.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full text-[9px] text-white flex items-center justify-center">
-                {activeEffects.length}
-              </span>
-            )}
-          </button>
-          {/* Hunker Down - Vacation Rental Option */}
-          <HunkerDown
-            currentLandmark={state.currentLandmark}
-            milesRemaining={2000 - state.distance}
-            partySize={state.party.length}
-            onHunkerDown={() => {}}
-            graphicsTier={state.graphicsTier}
-          />
-          {/* Make Camp button */}
-          <button
-            onClick={() => setShowCampMenu(true)}
-            className="px-4 py-3 bg-amber-800 hover:bg-amber-700 text-amber-100 font-pixel text-sm rounded border-4 border-amber-600 transition-colors"
-          >
-            {'\u26FA'} Camp
-          </button>
-        </div>
-
         {/* Character Sheet Modal (available during travel) */}
         {showCharacterSheet && (
           <CharacterSheet
@@ -377,16 +377,17 @@ export function TravelingScreen({
         {/* Camp Menu (available during travel) */}
         <CampMenu isOpen={showCampMenu} onClose={() => setShowCampMenu(false)} />
 
-        {/* Pip-Boy Game Menu (available during travel) */}
-        <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} onOpenCamp={() => setShowCampMenu(true)} />
-
-        {/* FAB: Game Menu button */}
-        <button
-          onClick={() => setShowPipBoy(true)}
-          className="fixed bottom-4 right-4 z-40 bg-amber-900/90 border-2 border-amber-600 text-amber-200 font-pixel text-xs px-3 py-2 rounded hover:bg-amber-800/90 transition-colors shadow-lg"
-        >
-          [ESC] MENU
-        </button>
+        {readArcadeAccess().trailComplete && (
+          <>
+            <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} onOpenCamp={() => setShowCampMenu(true)} />
+            <button
+              onClick={() => setShowPipBoy(true)}
+              className="fixed bottom-4 right-4 z-40 bg-amber-900/90 border-2 border-amber-600 text-amber-200 font-pixel text-xs px-3 py-2 rounded hover:bg-amber-800/90 transition-colors shadow-lg"
+            >
+              [ESC] MENU
+            </button>
+          </>
+        )}
       </div>
     </div>
     </Graphics64bitWrapper>

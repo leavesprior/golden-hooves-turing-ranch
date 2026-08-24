@@ -9,7 +9,8 @@ export function HomeHeroStill() {
         alt=""
         className="h-full w-full object-cover object-center"
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/60" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/75" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/35 to-transparent" />
     </div>
   )
 }

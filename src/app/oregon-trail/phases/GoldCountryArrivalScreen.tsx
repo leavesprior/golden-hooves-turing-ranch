@@ -7,11 +7,12 @@ import { useMystery } from '../mysteryContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import GoldCountryBooking from '../components/GoldCountryBooking'
+import { writePostWinChoice } from '@/lib/arcadeFirstLevel'
 
 export function GoldCountryArrivalScreen() {
-  const { state, enterSettlement, leaveSettlement, resetGame } = useOregonTrail()
+  const { state, enterSettlement } = useOregonTrail()
   const { balance } = useKarmaWallet()
-  const { autoStartFirstCase, state: mysteryState } = useMystery()
+  const { state: mysteryState } = useMystery()
   const { recordMilestone } = useCrossGame()
   const [showBooking, setShowBooking] = useState(false)
 
@@ -79,60 +80,38 @@ export function GoldCountryArrivalScreen() {
           </div>
         </div>
 
-        {/* NEW: Back of Beyond Ranch Booking Offer */}
-        <div className="bg-yellow-900/40 border-2 border-yellow-600 rounded-lg p-4 mb-6">
-          <div className="text-center">
-            <p className="text-yellow-300 font-pixel text-sm mb-2">{'\uD83C\uDFC6'} Special Reward Unlocked!</p>
-            <p className="text-yellow-200 text-xs mb-3">
-              Your journey has earned you a discount at Back of Beyond Ranch
-            </p>
-            <button
-              onClick={() => setShowBooking(true)}
-              className="px-6 py-2 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-black font-bold rounded border-2 border-yellow-400 transition-all"
-            >
-              {'\uD83D\uDD17'} Claim Your Reward
-            </button>
-          </div>
-        </div>
-
-        {/* Choice */}
+        {/* Arcade post-win: take the first discount, or risk it for the next level. */}
         <div className="bg-gray-900/80 border-2 border-amber-600 rounded-lg p-6 mb-6">
-          <p className="text-amber-300 text-center mb-6">
-            The frontier awaits. Will you stake your claim and build a life here in Gold Country,
-            or move on to new adventures?
+          <p className="text-amber-100 text-center text-lg mb-6 font-serif">
+            Take the first discount now, or risk it on the next level for a higher one.
           </p>
-
           <div className="space-y-4">
             <button
-              onClick={() => { autoStartFirstCase(); enterSettlement() }}
-              className="w-full py-4 bg-amber-700 hover:bg-amber-600 text-amber-100 font-pixel text-lg rounded border-4 border-amber-500 transition-colors"
+              onClick={() => {
+                writePostWinChoice('take_discount')
+                setShowBooking(true)
+              }}
+              className="w-full py-4 bg-amber-700 hover:bg-amber-600 text-amber-50 font-serif text-xl rounded border-4 border-amber-500 transition-colors"
             >
-              {'\uD83C\uDFE0'} Stake Your Claim
+              Take the discount
             </button>
-            <p className="text-gray-500 text-xs text-center">
-              Build a ranch, mine for gold, and become a legend of Gold Country
+            <p className="text-amber-200/80 text-base text-center font-serif">
+              Send a message on Airbnb when requesting to book. The host provides the discount.
             </p>
-
             <button
-              onClick={leaveSettlement}
-              className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 font-pixel text-sm rounded border-2 border-gray-500 transition-colors"
+              onClick={() => {
+                writePostWinChoice('risk_next')
+                enterSettlement()
+              }}
+              className="w-full py-3 bg-black/60 hover:bg-black/40 text-amber-100 font-serif text-lg rounded border-2 border-amber-700 transition-colors"
             >
-              {'\uD83D\uDEB6'} Continue Your Journey
+              Risk it — play the next level
             </button>
-            <p className="text-gray-500 text-xs text-center">
-              You've reached your destination - claim victory and move on
+            <p className="text-amber-200/70 text-base text-center font-serif">
+              Gold Country: a holistic detective, a time-slipped old-west warrant, and a Sandiego noir chase through real towns.
+              Higher discount if you finish. The ranch-house QR opens the porch map when you are there — leave GPS on.
             </p>
           </div>
-        </div>
-
-        {/* Back to Hub */}
-        <div className="text-center">
-          <button
-            onClick={resetGame}
-            className="text-amber-500 hover:text-amber-300 text-xs font-pixel transition-colors"
-          >
-            Start Over
-          </button>
         </div>
       </div>
 

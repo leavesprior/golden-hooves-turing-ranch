@@ -23,6 +23,7 @@ import { editorialForLandmark } from '@/lib/californiaTrailArt'
 // NEW: Douglas Adams / Monty Python Easter Egg imports
 import { RiverAnimation } from './RiverAnimation'
 import { BridgeKeeper } from './BridgeKeeper'
+import { shouldShowBridgeKeeper } from '../data/adamsEasterEggs'
 
 interface RiverCrossingProps {
   riverName: string
@@ -75,9 +76,9 @@ export function RiverCrossing({
   const playerTraits = charState?.character?.traits || []
   const activeTraitBonuses = useMemo(() => getActiveTraitBonuses(playerTraits), [playerTraits])
 
-  // Bridge Keeper: 15% chance normally, 100% if player has bridge_keepers_bane trait
-  const hasBridgeKeeperTrait = playerTraits.includes('bridge_keepers_bane')
-  const [showBridgeKeeper] = useState(() => hasBridgeKeeperTrait || Math.random() < 0.15)
+  const [showBridgeKeeper] = useState(() =>
+    shouldShowBridgeKeeper({ riverName, traits: playerTraits })
+  )
   const riverArt = editorialForLandmark(riverName)
 
   // Generate river state on mount

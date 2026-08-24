@@ -108,7 +108,7 @@ const jsonLd = {
         { "@type": "LocationFeatureSpecification", name: "Ranch animals (horses, emus, sheep, chickens)", value: true },
       ],
       numberOfBedrooms: 6,
-      numberOfBathroomsTotal: 3,
+      numberOfBathroomsTotal: 2.5,
       aggregateRating: {
         "@type": "AggregateRating",
         ratingValue: 4.84,
@@ -154,7 +154,7 @@ const jsonLd = {
           name: "How many guests can Back of Beyond Ranch accommodate?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "The ranch accommodates up to 12 guests across 6 bedrooms and 3 bathrooms. The property sits on 60 acres in Gold Country, California.",
+            text: "The ranch accommodates up to 12 guests across 6 bedrooms and 2.5 bathrooms. The property sits on 60 acres in Gold Country, California.",
           },
         },
         {
@@ -170,7 +170,7 @@ const jsonLd = {
           name: "What is the Golden Frog Trail?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "The Golden Frog Trail is an interactive Gold Rush adventure game built into the ranch's website. Guests can play online before their stay or explore QR-code-based challenges on the property. It features a karma system where your in-game choices can earn real booking discounts.",
+            text: "Book on Airbnb, or play the Golden Frog Trail for the first discount. The first level is an 1849 wagon west — rivers, shops, and a Bridge of Death. After you book, a ranch-house QR opens the playable Gold Country map. Send a message on Airbnb when requesting to book and the host provides the discount.",
           },
         },
       ],

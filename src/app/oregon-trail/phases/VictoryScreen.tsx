@@ -38,10 +38,10 @@ export function VictoryScreen() {
             Play Again
           </button>
           <Link
-            href="/hub"
+            href="/"
             className="px-6 py-3 bg-green-700 hover:bg-green-600 text-green-100 font-pixel text-sm rounded border-4 border-green-500"
           >
-            Back to Hub
+            Back to the ranch
           </Link>
         </div>
       </div>

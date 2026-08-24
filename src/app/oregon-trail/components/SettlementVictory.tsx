@@ -482,10 +482,10 @@ export function SettlementVictory({ onPlayAgain, discountCode, occupation }: Set
             Play Again
           </button>
           <Link
-            href="/hub"
+            href="/"
             className="px-8 py-4 bg-green-700 hover:bg-green-600 text-green-100 font-pixel text-lg rounded border-4 border-green-500 transition-colors"
           >
-            Back to Hub
+            Back to the ranch
           </Link>
           <Link
             href="/adventure"

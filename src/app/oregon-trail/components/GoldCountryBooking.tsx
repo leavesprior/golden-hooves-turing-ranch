@@ -89,7 +89,7 @@ export default function GoldCountryBooking({
     if (onBookingIntent) {
       onBookingIntent()
     }
-    const verificationMessage = `Hi! I played the Golden Frog Trail game as ${playerName || 'a trail survivor'} and reached ${discountTier.tierName} (${discountTier.discountPercent}% reward tier). Please verify my game reward for a Back of Beyond Ranch booking.`
+    const verificationMessage = `Hi! I played the Golden Frog Trail as ${playerName || 'a trail survivor'} (${discountTier.tierName}, ${discountTier.discountPercent}% tier). Sending a message on Airbnb when requesting to book so you can provide the discount.`
 
     // Copy a host-verification request so the user can paste it in the Airbnb message.
     try {
@@ -97,7 +97,7 @@ export default function GoldCountryBooking({
     } catch { /* clipboard may fail on some browsers */ }
     // Open Airbnb listing for Back of Beyond Ranch
     window.open(
-      'https://www.airbnb.com/rooms/30045739',
+      'https://airbnb.com/h/backofbeyondranch',
       '_blank',
       'noopener,noreferrer'
     )
@@ -198,7 +198,7 @@ export default function GoldCountryBooking({
           <div className="bg-black/50 border-2 border-yellow-600 text-yellow-300 p-3 text-center">
             <p className="font-bold text-sm">Host verification required before any booking code is issued.</p>
             <p className="text-yellow-500 text-xs mt-2">
-              Mention your trail name, reward tier, karma, and outlaws caught when booking.
+              Send me a message on Airbnb when requesting to book and I will provide the discount.
             </p>
           </div>
           <p className="text-yellow-600 text-xs text-center mt-2">
@@ -222,7 +222,7 @@ export default function GoldCountryBooking({
             onClick={onClose}
             className="w-full bg-amber-800 hover:bg-amber-700 text-yellow-200 font-bold py-3 border-2 border-yellow-700 transition-all"
           >
-            Continue to Settlement
+            Close
           </button>
         </div>
 

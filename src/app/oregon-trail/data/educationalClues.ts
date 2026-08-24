@@ -358,11 +358,11 @@ export const EDUCATIONAL_CLUES: EducationalClue[] = [
     locationId: 'bobr_cabin',
     order: 3,
     text: 'Wine bottles from local vineyards were found at the cabin, along with a suspicious note. The thief was planning a celebration with their crew after the heist...',
-    hintLink: 'https://www.airbnb.com/rooms/30045739',
+    hintLink: 'https://backofbeyondranch.farm#bedrooms',
     question: 'How many bedrooms does Back of Beyond Ranch have for a wine country getaway?',
     answer: '6',
     acceptedAnswers: ['6', 'six'],
-    fact: 'Back of Beyond Ranch features 6 bedrooms, perfect for wine country group getaways. After touring the tasting rooms of Murphys, guests can gather around the fire pit to share their favorite discoveries.',
+    fact: 'The ranch site lists six bedrooms for twelve people. Clues on the trail send you back to backofbeyondranch.farm — book on Airbnb, or play the Golden Frog Trail from the porch page.',
     suspectHint: 'Planning to celebrate the heist in style!'
   }
 ]

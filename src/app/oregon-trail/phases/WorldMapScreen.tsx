@@ -282,7 +282,7 @@ export function WorldMapScreen() {
             {'\u2190'} Back to Trail
           </button>
           <Link
-            href="/hub"
+            href="/"
             className="px-4 py-2 bg-red-900/60 hover:bg-red-800/60 text-red-200 font-pixel text-xs rounded border-2 border-red-600"
           >
             Quit Game

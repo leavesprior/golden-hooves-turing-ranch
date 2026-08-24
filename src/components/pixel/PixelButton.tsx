@@ -37,13 +37,23 @@ export default function PixelButton({
   const baseStyles = `font-[var(--font-pixel)] border-b-4 transition-all duration-150 pixel-btn-press inline-block text-center ${variantStyles[variant]} ${sizeStyles[size]} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${className}`
 
   if (href && !disabled) {
-    const external = /^https?:\/\//i.test(href)
+    // mailto/tel must be a real <a>. Next <Link> swallows them — Goda
+    // (2026-08-22 Autonomee review): "Send message doesn't even work."
+    const external = /^(https?:|mailto:|tel:)/i.test(href)
+    if (external) {
+      const newTab = /^https?:/i.test(href)
+      return (
+        <a
+          href={href}
+          className={`${baseStyles} min-h-11`}
+          {...(newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        >
+          {children}
+        </a>
+      )
+    }
     return (
-      <Link
-        href={href}
-        className={`${baseStyles} min-h-11`}
-        {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-      >
+      <Link href={href} className={`${baseStyles} min-h-11`}>
         {children}
       </Link>
     )

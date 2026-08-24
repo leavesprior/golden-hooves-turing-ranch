@@ -54,11 +54,14 @@ export default function StayPage() {
             <p className="mt-1 text-sm text-[#b8a88a]">Straight to the listing. Level 2 by morning.</p>
           </a>
           <Link
-            href="/explore"
+            href="/oregon-trail"
             className="block rounded-xl border border-[rgba(232,220,196,0.2)] bg-[#16130f] p-5 min-h-[72px] hover:border-[#e8dcc4]"
           >
-            <p className="text-lg font-serif">Show me the country first</p>
-            <p className="mt-1 text-sm text-[#b8a88a]">Volcano, Angels Camp, West Point — the towns are real.</p>
+            <p className="text-lg font-serif">Play the Golden Frog Trail</p>
+            <p className="mt-1 text-sm text-[#b8a88a]">
+              First discount for new guests. Already staying? Play once for a return-stay discount.
+              The porch QR opens the live map — it is not on this site.
+            </p>
           </Link>
         </div>
 
