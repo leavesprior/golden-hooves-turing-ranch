@@ -96,6 +96,7 @@ const ADVENTURE_EDITORIAL: Record<string, string> = {
   harris_ranch: `${E}/harris_ranch.jpg${V}`,
   kennedy_mine: `${E}/jackson.jpg${V}`,
   ironstone_vineyards: `${E}/murphys.jpg${V}`,
+  california_caverns: `${E}/moaning_cavern.jpg${V}`,
   ot_kansas_river: `${E}/kansas_river.jpg${V}`,
   ot_chimney_rock: `${E}/chimney_rock.jpg${V}`,
   ot_independence_rock: `${E}/independence_rock.jpg${V}`,

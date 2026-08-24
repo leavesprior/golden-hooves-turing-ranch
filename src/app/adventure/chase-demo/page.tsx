@@ -38,6 +38,7 @@ import {
 import { ChaseMap } from './ChaseMap'
 import { WantedPoster } from './WantedPoster'
 import { readCarriedBoon, recordVerdict, type VerdictReward } from './chaseLedger'
+import { editorialForExplorePlace } from '@/lib/goldCountryEditorial'
 import { ChaseArt, VerdictEmblem, WitnessSprite } from './ChaseArt'
 
 type Phase = 'clue' | 'feedback' | 'won' | 'lost' | 'reckoning' | 'verdict'
@@ -382,7 +383,7 @@ export default function ChaseDemoPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
           <div className="space-y-4">
             <ChaseArt
-              src={`/chase/town-${currentId}.png`}
+              src={editorialForExplorePlace(currentId) || `/chase/town-${currentId}.png`}
               alt={`${TOWNS[currentId].name} — period view`}
               className="w-full border-2 border-[var(--pixel-gold-dark)] object-cover"
               fallback={<></>}
