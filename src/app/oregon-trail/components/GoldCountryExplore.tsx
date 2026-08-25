@@ -19,6 +19,9 @@ import {
 } from './map'
 import { type MapLocation } from '../data/worldMaps'
 import { readDiscovered, metersBetween } from '@/lib/oneMapDiscovery'
+import { LEVEL2_CASES, level2Progress } from '@/lib/goldCountryLevel2'
+import GoldCountryBooking from './GoldCountryBooking'
+import { useMystery } from '../mysteryContext'
 
 interface GoldCountryExploreProps {
   onVisitLocation: (locationId: string) => void
@@ -64,8 +67,10 @@ export function GoldCountryExplore({
 }: GoldCountryExploreProps) {
   const { state } = useOregonTrail()
   const { balance } = useKarmaWallet()
+  const { state: mysteryState } = useMystery()
   const [hoveredLocation, setHoveredLocation] = useState<string | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
+  const [showL2Voucher, setShowL2Voucher] = useState(false)
 
   // GPS for physical correlation (device GPS hardware) with location coords (Google Maps / places.json verified)
   // Correlates for physical presence bonuses (SADDLE stats, AR PlaceBackdrop, bounties, shop deals, NPC engagement)
@@ -111,6 +116,7 @@ export function GoldCountryExplore({
     const one = typeof window !== 'undefined' ? readDiscovered() : []
     return Array.from(new Set([...wagon, ...one]))
   }, [state.discoveredGoldLocations])
+  const l2 = useMemo(() => level2Progress(discovered), [discovered])
 
   // Map location positions (relative to SVG viewBox 0-100)
   const locationPositions: Record<string, { x: number; y: number }> = useMemo(() => ({
@@ -196,9 +202,9 @@ export function GoldCountryExplore({
       <header className="bg-green-950/30 border-b border-green-700/40 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="font-pixel text-amber-400 text-xl tracking-wider">GOLD COUNTRY</h1>
+            <h1 className="font-pixel text-amber-400 text-xl tracking-wider">LEVEL 2 · EXPLORE THE GOLD COUNTRY</h1>
             <p className="text-green-600 text-xs font-mono tracking-widest uppercase">
-              Holistic detective · time slip · old-west warrant · Sandiego noir
+              {l2.count}/{l2.goal} cases · Holistic detective · time slip · warrant · Sandiego noir
             </p>
           </div>
           <div className="flex items-center gap-6">
@@ -409,11 +415,29 @@ export function GoldCountryExplore({
         {/* Sidebar */}
         <div className="w-72 border-l border-green-700/40 p-4 flex flex-col gap-4">
           <div className="bg-green-950/30 border border-amber-700/40 rounded-lg p-3">
-            <h3 className="text-amber-400 font-pixel text-xs tracking-wider mb-2">WARRANT</h3>
-            <p className="text-green-300 text-xs font-mono">
-              Vane the Tare. Holistic detective · time slip · old-west warrant · Sandiego noir.
-              Open the dossier. Deduce the next town.
+            <h3 className="text-amber-400 font-pixel text-xs tracking-wider mb-2">LEVEL 2 CASES</h3>
+            <p className="text-green-300 text-xs font-mono mb-2">
+              Visit {l2.goal} towns. Each case is a game already on this land.
             </p>
+            <ul className="space-y-1 max-h-40 overflow-y-auto">
+              {LEVEL2_CASES.map((c) => {
+                const done = l2.visited.includes(c.id)
+                return (
+                  <li key={c.id} className={`text-xs font-mono ${done ? 'text-amber-300' : 'text-green-600'}`}>
+                    {done ? '●' : '○'} {c.title}
+                  </li>
+                )
+              })}
+            </ul>
+            {l2.complete && (
+              <button
+                type="button"
+                onClick={() => setShowL2Voucher(true)}
+                className="w-full mt-3 py-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-xs font-mono rounded border border-amber-400 transition-colors"
+              >
+                LEVEL 2 DONE — TAKE THE QR VOUCHER
+              </button>
+            )}
             <button
               onClick={onOpenQuestLog}
               className="w-full mt-3 py-2 bg-amber-900/50 hover:bg-amber-800/60 text-amber-200 text-xs font-mono rounded border border-amber-600/50 transition-colors"
@@ -512,6 +536,20 @@ export function GoldCountryExplore({
           </div>
         </div>
       </div>
+
+      {showL2Voucher && (
+        <GoldCountryBooking
+          playerName={state.party[0]?.name || 'Traveler'}
+          partySize={state.party.filter((m) => m.health > 0).length}
+          karmaScore={balance.good + Math.floor(balance.neutral / 2)}
+          outlawsCaught={Math.max(state.outlawsCaught || 0, mysteryState.outlawsCaught || 0)}
+          daysOnTrail={state.daysOnTrail}
+          onClose={() => setShowL2Voucher(false)}
+          graphicsTier={state.graphicsTier}
+          level={2}
+          minPercent={10}
+        />
+      )}
     </div>
   )
 }

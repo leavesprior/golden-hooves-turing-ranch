@@ -9,7 +9,12 @@
  * This creates a bridge between the game experience and real-world booking.
  */
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import {
+  AIRBNB_CONTACT_HOST_URL,
+  airbnbDiscountMessage,
+  voucherLines,
+} from '@/lib/airbnbContact'
 
 interface GoldCountryBookingProps {
   playerName: string
@@ -20,6 +25,10 @@ interface GoldCountryBookingProps {
   onClose?: () => void
   onBookingIntent?: () => void
   graphicsTier?: string
+  /** 1 = trail win, 2 = Gold Country explore complete. Display only. */
+  level?: 1 | 2
+  /** Floor the shown percent (L2 finish). Host still verifies. */
+  minPercent?: number
 }
 
 interface DiscountTier {
@@ -79,28 +88,53 @@ export default function GoldCountryBooking({
   daysOnTrail,
   onClose,
   onBookingIntent,
-  graphicsTier = 'retro_4bit'
+  graphicsTier = 'retro_4bit',
+  level = 1,
+  minPercent = 0,
 }: GoldCountryBookingProps) {
   const [showDetails, setShowDetails] = useState(false)
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
 
-  const discountTier = getDiscountTier(karmaScore, outlawsCaught)
+  const baseTier = getDiscountTier(karmaScore, outlawsCaught)
+  const discountPercent = Math.max(baseTier.discountPercent, minPercent)
+  const discountTier = discountPercent === baseTier.discountPercent
+    ? baseTier
+    : { ...baseTier, discountPercent }
+
+  const voucher = {
+    playerName: playerName || 'Traveler',
+    percent: discountTier.discountPercent,
+    tierName: discountTier.tierName,
+    level,
+  }
+  const verificationMessage = airbnbDiscountMessage(voucher)
+  const qrPayload = voucherLines(voucher)
+
+  useEffect(() => {
+    let cancelled = false
+    // @ts-expect-error qrcode has no type declarations (same as DonationPanel)
+    import('qrcode')
+      .then((QR: { toDataURL?: (t: string, o: object) => Promise<string>; default?: { toDataURL?: (t: string, o: object) => Promise<string> } }) => {
+        const toDataURL = QR.toDataURL || QR.default?.toDataURL
+        if (!toDataURL) return Promise.reject(new Error('qrcode'))
+        return toDataURL(qrPayload, { margin: 1, width: 280, errorCorrectionLevel: 'M' })
+      })
+      .then((url) => { if (!cancelled) setQrDataUrl(url) })
+      .catch(() => { if (!cancelled) setQrDataUrl(null) })
+    return () => { cancelled = true }
+  }, [qrPayload])
+
+  const copyVoucher = () => {
+    try {
+      navigator.clipboard.writeText(verificationMessage)
+    } catch { /* clipboard may fail on some browsers */ }
+  }
 
   const handleBookNow = () => {
     if (onBookingIntent) {
       onBookingIntent()
     }
-    const verificationMessage = `Hi! I played the Golden Frog Trail as ${playerName || 'a trail survivor'} (${discountTier.tierName}, ${discountTier.discountPercent}% tier). Sending a message on Airbnb when requesting to book so you can provide the discount.`
-
-    // Copy a host-verification request so the user can paste it in the Airbnb message.
-    try {
-      navigator.clipboard.writeText(verificationMessage)
-    } catch { /* clipboard may fail on some browsers */ }
-    // Open Airbnb listing for Back of Beyond Ranch
-    window.open(
-      'https://airbnb.com/h/backofbeyondranch',
-      '_blank',
-      'noopener,noreferrer'
-    )
+    copyVoucher()
   }
 
   // Style based on graphics tier
@@ -190,35 +224,70 @@ export default function GoldCountryBooking({
           )}
         </div>
 
+        {/* QR voucher — screenshot this into the Airbnb thread */}
+        <div className="p-4 border-b-2 border-yellow-700">
+          <p className="text-yellow-400 text-sm text-center mb-3">
+            Scan or screenshot this QR. It is the {discountTier.discountPercent}% voucher for your stay.
+          </p>
+          <div className="flex justify-center">
+            {qrDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={qrDataUrl}
+                alt={`${discountTier.discountPercent} percent stay voucher QR`}
+                width={180}
+                height={180}
+                className="bg-white p-2 rounded"
+              />
+            ) : (
+              <div className="w-[180px] h-[180px] bg-black/50 border border-yellow-700 flex items-center justify-center text-yellow-500 text-xs">
+                Drawing voucher QR…
+              </div>
+            )}
+          </div>
+          <p className="text-yellow-500 text-xs text-center mt-2 font-mono whitespace-pre-line">
+            {discountTier.tierName} · {discountTier.discountPercent}% · listing 30045739
+          </p>
+        </div>
+
         {/* Host Verification */}
         <div className="p-4">
           <p className="text-yellow-400 text-sm text-center mb-2">
-            Your Reward Is Ready for Host Verification
+            Redeem by messaging the Airbnb listing
           </p>
           <div className="bg-black/50 border-2 border-yellow-600 text-yellow-300 p-3 text-center">
-            <p className="font-bold text-sm">Host verification required before any booking code is issued.</p>
+            <p className="font-bold text-sm">The host provides the discount. This is not a self-apply coupon.</p>
             <p className="text-yellow-500 text-xs mt-2">
-              Send me a message on Airbnb when requesting to book and I will provide the discount.
+              Send a message on Airbnb when requesting to book. Paste the copied voucher or attach the QR screenshot.
             </p>
           </div>
-          <p className="text-yellow-600 text-xs text-center mt-2">
-            The host will verify eligible game rewards before applying booking value.
-          </p>
         </div>
 
         {/* CTA Buttons */}
         <div className="p-4 space-y-2">
-          <button
+          <a
+            href={AIRBNB_CONTACT_HOST_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={handleBookNow}
-            className="w-full bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-500 hover:from-yellow-400 hover:via-yellow-300 hover:to-yellow-400 text-black font-bold py-4 text-lg transition-all"
+            className="block w-full bg-gradient-to-r from-yellow-500 via-yellow-400 to-yellow-500 hover:from-yellow-400 hover:via-yellow-300 hover:to-yellow-400 text-black font-bold py-4 text-lg text-center transition-all"
           >
-            Request {discountTier.discountPercent}% Host Verification
-          </button>
+            Message Airbnb with the {discountTier.discountPercent}% QR
+          </a>
           <p className="text-yellow-600 text-xs text-center">
-            A host-verification booking request will be copied to clipboard
+            Opens the Hot Tub Hideaway host thread and copies the voucher text
           </p>
 
           <button
+            type="button"
+            onClick={copyVoucher}
+            className="w-full bg-amber-900 hover:bg-amber-800 text-yellow-200 font-bold py-3 border-2 border-yellow-700 transition-all"
+          >
+            Copy voucher text
+          </button>
+
+          <button
+            type="button"
             onClick={onClose}
             className="w-full bg-amber-800 hover:bg-amber-700 text-yellow-200 font-bold py-3 border-2 border-yellow-700 transition-all"
           >
@@ -229,10 +298,10 @@ export default function GoldCountryBooking({
         {/* Footer */}
         <div className="bg-yellow-900/30 p-3 text-center">
           <p className="text-yellow-600 text-xs">
-            🎮 Thank you for playing Golden Hooves!
+            Thank you for playing the Golden Frog Trail
           </p>
           <p className="text-yellow-700 text-xs mt-1">
-            Reward verification required • Real booking, real adventure
+            Host verifies the voucher · Real stay, real discount
           </p>
         </div>
       </div>

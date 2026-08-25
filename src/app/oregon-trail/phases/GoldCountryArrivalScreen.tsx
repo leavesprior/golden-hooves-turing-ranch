@@ -53,8 +53,8 @@ export function GoldCountryArrivalScreen() {
         {/* Welcome Banner */}
         <div className="text-center mb-8">
           <div className="text-8xl mb-4">{'\uD83C\uDFD4\uFE0F'}</div>
-          <h1 className="font-pixel text-yellow-300 text-3xl mb-2">Gold Country!</h1>
-          <p className="text-amber-300 text-lg mb-4">You've reached the end of the trail!</p>
+          <h1 className="font-pixel text-yellow-300 text-3xl mb-2">Level 1 complete</h1>
+          <p className="text-amber-300 text-lg mb-4">You reached Gold Country. Take the stay voucher, or level up.</p>
           <p className="text-amber-500 text-sm">
             After {state.daysOnTrail} days on the trail, you and your party of{' '}
             {state.party.filter(m => m.health > 0).length} have arrived.
@@ -83,33 +83,35 @@ export function GoldCountryArrivalScreen() {
         {/* Arcade post-win: take the first discount, or risk it for the next level. */}
         <div className="bg-gray-900/80 border-2 border-amber-600 rounded-lg p-6 mb-6">
           <p className="text-amber-100 text-center text-lg mb-6 font-serif">
-            Take the first discount now, or risk it on the next level for a higher one.
+            Take the QR stay voucher now, or level up to Explore the Gold Country for a higher one.
           </p>
           <div className="space-y-4">
             <button
+              type="button"
               onClick={() => {
                 writePostWinChoice('take_discount')
                 setShowBooking(true)
               }}
               className="w-full py-4 bg-amber-700 hover:bg-amber-600 text-amber-50 font-serif text-xl rounded border-4 border-amber-500 transition-colors"
             >
-              Take the discount
+              Get the QR discount code
             </button>
             <p className="text-amber-200/80 text-base text-center font-serif">
-              Send a message on Airbnb when requesting to book. The host provides the discount.
+              A QR with your discount amount. The button opens Airbnb messaging for Hot Tub Hideaway so the host can redeem it on your stay.
             </p>
             <button
+              type="button"
               onClick={() => {
                 writePostWinChoice('risk_next')
                 enterSettlement()
               }}
               className="w-full py-3 bg-black/60 hover:bg-black/40 text-amber-100 font-serif text-lg rounded border-2 border-amber-700 transition-colors"
             >
-              Risk it — play the next level
+              Level up — Explore the Gold Country
             </button>
             <p className="text-amber-200/70 text-base text-center font-serif">
-              Gold Country: a holistic detective, a time-slipped old-west warrant, and a Sandiego noir chase through real towns.
-              Higher discount if you finish. The ranch-house QR opens the porch map when you are there — leave GPS on.
+              Level 2 is a map of real towns: jumping-frog Angels Camp, Murphys, Volcano, the Kennedy mine, Jackson, Mokelumne Hill, Moaning Cavern.
+              Visit five. Higher discount if you finish. Ranch-house QR still opens the porch map when you are there.
             </p>
           </div>
         </div>
@@ -126,6 +128,7 @@ export function GoldCountryArrivalScreen() {
           onClose={() => setShowBooking(false)}
           onBookingIntent={() => {}}
           graphicsTier={state.graphicsTier}
+          level={1}
         />
       )}
     </div>
