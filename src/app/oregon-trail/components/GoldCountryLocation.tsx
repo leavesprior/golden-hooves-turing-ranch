@@ -4,7 +4,15 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
-import { caseForLocation } from '@/lib/goldCountryLevel2'
+import { editorialForExplorePlace } from '@/lib/goldCountryEditorial'
+import {
+  caseForLocation,
+  clueWorked,
+  editorialTownId,
+  readTalkedNpcs,
+  writeLevel2Stamp,
+  writeTalkedNpc,
+} from '@/lib/goldCountryLevel2'
 import { getGoldCountryLocation, type GoldCountryLocation as LocationType } from '../data/goldCountryLocations'
 import {
   getNPCsAtLocation,
@@ -114,13 +122,14 @@ export function GoldCountryLocation({
 
       if (finding) {
         markAreaSearched(area.id)
+        writeLevel2Stamp(locationId)
         if (finding.itemGained) addInventoryItem(finding.itemGained)
         if (finding.karmaGained) earnGood(finding.karmaGained)
       }
 
       advanceGoldCountryDay(1)
     }, 1500)
-  }, [markAreaSearched, addInventoryItem, earnGood, advanceGoldCountryDay])
+  }, [markAreaSearched, addInventoryItem, earnGood, advanceGoldCountryDay, locationId])
 
   if (!location) {
     return (
@@ -129,21 +138,6 @@ export function GoldCountryLocation({
       </div>
     )
   }
-
-  const atmosphereColors: Record<string, string> = {
-    cozy: 'from-amber-950 via-stone-950 to-black',
-    historic: 'from-amber-950 via-yellow-950 to-black',
-    charming: 'from-purple-950 via-stone-950 to-black',
-    mysterious: 'from-indigo-950 via-stone-950 to-black',
-    wondrous: 'from-cyan-950 via-stone-950 to-black',
-    majestic: 'from-emerald-950 via-stone-950 to-black',
-    haunting: 'from-gray-950 via-stone-950 to-black',
-    ghostly: 'from-slate-950 via-stone-950 to-black',
-    elegant: 'from-rose-950 via-stone-950 to-black',
-    wild: 'from-green-950 via-stone-950 to-black',
-  }
-
-  const bgGradient = atmosphereColors[location.atmosphere] || 'from-stone-950 to-black'
 
   /** Count available (incomplete) quests for an NPC */
   const getAvailableQuestCount = (npc: GoldCountryNPC): number => {
@@ -154,6 +148,8 @@ export function GoldCountryLocation({
   }
 
   const handleNPCClick = (npc: GoldCountryNPC) => {
+    writeTalkedNpc(npc.id)
+    writeLevel2Stamp(locationId)
     setSelectedNPC(npc)
     setNpcDialogueIndex(0)
     setView('npc')
@@ -222,64 +218,76 @@ export function GoldCountryLocation({
 
   // Main location view
   if (view === 'main') {
+    const art = editorialForExplorePlace(locationId) || editorialForExplorePlace(editorialTownId(locationId))
+    const talked = typeof window !== 'undefined' ? readTalkedNpcs() : []
     return (
-      <div className={`min-h-screen bg-gradient-to-b ${bgGradient} text-green-400`}>
-        {/* Scanline overlay */}
-        <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]"
-          style={{
-            backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.1) 2px, rgba(0,255,0,0.1) 4px)',
-          }}
-        />
-
-        {/* Header */}
-        <header className="bg-green-950/30 border-b border-green-700/40 px-4 py-3">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div>
-              <h1 className="font-pixel text-amber-400 text-xl tracking-wider">
-                {location.icon} {location.name}
-              </h1>
-              <p className="text-green-600 text-xs font-mono tracking-widest uppercase">
-                {location.atmosphere} | {location.region}
-              </p>
-            </div>
-            <button
-              onClick={onReturnToMap}
-              className="px-4 py-2 bg-green-950/50 hover:bg-green-900/50 text-green-400 text-xs font-mono rounded border border-green-700/40 transition-colors"
-            >
-              RETURN TO MAP
-            </button>
+      <div className="west-face-shell min-h-screen">
+        <header className="px-4 py-3 border-b border-[var(--west-line)] flex items-start justify-between gap-3">
+          <div>
+            <p className="west-face-eyebrow">Level 2 · {level2Case?.example ?? location.region}</p>
+            <h1 className="west-face-title text-3xl">{location.name}</h1>
+            <p className="west-face-body mt-1 max-w-xl">{level2Case?.warrant ?? location.fact}</p>
           </div>
+          <button type="button" className="west-face-pill shrink-0" onClick={onReturnToMap}>
+            Map
+          </button>
         </header>
 
-        <div className="max-w-4xl mx-auto p-4 space-y-4">
-          {/* Location Description */}
-          <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-4">
-            <p className="text-green-300 text-sm leading-relaxed">{location.description}</p>
-            <p className="text-green-700 text-xs font-mono mt-2 italic">{location.fact}</p>
-          </div>
+        <div className="relative min-h-[52vh] sm:min-h-[64vh]">
+          {art ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={art} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+          ) : (
+            <PlaceBackdrop id={locationId} className="absolute inset-0 h-full w-full" />
+          )}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/20" />
+          {level2Case?.clues.map((clue) => {
+            const done = clueWorked(clue, state.searchedAreas, talked)
+            return (
+              <button
+                key={clue.id}
+                type="button"
+                title={clue.label}
+                onClick={() => {
+                  if (clue.kind === 'search') {
+                    const area = searchAreas.find((a) => a.id === clue.id)
+                    if (area) handleSearch(area)
+                    return
+                  }
+                  const npc = npcs.find((n) => n.id === clue.id)
+                  if (npc) handleNPCClick(npc)
+                }}
+                className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 min-h-11 rounded-full border px-3 py-1 font-serif text-sm shadow-lg ${
+                  done
+                    ? 'border-emerald-400/70 bg-black/70 text-emerald-100'
+                    : 'border-amber-300/80 bg-black/75 text-[#e8dcc4]'
+                }`}
+                style={{ left: `${clue.x}%`, top: `${clue.y}%` }}
+              >
+                {clue.label}
+              </button>
+            )
+          })}
+        </div>
 
+        <div className="max-w-4xl mx-auto p-4 space-y-4">
+          <p className="west-face-body">{location.description}</p>
           {level2Case && (
-            <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-4">
-              <p className="text-amber-400 font-pixel text-xs tracking-wider mb-1">LEVEL 2 CASE</p>
-              <p className="text-amber-200 font-pixel text-sm">{level2Case.title}</p>
-              <p className="text-green-400 text-sm mt-2">{level2Case.verb}</p>
-              <p className="text-green-700 text-xs font-mono mt-2">From {level2Case.example}</p>
-            </div>
+            <p className="font-serif text-[#e8dcc4]">
+              Case: {level2Case.title}. {level2Case.verb} Work the three pins on the painting.
+            </p>
           )}
 
-          {/* 64-bit period backdrop of the real place */}
-          <PlaceBackdrop id={location.id} className="h-44 rounded-lg border border-green-700/40" />
-
-          {/* GPS Physical Presence (device GPS hardware + haversine correlate to real lat/lng from Google Maps / places.json) */}
-          <div className="bg-green-950/30 border border-green-700/40 rounded p-2 text-xs font-mono flex items-center gap-2">
-            <span>GPS: {gpsStatus}{currentDist !== null ? ` • ${currentDist.toFixed(1)}km` : ''}</span>
-            <button onClick={requestLocationGPS} className="px-2 py-0.5 bg-green-900/50 border border-green-700/30 rounded text-green-400">RETRY/UPDATE GPS</button>
-            {isPhysicallyPresent && <span className="text-green-400">📍 PHYSICALLY PRESENT – SADDLE + PlaceBackdrop + bonuses</span>}
-          </div>
+          <p className="text-sm text-[#b8a88a] font-serif">
+            GPS {gpsStatus}{currentDist !== null ? ` · ${currentDist.toFixed(1)} km` : ''}
+            {isPhysicallyPresent ? ' · you are on the ground' : ' · optional'}
+            {' '}
+            <button type="button" className="west-face-pill ml-2" onClick={requestLocationGPS}>Retry GPS</button>
+          </p>
 
           {/* NPCs */}
-          <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-4">
-            <h2 className="text-amber-400 font-pixel text-sm tracking-wider mb-3">PEOPLE HERE</h2>
+          <div className="west-face-paper">
+            <h2 className="west-face-eyebrow mb-3">People here</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {npcs.map(npc => {
                 const questCount = getAvailableQuestCount(npc)
@@ -287,28 +295,28 @@ export function GoldCountryLocation({
                   <button
                     key={npc.id}
                     onClick={() => handleNPCClick(npc)}
-                    className="flex items-center gap-3 p-3 bg-green-950/40 hover:bg-green-900/40 rounded-lg border border-green-800/30 hover:border-green-600/50 transition-all text-left group"
+                    className="flex items-center gap-3 p-3 rounded-lg border border-[var(--west-line)] text-left min-h-11"
                   >
-                    <span className="text-2xl group-hover:scale-110 transition-transform">{npc.portrait}</span>
+                    <span className="text-2xl">{npc.portrait}</span>
                     <div>
-                      <p className="text-green-300 text-sm font-mono">{npc.name}</p>
-                      <p className="text-green-700 text-xs">{npc.title}</p>
+                      <p className="font-serif text-[#e8dcc4]">{npc.name}</p>
+                      <p className="text-sm text-[#b8a88a]">{npc.title}</p>
                       {questCount > 0 && (
-                        <span className="text-amber-500 text-xs font-mono">! {questCount} QUEST{questCount > 1 ? 'S' : ''}</span>
+                        <span className="text-sm text-amber-200">{questCount} quest{questCount > 1 ? 's' : ''}</span>
                       )}
                     </div>
                   </button>
                 )
               })}
               {npcs.length === 0 && (
-                <p className="text-green-700 text-xs font-mono col-span-2">No one is here right now...</p>
+                <p className="west-face-body col-span-2">No one is here right now.</p>
               )}
             </div>
           </div>
 
           {/* Search Areas */}
-          <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-4">
-            <h2 className="text-amber-400 font-pixel text-sm tracking-wider mb-3">SEARCH AREAS</h2>
+          <div className="west-face-paper">
+            <h2 className="west-face-eyebrow mb-3">Search</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {searchAreas.map(area => {
                 const searched = state.searchedAreas.includes(area.id)
@@ -317,27 +325,25 @@ export function GoldCountryLocation({
                     key={area.id}
                     onClick={() => !searched && handleSearch(area)}
                     disabled={searched}
-                    className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${
+                    className={`flex items-center gap-3 p-3 rounded-lg border text-left min-h-11 ${
                       searched
-                        ? 'bg-green-950/20 border-green-900/30 opacity-50 cursor-not-allowed'
-                        : 'bg-green-950/40 hover:bg-green-900/40 border-green-800/30 hover:border-green-600/50 cursor-pointer'
+                        ? 'border-[var(--west-line)] opacity-50 cursor-not-allowed'
+                        : 'border-[var(--west-line)] cursor-pointer'
                     }`}
                   >
                     <span className="text-xl">{area.icon}</span>
                     <div>
-                      <p className={`text-sm font-mono ${searched ? 'text-green-700' : 'text-green-300'}`}>
-                        {area.name}
-                      </p>
-                      <p className="text-green-700 text-xs">{area.description}</p>
+                      <p className="font-serif text-[#e8dcc4]">{area.name}</p>
+                      <p className="text-sm text-[#b8a88a]">{area.description}</p>
                       {searched && (
-                        <span className="text-green-800 text-xs font-mono">[SEARCHED]</span>
+                        <span className="text-sm text-emerald-200">Searched</span>
                       )}
                     </div>
                   </button>
                 )
               })}
               {searchAreas.length === 0 && (
-                <p className="text-green-700 text-xs font-mono col-span-2">Nothing to search here.</p>
+                <p className="west-face-body col-span-2">Nothing to search here.</p>
               )}
             </div>
           </div>
@@ -346,9 +352,9 @@ export function GoldCountryLocation({
           {location.shopType !== 'none' && (
             <button
               onClick={() => setView('shop')}
-              className="w-full py-3 bg-amber-900/40 hover:bg-amber-800/60 text-amber-300 font-pixel text-sm rounded border border-amber-600/50 transition-colors flex items-center justify-center gap-2"
+              className="west-face-pill west-face-pill-cream w-full justify-center"
             >
-              🚪 ENTER THE {location.shopType.toUpperCase()} {isPhysicallyPresent ? '(PHYSICAL PRESENCE BONUS)' : ''}
+              Enter the {location.shopType}{isPhysicallyPresent ? ' · you are here' : ''}
             </button>
           )}
 
@@ -357,9 +363,9 @@ export function GoldCountryLocation({
             {locationId === 'bobr_cabin' && (
               <button
                 onClick={onOpenSettlement}
-                className="flex-1 py-3 bg-amber-900/50 hover:bg-amber-800/60 text-amber-300 font-pixel text-sm rounded border border-amber-600/50 transition-colors"
+                className="west-face-pill flex-1 justify-center"
               >
-                MANAGE SETTLEMENT
+                Manage settlement
               </button>
             )}
             {location.externalLink && (
@@ -367,9 +373,9 @@ export function GoldCountryLocation({
                 href={location.externalLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 py-3 bg-green-950/40 hover:bg-green-900/40 text-green-400 font-mono text-xs text-center rounded border border-green-700/40 transition-colors"
+                className="west-face-pill flex-1 text-center"
               >
-                VISIT FOR REAL &rarr;
+                Visit for real
               </a>
             )}
           </div>
@@ -390,7 +396,7 @@ export function GoldCountryLocation({
     )
 
     return (
-      <div className={`min-h-screen bg-gradient-to-b ${bgGradient} text-green-400`}>
+      <div className={`west-face-shell min-h-screen`}>
         <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]"
           style={{
             backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.1) 2px, rgba(0,255,0,0.1) 4px)',
@@ -506,7 +512,7 @@ export function GoldCountryLocation({
   if (view === 'quest' && selectedQuest && selectedNPC) {
     const catInfo = QUEST_CATEGORY_INFO[selectedQuest.category]
     return (
-      <div className={`min-h-screen bg-gradient-to-b ${bgGradient} text-green-400`}>
+      <div className={`west-face-shell min-h-screen`}>
         <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]"
           style={{
             backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.1) 2px, rgba(0,255,0,0.1) 4px)',
@@ -555,7 +561,7 @@ export function GoldCountryLocation({
   if (view === 'moral_choice' && selectedQuest && selectedQuest.moralChoices && selectedNPC) {
     const catInfo = QUEST_CATEGORY_INFO[selectedQuest.category]
     return (
-      <div className={`min-h-screen bg-gradient-to-b ${bgGradient} text-green-400`}>
+      <div className={`west-face-shell min-h-screen`}>
         <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]"
           style={{
             backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.1) 2px, rgba(0,255,0,0.1) 4px)',
@@ -612,7 +618,7 @@ export function GoldCountryLocation({
   // Quest Outcome (shown after completing a quest or making a moral choice)
   if (view === 'quest_outcome' && questOutcome && selectedQuest) {
     return (
-      <div className={`min-h-screen bg-gradient-to-b ${bgGradient} text-green-400`}>
+      <div className={`west-face-shell min-h-screen`}>
         <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]"
           style={{
             backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.1) 2px, rgba(0,255,0,0.1) 4px)',
@@ -687,7 +693,7 @@ export function GoldCountryLocation({
   // Search In Progress
   if (view === 'search' && isSearching) {
     return (
-      <div className={`min-h-screen bg-gradient-to-b ${bgGradient} text-green-400 flex items-center justify-center`}>
+      <div className={`west-face-shell min-h-screen flex items-center justify-center`}>
         <div className="text-center">
           <div className="text-4xl mb-4 animate-pulse">{selectedSearchArea?.icon || '🔍'}</div>
           <p className="text-green-400 font-pixel text-sm animate-pulse">SEARCHING...</p>
@@ -700,7 +706,7 @@ export function GoldCountryLocation({
   // Search Result
   if (view === 'search_result') {
     return (
-      <div className={`min-h-screen bg-gradient-to-b ${bgGradient} text-green-400`}>
+      <div className={`west-face-shell min-h-screen`}>
         <div className="max-w-2xl mx-auto p-4 pt-12">
           <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-6">
             <h2 className="text-amber-400 font-pixel text-sm tracking-wider mb-4">SEARCH RESULT</h2>
@@ -757,7 +763,7 @@ export function GoldCountryLocation({
       { name: 'Whiskey (bottle)', base: 15, desc: 'Saloon staple, French War era' },
     ]
     return (
-      <div className={`min-h-screen bg-gradient-to-b ${bgGradient} text-green-400`}>
+      <div className={`west-face-shell min-h-screen`}>
         <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.1) 2px, rgba(0,255,0,0.1) 4px)' }} />
         <div className="max-w-2xl mx-auto p-4 pt-8">
           <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-6">

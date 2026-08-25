@@ -6,12 +6,10 @@
 import type { OregonTrailState, GamePhase } from './types'
 import { getCurrentSeason, getDayOfYear } from '../data/ranchConfig'
 import { rollMarketEvent } from '../data/seasonalMarket'
-import { getGoldCountryLocation } from '../data/goldCountryLocations'
+import { LEVEL2_CASE_IDS } from '@/lib/goldCountryLevel2'
 
 function withCabinRing(prev: OregonTrailState): string[] {
-  const cabin = getGoldCountryLocation('bobr_cabin')
-  const seed = ['bobr_cabin', ...(cabin?.adjacentTo ?? [])]
-  return Array.from(new Set([...(prev.discoveredGoldLocations || []), ...seed]))
+  return Array.from(new Set([...(prev.discoveredGoldLocations || []), ...LEVEL2_CASE_IDS]))
 }
 
 // === Direct state setters ===
@@ -56,7 +54,7 @@ export function applyEnterSettlement(prev: OregonTrailState): OregonTrailState {
     phase: 'gold_country_explore' as GamePhase,
     currentGoldCountryLocation: 'bobr_cabin',
     discoveredGoldLocations: withCabinRing(prev),
-    message: 'Level 2 — Explore the Gold Country. Visit five cases on the map.',
+    message: 'Level 2 — Explore the Gold Country. Stamp five cases on the painted map.',
   }
 }
 
