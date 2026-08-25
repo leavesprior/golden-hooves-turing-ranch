@@ -3,13 +3,17 @@
  */
 
 import type { OregonTrailState, GamePhase } from './types'
+import { getGoldCountryLocation } from '../data/goldCountryLocations'
 
 export function applyEnterGoldCountryExplore(prev: OregonTrailState): OregonTrailState {
+  const cabin = getGoldCountryLocation('bobr_cabin')
+  const seed = ['bobr_cabin', ...(cabin?.adjacentTo ?? [])]
   return {
     ...prev,
     phase: 'gold_country_explore' as GamePhase,
     currentGoldCountryLocation: 'bobr_cabin',
-    message: 'Welcome to Gold Country! Explore the Sierra Foothills and uncover its secrets.',
+    discoveredGoldLocations: Array.from(new Set([...(prev.discoveredGoldLocations || []), ...seed])),
+    message: 'Level 2 — Explore the Gold Country. Visit five cases on the map.',
   }
 }
 

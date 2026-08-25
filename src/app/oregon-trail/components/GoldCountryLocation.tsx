@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+import { caseForLocation } from '@/lib/goldCountryLevel2'
 import { getGoldCountryLocation, type GoldCountryLocation as LocationType } from '../data/goldCountryLocations'
 import {
   getNPCsAtLocation,
@@ -60,6 +61,7 @@ export function GoldCountryLocation({
   const [questOutcome, setQuestOutcome] = useState<{ consequence: string; reward: QuestReward } | null>(null)
 
   const location = getGoldCountryLocation(locationId)
+  const level2Case = caseForLocation(locationId)
   const npcs = getNPCsAtLocation(locationId)
   const searchAreas = getSearchAreasForLocation(locationId)
 
@@ -255,6 +257,15 @@ export function GoldCountryLocation({
             <p className="text-green-300 text-sm leading-relaxed">{location.description}</p>
             <p className="text-green-700 text-xs font-mono mt-2 italic">{location.fact}</p>
           </div>
+
+          {level2Case && (
+            <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-4">
+              <p className="text-amber-400 font-pixel text-xs tracking-wider mb-1">LEVEL 2 CASE</p>
+              <p className="text-amber-200 font-pixel text-sm">{level2Case.title}</p>
+              <p className="text-green-400 text-sm mt-2">{level2Case.verb}</p>
+              <p className="text-green-700 text-xs font-mono mt-2">From {level2Case.example}</p>
+            </div>
+          )}
 
           {/* 64-bit period backdrop of the real place */}
           <PlaceBackdrop id={location.id} className="h-44 rounded-lg border border-green-700/40" />
