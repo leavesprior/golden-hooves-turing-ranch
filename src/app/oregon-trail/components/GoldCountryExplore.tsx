@@ -205,9 +205,9 @@ export function GoldCountryExplore({
 
           {selectedLocData && selectedLocation && selectedLocation !== currentLoc && (
             <div className="absolute bottom-3 left-3 right-3 z-20 west-face-paper p-4">
-              <p className="west-face-eyebrow">{selectedCase?.example ?? selectedLocData.region}</p>
+              <p className="west-face-eyebrow">{selectedCase ? `${selectedCase.year} · ${selectedCase.title}` : selectedLocData.region}</p>
               <p className="font-serif text-xl text-[#f3ead8]">{selectedLocData.name}</p>
-              <p className="west-face-body mt-1">{selectedCase?.warrant ?? selectedLocData.fact}</p>
+              <p className="west-face-body mt-1">{selectedCase?.then ?? selectedCase?.warrant ?? selectedLocData.fact}</p>
               <p className="west-face-body mt-1 text-sm">{selectedLocData.driveTime}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button type="button" className="west-face-pill west-face-pill-cream" onClick={handleTravelConfirm}>
@@ -237,7 +237,7 @@ export function GoldCountryExplore({
                       <span className={`font-serif ${done ? 'text-emerald-200' : 'text-[#e8dcc4]'}`}>
                         {done ? '●' : '○'} {c.icon} {c.title}
                       </span>
-                      <span className="block text-sm text-[#b8a88a]">{c.example}</span>
+                      <span className="block text-sm text-[#b8a88a]">{c.year} · {c.verb}</span>
                     </button>
                   </li>
                 )
@@ -258,7 +258,7 @@ export function GoldCountryExplore({
             <div className="west-face-paper">
               <p className="west-face-eyebrow">You are here</p>
               <p className="font-serif text-xl text-[#f3ead8] mt-1">{currentLocData.name}</p>
-              <p className="west-face-body mt-1">{caseForLocation(currentLoc)?.verb ?? currentLocData.description}</p>
+              <p className="west-face-body mt-1">{caseForLocation(currentLoc)?.then ?? caseForLocation(currentLoc)?.verb ?? currentLocData.description}</p>
               <button
                 type="button"
                 className="west-face-pill west-face-pill-cream w-full mt-3 justify-center"

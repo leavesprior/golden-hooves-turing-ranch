@@ -224,7 +224,7 @@ export function GoldCountryLocation({
       <div className="west-face-shell min-h-screen">
         <header className="px-4 py-3 border-b border-[var(--west-line)] flex items-start justify-between gap-3">
           <div>
-            <p className="west-face-eyebrow">Level 2 · {level2Case?.example ?? location.region}</p>
+            <p className="west-face-eyebrow">Level 2 · {level2Case ? `${level2Case.year} · ${level2Case.title}` : location.region}</p>
             <h1 className="west-face-title text-3xl">{location.name}</h1>
             <p className="west-face-body mt-1 max-w-xl">{level2Case?.warrant ?? location.fact}</p>
           </div>
@@ -273,9 +273,14 @@ export function GoldCountryLocation({
         <div className="max-w-4xl mx-auto p-4 space-y-4">
           <p className="west-face-body">{location.description}</p>
           {level2Case && (
-            <p className="font-serif text-[#e8dcc4]">
-              Case: {level2Case.title}. {level2Case.verb} Work the three pins on the painting.
-            </p>
+            <div className="west-face-paper space-y-3">
+              <p className="west-face-eyebrow">Case · {level2Case.year} · {level2Case.title}</p>
+              <p className="font-serif text-[#e8dcc4]">{level2Case.verb} Work the three pins on the painting.</p>
+              <p className="west-face-body"><span className="text-amber-200/90">Then. </span>{level2Case.then}</p>
+              <p className="west-face-body"><span className="text-amber-200/90">Becomes. </span>{level2Case.becomes}</p>
+              <p className="west-face-body"><span className="text-amber-200/90">Now. </span>{level2Case.now}</p>
+              <p className="font-serif text-sm text-[#cbbfa6]"><span className="text-amber-200/90">The three pins. </span>{level2Case.thinking}</p>
+            </div>
           )}
 
           <p className="text-sm text-[#b8a88a] font-serif">

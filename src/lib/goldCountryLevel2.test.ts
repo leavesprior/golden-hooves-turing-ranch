@@ -35,6 +35,16 @@ function ok(cond: boolean, name: string) {
 ok(LEVEL2_CASES.length === 8, 'eight cases')
 ok(LEVEL2_VISIT_GOAL === 5, 'goal is 5')
 ok(LEVEL2_CASES.every((c) => c.clues.length === 3 && c.warrant && c.icon), 'each case has 3 clues and a warrant')
+ok(
+  LEVEL2_CASES.every((c) => c.year === '1849' && c.then && c.becomes && c.now && c.thinking),
+  'each case has 1849 then / becomes / now / thinking',
+)
+const thenText = LEVEL2_CASES.map((c) => c.then).join(' ')
+ok(!/Twain|Clemens|1922|1928|Jubilee|Black Bart|Statue of Liberty/i.test(thenText), '1849 then-layer has no later-fame anachronisms')
+ok(
+  LEVEL2_CASES.some((c) => /Argonaut/i.test(c.becomes)) && LEVEL2_CASES.some((c) => /Twain|Clemens/i.test(c.becomes)),
+  'becomes-layer keeps dated later history',
+)
 ok(!!caseForLocation('angels_camp'), 'angels camp is a case')
 ok(editorialTownId('bobr_cabin') === 'bobr_ranch', 'cabin uses ranch painting')
 ok(editorialTownId('volcano') === 'volcano', 'volcano id unchanged')
