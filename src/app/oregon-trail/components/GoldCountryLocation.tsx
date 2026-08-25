@@ -17,6 +17,7 @@ import {
   frontsForLocation,
   outdoorSearchIds,
   posterForLocation,
+  posterPinsForLocation,
   readArrests,
   readBought,
   readPostersSeen,
@@ -97,6 +98,7 @@ export function GoldCountryLocation({
   const outdoorIds = outdoorSearchIds(locationId, searchAreas.map((a) => a.id))
   const outdoorSearches = searchAreas.filter((a) => outdoorIds.includes(a.id))
   const poster = posterForLocation(locationId)
+  const posterPins = posterPinsForLocation(locationId)
 
   // GPS for physical location correlation (device hardware via browser Geolocation API + haversine)
   // Correlates with location.coordinates (from Google Maps verified + places.json)
@@ -131,6 +133,12 @@ export function GoldCountryLocation({
   useEffect(() => {
     requestLocationGPS()
   }, [requestLocationGPS])
+
+  useEffect(() => {
+    setBoughtIds(readBought())
+    setArrests(readArrests())
+    setPostersSeen(readPostersSeen())
+  }, [locationId, state.phase, state.inventory.length])
 
   // Hook must be called before any early return (React rules-of-hooks)
   const handleSearch = useCallback((area: SearchArea) => {
@@ -352,16 +360,18 @@ export function GoldCountryLocation({
               </button>
             )
           })}
-          {poster && (
+          {posterPins.map((pin) => (
             <button
+              key={`${pin.poster.id}-${pin.front.id}`}
               type="button"
-              onClick={() => setPostersSeen(writePosterSeen(poster.id))}
+              title={`Posted outside ${pin.front.name}`}
+              onClick={() => setPostersSeen(writePosterSeen(pin.poster.id))}
               className="absolute z-10 -translate-x-1/2 -translate-y-1/2 min-h-11 rounded-sm border border-red-400/70 bg-black/80 px-3 py-1 font-serif text-sm text-red-100 shadow-lg"
-              style={{ left: `${poster.x}%`, top: `${poster.y}%` }}
+              style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
             >
-              {postersSeen.includes(poster.id) ? `Wanted: ${poster.alias}` : 'Warrant poster'}
+              {postersSeen.includes(pin.poster.id) ? `Wanted · ${pin.front.name}` : `Warrant · ${pin.front.name}`}
             </button>
-          )}
+          ))}
         </div>
 
         <div className="max-w-4xl mx-auto p-4 space-y-4">

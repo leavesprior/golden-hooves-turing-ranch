@@ -267,6 +267,13 @@ export function writeLevel2Stamp(locationId: string, storage?: StorageLike | nul
   return next
 }
 
+export function replaceLevel2Stamps(ids: string[], storage?: StorageLike | null): string[] {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  const next = Array.from(new Set(ids.filter((x) => typeof x === 'string')))
+  try { s?.setItem?.(LEVEL2_STAMP_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+  return next
+}
+
 export function readTalkedNpcs(storage?: StorageLike | null): string[] {
   const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
   return parseStamps(s?.getItem(LEVEL2_TALKED_KEY) ?? null)
@@ -275,6 +282,13 @@ export function readTalkedNpcs(storage?: StorageLike | null): string[] {
 export function writeTalkedNpc(npcId: string, storage?: StorageLike | null): string[] {
   const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
   const next = Array.from(new Set([...readTalkedNpcs(s), npcId]))
+  try { s?.setItem?.(LEVEL2_TALKED_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+  return next
+}
+
+export function replaceTalkedNpcs(ids: string[], storage?: StorageLike | null): string[] {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  const next = Array.from(new Set(ids.filter((x) => typeof x === 'string')))
   try { s?.setItem?.(LEVEL2_TALKED_KEY, JSON.stringify(next)) } catch { /* ignore */ }
   return next
 }

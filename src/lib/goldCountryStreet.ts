@@ -9,6 +9,12 @@
 
 import type { GoldCountryNPC } from '@/app/oregon-trail/data/goldCountryNPCs'
 import { GOLD_COUNTRY_LOCATIONS } from '@/app/oregon-trail/data/goldCountryLocations'
+import {
+  readLevel2Stamps,
+  readTalkedNpcs,
+  replaceLevel2Stamps,
+  replaceTalkedNpcs,
+} from '@/lib/goldCountryLevel2'
 
 export type TownFrontKind =
   | 'saloon'
@@ -36,6 +42,8 @@ export interface TownFront {
   kind: TownFrontKind
   x: number
   y: number
+  /** Warrants nail to sheriff / post doors — not the saloon or the store. */
+  duty?: 'sheriff' | 'post'
   keeperNpcId?: string
   patronNpcIds: string[]
   searchAreaIds: string[]
@@ -47,13 +55,21 @@ export interface TownFront {
 export interface StreetPoster {
   id: string
   locationId: string
-  x: number
-  y: number
+  /** Fronts whose outer wall carries this paper (sheriff and/or post office). */
+  postedAtFrontIds: string[]
   alias: string
   look: string
   bounty: number
   hideFrontId: string
   hideNpcId: string
+}
+
+export interface Level2Persist {
+  stamps: string[]
+  talked: string[]
+  arrests: string[]
+  bought: string[]
+  postersSeen: string[]
 }
 
 const G = {
@@ -183,16 +199,43 @@ export const TOWN_FRONTS: TownFront[] = [
     warrantNpcId: 'ridge_stranger',
   },
   {
+    id: 'jackson_sheriff',
+    locationId: 'jackson',
+    name: "Constable's office",
+    kind: 'office',
+    x: 66, y: 54,
+    duty: 'sheriff',
+    keeperNpcId: 'sheriff_thorn',
+    patronNpcIds: [],
+    searchAreaIds: [],
+    goods: goods(),
+    interior: 'A plank office. The paper goes on the door. Thorn takes warrants as a man’s word.',
+  },
+  {
     id: 'jackson_express',
     locationId: 'jackson',
-    name: 'Express desk',
+    name: 'Post office',
     kind: 'office',
-    x: 48, y: 42,
+    x: 52, y: 38,
+    duty: 'post',
     keeperNpcId: 'telegraph_operator_wong',
     patronNpcIds: [],
     searchAreaIds: ['jackson_telegraph_office'],
     goods: goods(G.powder),
-    interior: 'Letters and dust by rider. Jackson has no wire yet. Copies stay on the desk.',
+    interior: 'Express desk: letters and dust by rider. Jackson has no wire yet. Copies stay on the desk.',
+  },
+  {
+    id: 'murphys_sheriff',
+    locationId: 'murphys',
+    name: "Deputy's office",
+    kind: 'office',
+    x: 72, y: 42,
+    duty: 'sheriff',
+    keeperNpcId: 'deputy_walsh',
+    patronNpcIds: [],
+    searchAreaIds: [],
+    goods: goods(),
+    interior: 'A quiet plank office. Walsh likes Murphys peaceful. Paper still goes on the door.',
   },
   {
     id: 'moke_store',
@@ -272,8 +315,7 @@ export const STREET_POSTERS: StreetPoster[] = [
   {
     id: 'poster_lamp_shy',
     locationId: 'jackson',
-    x: 62,
-    y: 36,
+    postedAtFrontIds: ['jackson_sheriff', 'jackson_express'],
     alias: 'The lamp-shy man',
     look: 'Lean. Will not take a lamp. Seen on the ridge above the spring, and now in town.',
     bounty: 40,
@@ -307,6 +349,25 @@ export function frontsForLocation(locationId: string): TownFront[] {
 
 export function posterForLocation(locationId: string): StreetPoster | undefined {
   return STREET_POSTERS.find((p) => p.locationId === locationId)
+}
+
+/** One pin per door that carries the paper — outside sheriff / post only. */
+export function posterPinsForLocation(locationId: string): { poster: StreetPoster; front: TownFront; x: number; y: number }[] {
+  const fronts = frontsForLocation(locationId)
+  const pins: { poster: StreetPoster; front: TownFront; x: number; y: number }[] = []
+  for (const poster of STREET_POSTERS.filter((p) => p.locationId === locationId)) {
+    for (const frontId of poster.postedAtFrontIds) {
+      const front = fronts.find((f) => f.id === frontId)
+      if (!front || (front.duty !== 'sheriff' && front.duty !== 'post')) continue
+      pins.push({
+        poster,
+        front,
+        x: Math.max(8, Math.min(92, front.x + 11)),
+        y: Math.max(8, Math.min(92, front.y - 14)),
+      })
+    }
+  }
+  return pins
 }
 
 export function indoorNpcIds(locationId: string): Set<string> {
@@ -366,4 +427,26 @@ export function writePosterSeen(posterId: string, storage?: { getItem(k: string)
 /** Every mapped Gold Country place has at least one door you can enter. */
 export function everyLocationHasAFront(): boolean {
   return GOLD_COUNTRY_LOCATIONS.every((loc) => frontsForLocation(loc.id).length > 0)
+}
+
+export function snapshotLevel2Persist(storage?: { getItem(k: string): string | null }): Level2Persist {
+  return {
+    stamps: readLevel2Stamps(storage),
+    talked: readTalkedNpcs(storage),
+    arrests: readArrests(storage),
+    bought: readBought(storage),
+    postersSeen: readPostersSeen(storage),
+  }
+}
+
+export function applyLevel2Persist(
+  data: Level2Persist | undefined,
+  storage?: { getItem(k: string): string | null; setItem?(k: string, v: string): void },
+): void {
+  if (!data || typeof data !== 'object') return
+  if (Array.isArray(data.stamps)) replaceLevel2Stamps(data.stamps, storage)
+  if (Array.isArray(data.talked)) replaceTalkedNpcs(data.talked, storage)
+  if (Array.isArray(data.arrests)) writeList(ARREST_KEY, Array.from(new Set(data.arrests)), storage)
+  if (Array.isArray(data.bought)) writeList(BOUGHT_KEY, Array.from(new Set(data.bought)), storage)
+  if (Array.isArray(data.postersSeen)) writeList(POSTER_KEY, Array.from(new Set(data.postersSeen)), storage)
 }

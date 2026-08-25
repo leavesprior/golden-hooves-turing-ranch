@@ -11,6 +11,9 @@ import {
   indoorNpcIds,
   outdoorSearchIds,
   posterForLocation,
+  posterPinsForLocation,
+  snapshotLevel2Persist,
+  applyLevel2Persist,
   streetNpcs,
   writeArrest,
   readArrests,
@@ -44,7 +47,15 @@ ok(indoorNpcIds('angels_camp').has('bartender_ben'), 'Ben is indoor')
 
 const jacksonStreet = streetNpcs('jackson', getNPCsAtLocation('jackson'))
 ok(!jacksonStreet.some((n) => n.id === 'ridge_stranger'), 'wanted man is not named on the street')
-ok(jacksonStreet.some((n) => n.id === 'sheriff_thorn'), 'constable is on the street')
+ok(!jacksonStreet.some((n) => n.id === 'sheriff_thorn'), 'constable is inside the office, not named on the street')
+ok(
+  frontsForLocation('jackson').some((f) => f.duty === 'sheriff' && f.keeperNpcId === 'sheriff_thorn'),
+  "Constable's office is the sheriff front",
+)
+ok(
+  frontsForLocation('jackson').some((f) => f.duty === 'post' && f.name === 'Post office'),
+  'Post office is the express/post front',
+)
 
 const poster = posterForLocation('jackson')
 ok(!!poster && poster.hideNpcId === 'ridge_stranger', 'Jackson poster names the lamp-shy man')
@@ -67,6 +78,25 @@ writeBought('good_flour', store)
 ok(readBought(store).includes('good_flour'), 'purchase persists')
 
 ok(STREET_POSTERS.length >= 1, 'at least one warrant poster')
+ok(
+  STREET_POSTERS.every((p) =>
+    p.postedAtFrontIds.every((id) => {
+      const f = TOWN_FRONTS.find((x) => x.id === id)
+      return !!f && (f.duty === 'sheriff' || f.duty === 'post')
+    }),
+  ),
+  'posters only nail to sheriff or post office doors',
+)
+const jacksonPins = posterPinsForLocation('jackson')
+ok(jacksonPins.length === 2, 'Jackson warrant hangs outside both the constable and the post office')
+ok(jacksonPins.every((pin) => pin.front.duty === 'sheriff' || pin.front.duty === 'post'), 'pins sit on duty doors')
+
+applyLevel2Persist(
+  { stamps: ['jackson'], talked: ['sheriff_thorn'], arrests: ['ridge_stranger'], bought: ['good_flour'], postersSeen: ['poster_lamp_shy'] },
+  store,
+)
+const snap = snapshotLevel2Persist(store)
+ok(snap.stamps.includes('jackson') && snap.arrests.includes('ridge_stranger') && snap.bought.includes('good_flour'), 'save snapshot round-trips L2 street state')
 
 if (failed) {
   console.error(`${failed} failed, ${passed} passed`)

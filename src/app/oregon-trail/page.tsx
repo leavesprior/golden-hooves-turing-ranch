@@ -23,6 +23,7 @@ import { ChapterIntro, CHAPTERS } from './components/ChapterIntro'
 // Authentication & Save/Load System
 import { AuthSavePanel } from '@/components/game/AuthSavePanel'
 import { useSaveLoad, getSaveGameType } from '@/lib/saveLoadContext'
+import { applyLevel2Persist, snapshotLevel2Persist, type Level2Persist } from '@/lib/goldCountryStreet'
 
 // Golden Hooves Enhancements
 import { GameErrorBoundary } from './components/GameErrorBoundary'
@@ -72,24 +73,33 @@ const LOCAL_AUTOSAVE_KEY = 'golden_frog_local_save'
 // compare recency against auth slots. Legacy saves were the bare state object
 // (phase at top level) and carry no wall-clock stamp (savedAt: null).
 // Returns null when absent, unparsable, or not playable (title phase).
-function readLocalAutosave(): { savedAt: string | null; state: Record<string, unknown> } | null {
+function readLocalAutosave(): { savedAt: string | null; state: Record<string, unknown>; level2?: Level2Persist } | null {
   try {
     const raw = localStorage.getItem(LOCAL_AUTOSAVE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object') return null
+    const level2 = parsed.level2 && typeof parsed.level2 === 'object' ? parsed.level2 as Level2Persist : undefined
     // Legacy bare-state save: phase lives at the top level, savedAt unknown
     if (typeof parsed.phase === 'string') {
-      return parsed.phase !== 'title' ? { savedAt: null, state: parsed } : null
+      return parsed.phase !== 'title' ? { savedAt: null, state: parsed, level2 } : null
     }
     const inner = parsed.state
     if (inner && typeof inner === 'object' && typeof inner.phase === 'string' && inner.phase !== 'title') {
-      return { savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : null, state: inner }
+      return { savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : null, state: inner, level2 }
     }
     return null
   } catch {
     return null
   }
+}
+
+function writeLocalAutosave(state: unknown) {
+  localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify({
+    savedAt: new Date().toISOString(),
+    state,
+    level2: snapshotLevel2Persist(),
+  }))
 }
 
 // NOTE: Phase screens extracted to ./phases/ directory.
@@ -229,7 +239,7 @@ function OregonTrailGame() {
     autoSaveTimer.current = setTimeout(() => {
       try {
         // #13: wrapped shape — savedAt lets Continue compare recency vs slots
-        localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify({ savedAt: new Date().toISOString(), state }))
+        writeLocalAutosave(state)
         setHasLocalSave(true)
       } catch { /* storage full or unavailable */ }
     }, 2000)
@@ -242,7 +252,7 @@ function OregonTrailGame() {
     const handleUnload = () => {
       if (state.phase !== 'title' && state.phase !== 'chapter_intro') {
         try {
-          localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify({ savedAt: new Date().toISOString(), state }))
+          writeLocalAutosave(state)
         } catch { /* ignore */ }
       }
     }
@@ -350,6 +360,7 @@ function OregonTrailGame() {
       if (!local) return false
       console.info(`[Continue] Local autosave applied (phase: ${local.state.phase})`)
       loadState(local.state as unknown as Parameters<typeof loadState>[0])
+      applyLevel2Persist(local.level2)
       return true
     }
     const applySlot = async (): Promise<boolean> => {
