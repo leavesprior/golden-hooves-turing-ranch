@@ -33,6 +33,7 @@ export function GoldCountryTravel({
   const [encounter, setEncounter] = useState<TravelEncounter | null>(null)
   const [outcome, setOutcome] = useState<EncounterOutcome | null>(null)
   const [travelProgress, setTravelProgress] = useState(0)
+  const [rolledEncounter, setRolledEncounter] = useState(false)
 
   const fromLoc = getGoldCountryLocation(fromLocationId)
   const toLoc = getGoldCountryLocation(toLocationId)
@@ -55,8 +56,8 @@ export function GoldCountryTravel({
     const interval = setInterval(() => {
       setTravelProgress(prev => {
         const next = prev + 5
-        if (next >= 50 && !encounter) {
-          // Check for encounter at midpoint
+        if (next >= 50 && !rolledEncounter) {
+          setRolledEncounter(true)
           const enc = getRandomEncounter(distance)
           if (enc) {
             setEncounter(enc)
@@ -76,7 +77,7 @@ export function GoldCountryTravel({
     }, 100)
 
     return () => clearInterval(interval)
-  }, [phase, encounter, distance, advanceGoldCountryDay])
+  }, [phase, rolledEncounter, distance, advanceGoldCountryDay])
 
   // Auto-arrive after arriving phase
   useEffect(() => {
@@ -121,7 +122,7 @@ export function GoldCountryTravel({
   // Departing screen
   if (phase === 'departing') {
     return (
-      <div className="min-h-screen bg-black text-green-400 flex items-center justify-center">
+      <div className="west-face-shell min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-green-700 text-xs font-mono mb-2">DEPARTING</p>
           <p className="text-amber-400 font-pixel text-lg">{fromLoc?.name || fromLocationId}</p>
@@ -136,7 +137,7 @@ export function GoldCountryTravel({
   // Traveling screen with progress bar
   if (phase === 'traveling') {
     return (
-      <div className="min-h-screen bg-black text-green-400 flex items-center justify-center">
+      <div className="west-face-shell min-h-screen flex items-center justify-center">
         <div className="max-w-md w-full p-8">
           <div className="text-center mb-8">
             <p className="text-green-700 text-xs font-mono mb-2">TRAVELING</p>
@@ -182,7 +183,7 @@ export function GoldCountryTravel({
   // Encounter screen
   if (phase === 'encounter' && encounter) {
     return (
-      <div className="min-h-screen bg-black text-green-400 flex items-center justify-center">
+      <div className="west-face-shell min-h-screen flex items-center justify-center">
         <div className="max-w-lg w-full p-4">
           <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-6">
             {/* Encounter header */}
@@ -223,7 +224,7 @@ export function GoldCountryTravel({
   // Outcome screen
   if (phase === 'outcome' && outcome) {
     return (
-      <div className="min-h-screen bg-black text-green-400 flex items-center justify-center">
+      <div className="west-face-shell min-h-screen flex items-center justify-center">
         <div className="max-w-lg w-full p-4">
           <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-6">
             <h2 className="text-amber-400 font-pixel text-sm tracking-wider mb-4 text-center">OUTCOME</h2>
@@ -275,7 +276,7 @@ export function GoldCountryTravel({
   // Arriving screen
   if (phase === 'arriving') {
     return (
-      <div className="min-h-screen bg-black text-green-400 flex items-center justify-center">
+      <div className="west-face-shell min-h-screen flex items-center justify-center">
         <div className="text-center">
           <span className="text-4xl">{toLoc?.icon}</span>
           <p className="text-amber-400 font-pixel text-lg mt-4">ARRIVING AT</p>

@@ -3,25 +3,23 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
+import { useMystery } from '../mysteryContext'
 import {
   GOLD_COUNTRY_LOCATIONS,
   getGoldCountryLocation,
   areLocationsAdjacent,
 } from '../data/goldCountryLocations'
-import {
-  MapSVGDefs,
-  MapTerrain,
-  MapIcon,
-  MapFogOfWar,
-  MapConnections,
-  MapCompass,
-  goldCountryIconToType,
-} from './map'
-import { type MapLocation } from '../data/worldMaps'
 import { readDiscovered, metersBetween } from '@/lib/oneMapDiscovery'
-import { LEVEL2_CASES, level2Progress } from '@/lib/goldCountryLevel2'
+import { GOLD_COUNTRY_MAP_ART } from '@/lib/goldCountryEditorial'
+import {
+  LEVEL2_CASES,
+  LEVEL2_CASE_IDS,
+  caseForLocation,
+  level2PinPosition,
+  level2Progress,
+  readLevel2Stamps,
+} from '@/lib/goldCountryLevel2'
 import GoldCountryBooking from './GoldCountryBooking'
-import { useMystery } from '../mysteryContext'
 
 interface GoldCountryExploreProps {
   onVisitLocation: (locationId: string) => void
@@ -29,33 +27,6 @@ interface GoldCountryExploreProps {
   onOpenSettlement: () => void
   onOpenQuestLog: () => void
   onLeave: () => void
-}
-
-// Map GoldCountryLocation data to MapLocation-compatible shape for shared components
-function toMapLocations(
-  locations: typeof GOLD_COUNTRY_LOCATIONS,
-  positions: Record<string, { x: number; y: number }>,
-): MapLocation[] {
-  return locations.map(loc => ({
-    id: loc.id,
-    name: loc.name,
-    x: positions[loc.id]?.x ?? 50,
-    y: positions[loc.id]?.y ?? 50,
-    type: 'town' as const,
-    chapter: 'gold_country' as const,
-    discovered: false,
-    lore: {
-      founded: '',
-      peakPopulation: 0,
-      historicalNote: loc.fact,
-      easterEggs: [],
-    },
-    services: [],
-    dangerLevel: 'safe' as const,
-    connectedTo: loc.adjacentTo,
-    travelTime: loc.travelDistance,
-    description: loc.description,
-  }))
 }
 
 export function GoldCountryExplore({
@@ -68,116 +39,73 @@ export function GoldCountryExplore({
   const { state } = useOregonTrail()
   const { balance } = useKarmaWallet()
   const { state: mysteryState } = useMystery()
-  const [hoveredLocation, setHoveredLocation] = useState<string | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
   const [showL2Voucher, setShowL2Voucher] = useState(false)
-
-  // GPS for physical correlation (device GPS hardware) with location coords (Google Maps / places.json verified)
-  // Correlates for physical presence bonuses (SADDLE stats, AR PlaceBackdrop, bounties, shop deals, NPC engagement)
-  // TODO(P2): consume useVerifiedPresence (lib/useVerifiedPresence.ts) — keeps accuracy, per-call radius, dwell tracking
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'error'>('idle')
-  const [gpsWatchId, setGpsWatchId] = useState<number | null>(null)
 
-  const requestGPS = useCallback((useWatch = false) => {
+  const requestGPS = useCallback(() => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
       setGpsStatus('error')
       return
     }
     setGpsStatus('requesting')
-    const success = (pos: GeolocationPosition) => {
-      setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-      setGpsStatus('granted')
-    }
-    const fail = () => {
-      setGpsStatus('denied')
-    }
-    if (useWatch) {
-      const id = navigator.geolocation.watchPosition(success, fail, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 })
-      setGpsWatchId(id)
-    } else {
-      navigator.geolocation.getCurrentPosition(success, fail, { enableHighAccuracy: true, timeout: 10000 })
-    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setGpsStatus('granted')
+      },
+      () => setGpsStatus('denied'),
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
   }, [])
 
   useEffect(() => {
-    // Auto attempt once on mount for physical correlation loop
-    requestGPS(false)
-    return () => {
-      if (gpsWatchId !== null && navigator.geolocation) {
-        navigator.geolocation.clearWatch(gpsWatchId)
-      }
-    }
+    requestGPS()
   }, [requestGPS])
 
   const currentLoc = state.currentGoldCountryLocation || 'bobr_cabin'
   const discovered = useMemo(() => {
     const wagon = state.discoveredGoldLocations || []
     const one = typeof window !== 'undefined' ? readDiscovered() : []
-    return Array.from(new Set([...wagon, ...one]))
+    return Array.from(new Set([...wagon, ...one, ...LEVEL2_CASE_IDS]))
   }, [state.discoveredGoldLocations])
-  const l2 = useMemo(() => level2Progress(discovered), [discovered])
 
-  // Map location positions (relative to SVG viewBox 0-100)
-  const locationPositions: Record<string, { x: number; y: number }> = useMemo(() => ({
-    bobr_cabin: { x: 50, y: 25 },
-    angels_camp: { x: 25, y: 55 },
-    murphys: { x: 35, y: 40 },
-    moaning_cavern: { x: 20, y: 65 },
-    california_caverns: { x: 40, y: 55 },
-    big_trees: { x: 15, y: 35 },
-    kennedy_mine: { x: 70, y: 60 },
-    mokelumne_hill: { x: 55, y: 50 },
-    ironstone_vineyards: { x: 30, y: 45 },
-    jackson: { x: 75, y: 50 },
-    natural_bridges: { x: 40, y: 30 },
-  }), [])
-
-  // Create MapLocation-compatible objects for shared components
-  const mapLocations = useMemo(
-    () => toMapLocations(GOLD_COUNTRY_LOCATIONS, locationPositions),
-    [locationPositions],
+  const l2 = useMemo(
+    () => level2Progress({
+      stamps: typeof window !== 'undefined' ? readLevel2Stamps() : [],
+      searchedAreaIds: state.searchedAreas,
+    }),
+    [state.searchedAreas, state.discoveredGoldLocations],
   )
 
-  // Check if user GPS is near a location (for physical unlock, stat bonus, AR overlay)
-  function isNearLocation(locId: string): boolean {
-    if (!userLocation) return false
-    const loc = GOLD_COUNTRY_LOCATIONS.find(l => l.id === locId)
-    if (!loc) return false
-    const meters = metersBetween(
-      { lat: userLocation.lat, lng: userLocation.lng },
-      { lat: loc.coordinates.lat, lng: loc.coordinates.lng },
-    )
-    return meters < 500
-  }
+  const posById = useMemo(() => {
+    const out: Record<string, { x: number; y: number }> = {}
+    for (const loc of GOLD_COUNTRY_LOCATIONS) {
+      out[loc.id] = level2PinPosition(loc.id, loc.coordinates.lat, loc.coordinates.lng)
+    }
+    return out
+  }, [])
 
-  // Create discovered/scoutable sets
-  const discoveredSet = useMemo(() => new Set(discovered), [discovered])
-  const scoutableSet = useMemo(() => {
-    const scoutable = new Set<string>()
-    discovered.forEach(locId => {
-      const loc = GOLD_COUNTRY_LOCATIONS.find(l => l.id === locId)
-      if (!loc) return
-      loc.adjacentTo.forEach(adjId => {
-        if (!discovered.includes(adjId)) scoutable.add(adjId)
-      })
-    })
-    return scoutable
-  }, [discovered])
+  const isNearLocation = (locId: string): boolean => {
+    if (!userLocation) return false
+    const loc = GOLD_COUNTRY_LOCATIONS.find((l) => l.id === locId)
+    if (!loc) return false
+    return metersBetween(userLocation, loc.coordinates) < 500
+  }
 
   const handleLocationClick = (locationId: string) => {
     if (!discovered.includes(locationId)) return
     if (locationId === currentLoc) {
       onVisitLocation(locationId)
-    } else {
-      setSelectedLocation(locationId)
+      return
     }
+    setSelectedLocation(locationId)
   }
 
   const handleTravelConfirm = () => {
     if (!selectedLocation) return
-    const isAdjacent = areLocationsAdjacent(currentLoc, selectedLocation)
-    if (isAdjacent) {
+    if (areLocationsAdjacent(currentLoc, selectedLocation)) {
       onVisitLocation(selectedLocation)
     } else {
       onTravel(selectedLocation)
@@ -187,244 +115,130 @@ export function GoldCountryExplore({
 
   const selectedLocData = selectedLocation ? getGoldCountryLocation(selectedLocation) : null
   const currentLocData = getGoldCountryLocation(currentLoc)
-  const hoveredLocData = hoveredLocation ? getGoldCountryLocation(hoveredLocation) : null
+  const selectedCase = selectedLocation ? caseForLocation(selectedLocation) : undefined
 
   return (
-    <div className="min-h-screen bg-black text-green-400 flex flex-col">
-      {/* Scanline overlay */}
-      <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]"
-        style={{
-          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.1) 2px, rgba(0,255,0,0.1) 4px)',
-        }}
-      />
-
-      {/* Header - PipBoy style */}
-      <header className="bg-green-950/30 border-b border-green-700/40 px-4 py-3">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+    <div className="west-face-shell min-h-screen flex flex-col">
+      <header className="px-4 py-3 border-b border-[var(--west-line)]">
+        <div className="max-w-6xl mx-auto flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="font-pixel text-amber-400 text-xl tracking-wider">LEVEL 2 · EXPLORE THE GOLD COUNTRY</h1>
-            <p className="text-green-600 text-xs font-mono tracking-widest uppercase">
-              {l2.count}/{l2.goal} cases · Holistic detective · time slip · warrant · Sandiego noir
+            <p className="west-face-eyebrow">Level 2</p>
+            <h1 className="west-face-title text-3xl sm:text-4xl">Explore the Gold Country</h1>
+            <p className="west-face-body mt-1 max-w-xl">
+              {l2.count}/{l2.goal} cases stamped. A warrant, a time-slip, a frog, a mine.
+              Real towns. The ranch is the bureau.
             </p>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="text-right">
-              <p className="text-green-700 text-xs font-mono">DAY</p>
-              <p className="text-amber-400 font-pixel text-lg">{state.goldCountryDay}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-green-700 text-xs font-mono">GOLD</p>
-              <p className="text-amber-400 font-pixel text-lg">{balance.neutral}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-green-700 text-xs font-mono">QUESTS</p>
-              <p className="text-amber-400 font-pixel text-lg">
-                {state.completedQuests.length}
-              </p>
-            </div>
-          </div>
-          {/* GPS Physical Correlation (device GPS hardware calls + haversine vs Google Maps/place coords) */}
-          <div className="flex items-center gap-2 text-xs font-mono text-green-500 ml-4">
-            GPS: {gpsStatus} {userLocation ? `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}` : '—'}
-            {GOLD_COUNTRY_LOCATIONS.some(l => isNearLocation(l.id)) && ' • PHYSICALLY PRESENT – SADDLE bonuses, AR PlaceBackdrop, shop/NPC/bounty unlocks active'}
-            <button onClick={() => requestGPS(false)} className="ml-1 px-1 py-0.5 border border-green-700/40 rounded text-[10px] hover:bg-green-900/30">RETRY GPS</button>
-            <button onClick={() => requestGPS(true)} className="ml-1 px-1 py-0.5 border border-green-700/40 rounded text-[10px] hover:bg-green-900/30">WATCH</button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="west-face-pill" onClick={onOpenQuestLog}>
+              Dossier
+            </button>
+            <button type="button" className="west-face-pill" onClick={onLeave}>
+              Leave
+            </button>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 flex max-w-6xl mx-auto w-full">
-        {/* Map Area */}
-        <div className="flex-1 p-4">
-          <div className="relative bg-green-950/20 border border-green-700/40 rounded-lg overflow-hidden aspect-[4/3]">
-            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 75" preserveAspectRatio="xMidYMid meet">
-              {/* SVG Defs with CRT green filter */}
-              <MapSVGDefs graphicsTier="enhanced_16bit" chapter="gold_country" />
+      <div className="flex-1 max-w-6xl mx-auto w-full p-4 grid gap-4 lg:grid-cols-[1fr_20rem]">
+        <div className="relative min-h-[420px] sm:min-h-[540px] overflow-hidden rounded-2xl border border-[var(--west-line)] bg-[#1a1610]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={GOLD_COUNTRY_MAP_ART}
+            alt="Gold Country relief map"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-[#1a1610]/30" />
 
-              {/* Green-tinted background */}
-              <rect x="0" y="0" width="100" height="75" fill="rgba(0, 20, 0, 0.3)" />
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {GOLD_COUNTRY_LOCATIONS.filter((loc) => discovered.includes(loc.id)).map((loc) =>
+              loc.adjacentTo.filter((adj) => discovered.includes(adj)).map((adj) => {
+                const a = posById[loc.id]
+                const b = posById[adj]
+                if (!a || !b || loc.id > adj) return null
+                return (
+                  <line
+                    key={`${loc.id}-${adj}`}
+                    x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                    stroke="#e8d5a3"
+                    strokeWidth="0.35"
+                    opacity="0.45"
+                    strokeDasharray="1.6 1.2"
+                  />
+                )
+              }),
+            )}
+          </svg>
 
-              {/* Grid lines */}
-              {Array.from({ length: 10 }).map((_, i) => (
-                <React.Fragment key={i}>
-                  <line x1={i * 10} y1={0} x2={i * 10} y2={75} stroke="rgba(34,197,94,0.1)" strokeWidth="0.2" />
-                  <line x1={0} y1={i * 7.5} x2={100} y2={i * 7.5} stroke="rgba(34,197,94,0.1)" strokeWidth="0.2" />
-                </React.Fragment>
-              ))}
+          {GOLD_COUNTRY_LOCATIONS.map((loc) => {
+            const pos = posById[loc.id]
+            if (!pos) return null
+            const known = discovered.includes(loc.id)
+            const here = loc.id === currentLoc
+            const caze = caseForLocation(loc.id)
+            const stamped = l2.visited.includes(loc.id)
+            const near = isNearLocation(loc.id)
+            return (
+              <button
+                key={loc.id}
+                type="button"
+                disabled={!known}
+                onClick={() => known && handleLocationClick(loc.id)}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 z-10 min-h-11 px-2 py-1 rounded-full border text-left shadow-lg ${
+                  !known
+                    ? 'opacity-25 cursor-not-allowed border-white/10 bg-black/40 text-[#b8a88a]'
+                    : here
+                      ? 'border-[#e8dcc4] bg-[#e8dcc4] text-[#1a1208]'
+                      : stamped
+                        ? 'border-emerald-400/70 bg-black/75 text-emerald-100'
+                        : 'border-amber-400/80 bg-black/75 text-[#e8dcc4]'
+                }`}
+                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+              >
+                <span className="font-serif text-sm whitespace-nowrap">
+                  {caze?.icon ?? '·'} {loc.shortName}
+                  {near ? ' · here' : ''}
+                </span>
+              </button>
+            )
+          })}
 
-              {/* Terrain (visible through green CRT overlay) */}
-              <g filter="url(#filter-crt-green)" opacity="0.4">
-                <MapTerrain chapter="gold_country" graphicsTier="enhanced_16bit" />
-              </g>
-
-              {/* Connections between discovered adjacent locations */}
-              {GOLD_COUNTRY_LOCATIONS.filter(loc => discovered.includes(loc.id)).map(loc =>
-                loc.adjacentTo
-                  .filter(adjId => discovered.includes(adjId))
-                  .map(adjId => {
-                    const pos1 = locationPositions[loc.id]
-                    const pos2 = locationPositions[adjId]
-                    if (!pos1 || !pos2) return null
-                    const key = [loc.id, adjId].sort().join('-')
-                    return (
-                      <line
-                        key={key}
-                        x1={pos1.x} y1={pos1.y}
-                        x2={pos2.x} y2={pos2.y}
-                        stroke="rgba(34,197,94,0.25)"
-                        strokeWidth="0.3"
-                        strokeDasharray="1,1"
-                      />
-                    )
-                  })
-              )}
-
-              {/* Fog of war for undiscovered locations */}
-              <MapFogOfWar
-                locations={mapLocations}
-                discoveredLocations={discoveredSet}
-                scoutableLocations={scoutableSet}
-                scoutingLocation={null}
-                graphicsTier="enhanced_16bit"
-              />
-
-              {/* Compass */}
-              <MapCompass graphicsTier="enhanced_16bit" view={{ width: 100, height: 75 }} />
-            </svg>
-
-            {/* Location markers (HTML overlay for click handling) */}
-            {GOLD_COUNTRY_LOCATIONS.map(loc => {
-              const pos = locationPositions[loc.id]
-              if (!pos) return null
-              const isDiscovered = discovered.includes(loc.id)
-              const isCurrent = loc.id === currentLoc
-              const isHovered = loc.id === hoveredLocation
-              const isSelected = loc.id === selectedLocation
-
-              return (
-                <button
-                  key={loc.id}
-                  className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ${
-                    !isDiscovered
-                      ? 'opacity-20 cursor-not-allowed'
-                      : isCurrent
-                        ? 'z-20'
-                        : 'z-10 cursor-pointer'
-                  }`}
-                  style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                  onClick={() => isDiscovered && handleLocationClick(loc.id)}
-                  onMouseEnter={() => isDiscovered && setHoveredLocation(loc.id)}
-                  onMouseLeave={() => setHoveredLocation(null)}
-                  disabled={!isDiscovered}
-                >
-                  {/* Pulse ring for current location */}
-                  {isCurrent && (
-                    <div className="absolute inset-0 -m-2 rounded-full border-2 border-amber-400 animate-ping opacity-50" />
-                  )}
-
-                  {/* SVG icon marker */}
-                  <div className={`
-                    w-8 h-8 rounded-full flex items-center justify-center
-                    border-2 transition-all duration-200
-                    ${isCurrent
-                      ? 'bg-amber-900/80 border-amber-400 scale-125 shadow-[0_0_10px_rgba(251,191,36,0.4)]'
-                      : isSelected
-                        ? 'bg-green-900/80 border-green-400 scale-110 shadow-[0_0_8px_rgba(34,197,94,0.4)]'
-                        : isHovered
-                          ? 'bg-green-950/80 border-green-500 scale-110'
-                          : isDiscovered
-                            ? 'bg-green-950/60 border-green-700'
-                            : 'bg-gray-900/40 border-gray-700'
-                    }
-                  `}>
-                    {isDiscovered ? (
-                      <MapIcon
-                        type={goldCountryIconToType(loc.icon)}
-                        tier="enhanced_16bit"
-                        size={16}
-                        glow={isCurrent}
-                      />
-                    ) : (
-                      <MapIcon type="question" tier="enhanced_16bit" size={14} dimmed />
-                    )}
-                  </div>
-
-                  {/* Label */}
-                  {isDiscovered && (isHovered || isCurrent || isSelected) && (
-                    <div className={`absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap
-                      text-xs font-mono px-2 py-0.5 rounded
-                      ${isCurrent ? 'text-amber-400 bg-amber-950/80' : 'text-green-400 bg-green-950/80'}
-                      border ${isCurrent ? 'border-amber-700/50' : 'border-green-700/50'}
-                    `}>
-                      {loc.shortName}
-                    </div>
-                  )}
+          {selectedLocData && selectedLocation && selectedLocation !== currentLoc && (
+            <div className="absolute bottom-3 left-3 right-3 z-20 west-face-paper p-4">
+              <p className="west-face-eyebrow">{selectedCase?.example ?? selectedLocData.region}</p>
+              <p className="font-serif text-xl text-[#f3ead8]">{selectedLocData.name}</p>
+              <p className="west-face-body mt-1">{selectedCase?.warrant ?? selectedLocData.fact}</p>
+              <p className="west-face-body mt-1 text-sm">{selectedLocData.driveTime}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" className="west-face-pill west-face-pill-cream" onClick={handleTravelConfirm}>
+                  {areLocationsAdjacent(currentLoc, selectedLocation) ? 'Enter' : 'Travel the road'}
                 </button>
-              )
-            })}
-
-            {/* Map title */}
-            <div className="absolute top-2 left-3 text-green-700/60 text-xs font-mono tracking-widest uppercase">
-              Sierra Nevada Foothills
-            </div>
-
-            {/* Legend */}
-            <div className="absolute bottom-2 right-3 text-green-700/40 text-xs font-mono">
-              <span className="text-amber-400/60">&#9679;</span> YOU ARE HERE
-              &nbsp;&nbsp;
-              <span className="text-green-400/60">&#9679;</span> DISCOVERED
-              &nbsp;&nbsp;
-              <span className="text-gray-600/60">&#9679;</span> UNKNOWN
-            </div>
-          </div>
-
-          {/* Travel Confirmation Modal */}
-          {selectedLocation && selectedLocData && (
-            <div className="mt-4 bg-green-950/30 border border-green-700/40 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-amber-400 font-pixel text-sm">
-                    Travel to {selectedLocData.name}?
-                  </p>
-                  <p className="text-green-600 text-xs font-mono mt-1">
-                    {selectedLocData.driveTime} | {selectedLocData.atmosphere.toUpperCase()}
-                    {!areLocationsAdjacent(currentLoc, selectedLocation) && (
-                      <span className="text-amber-500 ml-2">[ENCOUNTER POSSIBLE]</span>
-                    )}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSelectedLocation(null)}
-                    className="px-4 py-2 bg-green-950/50 hover:bg-green-900/50 text-green-500 text-xs font-mono rounded border border-green-700/40"
-                  >
-                    CANCEL
-                  </button>
-                  <button
-                    onClick={handleTravelConfirm}
-                    className="px-4 py-2 bg-amber-900/50 hover:bg-amber-800/60 text-amber-300 text-xs font-mono rounded border border-amber-600/50"
-                  >
-                    TRAVEL
-                  </button>
-                </div>
+                <button type="button" className="west-face-pill" onClick={() => setSelectedLocation(null)}>
+                  Cancel
+                </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Sidebar */}
-        <div className="w-72 border-l border-green-700/40 p-4 flex flex-col gap-4">
-          <div className="bg-green-950/30 border border-amber-700/40 rounded-lg p-3">
-            <h3 className="text-amber-400 font-pixel text-xs tracking-wider mb-2">LEVEL 2 CASES</h3>
-            <p className="text-green-300 text-xs font-mono mb-2">
-              Visit {l2.goal} towns. Each case is a game already on this land.
-            </p>
-            <ul className="space-y-1 max-h-40 overflow-y-auto">
+        <aside className="flex flex-col gap-3">
+          <div className="west-face-paper">
+            <p className="west-face-eyebrow">Cases</p>
+            <ul className="mt-2 space-y-2">
               {LEVEL2_CASES.map((c) => {
                 const done = l2.visited.includes(c.id)
                 return (
-                  <li key={c.id} className={`text-xs font-mono ${done ? 'text-amber-300' : 'text-green-600'}`}>
-                    {done ? '●' : '○'} {c.title}
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => handleLocationClick(c.id)}
+                    >
+                      <span className={`font-serif ${done ? 'text-emerald-200' : 'text-[#e8dcc4]'}`}>
+                        {done ? '●' : '○'} {c.icon} {c.title}
+                      </span>
+                      <span className="block text-sm text-[#b8a88a]">{c.example}</span>
+                    </button>
                   </li>
                 )
               })}
@@ -432,109 +246,43 @@ export function GoldCountryExplore({
             {l2.complete && (
               <button
                 type="button"
+                className="west-face-pill west-face-pill-cream w-full mt-3 justify-center"
                 onClick={() => setShowL2Voucher(true)}
-                className="w-full mt-3 py-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-xs font-mono rounded border border-amber-400 transition-colors"
               >
-                LEVEL 2 DONE — TAKE THE QR VOUCHER
+                Level 2 done — take the QR voucher
               </button>
             )}
-            <button
-              onClick={onOpenQuestLog}
-              className="w-full mt-3 py-2 bg-amber-900/50 hover:bg-amber-800/60 text-amber-200 text-xs font-mono rounded border border-amber-600/50 transition-colors"
-            >
-              OPEN DOSSIER
-            </button>
           </div>
 
-          {/* Current Location */}
-          <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-3">
-            <h3 className="text-amber-400 font-pixel text-xs tracking-wider mb-2">CURRENT LOCATION</h3>
-            {currentLocData && (
-              <>
-                <div className="flex items-center gap-2">
-                  <MapIcon type={goldCountryIconToType(currentLocData.icon)} tier="enhanced_16bit" size={18} />
-                  <p className="text-green-300 font-pixel text-sm">{currentLocData.name}</p>
-                </div>
-                <p className="text-green-600 text-xs font-mono mt-1">{currentLocData.description}</p>
+          {currentLocData && (
+            <div className="west-face-paper">
+              <p className="west-face-eyebrow">You are here</p>
+              <p className="font-serif text-xl text-[#f3ead8] mt-1">{currentLocData.name}</p>
+              <p className="west-face-body mt-1">{caseForLocation(currentLoc)?.verb ?? currentLocData.description}</p>
+              <button
+                type="button"
+                className="west-face-pill west-face-pill-cream w-full mt-3 justify-center"
+                onClick={() => onVisitLocation(currentLoc)}
+              >
+                Enter {currentLocData.shortName}
+              </button>
+              {currentLoc === 'bobr_cabin' && (
                 <button
-                  onClick={() => onVisitLocation(currentLoc)}
-                  className="w-full mt-3 py-2 bg-green-900/50 hover:bg-green-800/60 text-green-300 text-xs font-mono rounded border border-green-700/40 transition-colors"
+                  type="button"
+                  className="west-face-pill w-full mt-2 justify-center"
+                  onClick={onOpenSettlement}
                 >
-                  ENTER {currentLocData.shortName.toUpperCase()}
+                  Manage settlement
                 </button>
-                {currentLoc === 'bobr_cabin' && (
-                  <button
-                    onClick={onOpenSettlement}
-                    className="w-full mt-2 py-2 bg-amber-900/50 hover:bg-amber-800/60 text-amber-300 text-xs font-mono rounded border border-amber-600/50 transition-colors"
-                  >
-                    MANAGE SETTLEMENT
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Hovered Location Info */}
-          {hoveredLocData && hoveredLocation !== currentLoc && (
-            <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-3">
-              <h3 className="text-green-500 font-pixel text-xs tracking-wider mb-2">LOCATION INFO</h3>
-              <div className="flex items-center gap-2">
-                <MapIcon type={goldCountryIconToType(hoveredLocData.icon)} tier="enhanced_16bit" size={16} />
-                <p className="text-green-300 text-sm">{hoveredLocData.name}</p>
-              </div>
-              <p className="text-green-700 text-xs font-mono mt-1">{hoveredLocData.driveTime}</p>
-              <p className="text-green-600 text-xs mt-1">{hoveredLocData.fact}</p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {hoveredLocData.tags.map(tag => (
-                  <span key={tag} className="text-green-700 text-xs font-mono px-1 border border-green-800/40 rounded">
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              )}
             </div>
           )}
 
-          {/* Quick Stats */}
-          <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-3">
-            <h3 className="text-amber-400 font-pixel text-xs tracking-wider mb-2">STATUS</h3>
-            <div className="space-y-1 text-xs font-mono">
-              <div className="flex justify-between">
-                <span className="text-green-600">Locations Found</span>
-                <span className="text-green-300">{discovered.length}/{GOLD_COUNTRY_LOCATIONS.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-green-600">Areas Searched</span>
-                <span className="text-green-300">{state.searchedAreas.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-green-600">Items Found</span>
-                <span className="text-green-300">{state.inventory.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-green-600">Party Health</span>
-                <span className="text-green-300">
-                  {state.party.filter(m => m.health > 0).length}/{state.party.length}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="mt-auto space-y-2">
-            <button
-              onClick={onOpenQuestLog}
-              className="w-full py-2 bg-green-950/50 hover:bg-green-900/50 text-green-400 text-xs font-mono rounded border border-green-700/40 transition-colors"
-            >
-              DOSSIER
-            </button>
-            <button
-              onClick={onLeave}
-              className="w-full py-2 bg-red-950/30 hover:bg-red-900/40 text-red-400 text-xs font-mono rounded border border-red-800/40 transition-colors"
-            >
-              LEAVE GOLD COUNTRY
-            </button>
-          </div>
-        </div>
+          <p className="text-xs text-[#b8a88a] font-serif px-1">
+            GPS {gpsStatus}
+            {userLocation ? ` · ${userLocation.lat.toFixed(3)}, ${userLocation.lng.toFixed(3)}` : ' · optional. Towns play without it.'}
+          </p>
+        </aside>
       </div>
 
       {showL2Voucher && (
