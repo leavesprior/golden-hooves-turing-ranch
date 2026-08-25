@@ -1903,6 +1903,41 @@ export const GOLD_COUNTRY_NPCS: GoldCountryNPC[] = [
       'When you\'ve stood your moment, go on down the hill. What you carry out of here isn\'t gold — and it\'s the only treasure this trail was ever about.',
     ],
   },
+  {
+    id: 'jackson_store_abe',
+    name: 'Abe Calder',
+    title: 'Camp storekeeper',
+    location: 'jackson',
+    witnessType: 'merchant',
+    portrait: '🧺',
+    greeting: 'Flour, pans, lamps. The spring still has more bottles than I have stock.',
+    personality: 'Practical 1849 storekeeper at Botilleas. Watches the back table.',
+    ollamaPrompt: 'You are Abe Calder, a camp storekeeper in Jackson (Botilleas) in 1849. You sell flour, pans, lamps. A lean man at the back table will not take a lamp. Never mention telegraph or 20th-century mines. Keep responses to 2-3 sentences.',
+    dialogueLines: [
+      'The spring is called Botilleas for the bottles. I sell what the bottles used to hold — and flour.',
+      'That lean fellow at the back will not take a lamp. Pays cash. Does not talk.',
+      'If you have a poster, look with your eyes, not your mouth. I do not want a fight in the store.',
+      'Pans and powder go first. Lamps second. Names I do not sell.',
+    ],
+    shopKeeper: true,
+  },
+  {
+    id: 'ridge_stranger',
+    name: 'A lean stranger',
+    title: 'Patron',
+    location: 'jackson',
+    witnessType: 'traveler',
+    portrait: '🕯️',
+    greeting: 'I can see well enough.',
+    personality: 'Quiet, lean, will not take a lamp. The man on Jackson’s warrant poster.',
+    ollamaPrompt: 'You are a lean stranger in the Jackson camp store in 1849. You will not take a lamp. You were seen on the ridge above town. Short answers. Never confess unless accused. Keep responses to 1-2 sentences.',
+    dialogueLines: [
+      'I do not take a lamp. I can see well enough.',
+      'The ridge is placer ground. That is all.',
+      'If you have paper, show it. If you have talk, keep it.',
+      'I am drinking. I am not working. That is legal.',
+    ],
+  },
 ]
 
 // Helper functions

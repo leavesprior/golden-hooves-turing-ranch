@@ -13,6 +13,21 @@ import {
   writeLevel2Stamp,
   writeTalkedNpc,
 } from '@/lib/goldCountryLevel2'
+import {
+  frontsForLocation,
+  outdoorSearchIds,
+  posterForLocation,
+  readArrests,
+  readBought,
+  readPostersSeen,
+  streetNpcs,
+  writeArrest,
+  writeBought,
+  writePosterSeen,
+  type ShopGood,
+  type TownFront,
+} from '@/lib/goldCountryStreet'
+import { GoldCountryShopInterior } from './GoldCountryShopInterior'
 import { getGoldCountryLocation, getLocationSites } from '../data/goldCountryLocations'
 import {
   getNPCsAtLocation,
@@ -56,8 +71,8 @@ export function GoldCountryLocation({
   onReturnToMap,
   onOpenSettlement,
 }: GoldCountryLocationProps) {
-  const { state, markAreaSearched, addInventoryItem, completeQuest, completeQuestWithReward, advanceGoldCountryDay } = useOregonTrail()
-  const { earnGood } = useKarmaWallet()
+  const { state, markAreaSearched, addInventoryItem, completeQuest, completeQuestWithReward, advanceGoldCountryDay, getShopDiscount } = useOregonTrail()
+  const { earnGood, earnNeutral, spendNeutral, canAfford, balance } = useKarmaWallet()
 
   const [view, setView] = useState<LocationView>('main')
   const [selectedNPC, setSelectedNPC] = useState<GoldCountryNPC | null>(null)
@@ -67,11 +82,21 @@ export function GoldCountryLocation({
   const [npcDialogueIndex, setNpcDialogueIndex] = useState(0)
   const [isSearching, setIsSearching] = useState(false)
   const [questOutcome, setQuestOutcome] = useState<{ consequence: string; reward: QuestReward } | null>(null)
+  const [selectedFront, setSelectedFront] = useState<TownFront | null>(null)
+  const [shopNote, setShopNote] = useState<string | null>(null)
+  const [boughtIds, setBoughtIds] = useState<string[]>(() => readBought())
+  const [arrests, setArrests] = useState<string[]>(() => readArrests())
+  const [postersSeen, setPostersSeen] = useState<string[]>(() => readPostersSeen())
 
   const location = getGoldCountryLocation(locationId)
   const level2Case = caseForLocation(locationId)
   const npcs = getNPCsAtLocation(locationId)
   const searchAreas = getSearchAreasForLocation(locationId)
+  const fronts = frontsForLocation(locationId)
+  const onStreetPeople = streetNpcs(locationId, npcs)
+  const outdoorIds = outdoorSearchIds(locationId, searchAreas.map((a) => a.id))
+  const outdoorSearches = searchAreas.filter((a) => outdoorIds.includes(a.id))
+  const poster = posterForLocation(locationId)
 
   // GPS for physical location correlation (device hardware via browser Geolocation API + haversine)
   // Correlates with location.coordinates (from Google Maps verified + places.json)
@@ -131,6 +156,40 @@ export function GoldCountryLocation({
     }, 1500)
   }, [markAreaSearched, addInventoryItem, earnGood, advanceGoldCountryDay, locationId])
 
+  const enterFront = useCallback((front: TownFront) => {
+    setSelectedFront(front)
+    setShopNote(null)
+    setView('shop')
+    writeLevel2Stamp(locationId)
+  }, [locationId])
+
+  const priceOf = useCallback((good: ShopGood) => {
+    const keeperId = selectedFront?.keeperNpcId
+    const mult = keeperId ? getShopDiscount(keeperId) : 1
+    const presence = isPhysicallyPresent ? 0.85 : 1
+    return Math.max(1, Math.floor(good.price * mult * presence))
+  }, [getShopDiscount, selectedFront, isPhysicallyPresent])
+
+  const handleBuy = useCallback(async (good: ShopGood) => {
+    const price = priceOf(good)
+    const ok = await spendNeutral(price, `Bought ${good.name} at ${selectedFront?.name || 'store'}`)
+    if (!ok) {
+      setShopNote(`Not enough 🌮 for ${good.name}.`)
+      return
+    }
+    addInventoryItem(good.itemId)
+    setBoughtIds(writeBought(good.id))
+    setShopNote(`Bought ${good.name} for ${price}🌮.`)
+  }, [priceOf, spendNeutral, addInventoryItem, selectedFront])
+
+  const handleConfront = useCallback(async (npc: GoldCountryNPC) => {
+    if (!poster || poster.hideNpcId !== npc.id) return
+    setArrests(writeArrest(npc.id))
+    writeLevel2Stamp(locationId)
+    await earnNeutral(poster.bounty, `Took ${poster.alias}`)
+    setShopNote(`Taken. ${poster.bounty}🌮 bounty. The poster is satisfied.`)
+  }, [poster, locationId, earnNeutral])
+
   if (!location) {
     return (
       <div className="min-h-screen bg-black text-green-400 flex items-center justify-center">
@@ -139,20 +198,18 @@ export function GoldCountryLocation({
     )
   }
 
-  /** Count available (incomplete) quests for an NPC */
-  const getAvailableQuestCount = (npc: GoldCountryNPC): number => {
-    const quests = getNPCQuests(npc.id)
-    return quests.filter(q =>
-      !state.completedQuests.includes(q.id) && isQuestAvailable(q, state.completedQuests)
-    ).length
-  }
-
   const handleNPCClick = (npc: GoldCountryNPC) => {
     writeTalkedNpc(npc.id)
     writeLevel2Stamp(locationId)
     setSelectedNPC(npc)
     setNpcDialogueIndex(0)
     setView('npc')
+  }
+
+  const returnFromNpc = () => {
+    setSelectedNPC(null)
+    setSelectedQuest(null)
+    setView(selectedFront ? 'shop' : 'main')
   }
 
   const handleNextDialogue = () => {
@@ -241,33 +298,70 @@ export function GoldCountryLocation({
             <PlaceBackdrop id={locationId} className="absolute inset-0 h-full w-full" />
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/20" />
-          {level2Case?.clues.map((clue) => {
-            const done = clueWorked(clue, state.searchedAreas, talked)
+          {fronts.map((front) => {
+            const ids = [front.keeperNpcId, ...front.patronNpcIds, ...front.searchAreaIds].filter(
+              (id): id is string => !!id,
+            )
+            const done = level2Case
+              ? level2Case.clues.some((clue) => ids.includes(clue.id) && clueWorked(clue, state.searchedAreas, talked))
+              : false
             return (
               <button
-                key={clue.id}
+                key={front.id}
                 type="button"
-                title={clue.label}
-                onClick={() => {
-                  if (clue.kind === 'search') {
-                    const area = searchAreas.find((a) => a.id === clue.id)
-                    if (area) handleSearch(area)
-                    return
-                  }
-                  const npc = npcs.find((n) => n.id === clue.id)
-                  if (npc) handleNPCClick(npc)
-                }}
-                className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 min-h-11 rounded-full border px-3 py-1 font-serif text-sm shadow-lg ${
+                title={front.name}
+                onClick={() => enterFront(front)}
+                className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 min-h-11 rounded-sm border px-3 py-1 font-serif text-sm shadow-lg ${
                   done
                     ? 'border-emerald-400/70 bg-black/70 text-emerald-100'
-                    : 'border-amber-300/80 bg-black/75 text-[#e8dcc4]'
+                    : 'border-[#e8dcc4]/80 bg-black/75 text-[#e8dcc4]'
                 }`}
-                style={{ left: `${clue.x}%`, top: `${clue.y}%` }}
+                style={{ left: `${front.x}%`, top: `${front.y}%` }}
               >
-                {clue.label}
+                {front.name}
               </button>
             )
           })}
+          {onStreetPeople.map((npc) => (
+            <button
+              key={npc.id}
+              type="button"
+              title={npc.name}
+              onClick={() => handleNPCClick(npc)}
+              className="absolute z-10 -translate-x-1/2 -translate-y-full min-h-11 rounded-sm bg-[#e8dcc4] px-2 py-1 font-serif text-sm text-[#1a1208] shadow-lg"
+              style={{ left: `${level2Case?.clues.find((c) => c.id === npc.id)?.x ?? 70}%`, top: `${level2Case?.clues.find((c) => c.id === npc.id)?.y ?? 80}%` }}
+            >
+              {npc.name}
+            </button>
+          ))}
+          {outdoorSearches.map((area) => {
+            const searched = state.searchedAreas.includes(area.id)
+            const clue = level2Case?.clues.find((c) => c.id === area.id)
+            return (
+              <button
+                key={area.id}
+                type="button"
+                disabled={searched}
+                onClick={() => handleSearch(area)}
+                className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 min-h-11 rounded-full border px-3 py-1 font-serif text-sm shadow-lg ${
+                  searched ? 'border-emerald-400/70 bg-black/70 text-emerald-100' : 'border-amber-300/80 bg-black/75 text-[#e8dcc4]'
+                }`}
+                style={{ left: `${clue?.x ?? 20}%`, top: `${clue?.y ?? 30}%` }}
+              >
+                {area.name}
+              </button>
+            )
+          })}
+          {poster && (
+            <button
+              type="button"
+              onClick={() => setPostersSeen(writePosterSeen(poster.id))}
+              className="absolute z-10 -translate-x-1/2 -translate-y-1/2 min-h-11 rounded-sm border border-red-400/70 bg-black/80 px-3 py-1 font-serif text-sm text-red-100 shadow-lg"
+              style={{ left: `${poster.x}%`, top: `${poster.y}%` }}
+            >
+              {postersSeen.includes(poster.id) ? `Wanted: ${poster.alias}` : 'Warrant poster'}
+            </button>
+          )}
         </div>
 
         <div className="max-w-4xl mx-auto p-4 space-y-4">
@@ -290,78 +384,10 @@ export function GoldCountryLocation({
             <button type="button" className="west-face-pill ml-2" onClick={requestLocationGPS}>Retry GPS</button>
           </p>
 
-          {/* NPCs */}
-          <div className="west-face-paper">
-            <h2 className="west-face-eyebrow mb-3">People here</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {npcs.map(npc => {
-                const questCount = getAvailableQuestCount(npc)
-                return (
-                  <button
-                    key={npc.id}
-                    onClick={() => handleNPCClick(npc)}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-[var(--west-line)] text-left min-h-11"
-                  >
-                    <span className="text-2xl">{npc.portrait}</span>
-                    <div>
-                      <p className="font-serif text-[#e8dcc4]">{npc.name}</p>
-                      <p className="text-sm text-[#b8a88a]">{npc.title}</p>
-                      {questCount > 0 && (
-                        <span className="text-sm text-amber-200">{questCount} quest{questCount > 1 ? 's' : ''}</span>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-              {npcs.length === 0 && (
-                <p className="west-face-body col-span-2">No one is here right now.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Search Areas */}
-          <div className="west-face-paper">
-            <h2 className="west-face-eyebrow mb-3">Search</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {searchAreas.map(area => {
-                const searched = state.searchedAreas.includes(area.id)
-                return (
-                  <button
-                    key={area.id}
-                    onClick={() => !searched && handleSearch(area)}
-                    disabled={searched}
-                    className={`flex items-center gap-3 p-3 rounded-lg border text-left min-h-11 ${
-                      searched
-                        ? 'border-[var(--west-line)] opacity-50 cursor-not-allowed'
-                        : 'border-[var(--west-line)] cursor-pointer'
-                    }`}
-                  >
-                    <span className="text-xl">{area.icon}</span>
-                    <div>
-                      <p className="font-serif text-[#e8dcc4]">{area.name}</p>
-                      <p className="text-sm text-[#b8a88a]">{area.description}</p>
-                      {searched && (
-                        <span className="text-sm text-emerald-200">Searched</span>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-              {searchAreas.length === 0 && (
-                <p className="west-face-body col-span-2">Nothing to search here.</p>
-              )}
-            </div>
-          </div>
-
-          {/* GPS-enhanced Shop/Storefront (if shopType and physically present or high stat for engagement) */}
-          {location.shopType !== 'none' && (
-            <button
-              onClick={() => setView('shop')}
-              className="west-face-pill west-face-pill-cream w-full justify-center"
-            >
-              Enter the {location.shopType}{isPhysicallyPresent ? ' · you are here' : ''}
-            </button>
-          )}
+          <p className="west-face-body text-sm">
+            On the street you see shop fronts and people who are actually outside. Names behind a door wait until you step in.
+            {balance ? ` · ${balance.neutral}🌮` : ''}
+          </p>
 
           {locationId === 'bobr_cabin' && (
             <button
@@ -509,7 +535,7 @@ export function GoldCountryLocation({
 
             {/* Back button */}
             <button
-              onClick={() => { setView('main'); setSelectedNPC(null); setSelectedQuest(null) }}
+              onClick={returnFromNpc}
               className="w-full mt-4 py-2 bg-green-950/50 hover:bg-green-900/50 text-green-500 text-xs font-mono rounded border border-green-700/40 transition-colors"
             >
               BACK
@@ -754,7 +780,11 @@ export function GoldCountryLocation({
             <p className="text-green-700 text-xs font-mono mb-4">One day has passed.</p>
 
             <button
-              onClick={() => { setView('main'); setSearchResult(null); setSelectedSearchArea(null) }}
+              onClick={() => {
+                setSearchResult(null)
+                setSelectedSearchArea(null)
+                setView(selectedFront ? 'shop' : 'main')
+              }}
               className="w-full py-3 bg-green-900/50 hover:bg-green-800/60 text-green-300 font-mono text-xs rounded border border-green-700/40 transition-colors"
             >
               CONTINUE
@@ -765,36 +795,51 @@ export function GoldCountryLocation({
     )
   }
 
-  // Shop view (enhanced with GPS presence + historical accuracy for physical-digital hybrid)
   if (view === 'shop') {
-    const presenceBonus = isPhysicallyPresent ? 0.85 : 1.0 // physical presence discount
-    const historicalGoods = [
-      { name: 'Pick & Pan Set (1850s)', base: 12, desc: 'Iron from SF ships, high markup' },
-      { name: 'Flour Sack (50lb)', base: 8, desc: 'Staple at Traver-style stores' },
-      { name: 'Boots (miners)', base: 22, desc: 'Leather, scarce in camps' },
-      { name: 'Whiskey (bottle)', base: 15, desc: 'Saloon staple, French War era' },
-    ]
-    return (
-      <div className={`west-face-shell min-h-screen`}>
-        <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,0,0.1) 2px, rgba(0,255,0,0.1) 4px)' }} />
-        <div className="max-w-2xl mx-auto p-4 pt-8">
-          <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-6">
-            <h2 className="text-amber-400 font-pixel text-lg">STOREFRONT — {location.name.toUpperCase()} {isPhysicallyPresent ? ' (YOU ARE HERE + SADDLE BONUS)' : ''}</h2>
-            <p className="text-green-700 text-xs font-mono mb-1">1850s goods • high markup in camps. PlaceBackdrop shows real historical photo pixelated. {isPhysicallyPresent ? 'Physical presence qualifies for better deals (Shrewdness/Diplomacy roll bonus in full sim).' : 'Visit the real location for presence unlock.'}</p>
-            <div className="space-y-2 my-4">
-              {historicalGoods.map((g, i) => (
-                <div key={i} className="flex justify-between bg-green-950/40 p-2 rounded text-sm border border-green-800/30">
-                  <span>{g.name} — {g.desc}</span>
-                  <span className="font-mono">{Math.floor(g.base * presenceBonus)}🌮 {isPhysicallyPresent && <span className="text-green-400">(present)</span>}</span>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-amber-300">SADDLE stats (Shrewdness for haggling, Diplomacy for deals) + crossGame carry apply on full purchase. Physical presence + PlaceBackdrop AR for immersion.</p>
-            <button onClick={() => setView('main')} className="w-full mt-4 py-2 bg-green-950/50 text-green-400 text-xs font-mono rounded border border-green-700/40">BACK</button>
-            <div className="mt-2 text-[10px] text-green-600 font-mono">Traver Stone Store 1856 (Murphys): oldest stone bldg, general store/Wells Fargo, survived fires w/ iron shutters & sand roof. Visit for real unlocks.</div>
-          </div>
+    const front = selectedFront || fronts[0]
+    if (!front) {
+      return (
+        <div className="west-face-shell min-h-screen p-4">
+          <p className="west-face-body">No door here.</p>
+          <button type="button" className="west-face-pill mt-3" onClick={() => setView('main')}>Street</button>
         </div>
-      </div>
+      )
+    }
+    const keeper = npcs.find((n) => n.id === front.keeperNpcId)
+    const patrons = front.patronNpcIds
+      .map((id) => npcs.find((n) => n.id === id))
+      .filter((n): n is GoldCountryNPC => !!n)
+    const indoorSearches = searchAreas.filter((a) => front.searchAreaIds.includes(a.id))
+    return (
+      <>
+        {shopNote && (
+          <p className="fixed top-4 left-1/2 z-40 -translate-x-1/2 west-face-paper px-4 py-2 font-serif text-[#e8dcc4]">
+            {shopNote}
+          </p>
+        )}
+        <GoldCountryShopInterior
+          front={front}
+          keeper={keeper}
+          patrons={patrons}
+          searches={indoorSearches}
+          searchedAreaIds={state.searchedAreas}
+          poster={poster}
+          posterSeen={!!poster && postersSeen.includes(poster.id)}
+          arrested={!!front.warrantNpcId && arrests.includes(front.warrantNpcId)}
+          boughtIds={boughtIds}
+          canAfford={(price) => canAfford('neutral', price)}
+          priceOf={priceOf}
+          onTalk={handleNPCClick}
+          onSearch={handleSearch}
+          onBuy={handleBuy}
+          onConfront={handleConfront}
+          onStreet={() => {
+            setSelectedFront(null)
+            setShopNote(null)
+            setView('main')
+          }}
+        />
+      </>
     )
   }
 
