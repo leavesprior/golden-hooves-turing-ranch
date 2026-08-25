@@ -1,15 +1,13 @@
 import type { MetadataRoute } from 'next'
 
-// PWA manifest (2026-06-18) — makes the game installable as an app while the same
-// build keeps serving as the normal website + Airbnb funnel. start_url is the game
-// hub; scope is the whole site so booking pages still work inside the installed app.
+// Arcade cabinet: home-screen launch is the ranch, not the old game hub.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Golden Frog Trail — Back of Beyond Ranch',
-    short_name: 'Golden Frog',
+    name: 'Back of Beyond Ranch',
+    short_name: 'BOBR',
     description:
-      'Play the Golden Frog Trail — Gold Country adventures, town investigations, and the ranch, from Back of Beyond Ranch.',
-    start_url: '/hub',
+      'Book a stay at Back of Beyond Ranch, or play the Golden Frog Trail for the first discount.',
+    start_url: '/',
     scope: '/',
     display: 'standalone',
     orientation: 'any',

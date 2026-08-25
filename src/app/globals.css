@@ -41,16 +41,52 @@
 
   /* Fonts */
   --font-pixel: 'Press Start 2P', monospace;
+  /* Goda Go live review (2026-08-22): body must be readable at 100%.
+     Press Start 2P at 6–8px failed. Fable demo used Inter 19px on paper;
+     we keep the night-ranch feel with a serif cream at the same size. */
+  --font-read: Georgia, 'Times New Roman', ui-serif, serif;
+  --read-ink: #e8dcc4;
+  --read-size: 18px;
 }
 
 /* Base styles */
 body {
   background-color: var(--pixel-bg-dark);
-  color: var(--pixel-ui-text);
+  color: var(--read-ink);
+  font-family: var(--font-read);
+  font-size: var(--read-size);
+  line-height: 1.55;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Pixel-perfect rendering */
-* {
+/* Phone chips (Save/Pioneer/mute/narrator) sit at bottom-4.
+   Content must clear them so Shop/Continue/pace stay tappable. */
+.game-chrome-pad {
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .game-chrome-pad {
+    padding-bottom: 2.5rem;
+  }
+}
+
+.read-body {
+  font-family: var(--font-read);
+  font-size: var(--read-size);
+  line-height: 1.55;
+  color: var(--read-ink);
+}
+
+.read-label {
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--pixel-gold-light);
+}
+
+/* Pixel-perfect rendering — images only. Applying this to * made
+   Goda's "I can't read anything" worse (text was crunchy at 8px). */
+img, canvas, .pixel-art {
   image-rendering: pixelated;
 }
 

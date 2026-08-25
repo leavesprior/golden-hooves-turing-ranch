@@ -145,34 +145,37 @@ export function OutfittingScreen() {
               <p className="font-serif text-[#f3ead8]">This load</p>
               <div className="mt-2"><KarmaWallet compact showBadKarma={false} /></div>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <p className={`font-serif ${!canAfford('neutral', Math.ceil(totalCost)) ? 'text-red-300' : 'text-[#e8dcc4]'}`}>
-                {Math.ceil(totalCost)} tacos
-              </p>
-              <button
-                type="button"
-                onClick={handlePurchase}
-                disabled={totalCost === 0}
-                className="west-face-pill west-face-pill-cream"
-              >
-                {canAfford('neutral', Math.ceil(totalCost)) ? 'Buy this load' : 'Need more tacos'}
-              </button>
-            </div>
+            <p className={`font-serif ${!canAfford('neutral', Math.ceil(totalCost)) ? 'text-red-300' : 'text-[#e8dcc4]'}`}>
+              {Math.ceil(totalCost)} tacos
+            </p>
           </div>
+        </article>
 
+        <div
+          className="sticky z-30 mt-4 flex flex-col gap-2 rounded-lg bg-black/70 p-3"
+          style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
+        >
+          <button
+            type="button"
+            onClick={handlePurchase}
+            disabled={totalCost === 0}
+            className="west-face-pill west-face-pill-cream w-full text-center"
+          >
+            {canAfford('neutral', Math.ceil(totalCost)) ? 'Buy this load' : 'Need more tacos'}
+          </button>
           <button
             type="button"
             onClick={goToCharacterCreation}
             disabled={state.oxen < 2 || state.food < 100}
-            className="west-face-pill west-face-pill-cream mt-4"
+            className="west-face-pill west-face-pill-cream w-full text-center"
           >
             Wagons west
           </button>
           {(state.oxen < 2 || state.food < 100) && (
-            <p className="mt-2 text-sm text-red-300">Need at least 2 oxen and 100 lbs of food</p>
+            <p className="text-sm text-red-300">Need at least 2 oxen and 100 lbs of food</p>
           )}
-          <p className="west-face-footer">First camp: Independence, Missouri. Mode: Adult Warrant. NEOMA, DM.</p>
-        </article>
+        </div>
+        <p className="west-face-footer mt-3">First camp: Independence, Missouri. Mode: Adult Warrant. NEOMA, DM.</p>
       </div>
 
       {showConvertModal && convertModalContext && (

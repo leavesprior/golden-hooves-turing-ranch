@@ -77,7 +77,11 @@ export function nearbyNpcs(fix: GpsFix | null): Array<ProximityNpc & { meters: n
   return out.sort((a, b) => a.meters - b.meters)
 }
 
-export function parseSimulatedNear(search: string): GpsFix | null {
+export function parseSimulatedNear(search: string, hostname?: string): GpsFix | null {
+  const host =
+    hostname ??
+    (typeof window !== 'undefined' ? window.location.hostname : 'localhost')
+  if (host !== 'localhost' && host !== '127.0.0.1') return null
   const id = new URLSearchParams(search).get('near')
   if (!id) return null
   const town = TOWN_REGISTRY.find((t) => t.id === id)

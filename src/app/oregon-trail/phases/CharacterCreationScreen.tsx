@@ -298,13 +298,14 @@ export function CharacterCreationScreen() {
           </div>
         </div>
 
-        {/* Proceed Button */}
+        {/* Proceed stays in the iPhone fold above mute. */}
         <button
           onClick={handleFinalize}
           disabled={pointsRemaining !== 0 || !selectedBackground}
-          className="w-full py-4 md:py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 font-pixel text-base md:text-sm rounded border-4 border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
+          className="sticky z-20 w-full py-4 md:py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 font-pixel text-base md:text-sm rounded border-4 border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
+          style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
         >
-          {!selectedBackground ? 'Select a background' : pointsRemaining > 0 ? `Assign ${pointsRemaining} more points` : 'Begin the Hunt'}
+          {!selectedBackground ? 'Select a background' : pointsRemaining > 0 ? `Assign ${pointsRemaining} more points` : 'Begin the trail'}
         </button>
       </div>
     </div>

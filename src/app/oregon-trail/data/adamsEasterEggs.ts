@@ -268,7 +268,21 @@ export const BRIDGE_QUESTIONS: BridgeQuestion[] = [
   },
   {
     question: "What... is your quest?",
-    correctAnswer: ["gold", "gold country", "seek gold", "find gold", "track", "catch", "outlaw", "black bart", "pinkerton"],
+    correctAnswer: [
+      "gold",
+      "gold country",
+      "seek gold",
+      "find gold",
+      "golden frog",
+      "discount",
+      "ranch",
+      "west",
+      "track",
+      "catch",
+      "outlaw",
+      "black bart",
+      "pinkerton",
+    ],
     wrongAnswerEffect: "none"
   },
   {
@@ -499,6 +513,22 @@ export function getAdamsResponse(ref: AdamsReference): string {
 export function getAdamsFollowUp(ref: AdamsReference): string | null {
   if (!ref.followUps || ref.followUps.length === 0) return null
   return ref.followUps[Math.floor(Math.random() * ref.followUps.length)]
+}
+
+/**
+ * L1 set-piece: Kansas River always keeps the Bridge of Death.
+ * Other rivers stay a 15% mist (or always, if the player earned the bane).
+ */
+export function shouldShowBridgeKeeper(input: {
+  riverName: string
+  traits?: string[]
+  roll?: number
+}): boolean {
+  const traits = input.traits ?? []
+  if (traits.includes('bridge_keepers_bane')) return true
+  if (/kansas/i.test(input.riverName)) return true
+  const roll = typeof input.roll === 'number' ? input.roll : Math.random()
+  return roll < 0.15
 }
 
 /**

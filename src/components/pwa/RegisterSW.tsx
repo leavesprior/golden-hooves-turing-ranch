@@ -39,14 +39,14 @@ export function RegisterSW() {
           } catch { /* ignore */ }
           setDeferred(null)
         }}
-        className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]"
+        className="read-body text-[16px] text-[var(--pixel-gold-light)]"
       >
-        📲 Install the game
+        Add to Home Screen
       </button>
       <button
         onClick={() => { setShow(false); try { sessionStorage.setItem('bobr_install_dismissed', '1') } catch { /* ignore */ } }}
         aria-label="Dismiss"
-        className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]/60 hover:text-[var(--pixel-ui-text)]"
+        className="read-body text-[16px] text-[var(--read-ink)]/70 hover:text-[var(--read-ink)]"
       >
         ✕
       </button>

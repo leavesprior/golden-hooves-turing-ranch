@@ -32,6 +32,7 @@ import { PipBoyMenu } from '../components/GameMenu'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
 import { getTownArrivalMessage, type TownArrivalMessage } from '../data/townArrivals'
 import { recordTownArrival } from '../lib/townVisits'
+import { readArcadeAccess, showDeeperTown } from '@/lib/arcadeFirstLevel'
 
 // Each authored arrival line carries a mood; tint the text so the town's
 // disposition reads at a glance instead of every stop sounding the same.
@@ -86,6 +87,10 @@ export function TownScreen({
   const { progress: chapterProgress } = useChapter()
 
   // Local modal states
+  const [deeperTown, setDeeperTown] = useState(false)
+  useEffect(() => {
+    setDeeperTown(showDeeperTown(readArcadeAccess()))
+  }, [])
   const [showShop, setShowShop] = useState(false)
   const [showInn, setShowInn] = useState(false)
   const [showResearch, setShowResearch] = useState(false)
@@ -228,7 +233,192 @@ export function TownScreen({
           )}
         </div>
 
-        {/* Quick Actions Bar */}
+        {/* Town verbs immediately after the arrival card so iPhone first paint has Shop. */}
+        <div className="grid gap-2 mb-6 grid-cols-4 md:grid-cols-5 lg:grid-cols-8">
+          <button
+            data-testid="town-shop"
+            onClick={() => setShowShop(true)}
+            className="p-3 bg-yellow-900/60 hover:bg-yellow-800/60 border-2 border-yellow-600 rounded-lg text-center"
+          >
+            <span className="text-2xl">🏪</span>
+            <p className="text-yellow-200 text-xs mt-1">Shop</p>
+          </button>
+          <button
+            onClick={() => setShowInn(true)}
+            className={`p-3 border-2 rounded-lg text-center ${
+              isWestPoint
+                ? 'bg-emerald-900/60 hover:bg-emerald-800/60 border-emerald-500'
+                : 'bg-purple-900/60 hover:bg-purple-800/60 border-purple-600'
+            }`}
+          >
+            <span className="text-2xl">{isWestPoint ? '🏔️' : '🏨'}</span>
+            <p className={`text-xs mt-1 ${isWestPoint ? 'text-emerald-200' : 'text-purple-200'}`}>
+              {isWestPoint ? "Cynthia's" : 'Inn'}
+            </p>
+          </button>
+          {deeperTown && (
+          <button
+            onClick={openInvestigation}
+            className={`p-3 bg-red-900/60 hover:bg-red-800/60 border-2 border-red-600 rounded-lg text-center ${
+              (mysteryState.collectedClues?.length || 0) === 0 ? 'animate-pulse' : ''
+            }`}
+          >
+            <span className="text-2xl">🔍</span>
+            <p className="text-red-200 text-xs mt-1">Investigate</p>
+            {(mysteryState.collectedClues?.length || 0) === 0 && (
+              <p className="text-red-300/80 text-[10px] mt-0.5">A warrant waits</p>
+            )}
+          </button>
+          )}
+          {deeperTown && (
+          <button
+            onClick={openTelegraph}
+            className="p-3 bg-blue-900/60 hover:bg-blue-800/60 border-2 border-blue-600 rounded-lg text-center"
+          >
+            <span className="text-2xl">📨</span>
+            <p className="text-blue-200 text-xs mt-1">Telegraph</p>
+          </button>
+          )}
+          {deeperTown && (
+          <button
+            onClick={() => setShowResearch(true)}
+            disabled={!hasResearchAvailable}
+            className={`p-3 border-2 rounded-lg text-center ${
+              hasResearchAvailable
+                ? 'bg-cyan-900/60 hover:bg-cyan-800/60 border-cyan-600'
+                : 'bg-gray-900/60 border-gray-700 opacity-50 cursor-not-allowed'
+            }`}
+          >
+            <span className="text-2xl">📚</span>
+            <p className={`text-xs mt-1 ${hasResearchAvailable ? 'text-cyan-200' : 'text-gray-500'}`}>
+              Research
+            </p>
+            {currentLocationClues.length > 0 && (
+              <p className="text-cyan-400 text-[10px] mt-0.5">
+                {mysteryState.educationalCluesCollected.filter(c => c.answeredCorrectly && currentLocationClues.some(cl => cl.id === c.clue.id)).length}/{currentLocationClues.length} done
+              </p>
+            )}
+          </button>
+          )}
+          {deeperTown && currentHistoricalChar && (
+            <button
+              onClick={() => setHistoricalEncounter(currentHistoricalChar)}
+              className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-500 rounded-lg text-center animate-pulse"
+            >
+              <span className="text-2xl">{currentHistoricalChar.portrait}</span>
+              <p className="text-amber-200 text-xs mt-1">Stranger</p>
+            </button>
+          )}
+          <button
+            onClick={() => hunt()}
+            disabled={state.ammunition < 10}
+            className="p-3 bg-green-900/60 hover:bg-green-800/60 border-2 border-green-600 rounded-lg text-center disabled:opacity-50"
+          >
+            <span className="text-2xl">🦌</span>
+            <p className="text-green-200 text-xs mt-1">Hunt</p>
+          </button>
+          <button
+            onClick={() => setShowCampMenu(true)}
+            className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-600 rounded-lg text-center"
+          >
+            <span className="text-2xl">{'\u26FA'}</span>
+            <p className="text-amber-200 text-xs mt-1">Camp</p>
+          </button>
+          {deeperTown && isWestPoint && (
+            <button
+              onClick={openRanchManagement}
+              className="p-3 bg-lime-900/60 hover:bg-lime-800/60 border-2 border-lime-600 rounded-lg text-center"
+            >
+              <span className="text-2xl">🌾</span>
+              <p className="text-lime-200 text-xs mt-1">Ranch</p>
+            </button>
+          )}
+          {deeperTown && availableSpecialtyShops.map(shop => (
+            <button
+              key={shop.type}
+              onClick={() => setShowSpecialtyShop(shop)}
+              className={`p-3 border-2 rounded-lg text-center ${
+                shop.type === 'wagonwright' ? 'bg-orange-900/60 hover:bg-orange-800/60 border-orange-600' :
+                shop.type === 'apothecary' ? 'bg-teal-900/60 hover:bg-teal-800/60 border-teal-600' :
+                shop.type === 'outfitter' ? 'bg-sky-900/60 hover:bg-sky-800/60 border-sky-600' :
+                shop.type === 'assayer' ? 'bg-yellow-900/60 hover:bg-yellow-800/60 border-yellow-600' :
+                'bg-red-900/60 hover:bg-red-800/60 border-red-600'
+              }`}
+            >
+              <span className="text-2xl">{shop.emoji}</span>
+              <p className={`text-xs mt-1 ${
+                shop.type === 'wagonwright' ? 'text-orange-200' :
+                shop.type === 'apothecary' ? 'text-teal-200' :
+                shop.type === 'outfitter' ? 'text-sky-200' :
+                shop.type === 'assayer' ? 'text-yellow-200' :
+                'text-red-200'
+              }`}>{shop.name.split(' ')[0]}</p>
+            </button>
+          ))}
+          {deeperTown && (availableGuides.length > 0 || hiredGuide) && (
+            <button
+              onClick={() => setShowGuideHire(true)}
+              className="p-3 bg-indigo-900/60 hover:bg-indigo-800/60 border-2 border-indigo-600 rounded-lg text-center relative"
+            >
+              <span className="text-2xl">🧭</span>
+              <p className="text-indigo-200 text-xs mt-1">Guides</p>
+              {hiredGuide && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full" />
+              )}
+            </button>
+          )}
+          {deeperTown && (
+          <button
+            onClick={() => setShowPosseRecruitment(true)}
+            className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-600 rounded-lg text-center relative"
+          >
+            <span className="text-2xl">{'\ud83e\udd20'}</span>
+            <p className="text-amber-200 text-xs mt-1">Posse</p>
+            {state.party.filter(m => m.isHired).length > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 bg-amber-500 rounded-full text-[9px] text-white flex items-center justify-center">
+                {state.party.filter(m => m.isHired).length}
+              </span>
+            )}
+          </button>
+          )}
+          {deeperTown && (() => {
+            const puzzles = getPuzzlesForLandmark(state.currentLandmark, solvedPuzzles, state.day, state.inventory)
+            return puzzles.length > 0 ? (
+              <button
+                onClick={() => setShowPuzzle(puzzles[0])}
+                className="p-3 bg-cyan-900/60 hover:bg-cyan-800/60 border-2 border-cyan-500 rounded-lg text-center animate-pulse"
+              >
+                <span className="text-2xl">🧩</span>
+                <p className="text-cyan-200 text-xs mt-1">Puzzle</p>
+              </button>
+            ) : null
+          })()}
+          {deeperTown && (
+          <button
+            onClick={() => setShowCharacterSheet(true)}
+            className="p-3 bg-stone-800/60 hover:bg-stone-700/60 border-2 border-stone-500 rounded-lg text-center relative"
+          >
+            <span className="text-2xl">📋</span>
+            <p className="text-stone-200 text-xs mt-1">Character</p>
+            {activeEffects.length > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 bg-purple-500 rounded-full text-[9px] text-white flex items-center justify-center">
+                {activeEffects.length}
+              </span>
+            )}
+          </button>
+          )}
+          <button
+            data-testid="town-continue"
+            onClick={leaveTown}
+            className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-600 rounded-lg text-center"
+          >
+            <span className="text-2xl">🛤️</span>
+            <p className="text-amber-200 text-xs mt-1">Continue</p>
+          </button>
+        </div>
+
+        {/* Quick Actions Bar — deeper modes stay in code, off the arcade face */}
+        {deeperTown && (
         <div className="flex justify-center gap-2 mb-6 flex-wrap">
           <button
             onClick={openJournal}
@@ -242,7 +432,6 @@ export function TownScreen({
           >
             📋 Dossiers
           </button>
-          {/* NPC Relationship Panel — show count badge when relationships exist */}
           {(() => {
             const rels = getAllNPCRelationships()
             return (
@@ -256,6 +445,7 @@ export function TownScreen({
           })()}
           <ReputationBar compact />
         </div>
+        )}
 
         <div className="grid md:grid-cols-2 gap-4 mb-6">
           {/* Status */}
@@ -366,187 +556,8 @@ export function TownScreen({
           </div>
         )}
 
-        {/* Town Actions */}
-        <div className="grid gap-2 mb-6 grid-cols-4 md:grid-cols-5 lg:grid-cols-8">
-          <button
-            onClick={() => setShowShop(true)}
-            className="p-3 bg-yellow-900/60 hover:bg-yellow-800/60 border-2 border-yellow-600 rounded-lg text-center"
-          >
-            <span className="text-2xl">🏪</span>
-            <p className="text-yellow-200 text-xs mt-1">Shop</p>
-          </button>
-          <button
-            onClick={() => setShowInn(true)}
-            className={`p-3 border-2 rounded-lg text-center ${
-              isWestPoint
-                ? 'bg-emerald-900/60 hover:bg-emerald-800/60 border-emerald-500'
-                : 'bg-purple-900/60 hover:bg-purple-800/60 border-purple-600'
-            }`}
-          >
-            <span className="text-2xl">{isWestPoint ? '🏔️' : '🏨'}</span>
-            <p className={`text-xs mt-1 ${isWestPoint ? 'text-emerald-200' : 'text-purple-200'}`}>
-              {isWestPoint ? "Cynthia's" : 'Inn'}
-            </p>
-          </button>
-          <button
-            onClick={openInvestigation}
-            className={`p-3 bg-red-900/60 hover:bg-red-800/60 border-2 border-red-600 rounded-lg text-center ${
-              (mysteryState.collectedClues?.length || 0) === 0 ? 'animate-pulse' : ''
-            }`}
-          >
-            <span className="text-2xl">🔍</span>
-            <p className="text-red-200 text-xs mt-1">Investigate</p>
-            {(mysteryState.collectedClues?.length || 0) === 0 && (
-              <p className="text-red-300/80 text-[10px] mt-0.5">A warrant waits</p>
-            )}
-          </button>
-          <button
-            onClick={openTelegraph}
-            className="p-3 bg-blue-900/60 hover:bg-blue-800/60 border-2 border-blue-600 rounded-lg text-center"
-          >
-            <span className="text-2xl">📨</span>
-            <p className="text-blue-200 text-xs mt-1">Telegraph</p>
-          </button>
-          {/* Research button - Gold Country educational content */}
-          <button
-            onClick={() => setShowResearch(true)}
-            disabled={!hasResearchAvailable}
-            className={`p-3 border-2 rounded-lg text-center ${
-              hasResearchAvailable
-                ? 'bg-cyan-900/60 hover:bg-cyan-800/60 border-cyan-600'
-                : 'bg-gray-900/60 border-gray-700 opacity-50 cursor-not-allowed'
-            }`}
-          >
-            <span className="text-2xl">📚</span>
-            <p className={`text-xs mt-1 ${hasResearchAvailable ? 'text-cyan-200' : 'text-gray-500'}`}>
-              Research
-            </p>
-            {currentLocationClues.length > 0 && (
-              <p className="text-cyan-400 text-[10px] mt-0.5">
-                {mysteryState.educationalCluesCollected.filter(c => c.answeredCorrectly && currentLocationClues.some(cl => cl.id === c.clue.id)).length}/{currentLocationClues.length} done
-              </p>
-            )}
-          </button>
-          {currentHistoricalChar && (
-            <button
-              onClick={() => setHistoricalEncounter(currentHistoricalChar)}
-              className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-500 rounded-lg text-center animate-pulse"
-            >
-              <span className="text-2xl">{currentHistoricalChar.portrait}</span>
-              <p className="text-amber-200 text-xs mt-1">Stranger</p>
-            </button>
-          )}
-          <button
-            onClick={() => hunt()}
-            disabled={state.ammunition < 10}
-            className="p-3 bg-green-900/60 hover:bg-green-800/60 border-2 border-green-600 rounded-lg text-center disabled:opacity-50"
-          >
-            <span className="text-2xl">🦌</span>
-            <p className="text-green-200 text-xs mt-1">Hunt</p>
-          </button>
-          {/* Make Camp button */}
-          <button
-            onClick={() => setShowCampMenu(true)}
-            className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-600 rounded-lg text-center"
-          >
-            <span className="text-2xl">{'\u26FA'}</span>
-            <p className="text-amber-200 text-xs mt-1">Camp</p>
-          </button>
-          {/* Ranch button - only at West Point */}
-          {isWestPoint && (
-            <button
-              onClick={openRanchManagement}
-              className="p-3 bg-lime-900/60 hover:bg-lime-800/60 border-2 border-lime-600 rounded-lg text-center"
-            >
-              <span className="text-2xl">🌾</span>
-              <p className="text-lime-200 text-xs mt-1">Ranch</p>
-            </button>
-          )}
-          {/* Specialty Shops - appear randomly at towns/forts */}
-          {availableSpecialtyShops.map(shop => (
-            <button
-              key={shop.type}
-              onClick={() => setShowSpecialtyShop(shop)}
-              className={`p-3 border-2 rounded-lg text-center ${
-                shop.type === 'wagonwright' ? 'bg-orange-900/60 hover:bg-orange-800/60 border-orange-600' :
-                shop.type === 'apothecary' ? 'bg-teal-900/60 hover:bg-teal-800/60 border-teal-600' :
-                shop.type === 'outfitter' ? 'bg-sky-900/60 hover:bg-sky-800/60 border-sky-600' :
-                shop.type === 'assayer' ? 'bg-yellow-900/60 hover:bg-yellow-800/60 border-yellow-600' :
-                'bg-red-900/60 hover:bg-red-800/60 border-red-600'
-              }`}
-            >
-              <span className="text-2xl">{shop.emoji}</span>
-              <p className={`text-xs mt-1 ${
-                shop.type === 'wagonwright' ? 'text-orange-200' :
-                shop.type === 'apothecary' ? 'text-teal-200' :
-                shop.type === 'outfitter' ? 'text-sky-200' :
-                shop.type === 'assayer' ? 'text-yellow-200' :
-                'text-red-200'
-              }`}>{shop.name.split(' ')[0]}</p>
-            </button>
-          ))}
-          {/* Guide Hire - when guides are available or one is hired */}
-          {(availableGuides.length > 0 || hiredGuide) && (
-            <button
-              onClick={() => setShowGuideHire(true)}
-              className="p-3 bg-indigo-900/60 hover:bg-indigo-800/60 border-2 border-indigo-600 rounded-lg text-center relative"
-            >
-              <span className="text-2xl">🧭</span>
-              <p className="text-indigo-200 text-xs mt-1">Guides</p>
-              {hiredGuide && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-green-400 rounded-full" />
-              )}
-            </button>
-          )}
-          {/* Posse Recruitment (#6) - always available at settlements */}
-          <button
-            onClick={() => setShowPosseRecruitment(true)}
-            className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-600 rounded-lg text-center relative"
-          >
-            <span className="text-2xl">{'\ud83e\udd20'}</span>
-            <p className="text-amber-200 text-xs mt-1">Posse</p>
-            {state.party.filter(m => m.isHired).length > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-amber-500 rounded-full text-[9px] text-white flex items-center justify-center">
-                {state.party.filter(m => m.isHired).length}
-              </span>
-            )}
-          </button>
-          {/* Town Puzzles - Hitchhiker's Guide style */}
-          {(() => {
-            const puzzles = getPuzzlesForLandmark(state.currentLandmark, solvedPuzzles, state.day, state.inventory)
-            return puzzles.length > 0 ? (
-              <button
-                onClick={() => setShowPuzzle(puzzles[0])}
-                className="p-3 bg-cyan-900/60 hover:bg-cyan-800/60 border-2 border-cyan-500 rounded-lg text-center animate-pulse"
-              >
-                <span className="text-2xl">🧩</span>
-                <p className="text-cyan-200 text-xs mt-1">Puzzle</p>
-              </button>
-            ) : null
-          })()}
-          {/* Character Sheet - always available */}
-          <button
-            onClick={() => setShowCharacterSheet(true)}
-            className="p-3 bg-stone-800/60 hover:bg-stone-700/60 border-2 border-stone-500 rounded-lg text-center relative"
-          >
-            <span className="text-2xl">📋</span>
-            <p className="text-stone-200 text-xs mt-1">Character</p>
-            {activeEffects.length > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-purple-500 rounded-full text-[9px] text-white flex items-center justify-center">
-                {activeEffects.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={leaveTown}
-            className="p-3 bg-amber-900/60 hover:bg-amber-800/60 border-2 border-amber-600 rounded-lg text-center"
-          >
-            <span className="text-2xl">🛤️</span>
-            <p className="text-amber-200 text-xs mt-1">Continue</p>
-          </button>
-        </div>
-
-        {/* World Map + Living Trail Buttons */}
+        {/* World Map + Living Trail — after first-level victory */}
+        {deeperTown && (
         <div className="flex justify-center gap-4 mb-6 flex-wrap">
           <button
             onClick={openWorldMap}
@@ -575,6 +586,7 @@ export function TownScreen({
           </button>
           )}
         </div>
+        )}
 
         {/* Message Display */}
         {state.message && (
@@ -785,16 +797,17 @@ export function TownScreen({
       {/* Camp Menu */}
       <CampMenu isOpen={showCampMenu} onClose={() => setShowCampMenu(false)} />
 
-      {/* Pip-Boy Game Menu */}
-      <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} onOpenCamp={() => setShowCampMenu(true)} />
-
-      {/* FAB: Game Menu button */}
-      <button
-        onClick={() => setShowPipBoy(true)}
-        className="fixed bottom-4 right-4 z-40 bg-amber-900/90 border-2 border-amber-600 text-amber-200 font-pixel text-xs px-3 py-2 rounded hover:bg-amber-800/90 transition-colors shadow-lg"
-      >
-        [ESC] MENU
-      </button>
+      {deeperTown && (
+        <>
+          <PipBoyMenu isOpen={showPipBoy} onClose={() => setShowPipBoy(false)} onOpenCamp={() => setShowCampMenu(true)} />
+          <button
+            onClick={() => setShowPipBoy(true)}
+            className="fixed bottom-4 right-4 z-40 bg-amber-900/90 border-2 border-amber-600 text-amber-200 font-pixel text-xs px-3 py-2 rounded hover:bg-amber-800/90 transition-colors shadow-lg"
+          >
+            [ESC] MENU
+          </button>
+        </>
+      )}
     </div>
   )
 }

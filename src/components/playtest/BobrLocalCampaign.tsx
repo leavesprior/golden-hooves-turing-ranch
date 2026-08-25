@@ -184,7 +184,7 @@ function SetupView({ state, dispatch, productionJourney }: CampaignViewProps) {
 
 function EscapeView({ state, dispatch }: CampaignViewProps) {
   return (
-    <Scene src="/place-art/welcome_gate.png" alt="The Back of Beyond gate across several eras" eyebrow="Opening: Vane's escape" title="The same land changes clothes. A false presence leaves the same mark.">
+    <Scene src="/place-art/editorial/welcome_gate.jpg" alt="The Back of Beyond gate across several eras" eyebrow="Opening: Vane's escape" title="The same land changes clothes. A false presence leaves the same mark.">
       <PartyStrip state={state} />
       <div className="grid gap-2 md:grid-cols-3">
         <ActionButton onClick={() => dispatch({ type: 'ESCAPE_CHOICE', choice: 'trace_tare' })}><strong className="block text-cyan-200">TRACE THE TARE</strong>Study the shaved brass mark and carry an extra lead into 1849.</ActionButton>
@@ -197,7 +197,7 @@ function EscapeView({ state, dispatch }: CampaignViewProps) {
 
 function TrailView({ state, dispatch }: CampaignViewProps) {
   return (
-    <Scene src="/place-art/ch1_fort_kearny.png" alt="Oregon Trail fort and wagon road" eyebrow="1849: the road remembers" title="A freight wagon is cornered between thieves and a tense passage negotiation.">
+    <Scene src="/place-art/editorial/fort_kearny.jpg" alt="Oregon Trail fort and wagon road" eyebrow="1849: the road remembers" title="A freight wagon is cornered between thieves and a tense passage negotiation.">
       <PartyStrip state={state} />
       <div className="mb-3 border border-cyan-700 bg-black/80 p-3 text-[10px] leading-5 text-stone-200">This is not a morality quiz. Each choice changes downstream supply, road safety, relationships, prices, and which witnesses will talk later.</div>
       <div className="grid gap-2 md:grid-cols-3">
@@ -212,7 +212,7 @@ function TrailView({ state, dispatch }: CampaignViewProps) {
 function ArrivalView({ state, dispatch }: CampaignViewProps) {
   const prices = getMarketQuotes(state)
   return (
-    <Scene src="/place-art/west_point.png" alt="West Point in Gold Country" eyebrow="Level 2 gateway" title="The trail did not end. It delivered consequences into a living region.">
+    <Scene src="/place-art/editorial/west_point.jpg" alt="West Point in Gold Country" eyebrow="Level 2 gateway" title="The trail did not end. It delivered consequences into a living region.">
       <div className="grid gap-3 md:grid-cols-[1fr_260px]">
         <div className="border border-amber-700 bg-black/85 p-4 text-[10px] leading-5 text-stone-200">
           <p className="mb-3">A theatre messenger reaches West Point: Volcano's lead actor vanished after finding a false assay ticket beneath the stage. The evening crowd arrives before dark.</p>
@@ -247,7 +247,7 @@ function PerilView({ state, dispatch }: CampaignViewProps) {
   const peril = state.volcano.perilId ? PERIL_EVENTS[state.volcano.perilId] : null
   if (!peril) return null
   return (
-    <Scene src="/place-art/ch1_fort_kearny.png" alt="Trouble on the road to Volcano" eyebrow="On the road: the trail answers back" title={peril.title + '.'}>
+    <Scene src="/place-art/editorial/fort_kearny.jpg" alt="Trouble on the road to Volcano" eyebrow="On the road: the trail answers back" title={peril.title + '.'}>
       <PartyStrip state={state} />
       <div className="mb-3 border border-amber-700 bg-black/80 p-3 text-[10px] leading-5 text-stone-200">{peril.detail} Neither choice ends the journey — the road is survivable with thought. It only asks what the party will spend: goods, or daylight.</div>
       <div className="grid gap-2 md:grid-cols-2">
@@ -281,7 +281,7 @@ function VolcanoView({ state, dispatch }: CampaignViewProps) {
   const nextCostsLead = evidenceCount >= FREE_INVESTIGATIONS
   const canAmend = state.flags.wrong_accusation && !state.volcano.amendsMade
   return (
-    <Scene src="/place-art/volcano.png" alt="Volcano main street and theatre district" eyebrow={'Volcano, ' + VOLCANO_THEATRE_ENCOUNTER.era.year + ': ' + VOLCANO_THEATRE_ENCOUNTER.title.toLowerCase()} title="Help first, investigate second, and accuse only what the evidence can hold up.">
+    <Scene src="/place-art/editorial/volcano_main.jpg" alt="Volcano main street and theatre district" eyebrow={'Volcano, ' + VOLCANO_THEATRE_ENCOUNTER.era.year + ': ' + VOLCANO_THEATRE_ENCOUNTER.title.toLowerCase()} title="Help first, investigate second, and accuse only what the evidence can hold up.">
       <PartyStrip state={state} />
       <CurtainClock state={state} />
       <div className="mb-4 grid gap-3 rounded-md border border-[#b89355]/50 bg-[#111514]/90 p-3 sm:grid-cols-[auto_1fr_auto_1fr_auto_1fr] sm:items-center">
@@ -334,7 +334,7 @@ function ResolvedView({ state, dispatch }: CampaignViewProps) {
   const verdict = state.volcano.accusation
   const canAmend = state.flags.wrong_accusation && !state.volcano.amendsMade
   return (
-    <Scene src="/place-art/vol_st_george.png" alt="St. George Hotel in Volcano" eyebrow="Case consequence" title="The real evidence holds because somebody honestly helped and looked closer.">
+    <Scene src="/place-art/editorial/volcano_main.jpg" alt="St. George Hotel in Volcano" eyebrow="Case consequence" title="The real evidence holds because somebody honestly helped and looked closer.">
       <div className="grid gap-3 md:grid-cols-[1fr_280px]">
         <div className="border border-emerald-600 bg-black/85 p-4">
           <h3 className="mb-2 text-[11px] text-emerald-200">THE FALSE ASSAY BENEATH THE STAGE</h3>
@@ -363,7 +363,7 @@ function ResolvedView({ state, dispatch }: CampaignViewProps) {
 
 function FutureView({ state }: { state: LocalCampaignState }) {
   return (
-    <Scene src="/place-art/bobr_cabin.png" alt="Back of Beyond Ranch cabin in a future witness scene" eyebrow="Future witness" title="Another player's present contains the trustworthy trace this party left behind.">
+    <Scene src="/place-art/editorial/bobr_ranch.jpg" alt="Back of Beyond Ranch cabin in a future witness scene" eyebrow="Future witness" title="Another player's present contains the trustworthy trace this party left behind.">
       <div className="max-w-3xl border-2 border-cyan-500 bg-black/85 p-4">
         <p className="text-[11px] leading-6 text-stone-100">The future clue is not a review Vane could mint. It is a chain of readable consequences: road freight arrived, Volcano remembers how the party behaved, the casebook names the evidence, and no reward claims more certainty than the visit proved.</p>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">

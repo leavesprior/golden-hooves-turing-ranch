@@ -198,7 +198,7 @@ export function GoldCountryExplore({
           <div>
             <h1 className="font-pixel text-amber-400 text-xl tracking-wider">GOLD COUNTRY</h1>
             <p className="text-green-600 text-xs font-mono tracking-widest uppercase">
-              Sierra Foothills - Free Roam
+              Holistic detective · time slip · old-west warrant · Sandiego noir
             </p>
           </div>
           <div className="flex items-center gap-6">
@@ -408,6 +408,20 @@ export function GoldCountryExplore({
 
         {/* Sidebar */}
         <div className="w-72 border-l border-green-700/40 p-4 flex flex-col gap-4">
+          <div className="bg-green-950/30 border border-amber-700/40 rounded-lg p-3">
+            <h3 className="text-amber-400 font-pixel text-xs tracking-wider mb-2">WARRANT</h3>
+            <p className="text-green-300 text-xs font-mono">
+              Vane the Tare. Holistic detective · time slip · old-west warrant · Sandiego noir.
+              Open the dossier. Deduce the next town.
+            </p>
+            <button
+              onClick={onOpenQuestLog}
+              className="w-full mt-3 py-2 bg-amber-900/50 hover:bg-amber-800/60 text-amber-200 text-xs font-mono rounded border border-amber-600/50 transition-colors"
+            >
+              OPEN DOSSIER
+            </button>
+          </div>
+
           {/* Current Location */}
           <div className="bg-green-950/30 border border-green-700/40 rounded-lg p-3">
             <h3 className="text-amber-400 font-pixel text-xs tracking-wider mb-2">CURRENT LOCATION</h3>
@@ -487,7 +501,7 @@ export function GoldCountryExplore({
               onClick={onOpenQuestLog}
               className="w-full py-2 bg-green-950/50 hover:bg-green-900/50 text-green-400 text-xs font-mono rounded border border-green-700/40 transition-colors"
             >
-              QUEST LOG
+              DOSSIER
             </button>
             <button
               onClick={onLeave}

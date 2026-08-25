@@ -3,9 +3,8 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
+import { PixelNavigation, PixelButton, PixelCard, BookStayButton } from '@/components/pixel'
 import { useGame } from '@/lib/gameContext'
-import { airbnbBookingLink } from '@/lib/airbnbLink'
 
 const RANCH_ORIGIN = '38.3947,-120.5269'
 function mapsDir(destination: string): string {
@@ -73,8 +72,9 @@ const nearby: Array<{
     name: 'Historic Gold Mines',
     time: '15 min',
     icon: '⛏️',
-    href: '/explore',
-    go: 'Gold Country map',
+    href: mapsDir('Angels Camp, California'),
+    external: true,
+    go: 'Angels Camp · directions',
   },
 ]
 
@@ -95,19 +95,19 @@ export default function RentalsPage() {
         {/* Game Reward Banner */}
         {gameState === 'complete' && reward && (
           <div className="bg-gradient-to-r from-[var(--pixel-gold-dark)] via-[var(--pixel-fire-orange)] to-[var(--pixel-gold-dark)] border-4 border-[var(--pixel-gold-mid)] p-4 mb-6 text-center">
-            <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)]">
+            <p className="read-body text-[var(--pixel-ui-text)]">
               Quest Complete! You earned <span className="text-[var(--pixel-gold-light)]">{reward.discount}% OFF</span>
             </p>
             {reward.code ? (
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mt-2">
+              <p className="read-body text-[var(--pixel-gold-light)] mt-2">
                 Use code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{reward.code}</span>
               </p>
             ) : (
-              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mt-2">
+              <p className="read-body text-[var(--pixel-gold-light)] mt-2">
                 Completion rewards are verified by the host before booking.
               </p>
             )}
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] mt-2">
+            <p className="read-body text-[var(--pixel-ui-text)] mt-2">
               Email <a href="mailto:contact@backofbeyondranch.farm" className="text-[var(--pixel-gold-light)] underline hover:text-[var(--pixel-gold-mid)]">contact@backofbeyondranch.farm</a> when booking direct to verify your quest completion.
             </p>
           </div>
@@ -116,16 +116,16 @@ export default function RentalsPage() {
         {/* Early-Bird Banner — visible mid-game until quest is completed */}
         {gameState !== 'complete' && earlyReward && (
           <div className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-gold-mid)] p-4 mb-6 text-center">
-            <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
+            <p className="read-body text-[var(--pixel-gold-light)]">
               Early-Bird Unlocked: <span className="text-[var(--pixel-fire-orange)]">{earlyReward.discount}% OFF</span> your next direct stay
             </p>
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] mt-2">
+            <p className="read-body text-[var(--pixel-ui-text)] mt-2">
               Code: <span className="bg-[var(--pixel-bg-dark)] px-2 py-1 mx-1">{earlyReward.code}</span>
             </p>
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-ui-text)] mt-2">
+            <p className="read-body text-[var(--pixel-ui-text)] mt-2">
               Email <a href="mailto:contact@backofbeyondranch.farm" className="text-[var(--pixel-gold-light)] underline hover:text-[var(--pixel-gold-mid)]">contact@backofbeyondranch.farm</a> to redeem.
             </p>
-            <p className="font-[var(--font-pixel)] text-[7px] text-[var(--pixel-forest-light)] mt-2">
+            <p className="read-body text-[var(--pixel-forest-light)] mt-2">
               Expires {earlyReward.expiresAt.toLocaleDateString()} — finish the quest for up to 27% OFF.
             </p>
           </div>
@@ -133,17 +133,17 @@ export default function RentalsPage() {
 
         {/* Hero */}
         <div className="text-center mb-12">
-          <h1 className="font-[var(--font-pixel)] text-[var(--pixel-gold-light)] text-lg sm:text-xl mb-4">
-            West Point, Calaveras County
+          <h1 className="font-serif text-[var(--pixel-gold-light)] text-3xl sm:text-5xl mb-4">
+            Stay at Back of Beyond Ranch
           </h1>
-          <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)]">
+          <p className="read-body text-[var(--pixel-ui-text)]">
             A house in Gold Country — the towns, mines, and theatre are a drive from the porch
           </p>
         </div>
 
         {/* Stats Banner */}
         <div className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-ui-border)] p-4 mb-8">
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-8 font-[var(--font-pixel)] text-[8px]">
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-8 read-body">
             <div className="text-center">
               <span className="text-[var(--pixel-gold-light)] text-lg">4.84</span>
               <p className="text-[var(--pixel-ui-text)]">⭐ Rating</p>
@@ -153,12 +153,12 @@ export default function RentalsPage() {
               <p className="text-[var(--pixel-ui-text)]">Reviews</p>
             </div>
             <div className="text-center">
-              <span className="text-[var(--pixel-forest-light)] text-lg">{reward ? `${reward.discount}%` : '10%'}</span>
+              <span className="text-[var(--pixel-gold-light)] text-lg">{reward ? `${reward.discount}%` : '10%'}</span>
               <p className="text-[var(--pixel-ui-text)]">{reward ? 'Your Discount' : 'Direct Discount'}</p>
             </div>
             <div className="text-center">
-              <span className="text-[var(--pixel-fire-orange)] text-lg">#1</span>
-              <p className="text-[var(--pixel-ui-text)]">in Area</p>
+              <span className="text-[var(--pixel-gold-light)] text-lg">#1</span>
+              <p className="text-[var(--read-ink)]">Airbnb in the area</p>
             </div>
           </div>
         </div>
@@ -181,7 +181,7 @@ export default function RentalsPage() {
                   sizes="(max-width: 1024px) 100vw, 800px"
                   priority
                 />
-                <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] pointer-events-none">
+                <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 read-body text-[var(--pixel-gold-light)] pointer-events-none">
                   {heroIndex + 1} / {propertyPhotos.length} · click to enlarge
                 </div>
               </button>
@@ -230,7 +230,7 @@ export default function RentalsPage() {
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); setLightboxOpen(false) }}
-                  className="absolute top-4 right-4 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-light)] px-3 py-1 font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]"
+                  className="absolute top-4 right-4 bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-gold-light)] px-3 py-1 read-body text-[var(--pixel-gold-light)]"
                 >
                   Close
                 </button>
@@ -243,10 +243,10 @@ export default function RentalsPage() {
                 {amenities.map((amenity) => (
                   <div key={amenity.name} className="text-center">
                     <span className="text-2xl">{amenity.icon}</span>
-                    <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)] mt-1">
+                    <p className="read-body text-[var(--pixel-gold-light)] mt-1">
                       {amenity.name}
                     </p>
-                    <p className="font-[var(--font-pixel)] text-[6px] text-[var(--pixel-ui-text)]">
+                    <p className="read-body text-[16px] text-[var(--pixel-ui-text)]">
                       {amenity.desc}
                     </p>
                   </div>
@@ -256,7 +256,7 @@ export default function RentalsPage() {
 
             {/* Description */}
             <PixelCard title="📜 About the Ranch">
-              <div className="font-[var(--font-pixel)] text-[8px] leading-relaxed space-y-4">
+              <div className="read-body leading-relaxed space-y-4">
                 <p>
                   Nestled in the heart of Gold Country, Back of Beyond Ranch offers the perfect escape for adventurers, families, and anyone seeking mountain tranquility.
                 </p>
@@ -280,10 +280,10 @@ export default function RentalsPage() {
                     <>
                       <span className="text-2xl">{place.icon}</span>
                       <div className="min-w-0">
-                        <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-gold-light)]">
+                        <p className="read-body text-[var(--pixel-gold-light)]">
                           {place.name}
                         </p>
-                        <p className="font-[var(--font-pixel)] text-[6px] text-[var(--pixel-forest-light)]">
+                        <p className="read-body text-[16px] text-[var(--pixel-forest-light)]">
                           {place.time} drive · {place.go} →
                         </p>
                       </div>
@@ -314,74 +314,46 @@ export default function RentalsPage() {
 
           {/* Booking Sidebar */}
           <div className="space-y-6">
-            <PixelCard title="📅 Book Direct & Save">
+            <PixelCard title="Book direct">
               <div className="space-y-4">
-                <div className="bg-[var(--pixel-forest-dark)] border-2 border-[var(--pixel-forest-mid)] p-3 text-center">
-                  <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-forest-light)]">
-                    💰 SAVE 10%
-                  </p>
-                  <p className="font-[var(--font-pixel)] text-[6px] text-[var(--pixel-ui-text)]">
-                    vs. Airbnb booking
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <PixelButton href={airbnbBookingLink('rentals')} variant="gold" size="md">
-                    Check Availability
-                  </PixelButton>
-                  <p className="font-[var(--font-pixel)] text-[6px] text-center text-[var(--pixel-ui-text)]">
-                    or contact us directly
-                  </p>
-                  <PixelButton href="mailto:contact@backofbeyondranch.farm" variant="green" size="sm">
-                    📧 Send Message
-                  </PixelButton>
-                </div>
-
-                <div className="border-t-2 border-[var(--pixel-ui-border)] pt-4">
-                  <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] mb-2">
-                    Instant confirmation • Free cancellation
-                  </p>
-                </div>
+                <p className="read-body">
+                  Book direct and save 10% versus Airbnb. Instant confirmation. Free cancellation.
+                </p>
+                <BookStayButton variant="gold" size="lg">
+                  Check Availability
+                </BookStayButton>
+                <p className="read-body text-center">
+                  Send me a message on Airbnb when requesting to book and I will provide the discount.
+                </p>
+                <BookStayButton variant="clear" size="md">
+                  Message on Airbnb
+                </BookStayButton>
               </div>
             </PixelCard>
 
-            <PixelCard title="⚔️ Bonus: Treasure Hunt">
-              <div className="space-y-4">
-                {gameState === 'complete' && reward ? (
-                  <>
-                    <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed text-[var(--pixel-forest-light)]">
-                      You completed the Golden Hooves Legacy!
-                    </p>
-                    <div className="bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] p-3 text-center">
-                      <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-gold-light)]">
-                        {reward.discount}% OFF
-                      </p>
-                      <p className="font-[var(--font-pixel)] text-[6px] text-[var(--pixel-ui-text)]">
-                        {reward.tier.toUpperCase()} TIER
-                      </p>
-                    </div>
-                    <PixelButton href="/certificate" variant="gold" size="sm">
-                      View Certificate
-                    </PixelButton>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-[var(--font-pixel)] text-[8px] leading-relaxed">
-                      Every stay includes access to our exclusive treasure hunt game! Explore the ranch, solve riddles, and earn up to 27% off your next stay.
-                    </p>
-                    <PixelButton href="/game" variant="orange" size="sm">
-                      {gameState === 'playing' ? 'Continue Quest' : 'Start the Quest'}
-                    </PixelButton>
-                  </>
-                )}
-              </div>
+            {gameState === 'complete' && reward ? (
+            <PixelCard title="Your bonus">
+              <p className="read-body mb-3">You earned {reward.discount}% off a return stay.</p>
+              <PixelButton href="/certificate" variant="gold" size="sm">
+                View Certificate
+              </PixelButton>
             </PixelCard>
+            ) : (
+            <PixelCard title="After you book">
+              <p className="read-body mb-3">
+                Once you have a stay, play the Golden Frog Trail and earn up to 27% off a return visit. The bonus is the discount.
+              </p>
+              <PixelButton href="/oregon-trail" variant="clear" size="sm">
+                Play Golden Frog Trail
+              </PixelButton>
+            </PixelCard>
+            )}
 
-            <PixelCard title="📞 Questions?">
-              <div className="font-[var(--font-pixel)] text-[8px] space-y-2">
-                <p>We respond within 1 hour</p>
-                <p><a href="mailto:contact@backofbeyondranch.farm" className="text-[var(--pixel-gold-light)] underline hover:text-[var(--pixel-gold-mid)]">contact@backofbeyondranch.farm</a></p>
-              </div>
+            <PixelCard title="Questions">
+              <p className="read-body">We respond within an hour.</p>
+              <a href="mailto:contact@backofbeyondranch.farm" className="mt-3 inline-block font-serif text-xl text-[var(--pixel-gold-light)] underline hover:text-[var(--pixel-gold-mid)]">
+                contact@backofbeyondranch.farm
+              </a>
             </PixelCard>
           </div>
         </div>

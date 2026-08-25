@@ -45,7 +45,7 @@ export function QuestLog({ onClose }: QuestLogProps) {
   const tabs: { id: QuestTab; label: string; count: number }[] = [
     { id: 'active', label: 'ACTIVE', count: activeQuests.length },
     { id: 'completed', label: 'DONE', count: completedQuests.length },
-    { id: 'investigation', label: 'CASE', count: 0 },
+    { id: 'investigation', label: 'CASE', count: 1 },
   ]
 
   const categories: { id: CategoryFilter; label: string }[] = [
@@ -68,7 +68,7 @@ export function QuestLog({ onClose }: QuestLogProps) {
       <div className="bg-green-950/90 border-2 border-green-700/60 rounded-lg w-full max-w-xl max-h-[80vh] flex flex-col shadow-[0_0_30px_rgba(34,197,94,0.15)]">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-green-700/40">
-          <h2 className="text-amber-400 font-pixel text-sm tracking-wider">QUEST LOG</h2>
+          <h2 className="text-amber-400 font-pixel text-sm tracking-wider">DOSSIER</h2>
           <button
             onClick={onClose}
             className="text-green-600 hover:text-green-400 text-xs font-mono transition-colors"
@@ -161,8 +161,14 @@ export function QuestLog({ onClose }: QuestLogProps) {
           {activeTab === 'investigation' && (
             <div className="space-y-3">
               <div className="bg-green-950/40 border border-green-800/30 rounded-lg p-3">
-                <h3 className="text-amber-400 font-pixel text-xs tracking-wider mb-2">MAIN INVESTIGATION</h3>
-                <p className="text-green-300 text-sm">Track down the suspect across Gold Country</p>
+                <h3 className="text-amber-400 font-pixel text-xs tracking-wider mb-2">WARRANT — THE TARE</h3>
+                <p className="text-green-300 text-sm">Cyrus Vane. Same crime, every century&apos;s costume.</p>
+                <p className="text-green-500 text-xs font-mono mt-2">
+                  Holistic detective: the connected town is the next town, not the nearest pin.
+                </p>
+                <p className="text-green-500 text-xs font-mono mt-1">
+                  Time slip: he paid in the wrong year&apos;s coin. Old-west paper. Sandiego: deduce, do not railroad.
+                </p>
                 <p className="text-green-600 text-xs font-mono mt-2">
                   Clues found: {state.searchedAreas.length}
                 </p>

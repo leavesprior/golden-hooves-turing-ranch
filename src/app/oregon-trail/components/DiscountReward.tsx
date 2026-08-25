@@ -373,8 +373,8 @@ export function DiscountReward({
             }}
           >
             <p className="text-sm" style={{ color: '#a08050' }}>
-              <span className="font-bold">How to use:</span> Click &quot;Book Now&quot; below, then
-              mention your code in the message to the host to receive your discount.
+              <span className="font-bold">How to use:</span> Send me a message on Airbnb
+              when requesting to book and I will provide the discount.
             </p>
           </div>
         </div>
@@ -384,7 +384,7 @@ export function DiscountReward({
           <button
             onClick={() => {
               window.open(
-                'https://www.airbnb.com/rooms/30045739',
+                'https://airbnb.com/h/backofbeyondranch',
                 '_blank',
                 'noopener,noreferrer'
               )

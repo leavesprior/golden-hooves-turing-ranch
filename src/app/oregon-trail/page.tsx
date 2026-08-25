@@ -61,6 +61,7 @@ import {
 } from './phases'
 import { useConsumableEffects } from './hooks/useConsumableEffects'
 import { useDmDirectives } from './hooks/useDmDirectives'
+import { readArcadeAccess } from '@/lib/arcadeFirstLevel'
 
 // Local auto-save key for unauthenticated users (subsystem contexts persist
 // independently; this captures the core OregonTrail state so "Continue" works
@@ -211,9 +212,11 @@ function OregonTrailGame() {
 
   // Check for local auto-save (works without authentication)
   const [hasLocalSave, setHasLocalSave] = useState(false)
+  const [fromBook, setFromBook] = useState(false)
   useEffect(() => {
     try {
       setHasLocalSave(localStorage.getItem(LOCAL_AUTOSAVE_KEY) !== null)
+      setFromBook(new URLSearchParams(window.location.search).get('from') === 'book')
     } catch { /* ignore */ }
   }, [])
 
@@ -399,6 +402,7 @@ function OregonTrailGame() {
           hasSaves={trailSaves.length > 0 || hasLocalSave}
           onContinue={handleContinue}
           continueError={continueError}
+          fromBook={fromBook}
         />
       )
     }
@@ -513,19 +517,24 @@ function OregonTrailGame() {
     return <TravelScreen />
   }
 
-  // Hide save panel during cinematic/non-interactive phases
-  const showSavePanel = state.phase !== 'chapter_intro'
+  // Pioneer/Save chip is fixed bottom-left and ate the iPhone "Begin the trail"
+  // button. Keep it off the start path; mid-trail town/travel can still save.
+  const showSavePanel = ['traveling', 'town', 'event', 'river', 'gold_country_explore', 'gold_country_arrival', 'gold_country_location', 'gold_country_travel'].includes(state.phase)
 
-  // Persistent "My Farm" affordance — visible during real gameplay (not titles,
-  // creation, or while already in the ranch). One click home to Back of Beyond.
-  const hideFarmButton = [
-    'title', 'chapter_intro', 'character_creation', 'outfitting',
-    'ranch_management', 'settlement', 'settlement_victory', 'game_over', 'complete', 'menu',
-  ].includes(state.phase)
+  // Homestead is Level 2+ (after the trail). L1 river must not leak My Farm.
+  const trailComplete = readArcadeAccess().trailComplete
+  const hideFarmButton =
+    !trailComplete ||
+    [
+      'title', 'chapter_intro', 'character_creation', 'outfitting',
+      'ranch_management', 'settlement', 'settlement_victory', 'game_over', 'complete', 'menu',
+    ].includes(state.phase)
 
   return (
     <>
-      {renderPhaseContent()}
+      <div className="game-chrome-pad">
+        {renderPhaseContent()}
+      </div>
       {!hideFarmButton && (
         <button
           onClick={() => { unlockRanch(); openRanchManagement() }}

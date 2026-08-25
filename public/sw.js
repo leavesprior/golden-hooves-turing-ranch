@@ -6,9 +6,9 @@
 //  - Static assets: cache-first + background revalidate (fast repeat loads).
 // Kill-switch: deploy a sw.js whose body is just self.skipWaiting()+clients.claim()
 // and an empty fetch handler to unregister behaviour if it ever misbehaves.
-const VERSION = 'bobr-v1-20260618';
+const VERSION = 'bobr-v1-20260823-arcade';
 const CACHE = `bobr-static-${VERSION}`;
-const PRECACHE = ['/hub', '/offline'];
+const PRECACHE = ['/', '/offline'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
