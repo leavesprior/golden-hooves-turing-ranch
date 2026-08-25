@@ -13,7 +13,7 @@ import {
   writeLevel2Stamp,
   writeTalkedNpc,
 } from '@/lib/goldCountryLevel2'
-import { getGoldCountryLocation, type GoldCountryLocation as LocationType } from '../data/goldCountryLocations'
+import { getGoldCountryLocation, getLocationSites } from '../data/goldCountryLocations'
 import {
   getNPCsAtLocation,
   getNPCQuests,
@@ -358,27 +358,34 @@ export function GoldCountryLocation({
             </button>
           )}
 
-          {/* Special Actions */}
-          <div className="flex gap-3">
-            {locationId === 'bobr_cabin' && (
-              <button
-                onClick={onOpenSettlement}
-                className="west-face-pill flex-1 justify-center"
-              >
-                Manage settlement
-              </button>
-            )}
-            {location.externalLink && (
-              <a
-                href={location.externalLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="west-face-pill flex-1 text-center"
-              >
-                Visit for real
-              </a>
-            )}
-          </div>
+          {locationId === 'bobr_cabin' && (
+            <button
+              onClick={onOpenSettlement}
+              className="west-face-pill w-full justify-center"
+            >
+              Manage settlement
+            </button>
+          )}
+
+          {getLocationSites(location).length > 0 && (
+            <div className="west-face-paper">
+              <h2 className="west-face-eyebrow mb-3">Visit for real</h2>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {getLocationSites(location).map((site) => (
+                  <li key={site.url}>
+                    <a
+                      href={site.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="west-face-pill w-full justify-start min-h-11"
+                    >
+                      {site.name}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     )

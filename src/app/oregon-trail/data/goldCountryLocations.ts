@@ -12,6 +12,12 @@
 
 export type ShopType = 'general' | 'saloon' | 'wine' | 'equipment' | 'stable' | 'assay' | 'none'
 
+/** A named real-world page for this Gold Country place — not a generic tourism hub. */
+export interface GoldCountryPlaceSite {
+  name: string
+  url: string
+}
+
 export interface GoldCountryLocation {
   id: string
   name: string
@@ -21,7 +27,10 @@ export interface GoldCountryLocation {
   coordinates: { lat: number; lng: number }
   driveTime: string
   icon: string
+  /** Primary hub URL (first among `sites`). Kept for ResearchStation and older callers. */
   externalLink: string
+  /** Individual official/operator pages for this place. */
+  sites: GoldCountryPlaceSite[]
   linkPrompt: string
   linkHint: string
   fact: string
@@ -45,6 +54,13 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     driveTime: '0 min',
     icon: 'cabin',
     externalLink: 'https://www.airbnb.com/rooms/30045739',
+    sites: [
+      { name: 'Airbnb: Hot Tub Hideaway', url: 'https://www.airbnb.com/rooms/30045739' },
+      { name: 'Back of Beyond Ranch', url: 'https://backofbeyondranch.farm/' },
+      { name: 'Stay at the ranch', url: 'https://backofbeyondranch.farm/stay' },
+      { name: 'West Point — California Historical Landmark 268', url: 'https://ohp.parks.ca.gov/ListedResources/Detail/268' },
+      { name: 'West Point history (Calaveras Heritage Council)', url: 'https://www.calaverashistory.org/west-point' },
+    ],
     linkPrompt: 'Search the cabin listing for evidence',
     linkHint: 'Look for photos that might reveal clues about the local area',
     fact: 'West Point (California Historical Landmark No. 268) was named by Kit Carson in 1844 during his search for a pass over the Sierra Nevada — it was already a busy trading post before the Gold Rush began.',
@@ -64,7 +80,14 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     coordinates: { lat: 38.0680, lng: -120.5396 },
     driveTime: '55 min from BOBR',
     icon: 'frog',
-    externalLink: 'https://www.gocalaveras.com/angels-camp/',
+    externalLink: 'https://angelscamp.gov/visiting-angels/',
+    sites: [
+      { name: 'City of Angels — Visiting Angels', url: 'https://angelscamp.gov/visiting-angels/' },
+      { name: 'Angels Camp visitor guide (GoCalaveras)', url: 'https://www.gocalaveras.com/itinerary/gold-country/angels-camp-california/' },
+      { name: 'Calaveras County Fair & Jumping Frog Jubilee', url: 'https://www.frogtown.org/' },
+      { name: 'Angels Camp Museum', url: 'https://www.gocalaveras.com/business/attractions/angels-camp-museum-2/' },
+      { name: 'City museums page', url: 'https://angelscamp.gov/living-in-angels/museums/' },
+    ],
     linkPrompt: 'Investigate the town\'s Twain connection',
     linkHint: 'When did Twain visit this town?',
     fact: 'Mark Twain heard the jumping frog tale at the Angels Hotel in 1865; published in the New York Saturday Press on November 18, 1865, \'The Celebrated Jumping Frog of Calaveras County\' made him famous.',
@@ -85,6 +108,12 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     driveTime: '50 min from BOBR',
     icon: 'wine',
     externalLink: 'https://visitmurphys.com/',
+    sites: [
+      { name: 'Visit Murphys', url: 'https://visitmurphys.com/' },
+      { name: 'Murphys Historic Hotel', url: 'https://murphyshotel.com/' },
+      { name: 'Mercer Caverns', url: 'https://mercercaverns.net/' },
+      { name: 'Ironstone Vineyards (next door)', url: 'https://ironstonevineyards.com/' },
+    ],
     linkPrompt: 'Explore the wine trail for clues',
     linkHint: 'Famous guests have stayed at the historic hotel',
     fact: 'The Murphys Hotel guest register, dating to the 1850s, holds the signatures of Mark Twain and Ulysses S. Grant — and, by local tradition, stagecoach robber Black Bart.',
@@ -105,7 +134,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     coordinates: { lat: 38.0719, lng: -120.4678 },
     driveTime: '55 min from BOBR',
     icon: 'cave',
-    externalLink: 'https://www.caverntours.com/moaning-cavern/',
+    externalLink: 'https://moaningcaverns.com/',
+    sites: [
+      { name: 'Moaning Caverns', url: 'https://moaningcaverns.com/' },
+      { name: 'Moaning Caverns cave tours', url: 'https://moaningcaverns.com/cave-tours/' },
+    ],
     linkPrompt: 'Descend into the cavern for clues',
     linkHint: 'How deep is the main chamber?',
     fact: 'Moaning Cavern\'s main chamber is large enough to hold the Statue of Liberty, and human remains discovered inside date back as much as 13,000 years.',
@@ -127,7 +160,12 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     coordinates: { lat: 38.1728, lng: -120.4211 },
     driveTime: '45 min from BOBR', // TODO verify: backroads route via Railroad Flat / Mountain Ranch
     icon: 'crystal',
-    externalLink: 'https://www.caverntours.com/california-caverns/',
+    externalLink: 'https://cavetouring.com/about-ca-cavern',
+    sites: [
+      { name: 'California Cavern walking tours', url: 'https://cavetouring.com/about-ca-cavern' },
+      { name: 'California Cavern (GoCalaveras)', url: 'https://www.gocalaveras.com/business/caves/california-cavern/' },
+      { name: 'Cave Touring — California Cavern & Black Chasm', url: 'https://cavetouring.com/' },
+    ],
     linkPrompt: 'Search the crystalline chambers',
     linkHint: 'What rare formations can be found here?',
     fact: 'California Caverns contains rare aragonite crystal formations and an underground lake; John Muir explored the caverns and described them in his writings.',
@@ -149,6 +187,10 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     driveTime: '70 min from BOBR', // TODO verify: via Murphys + CA-4 to Arnold; mountain backroads may be shorter
     icon: 'tree',
     externalLink: 'https://www.parks.ca.gov/?page_id=551',
+    sites: [
+      { name: 'Calaveras Big Trees State Park', url: 'https://www.parks.ca.gov/?page_id=551' },
+      { name: 'Calaveras Big Trees Association — park info', url: 'https://bigtrees.org/park-info/' },
+    ],
     linkPrompt: 'Search among the ancient giants',
     linkHint: 'How old are these trees?',
     fact: 'The Discovery Tree, found in 1852, was over 1,200 years old when it was cut down. Its stump was so large that 32 people once danced on it at a party.',
@@ -168,7 +210,13 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     coordinates: { lat: 38.3494, lng: -120.7739 },
     driveTime: '40 min from BOBR',
     icon: 'mine',
-    externalLink: 'https://www.kennedygoldmine.com/',
+    externalLink: 'https://kennedygoldmine.com/',
+    sites: [
+      { name: 'Kennedy Mine Foundation', url: 'https://kennedygoldmine.com/' },
+      { name: 'Kennedy Mine (City of Jackson)', url: 'https://www.ci.jackson.ca.us/visit_jackson/kennedy_mine.php' },
+      { name: 'Kennedy Tailing Wheels Park', url: 'https://www.ci.jackson.ca.us/visit_jackson/kennedytailingwheelspark.php' },
+      { name: 'Tailing wheel restoration project', url: 'https://kennedygoldmine.com/kennedy-tailing-wheel-restoration-project/' },
+    ],
     linkPrompt: 'Investigate the abandoned mine',
     linkHint: 'How deep did the miners dig?',
     fact: 'The Kennedy Mine\'s vertical shaft reached 5,912 feet — the deepest in the United States — and produced $34.28 million in gold between 1856 and 1942. The 1922 fire that killed 47 miners happened at the neighboring Argonaut Mine.',
@@ -188,7 +236,12 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     coordinates: { lat: 38.2972, lng: -120.7089 },
     driveTime: '25 min from BOBR',
     icon: 'saloon',
-    externalLink: 'https://www.gocalaveras.com/mokelumne-hill/',
+    externalLink: 'https://www.gocalaveras.com/itinerary/itineraries/mokelumne-hill-california/',
+    sites: [
+      { name: 'Mokelumne Hill visitor guide', url: 'https://www.gocalaveras.com/itinerary/itineraries/mokelumne-hill-california/' },
+      { name: 'Hotel Léger', url: 'https://www.hotelleger.com/' },
+      { name: 'Hotel Léger history (Calaveras Heritage Council)', url: 'https://www.calaverashistory.org/hotel-leger-a-short-history' },
+    ],
     linkPrompt: 'Question the locals in this former boomtown',
     linkHint: 'What was this town\'s violent reputation?',
     fact: 'According to the Thompson & West county history, a man was killed in Mokelumne Hill every weekend for 17 straight weeks in 1851 — and claims on its fabulously rich ground were limited to 16 feet square.',
@@ -209,7 +262,11 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     coordinates: { lat: 38.1393, lng: -120.4511 },
     driveTime: '55 min from BOBR',
     icon: 'grapes',
-    externalLink: 'https://www.ironstonevineyards.com/',
+    externalLink: 'https://ironstonevineyards.com/',
+    sites: [
+      { name: 'Ironstone Vineyards', url: 'https://ironstonevineyards.com/' },
+      { name: 'Visit Murphys (town next door)', url: 'https://visitmurphys.com/' },
+    ],
     linkPrompt: 'Search the vineyard cellars',
     linkHint: 'What treasure is displayed in their museum?',
     fact: 'Ironstone displays a 44-pound crystalline gold leaf specimen found near Jamestown — the largest crystalline gold piece in existence.',
@@ -229,7 +286,19 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     coordinates: { lat: 38.3489, lng: -120.7739 },
     driveTime: '40 min from BOBR',
     icon: 'building',
-    externalLink: 'https://www.tourjackson.com/',
+    // tourjackson.com is NOT Jackson, CA (and currently a spam domain).
+    // visitjackson.com is Jackson, Mississippi. City of Jackson CA is ci.jackson.ca.us.
+    externalLink: 'https://www.ci.jackson.ca.us/visit_jackson/index.php',
+    sites: [
+      { name: 'Visit Jackson (City of Jackson, CA)', url: 'https://www.ci.jackson.ca.us/visit_jackson/index.php' },
+      { name: 'Things to do in Jackson', url: 'https://www.ci.jackson.ca.us/visit_jackson/things_to_do.php' },
+      { name: 'Kennedy Gold Mine', url: 'https://kennedygoldmine.com/' },
+      { name: 'Kennedy Tailing Wheels Park', url: 'https://www.ci.jackson.ca.us/visit_jackson/kennedytailingwheelspark.php' },
+      { name: 'Amador County Museum', url: 'https://www.amadorcountyhistoricalsociety.org/' },
+      { name: 'Saint Sava Serbian Orthodox Church', url: 'https://www.stsavajackson.org/' },
+      { name: 'Main Street Theatre Works', url: 'https://www.mstw.org/' },
+      { name: 'Jackson — Amador County Chamber', url: 'https://amadorchamber.com/jackson/' },
+    ],
     linkPrompt: 'Explore the historic downtown',
     linkHint: 'What happened at 26 Main Street?',
     fact: 'Jackson\'s hanging tree stood at 26 Main Street, where ten men were lynched between 1851 and 1855; the tree was cut down after the fire of 1862.',
@@ -250,7 +319,13 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     coordinates: { lat: 38.1194, lng: -120.4892 },
     driveTime: '50 min from BOBR',
     icon: 'bridge',
-    externalLink: 'https://www.parks.ca.gov/?page_id=549',
+    // parks.ca.gov/?page_id=549 is Wilder Ranch State Park (Santa Cruz), not Coyote Creek.
+    externalLink: 'https://www.gocalaveras.com/business/outdoor-recreation/natural-bridges/',
+    sites: [
+      { name: 'Natural Bridges trail (GoCalaveras / USBR New Melones)', url: 'https://www.gocalaveras.com/business/outdoor-recreation/natural-bridges/' },
+      { name: 'New Melones — planning your visit (USBR)', url: 'https://www.usbr.gov/mp/ccao/newmelones/planning-visit/index.html' },
+      { name: 'Western Cave Conservancy — Natural Bridges', url: 'https://naturalbridges.westerncaves.org/' },
+    ],
     linkPrompt: 'Search the limestone formations',
     linkHint: 'How were these bridges formed?',
     fact: 'The Natural Bridges formed as Coyote Creek dissolved the limestone over millions of years, creating caves whose ceilings eventually collapsed — leaving the creek running beneath natural rock arches.',
@@ -275,7 +350,15 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
     coordinates: { lat: 38.4441, lng: -120.6299 },
     driveTime: '35 min from BOBR',
     icon: 'saloon',
-    externalLink: 'https://westernmininghistory.com/towns/california/volcano/',
+    externalLink: 'https://amadorchamber.com/volcano/',
+    sites: [
+      { name: 'Volcano — Amador County Chamber', url: 'https://amadorchamber.com/volcano/' },
+      { name: 'St. George Hotel', url: 'https://stgeorgevolcano.com/' },
+      { name: 'St. George Historic Hotel (Visit Amador)', url: 'https://www.visitamador.com/business/st-george-historic-hotel' },
+      { name: 'Indian Grinding Rock State Historic Park (Chaw\'se)', url: 'https://www.parks.ca.gov/?page_id=553' },
+      { name: 'Chaw\'se Association — park visitor info', url: 'https://chawse.org/park/' },
+      { name: 'Volcano mining history', url: 'https://westernmininghistory.com/towns/california/volcano/' },
+    ],
     linkPrompt: 'Talk your way into the 1849 camp',
     linkHint: 'How did a town with no volcano get its name?',
     fact: 'Volcano began in 1849 as \'Soldiers Gulch,\' named after Colonel Stevenson\'s New York regiment; it was renamed for the crater-like basin it sits in and the morning mist that seems to rise like a volcano. Its placers were among the richest in the Mother Lode.',
@@ -291,6 +374,13 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
 // Helper to get location by ID
 export function getGoldCountryLocation(id: string): GoldCountryLocation | undefined {
   return GOLD_COUNTRY_LOCATIONS.find(loc => loc.id === id)
+}
+
+/** Named real-world pages for a place. Falls back to the single hub link. */
+export function getLocationSites(location: GoldCountryLocation): GoldCountryPlaceSite[] {
+  if (location.sites && location.sites.length > 0) return location.sites
+  if (location.externalLink) return [{ name: 'Visit for real', url: location.externalLink }]
+  return []
 }
 
 // Get locations by region
