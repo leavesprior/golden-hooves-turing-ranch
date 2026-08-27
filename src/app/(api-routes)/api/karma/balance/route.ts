@@ -25,22 +25,33 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'invalid_session' }, { status: 400 });
   }
 
-  const ledger = dbGetKarmaBalance(sessionId);
-  // Server-derived neutral from the trusted marker count (read-only; the marker
-  // path already validates this). Never accepted from the client.
-  const markerCount = dbGetMarkerProgressCount(sessionId);
-  const balance = {
-    good: ledger.good,
-    neutral: ledger.neutral + markerCount * NEUTRAL_PER_MARKER,
-    bad: ledger.bad,
-  };
+  try {
+    const ledger = dbGetKarmaBalance(sessionId);
+    // Server-derived neutral from the trusted marker count (read-only; the marker
+    // path already validates this). Never accepted from the client.
+    const markerCount = dbGetMarkerProgressCount(sessionId);
+    const balance = {
+      good: ledger.good,
+      neutral: ledger.neutral + markerCount * NEUTRAL_PER_MARKER,
+      bad: ledger.bad,
+    };
 
-  const asOf = new Date().toISOString();
-  const payload = `${sessionId}:${balance.good}:${balance.neutral}:${balance.bad}:${asOf}`;
-  const sig = signBalance(payload);
+    const asOf = new Date().toISOString();
+    const payload = `${sessionId}:${balance.good}:${balance.neutral}:${balance.bad}:${asOf}`;
+    const sig = signBalance(payload);
 
-  return NextResponse.json(
-    { ok: true, sessionId, balance, markerCount, asOf, sig },
-    { headers: { 'Cache-Control': 'no-store' } },
-  );
+    return NextResponse.json(
+      { ok: true, sessionId, balance, markerCount, asOf, sig },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  } catch (err) {
+    // Native better-sqlite3 can throw after Next HMR. The trail wallet is
+    // localStorage-first; the client already fail-softs on !ok. Return JSON so
+    // the console does not look like the trail itself broke.
+    console.error('karma GET ledger unavailable:', err);
+    return NextResponse.json(
+      { ok: false, reason: 'ledger_unavailable' },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
 }

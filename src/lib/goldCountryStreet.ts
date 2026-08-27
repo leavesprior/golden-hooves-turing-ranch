@@ -4,7 +4,9 @@
  * Street = business FRONT names + people who are actually outside.
  * Indoor keepers/patrons are unnamed until you click a front and step in.
  * Goods are clickable 🌮 purchases (wagon inventory — not stay discounts).
- * A warrant poster is a street object; the match is a patron inside a front.
+ * A warrant poster hangs on the sheriff wall. Click the office (or the paper)
+ * to read the board. Taking a paper stores it with terms: bring-in-alive, or
+ * dead-or-alive. The posted purse thins when many copy the paper and fail.
  */
 
 import type { GoldCountryNPC } from '@/app/oregon-trail/data/goldCountryNPCs'
@@ -15,6 +17,8 @@ import {
   replaceLevel2Stamps,
   replaceTalkedNpcs,
 } from '@/lib/goldCountryLevel2'
+import { readHuntClues, replaceHuntClues } from '@/lib/goldCountryHunt'
+import { readGuestBookPlayerLines, writeGuestBookPlayerLines, type GuestBookLine } from '@/lib/goldCountryGuestBook'
 
 export type TownFrontKind =
   | 'saloon'
@@ -50,7 +54,20 @@ export interface TownFront {
   goods: ShopGood[]
   interior: string
   warrantNpcId?: string
+  /** Offset from the door so the paper sits on the wall, not in the sky. */
+  hangDx?: number
+  hangDy?: number
 }
+
+export type WarrantApproach = 'alive' | 'dead_or_alive'
+export type WarrantCapture = 'alive' | 'dead'
+/**
+ * Wall form:
+ *  wanted — Jackson constable paper
+ *  camp_notice — Murphys alcalde (no county until Feb 1850)
+ *  claim_notice — ridge claim-guard; rare, high purse, quartz/dust off the roll
+ */
+export type WarrantForm = 'wanted' | 'camp_notice' | 'claim_notice'
 
 export interface StreetPoster {
   id: string
@@ -59,9 +76,24 @@ export interface StreetPoster {
   postedAtFrontIds: string[]
   alias: string
   look: string
+  crime: string
+  lastSeen: string
+  /** Default wanted. camp_notice = alcalde paper (no county yet). */
+  form?: WarrantForm
+  /** Posted reward before any failed takes. */
   bounty: number
+  /** County will not go below this. */
+  bountyFloor: number
+  /** Riders who already copied the paper when you first see the wall. */
+  seedTakes: number
   hideFrontId: string
   hideNpcId: string
+}
+
+export interface TakenWarrant {
+  id: string
+  approach: WarrantApproach
+  bountyAtTake: number
 }
 
 export interface Level2Persist {
@@ -70,6 +102,11 @@ export interface Level2Persist {
   arrests: string[]
   bought: string[]
   postersSeen: string[]
+  takenWarrants?: TakenWarrant[]
+  warrantTakes?: Record<string, number>
+  warrantDay?: number
+  huntClues?: string[]
+  guestBook?: GuestBookLine[]
 }
 
 const G = {
@@ -82,6 +119,7 @@ const G = {
   wine: { id: 'good_wine', name: 'Barrel pour', desc: 'French barrels, not a tasting room.', price: 18, itemId: 'wine_pour' },
   rope: { id: 'good_rope', name: 'Rope', desc: 'For a hole that moans.', price: 9, itemId: 'cave_rope' },
   powder: { id: 'good_powder', name: 'Powder horn', desc: 'Wells Fargo has not built here yet. Still sells.', price: 16, itemId: 'powder_horn' },
+  meat: { id: 'good_meat', name: 'Fresh cut', desc: 'Mutton for the hole. Ellis will keep a shop in town by 1850.', price: 11, itemId: 'fresh_cut' },
 }
 
 function goods(...ids: ShopGood[]): ShopGood[] {
@@ -94,7 +132,7 @@ export const TOWN_FRONTS: TownFront[] = [
     locationId: 'bobr_cabin',
     name: 'The cabin',
     kind: 'cabin',
-    x: 48, y: 44,
+    x: 32, y: 58,
     keeperNpcId: 'cynthia_owner',
     patronNpcIds: [],
     searchAreaIds: ['cabin_guest_book'],
@@ -132,7 +170,8 @@ export const TOWN_FRONTS: TownFront[] = [
     kind: 'wine',
     x: 52, y: 48,
     keeperNpcId: 'vintner_pierre',
-    patronNpcIds: ['historian_margaret'],
+    patronNpcIds: ['historian_margaret', 'barrel_cutter'],
+    warrantNpcId: 'barrel_cutter',
     searchAreaIds: ['murphys_hotel_register', 'murphys_wine_cellar'],
     goods: goods(G.wine, G.whiskey),
     interior: 'Cool dark under a tent-store. Barrels, not corkscrews.',
@@ -167,11 +206,26 @@ export const TOWN_FRONTS: TownFront[] = [
     name: 'Claim office',
     kind: 'office',
     x: 42, y: 38,
+    hangDx: 3,
+    hangDy: 4,
+    duty: 'sheriff',
     keeperNpcId: 'foreman_harris',
     patronNpcIds: [],
     searchAreaIds: ['kennedy_mine_office'],
     goods: goods(G.pick, G.lamp, G.powder),
-    interior: 'A plank office. The book lists placer. The expenses list a shaft.',
+    interior: 'A plank office and a watch. Partners post paper when a man is off the roll. The book lists placer. The expenses list a shaft.',
+  },
+  {
+    id: 'kennedy_butcher',
+    locationId: 'kennedy_mine',
+    name: 'Meat stall',
+    kind: 'tent',
+    x: 26, y: 58,
+    keeperNpcId: 'ellis_evans',
+    patronNpcIds: [],
+    searchAreaIds: [],
+    goods: goods(G.meat, G.flour),
+    interior: 'Canvas, hooks, a fly-cloth. Ellis cuts for the hole. His sister Mae takes the stall when rain comes. Town butcher-shop talk is for 1850. This ridge eats now.',
   },
   {
     id: 'kennedy_hole',
@@ -180,7 +234,8 @@ export const TOWN_FRONTS: TownFront[] = [
     kind: 'mine',
     x: 58, y: 52,
     keeperNpcId: undefined,
-    patronNpcIds: ['old_miner_giuseppe'],
+    patronNpcIds: ['old_miner_giuseppe', 'off_roll_stranger'],
+    warrantNpcId: 'off_roll_stranger',
     searchAreaIds: ['kennedy_mine_shaft'],
     goods: goods(G.lamp, G.rope),
     interior: 'Green timber. No visitors. Giuseppe will not go further without a light.',
@@ -190,7 +245,7 @@ export const TOWN_FRONTS: TownFront[] = [
     locationId: 'jackson',
     name: 'Spring-camp store',
     kind: 'general',
-    x: 40, y: 50,
+    x: 24, y: 50,
     keeperNpcId: 'jackson_store_abe',
     patronNpcIds: ['ridge_stranger'],
     searchAreaIds: [],
@@ -203,20 +258,22 @@ export const TOWN_FRONTS: TownFront[] = [
     locationId: 'jackson',
     name: "Constable's office",
     kind: 'office',
-    x: 66, y: 54,
+    x: 54, y: 50,
+    hangDx: 12,
+    hangDy: 4,
     duty: 'sheriff',
     keeperNpcId: 'sheriff_thorn',
     patronNpcIds: [],
     searchAreaIds: [],
     goods: goods(),
-    interior: 'A plank office. The paper goes on the door. Thorn takes warrants as a man’s word.',
+    interior: 'A plank office. The posters hang on the outer wall. Thorn takes a man’s word, and the paper.',
   },
   {
     id: 'jackson_express',
     locationId: 'jackson',
-    name: 'Post office',
+    name: 'Express tent',
     kind: 'office',
-    x: 52, y: 38,
+    x: 78, y: 42,
     duty: 'post',
     keeperNpcId: 'telegraph_operator_wong',
     patronNpcIds: [],
@@ -227,15 +284,17 @@ export const TOWN_FRONTS: TownFront[] = [
   {
     id: 'murphys_sheriff',
     locationId: 'murphys',
-    name: "Deputy's office",
+    name: "Alcalde's office",
     kind: 'office',
-    x: 72, y: 42,
+    x: 68, y: 48,
+    hangDx: -10,
+    hangDy: 4,
     duty: 'sheriff',
     keeperNpcId: 'deputy_walsh',
     patronNpcIds: [],
     searchAreaIds: [],
     goods: goods(),
-    interior: 'A quiet plank office. Walsh likes Murphys peaceful. Paper still goes on the door.',
+    interior: 'A quiet plank office. Calaveras has no county yet. Walsh nails camp notices like an alcalde’s man.',
   },
   {
     id: 'moke_store',
@@ -317,16 +376,57 @@ export const STREET_POSTERS: StreetPoster[] = [
     locationId: 'jackson',
     postedAtFrontIds: ['jackson_sheriff', 'jackson_express'],
     alias: 'The lamp-shy man',
-    look: 'Lean. Will not take a lamp. Seen on the ridge above the spring, and now in town.',
+    look: 'Lean. Will not take a lamp. Hat brim low. Pays cash and does not talk.',
+    crime: 'Claim-jumping, and a man left cold on the ridge above the spring.',
+    lastSeen: 'The ridge above Botilleas. Now in town. Will not take a lamp.',
+    form: 'wanted',
     bounty: 40,
+    bountyFloor: 16,
+    seedTakes: 2,
     hideFrontId: 'jackson_store',
     hideNpcId: 'ridge_stranger',
+  },
+  {
+    id: 'poster_watered_barrel',
+    locationId: 'murphys',
+    postedAtFrontIds: ['murphys_sheriff'],
+    alias: 'The barrel-hide man',
+    look: 'Stout. Wine on the cuffs. Pays in coin, never dust. Sleeps by the casks.',
+    crime: 'Stealing gold-dust from under a miner’s pillow on Murphy’s Flat.',
+    lastSeen: 'Pierre’s tent-store, among the barrels. The alcalde wants him living.',
+    form: 'camp_notice',
+    bounty: 28,
+    bountyFloor: 12,
+    seedTakes: 4,
+    hideFrontId: 'murphys_barrels',
+    hideNpcId: 'barrel_cutter',
+  },
+  {
+    id: 'poster_off_roll',
+    locationId: 'kennedy_mine',
+    postedAtFrontIds: ['kennedy_office'],
+    alias: 'The man off the roll',
+    look: 'Lamp-shy in the new hole. Not on Harris’s book. Dust in the cuffs, quartz talk in the dark.',
+    crime: 'Taking dust and quartz from a hole the partners keep watch on. High-grading before the mine has a name.',
+    lastSeen: 'The new hole on the ridge above Jackson. Giuseppe saw him. He would not take a lamp.',
+    form: 'claim_notice',
+    bounty: 120,
+    bountyFloor: 48,
+    seedTakes: 1,
+    hideFrontId: 'kennedy_hole',
+    hideNpcId: 'off_roll_stranger',
   },
 ]
 
 const ARREST_KEY = 'bobr_l2_arrests'
 const BOUGHT_KEY = 'bobr_l2_bought'
 const POSTER_KEY = 'bobr_l2_posters_seen'
+const TAKEN_KEY = 'bobr_l2_taken_warrants'
+const TAKES_KEY = 'bobr_l2_warrant_takes'
+const WARRANT_DAY_KEY = 'bobr_l2_warrant_day'
+
+const BOUNTY_DECAY = 0.9
+const DEAD_PAY_RATIO = 0.5
 
 function readList(key: string, storage?: { getItem(k: string): string | null }): string[] {
   const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
@@ -347,23 +447,42 @@ export function frontsForLocation(locationId: string): TownFront[] {
   return TOWN_FRONTS.filter((f) => f.locationId === locationId)
 }
 
+export function postersForLocation(locationId: string): StreetPoster[] {
+  return STREET_POSTERS.filter((p) => p.locationId === locationId)
+}
+
 export function posterForLocation(locationId: string): StreetPoster | undefined {
-  return STREET_POSTERS.find((p) => p.locationId === locationId)
+  return postersForLocation(locationId)[0]
+}
+
+/** Pocket paper whose hideNpcId matches — warrant machine × kin face. */
+export function paperOnNpc(
+  taken: TakenWarrant[],
+  npcId: string | undefined,
+): StreetPoster | undefined {
+  if (!npcId) return undefined
+  return STREET_POSTERS.find((p) => p.hideNpcId === npcId && taken.some((t) => t.id === p.id))
+}
+
+export function sheriffFrontForLocation(locationId: string): TownFront | undefined {
+  return frontsForLocation(locationId).find((f) => f.duty === 'sheriff')
 }
 
 /** One pin per door that carries the paper — outside sheriff / post only. */
 export function posterPinsForLocation(locationId: string): { poster: StreetPoster; front: TownFront; x: number; y: number }[] {
   const fronts = frontsForLocation(locationId)
   const pins: { poster: StreetPoster; front: TownFront; x: number; y: number }[] = []
-  for (const poster of STREET_POSTERS.filter((p) => p.locationId === locationId)) {
+  for (const poster of postersForLocation(locationId)) {
     for (const frontId of poster.postedAtFrontIds) {
       const front = fronts.find((f) => f.id === frontId)
-      if (!front || (front.duty !== 'sheriff' && front.duty !== 'post')) continue
+      if (!front || front.duty !== 'sheriff') continue
+      const dx = typeof front.hangDx === 'number' ? front.hangDx : 2
+      const dy = typeof front.hangDy === 'number' ? front.hangDy : -11
       pins.push({
         poster,
         front,
-        x: Math.max(8, Math.min(92, front.x + 11)),
-        y: Math.max(8, Math.min(92, front.y - 14)),
+        x: Math.max(8, Math.min(92, front.x + dx)),
+        y: Math.max(8, Math.min(92, front.y + dy)),
       })
     }
   }
@@ -424,6 +543,160 @@ export function writePosterSeen(posterId: string, storage?: { getItem(k: string)
   return next
 }
 
+function parseTakenWarrants(raw: unknown): TakenWarrant[] {
+  if (!Array.isArray(raw)) return []
+  const out: TakenWarrant[] = []
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue
+    const rec = row as Record<string, unknown>
+    const approach = rec.approach
+    if (typeof rec.id !== 'string' || rec.id.length === 0) continue
+    if (approach !== 'alive' && approach !== 'dead_or_alive') continue
+    const bountyAtTake = typeof rec.bountyAtTake === 'number' && Number.isFinite(rec.bountyAtTake) ? rec.bountyAtTake : 0
+    out.push({ id: rec.id, approach, bountyAtTake })
+  }
+  return out
+}
+
+function parseTakes(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, number> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === 'number' && Number.isFinite(v) && v >= 0) out[k] = Math.floor(v)
+  }
+  return out
+}
+
+export function readTakenWarrants(storage?: { getItem(k: string): string | null }): TakenWarrant[] {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  try {
+    return parseTakenWarrants(JSON.parse(s?.getItem(TAKEN_KEY) || '[]'))
+  } catch {
+    return []
+  }
+}
+
+function writeTakenWarrants(next: TakenWarrant[], storage?: { setItem?(k: string, v: string): void }) {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  try { s?.setItem?.(TAKEN_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+}
+
+export function readWarrantTakes(storage?: { getItem(k: string): string | null }): Record<string, number> {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  try {
+    return parseTakes(JSON.parse(s?.getItem(TAKES_KEY) || '{}'))
+  } catch {
+    return {}
+  }
+}
+
+function writeWarrantTakes(next: Record<string, number>, storage?: { setItem?(k: string, v: string): void }) {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  try { s?.setItem?.(TAKES_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+}
+
+export function readWarrantDay(storage?: { getItem(k: string): string | null }): number {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  const n = Number.parseInt(s?.getItem(WARRANT_DAY_KEY) || '', 10)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+function writeWarrantDay(day: number, storage?: { setItem?(k: string, v: string): void }) {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  try { s?.setItem?.(WARRANT_DAY_KEY, String(day)) } catch { /* ignore */ }
+}
+
+export function takesForPoster(
+  poster: StreetPoster,
+  storage?: { getItem(k: string): string | null },
+): number {
+  const stored = readWarrantTakes(storage)[poster.id]
+  return typeof stored === 'number' ? stored : poster.seedTakes
+}
+
+/** Posted purse: each unsuccessful take knocks 10% off, down to the floor. */
+export function postedBounty(
+  poster: StreetPoster,
+  takes?: number,
+  storage?: { getItem(k: string): string | null },
+): number {
+  const n = takes ?? takesForPoster(poster, storage)
+  const decayed = Math.round(poster.bounty * Math.pow(BOUNTY_DECAY, Math.max(0, n)))
+  return Math.max(poster.bountyFloor, decayed)
+}
+
+export function capturePayout(taken: TakenWarrant, method: WarrantCapture): number {
+  if (method === 'alive') return Math.max(0, Math.floor(taken.bountyAtTake))
+  return Math.max(1, Math.floor(taken.bountyAtTake * DEAD_PAY_RATIO))
+}
+
+export function takenWarrantFor(
+  posterId: string,
+  storage?: { getItem(k: string): string | null },
+): TakenWarrant | undefined {
+  return readTakenWarrants(storage).find((t) => t.id === posterId)
+}
+
+/**
+ * Copy the paper into the player's pocket with chosen terms.
+ * Locks the purse at the posted amount *before* this take. A second copy of
+ * the same paper only changes terms — it does not thin the purse again.
+ */
+export function takeWarrant(
+  posterId: string,
+  approach: WarrantApproach,
+  storage?: { getItem(k: string): string | null; setItem?(k: string, v: string): void },
+): TakenWarrant | null {
+  const poster = STREET_POSTERS.find((p) => p.id === posterId)
+  if (!poster) return null
+  if (poster.form === 'camp_notice' || poster.form === 'claim_notice') approach = 'alive'
+  const existing = takenWarrantFor(posterId, storage)
+  if (existing) {
+    const updated: TakenWarrant = { ...existing, approach }
+    writeTakenWarrants(
+      readTakenWarrants(storage).map((t) => (t.id === posterId ? updated : t)),
+      storage,
+    )
+    writePosterSeen(posterId, storage)
+    return updated
+  }
+  const bountyAtTake = postedBounty(poster, undefined, storage)
+  const takes = { ...readWarrantTakes(storage) }
+  takes[posterId] = takesForPoster(poster, storage) + 1
+  writeWarrantTakes(takes, storage)
+  const taken: TakenWarrant = { id: posterId, approach, bountyAtTake }
+  writeTakenWarrants([...readTakenWarrants(storage), taken], storage)
+  writePosterSeen(posterId, storage)
+  return taken
+}
+
+/**
+ * Other riders copy the paper and come back empty. Each Gold Country day
+ * an unserved warrant sits, the posted purse thins.
+ */
+export function tickOutstandingWarrants(
+  day: number,
+  storage?: { getItem(k: string): string | null; setItem?(k: string, v: string): void },
+): Record<string, number> {
+  const safeDay = Number.isFinite(day) && day > 0 ? Math.floor(day) : 1
+  const last = readWarrantDay(storage)
+  const takes = { ...readWarrantTakes(storage) }
+  if (last <= 0) {
+    writeWarrantDay(safeDay, storage)
+    return takes
+  }
+  if (safeDay <= last) return takes
+  const delta = safeDay - last
+  const arrests = readArrests(storage)
+  for (const poster of STREET_POSTERS) {
+    if (arrests.includes(poster.hideNpcId)) continue
+    takes[poster.id] = takesForPoster(poster, storage) + delta
+  }
+  writeWarrantTakes(takes, storage)
+  writeWarrantDay(safeDay, storage)
+  return takes
+}
+
 /** Every mapped Gold Country place has at least one door you can enter. */
 export function everyLocationHasAFront(): boolean {
   return GOLD_COUNTRY_LOCATIONS.every((loc) => frontsForLocation(loc.id).length > 0)
@@ -436,6 +709,11 @@ export function snapshotLevel2Persist(storage?: { getItem(k: string): string | n
     arrests: readArrests(storage),
     bought: readBought(storage),
     postersSeen: readPostersSeen(storage),
+    takenWarrants: readTakenWarrants(storage),
+    warrantTakes: readWarrantTakes(storage),
+    warrantDay: readWarrantDay(storage),
+    huntClues: readHuntClues(storage),
+    guestBook: readGuestBookPlayerLines(storage),
   }
 }
 
@@ -449,4 +727,9 @@ export function applyLevel2Persist(
   if (Array.isArray(data.arrests)) writeList(ARREST_KEY, Array.from(new Set(data.arrests)), storage)
   if (Array.isArray(data.bought)) writeList(BOUGHT_KEY, Array.from(new Set(data.bought)), storage)
   if (Array.isArray(data.postersSeen)) writeList(POSTER_KEY, Array.from(new Set(data.postersSeen)), storage)
+  if (Array.isArray(data.takenWarrants)) writeTakenWarrants(parseTakenWarrants(data.takenWarrants), storage)
+  if (data.warrantTakes && typeof data.warrantTakes === 'object') writeWarrantTakes(parseTakes(data.warrantTakes), storage)
+  if (typeof data.warrantDay === 'number' && Number.isFinite(data.warrantDay)) writeWarrantDay(Math.max(0, Math.floor(data.warrantDay)), storage)
+  if (Array.isArray(data.huntClues)) replaceHuntClues(data.huntClues, storage)
+  if (Array.isArray(data.guestBook)) writeGuestBookPlayerLines(data.guestBook, storage)
 }

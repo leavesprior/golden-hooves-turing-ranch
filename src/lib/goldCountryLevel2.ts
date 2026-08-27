@@ -167,10 +167,10 @@ export const LEVEL2_CASES: readonly Level2Case[] = [
     warrant: '1849: placer ground and a hole going deeper than it should. A man in the dark who is not on the roll.',
     icon: '⛏️',
     year: '1849',
-    then: 'There is no mile-deep shaft yet. This ridge above Jackson’s spring camp is placer ground. Cornish and Italian talk of quartz is just beginning. A hole is already being sunk that the claim book does not explain.',
-    becomes: 'Kennedy Mine 1856–1942: vertical shaft 5,912 feet, $34.28 million in gold. Tailing wheels 1914. The 1922 fire that killed 47 miners was the neighboring Argonaut — the Kennedy’s rival — not this shaft.',
-    now: 'Kennedy Mine Foundation tours, the City of Jackson mine page, and Kennedy Tailing Wheels Park on Jackson Gate Road.',
-    thinking: 'Office = claim books that lie. Upper shaft = work that is not on the roll. Giuseppe = a miner who saw a man who should not have been there.',
+    then: 'There is no mile-deep shaft yet. This ridge is placer. Black miners worked the hill first (later called Negro Hill). A hole is being sunk that the claim book does not explain. A canvas meat stall feeds the hole — Ellis Evans, with his sister Mae.',
+    becomes: 'Quartz claims mid-1850s; Andrew Kennedy and partners file 4 Jan 1860. Company 1860–78, then Kennedy Mining & Milling 1886–1942: east shaft 5,912 ft, ~$34 million. Tailing wheels 1914. Argonaut fire 1922 (47 dead) is the neighbor, not this shaft. Ellis Evans’s butcher shop is in Jackson by 1850 (later the National Hotel lot). Swingle Meat Co. opens 1945 on Kennedy Flat Rd.',
+    now: 'Kennedy Mine Foundation tours, City of Jackson mine page, Tailing Wheels Park, and Swingle Meat Co. at 12640 Kennedy Flat Rd — the ridge still eats.',
+    thinking: 'Office = partners’ watch and a rare heavy purse. Hole = the man off the roll. Meat stall = Evans kin, and the Now butcher on Kennedy Flat. Fog belongs to this ridge.',
     clues: [
       { id: 'kennedy_mine_office', kind: 'search', label: 'Claim office', x: 42, y: 38 },
       { id: 'kennedy_mine_shaft', kind: 'search', label: 'The new hole', x: 58, y: 52 },
@@ -298,9 +298,34 @@ export function clueWorked(clue: Level2Clue, searchedAreaIds: readonly string[],
   return talkedNpcIds.includes(clue.id)
 }
 
+export function casePinsDone(
+  caze: Level2Case,
+  searchedAreaIds: readonly string[],
+  talkedNpcIds: readonly string[],
+): { done: number; total: 3; complete: boolean } {
+  const done = caze.clues.filter((c) => clueWorked(c, searchedAreaIds, talkedNpcIds)).length
+  return { done, total: 3, complete: done >= 3 }
+}
+
+/** Stamp only when all three Carmen pins are worked — not for walking through a door. */
+export function maybeStampCase(
+  locationId: string,
+  searchedAreaIds: readonly string[],
+  talkedNpcIds: readonly string[],
+  storage?: StorageLike | null,
+): string[] {
+  const caze = caseForLocation(locationId)
+  if (!caze) return readLevel2Stamps(storage)
+  if (!caze.clues.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds))) {
+    return readLevel2Stamps(storage)
+  }
+  return writeLevel2Stamp(locationId, storage)
+}
+
 export function level2Progress(input: {
   stamps?: readonly string[]
   searchedAreaIds?: readonly string[]
+  talkedNpcIds?: readonly string[]
 }): {
   visited: string[]
   remaining: string[]
@@ -309,10 +334,11 @@ export function level2Progress(input: {
   complete: boolean
 } {
   const stamps = new Set(input.stamps ?? [])
-  const searched = new Set(input.searchedAreaIds ?? [])
+  const searched = input.searchedAreaIds ?? []
+  const talked = input.talkedNpcIds ?? []
   const visited = LEVEL2_CASES.filter((c) => {
     if (stamps.has(c.id)) return true
-    return c.clues.some((clue) => clue.kind === 'search' && searched.has(clue.id))
+    return c.clues.every((clue) => clueWorked(clue, searched, talked))
   }).map((c) => c.id)
   const remaining = LEVEL2_CASE_IDS.filter((id) => !visited.includes(id))
   return {

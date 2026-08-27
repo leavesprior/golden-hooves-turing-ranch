@@ -3,18 +3,23 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useOregonTrail } from '../oregonTrailContext'
+import { useCharacter } from '../characterContext'
 import { KarmaToastContainer } from '@/components/karma'
 
 /** Level 1 wagon-name step. Not a second game. Pinkerton/Bart wait in Gold Country. */
 export function GameMenu() {
   const { startGame } = useOregonTrail()
+  const { clearCharacter } = useCharacter()
   const [leaderName, setLeaderName] = useState('')
   const [partyNames, setPartyNames] = useState(['', '', ''])
 
   const handleStart = () => {
     if (!leaderName.trim()) return
     const validPartyNames = partyNames.filter(n => n.trim())
-    startGame(leaderName.trim(), validPartyNames)
+    // New wagon: drop any leftover sheet so S.A.D.D.L.E. is the person you play.
+    clearCharacter()
+    try { localStorage.removeItem('bobr_ot_character') } catch { /* ignore */ }
+    queueMicrotask(() => startGame(leaderName.trim(), validPartyNames))
   }
 
   const updatePartyName = (index: number, value: string) => {

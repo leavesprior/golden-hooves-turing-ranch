@@ -7,7 +7,9 @@ import { useMystery } from '../mysteryContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import GoldCountryBooking from '../components/GoldCountryBooking'
-import { writePostWinChoice } from '@/lib/arcadeFirstLevel'
+import { GoldCountryLevelComplete } from '../components/GoldCountryLevelComplete'
+import { BetweenLevelXp } from '../components/GoldCountryXpGain'
+import { discountFloorForLevel, writeLevelPostWinChoice } from '@/lib/goldCountryLevelRewards'
 
 export function GoldCountryArrivalScreen() {
   const { state, enterSettlement } = useOregonTrail()
@@ -80,41 +82,19 @@ export function GoldCountryArrivalScreen() {
           </div>
         </div>
 
-        {/* Arcade post-win: take the first discount, or risk it for the next level. */}
-        <div className="bg-gray-900/80 border-2 border-amber-600 rounded-lg p-6 mb-6">
-          <p className="text-amber-100 text-center text-lg mb-6 font-serif">
-            Take the QR stay voucher now, or level up to Explore the Gold Country for a higher one.
-          </p>
-          <div className="space-y-4">
-            <button
-              type="button"
-              onClick={() => {
-                writePostWinChoice('take_discount')
-                setShowBooking(true)
-              }}
-              className="w-full py-4 bg-amber-700 hover:bg-amber-600 text-amber-50 font-serif text-xl rounded border-4 border-amber-500 transition-colors"
-            >
-              Get the QR discount code
-            </button>
-            <p className="text-amber-200/80 text-base text-center font-serif">
-              A QR with your discount amount. The button opens Airbnb messaging for Hot Tub Hideaway so the host can redeem it on your stay.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                writePostWinChoice('risk_next')
-                enterSettlement()
-              }}
-              className="w-full py-3 bg-black/60 hover:bg-black/40 text-amber-100 font-serif text-lg rounded border-2 border-amber-700 transition-colors"
-            >
-              Level up — Explore the Gold Country
-            </button>
-            <p className="text-amber-200/70 text-base text-center font-serif">
-              Level 2 is a map of real towns: jumping-frog Angels Camp, Murphys, Volcano, the Kennedy mine, Jackson, Mokelumne Hill, Moaning Cavern.
-              Visit five. Higher discount if you finish. Ranch-house QR still opens the porch map when you are there.
-            </p>
-          </div>
-        </div>
+        <BetweenLevelXp level={1} />
+
+        <GoldCountryLevelComplete
+          level={1}
+          onTakeDiscount={() => {
+            writeLevelPostWinChoice(1, 'take_discount')
+            setShowBooking(true)
+          }}
+          onContinue={() => {
+            writeLevelPostWinChoice(1, 'risk_next')
+            enterSettlement()
+          }}
+        />
       </div>
 
       {/* Gold Country Booking Modal */}
@@ -129,6 +109,7 @@ export function GoldCountryArrivalScreen() {
           onBookingIntent={() => {}}
           graphicsTier={state.graphicsTier}
           level={1}
+          minPercent={discountFloorForLevel(1)}
         />
       )}
     </div>

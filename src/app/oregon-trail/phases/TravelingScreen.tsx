@@ -23,8 +23,8 @@ import { CharacterSheet } from '../components/CharacterSheet'
 import { type ActiveEffect } from '../data/consumableEffects'
 import { CampMenu } from '../components/CampMenu'
 import { PipBoyMenu } from '../components/GameMenu'
-import HunkerDown from '../components/HunkerDown'
 import { readArcadeAccess } from '@/lib/arcadeFirstLevel'
+import { useCharacter, XP_REWARDS } from '../characterContext'
 
 export interface TravelingScreenProps {
   activeEffects: ActiveEffect[]
@@ -42,6 +42,7 @@ export function TravelingScreen({
   lastStatVariant,
 }: TravelingScreenProps) {
   const { state, travel, setPace, setRations, hunt } = useOregonTrail()
+  const { addExperience } = useCharacter()
   const { progress: chapterProgress } = useChapter()
 
   // Local modal states
@@ -183,7 +184,10 @@ export function TravelingScreen({
             Continue Trail
           </button>
           <button
-            onClick={hunt}
+            onClick={() => {
+              hunt()
+              addExperience(XP_REWARDS.SKILL_CHECK_SUCCESS)
+            }}
             disabled={state.ammunition < 10}
             className="px-4 py-3 bg-amber-700 hover:bg-amber-600 text-amber-100 font-pixel text-sm rounded border-4 border-amber-500 disabled:opacity-50 transition-colors"
           >
@@ -200,14 +204,9 @@ export function TravelingScreen({
               </span>
             )}
           </button>
-          <HunkerDown
-            currentLandmark={state.currentLandmark}
-            milesRemaining={2000 - state.distance}
-            partySize={state.party.length}
-            onHunkerDown={() => {}}
-            graphicsTier={state.graphicsTier}
-          />
           <button
+            type="button"
+            data-testid="open-camp"
             onClick={() => setShowCampMenu(true)}
             className="px-4 py-3 bg-amber-800 hover:bg-amber-700 text-amber-100 font-pixel text-sm rounded border-4 border-amber-600 transition-colors"
           >

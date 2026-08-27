@@ -46,7 +46,10 @@ function SingleToast({ toast, onDismiss }: SingleToastProps) {
       clearTimeout(exitTimer)
       clearTimeout(dismissTimer)
     }
-  }, [onDismiss])
+    // toast.id only: an inline onDismiss from the container remounts every
+    // Event→Town swap and was restarting this clock, so faded cards slid back
+    // in over Fort Laramie.
+  }, [toast.id, onDismiss])
 
   // Determine if this is a "good" or "bad" karma change
   const isPositive = toast.lawfulDelta < 0 || toast.goodDelta < 0  // Negative = lawful/good
@@ -77,7 +80,7 @@ function SingleToast({ toast, onDismiss }: SingleToastProps) {
         ${isVisible && !isExiting ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
       `}
     >
-      <div className="flex items-start gap-3">
+      <div className="pointer-events-auto flex items-start gap-3">
         {/* Icon */}
         <div className={`text-2xl ${iconColor}`}>
           {isPositive && !isNegative ? '\u2728' : isNegative && !isPositive ? '\u26a0\ufe0f' : '\u2696\ufe0f'}
@@ -122,7 +125,7 @@ export function KarmaToastContainer() {
   if (toasts.length === 0) return null
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
+    <div className="pointer-events-none fixed bottom-20 right-4 z-40 flex max-w-sm flex-col gap-2 sm:max-w-xs">
       {toasts.map((toast) => (
         <SingleToast
           key={toast.id}

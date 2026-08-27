@@ -42,6 +42,11 @@ const v2 = { ...v, level: 2 as const, percent: 10, tierName: 'TRAIL VETERAN' }
 ok(airbnbDiscountMessage(v2).includes('Level 2'), 'L2 message')
 ok(voucherLines(v2).includes('level 2'), 'L2 QR text')
 
+const v3 = { ...v, level: 3 as const, percent: 15, tierName: 'TRAIL VETERAN' }
+ok(airbnbDiscountMessage(v3).includes('Level 3'), 'L3 message')
+ok(voucherLines(v3).includes('level 3'), 'L3 QR text')
+ok(v3.percent === 15, 'L3 floor is 15')
+
 if (failed) {
   console.error(`${failed} failed, ${passed} passed`)
   process.exit(1)

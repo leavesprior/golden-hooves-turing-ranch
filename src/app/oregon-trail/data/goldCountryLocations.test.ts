@@ -59,6 +59,13 @@ ok(
   'jackson lists Saint Sava',
 )
 
+const ridge = getGoldCountryLocation('kennedy_mine')
+ok(!!ridge && /ridge/i.test(ridge.name), 'kennedy location is the ridge above Jackson')
+ok(
+  (ridge?.sites || []).some((s) => /Kennedy\+Flat|Swingle/i.test(s.name + s.url)),
+  'ridge lists the Kennedy Flat butcher (Swingle, 1945 Now)',
+)
+
 ok(
   (angels?.externalLink || '').includes('angelscamp.gov'),
   'angels camp hub is the city visitor page, not the body-shop slug',

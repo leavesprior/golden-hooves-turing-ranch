@@ -316,6 +316,18 @@ export function CampMenu({ isOpen, onClose }: CampMenuProps) {
           {/* ── SERVICES TAB ─────────────────────────────────────────── */}
           {tab === 'services' && (
             <div className="space-y-4">
+              <button
+                type="button"
+                data-testid="camp-rest-night"
+                onClick={() => {
+                  restAtInn(10, 5, 0)
+                  playSFX('success')
+                  setResultMessage('The company sleeps. Dawn comes whether you earned it or not.')
+                }}
+                className="w-full min-h-11 px-3 py-2 font-pixel text-xs text-amber-100 bg-amber-900/50 border border-amber-700 rounded hover:bg-amber-900"
+              >
+                Rest the night
+              </button>
               {membersWithRoles.length === 0 && (
                 <p className="font-pixel text-amber-400/60 text-xs text-center py-8">
                   No party members with service roles. Recruit specialists at towns.

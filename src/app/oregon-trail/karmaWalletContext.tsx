@@ -15,6 +15,7 @@ import {
 import { KarmaStorage } from '@/lib/karmaStorage'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
 import { getKarmaSessionId, fetchServerBalance, postKarmaEvent, reconcile } from '@/lib/karmaServerSync'
+import { scaleKarmaGrant } from '@/lib/gftAgeMode'
 
 export type WalletMode = 'new' | 'continue'
 
@@ -409,103 +410,108 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
   // Earn neutral karma
   const earnNeutral = useCallback(async (amount: number, memo?: string): Promise<void> => {
+    const granted = scaleKarmaGrant(amount)
     setState(prev => ({
       ...prev,
-      balance: { ...prev.balance, neutral: prev.balance.neutral + amount },
+      balance: { ...prev.balance, neutral: prev.balance.neutral + granted },
     }))
 
     addTransaction({
       type: 'earn',
       karmaType: 'neutral',
-      amount: amount,
+      amount: granted,
       memo,
     })
 
     // Sync to shared karma pool
-    CrossGameStorage.syncKarmaToPool('prospectors_tale', 'neutral', amount, memo || 'Trail earn')
+    CrossGameStorage.syncKarmaToPool('prospectors_tale', 'neutral', granted, memo || 'Trail earn')
 
-    oregonTrailKarma.earnNeutral(amount, memo).catch(() => {})
+    oregonTrailKarma.earnNeutral(granted, memo).catch(() => {})
     // Persist to the server-authoritative ledger (in-game, unverified path).
-    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'neutral', delta: amount, source: 'earn' })
+    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'neutral', delta: granted, source: 'earn' })
   }, [addTransaction])
 
   // Earn good karma
   const earnGood = useCallback(async (amount: number, memo?: string): Promise<void> => {
+    const granted = scaleKarmaGrant(amount)
     setState(prev => ({
       ...prev,
-      balance: { ...prev.balance, good: prev.balance.good + amount },
+      balance: { ...prev.balance, good: prev.balance.good + granted },
     }))
 
     addTransaction({
       type: 'earn',
       karmaType: 'good',
-      amount: amount,
+      amount: granted,
       memo,
     })
 
     // Sync to shared karma pool
-    CrossGameStorage.syncKarmaToPool('prospectors_tale', 'good', amount, memo || 'Trail good deed')
+    CrossGameStorage.syncKarmaToPool('prospectors_tale', 'good', granted, memo || 'Trail good deed')
 
-    oregonTrailKarma.earnGood(amount, memo).catch(() => {})
-    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'good', delta: amount, source: 'earn' })
+    oregonTrailKarma.earnGood(granted, memo).catch(() => {})
+    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'good', delta: granted, source: 'earn' })
   }, [addTransaction])
 
   // Add bad karma
   const addBadKarma = useCallback(async (amount: number, reason: string): Promise<void> => {
+    const granted = scaleKarmaGrant(amount)
     setState(prev => ({
       ...prev,
-      balance: { ...prev.balance, bad: prev.balance.bad + amount },
+      balance: { ...prev.balance, bad: prev.balance.bad + granted },
     }))
 
     addTransaction({
       type: 'debt',
       karmaType: 'bad',
-      amount: amount,
+      amount: granted,
       memo: reason,
     })
 
     // Sync to shared karma pool
-    CrossGameStorage.syncKarmaToPool('prospectors_tale', 'bad', amount, reason)
+    CrossGameStorage.syncKarmaToPool('prospectors_tale', 'bad', granted, reason)
 
-    oregonTrailKarma.addBadKarma(amount, reason).catch(() => {})
-    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'bad', delta: amount, source: 'contrition' })
+    oregonTrailKarma.addBadKarma(granted, reason).catch(() => {})
+    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'bad', delta: granted, source: 'contrition' })
   }, [addTransaction])
 
   // Earn karma from donation (neutral + good in one call)
   const earnFromDonation = useCallback(async (neutralAmount: number, goodAmount: number, memo?: string): Promise<void> => {
+    const grantedNeutral = scaleKarmaGrant(neutralAmount)
+    const grantedGood = scaleKarmaGrant(goodAmount)
     setState(prev => ({
       ...prev,
       balance: {
         ...prev.balance,
-        neutral: prev.balance.neutral + neutralAmount,
-        good: prev.balance.good + goodAmount,
+        neutral: prev.balance.neutral + grantedNeutral,
+        good: prev.balance.good + grantedGood,
       },
       // Record as a good action in alignment system
       alignment: {
         ...prev.alignment,
-        goodEvil: clampAlignment(prev.alignment.goodEvil + Math.min(20, Math.floor(neutralAmount / 10))),
+        goodEvil: clampAlignment(prev.alignment.goodEvil + Math.min(20, Math.floor(grantedNeutral / 10))),
       },
     }))
 
     addTransaction({
       type: 'earn',
       karmaType: 'neutral',
-      amount: neutralAmount,
+      amount: grantedNeutral,
       memo: memo || 'Donation',
     })
 
-    if (goodAmount > 0) {
+    if (grantedGood > 0) {
       addTransaction({
         type: 'earn',
         karmaType: 'good',
-        amount: goodAmount,
+        amount: grantedGood,
         memo: `Donation bonus: ${memo || ''}`,
       })
     }
 
-    oregonTrailKarma.earnNeutral(neutralAmount, `DONATION: ${memo}`).catch(() => {})
-    if (goodAmount > 0) {
-      oregonTrailKarma.earnGood(goodAmount, `DONATION_BONUS: ${memo}`).catch(() => {})
+    oregonTrailKarma.earnNeutral(grantedNeutral, `DONATION: ${memo}`).catch(() => {})
+    if (grantedGood > 0) {
+      oregonTrailKarma.earnGood(grantedGood, `DONATION_BONUS: ${memo}`).catch(() => {})
     }
   }, [addTransaction])
 

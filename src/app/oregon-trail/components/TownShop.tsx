@@ -13,6 +13,7 @@ import { playSFX } from '../lib/audioManager'
 import { DOSMessage } from '@/components/ui/DOSMessage'
 import { FloatingNumber } from '@/components/ui/FloatingNumber'
 import { useVisualEffect } from '../hooks/useVisualEffect'
+import { useEscapeKey } from '../lib/useEscapeKey'
 
 interface ShopItem {
   id: string
@@ -174,6 +175,7 @@ interface Transaction {
 }
 
 export function TownShop({ onClose }: TownShopProps) {
+  useEscapeKey(onClose)
   const { state, buySupplies, sellSupplies, getShopDiscount, getTrailMarketEvent, getTrailMarketPrices, addInventoryItem, restAtInn } = useOregonTrail()
   const { modifyStat, addTrait, addExperience } = useCharacter()
   const { comment, setMood } = useNarrator()

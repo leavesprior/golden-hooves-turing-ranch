@@ -1856,7 +1856,7 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
   },
   {
     id: 'angels_saloon',
-    name: 'Angels Hotel Barroom',
+    name: "Angell's canvas bar",
     description: 'Angell’s canvas bar. Miners already tell a jumping-frog yarn. Dark corners hold more than whiskey.',
     location: 'angels_camp',
     icon: '🍺',
@@ -1878,14 +1878,14 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
     searchDifficulty: 3,
     statBonus: 'expertise',
     findings: [
-      { id: 'bart_signature', description: 'A verse in a careful hand, signed with a joke-name. The writer likes to be remembered.', probability: 0.8, isClue: true, clueId: 'bart_handwriting' },
+      { id: 'bart_signature', description: 'A joke-name in the camp book, in a careful hand. Whoever wrote it wants to be remembered — not yet famous.', probability: 0.8, isClue: true, clueId: 'bart_handwriting' },
       { id: 'grant_entry', description: 'A soldier’s name from Stevenson’s New York regiment, passing through toward Soldiers Gulch.', probability: 1.0, isClue: false, karmaGained: 5 },
     ],
   },
   {
     id: 'murphys_wine_cellar',
     name: 'Wine Cellar',
-    description: 'The deep wine cellars beneath the tasting rooms. Cool, dark, and full of secrets.',
+    description: 'A barrel pit under Pierre’s tent. Cool, dark, and not a tasting room.',
     location: 'murphys',
     icon: '🍷',
     searchDifficulty: 6,
@@ -2022,8 +2022,8 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
     searchDifficulty: 8,
     statBonus: 'shrewdness',
     findings: [
-      { id: 'tunnel_evidence', description: 'Evidence of recent use: fresh footprints, a dropped lantern, and a coded note.', probability: 0.5, isClue: true, clueId: 'tunnel_activity' },
-      { id: 'tunnel_artifacts', description: 'Preserved Chinese artifacts from the 1850s. A time capsule of a forgotten community.', probability: 0.7, isClue: false, karmaGained: 15, itemGained: 'chinese_artifact' },
+      { id: 'tunnel_evidence', description: 'Fresh tool marks. A lamp still warm. A slip in the same hand as the copies on the express desk.', probability: 0.5, isClue: true, clueId: 'tunnel_activity' },
+      { id: 'tunnel_artifacts', description: 'A rice bowl, a work shoe, a character cut into the timber — someone lives this path, not visits it.', probability: 0.7, isClue: false, karmaGained: 15, itemGained: 'chinese_artifact' },
     ],
   },
   {

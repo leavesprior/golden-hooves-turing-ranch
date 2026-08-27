@@ -5,11 +5,13 @@ import {
   LEVEL2_CASES,
   LEVEL2_VISIT_GOAL,
   caseForLocation,
+  casePinsDone,
   clueWorked,
   editorialTownId,
   level2MapPosition,
   level2PinPosition,
   level2Progress,
+  maybeStampCase,
   readLevel2Stamps,
   writeLevel2Stamp,
   writeTalkedNpc,
@@ -54,10 +56,42 @@ ok(level2PinPosition('angels_camp', 38.07, -120.54).y !== level2PinPosition('bob
 
 const empty = level2Progress({})
 ok(empty.count === 0 && empty.complete === false, 'empty is not complete')
+ok(
+  level2Progress({ searchedAreaIds: ['jackson_tunnels'] }).count === 0,
+  'a single search does not complete a case',
+)
 
 ok(clueWorked(LEVEL2_CASES[1].clues[0], ['angels_hotel_register'], []), 'search clue counts')
 ok(!clueWorked(LEVEL2_CASES[1].clues[2], ['angels_hotel_register'], []), 'talk clue needs npc')
 ok(clueWorked(LEVEL2_CASES[1].clues[2], [], ['bartender_ben']), 'talk clue counts')
+
+const jackson = caseForLocation('jackson')!
+ok(jackson.clues.length === 3, 'jackson has three pins')
+ok(casePinsDone(jackson, [], []).done === 0, 'zero pins at arrival')
+ok(casePinsDone(jackson, ['jackson_tunnels'], []).done === 1, 'one search pin')
+ok(
+  casePinsDone(jackson, ['jackson_tunnels', 'jackson_telegraph_office'], ['sheriff_thorn']).complete,
+  'three pins complete the case',
+)
+
+const pinStore = new MockStorage()
+ok(
+  !maybeStampCase('jackson', ['jackson_tunnels'], [], pinStore).includes('jackson'),
+  'one pin does not stamp the case',
+)
+ok(
+  maybeStampCase(
+    'jackson',
+    ['jackson_tunnels', 'jackson_telegraph_office'],
+    ['sheriff_thorn'],
+    pinStore,
+  ).includes('jackson'),
+  'three pins stamp the case',
+)
+ok(
+  !/telegraph|Twain|Clemens|hanging tree|St\. Sava/i.test(jackson.then),
+  'jackson then-layer stays 1849',
+)
 
 const store = new MockStorage()
 writeLevel2Stamp('angels_camp', store)

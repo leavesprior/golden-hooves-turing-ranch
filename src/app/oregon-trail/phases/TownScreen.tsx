@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react'
 import { useOregonTrail, LANDMARKS, hasCynthiasInn } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { useMystery } from '../mysteryContext'
-import { useCharacter } from '../characterContext'
+import { useCharacter, XP_REWARDS } from '../characterContext'
 import { useNarrator } from '../narratorContext'
 import { useChapter } from '../chapterContext'
 import { KarmaToastContainer } from '@/components/karma'
@@ -310,7 +310,10 @@ export function TownScreen({
             </button>
           )}
           <button
-            onClick={() => hunt()}
+            onClick={() => {
+              hunt()
+              addExperience(XP_REWARDS.SKILL_CHECK_SUCCESS)
+            }}
             disabled={state.ammunition < 10}
             className="p-3 bg-green-900/60 hover:bg-green-800/60 border-2 border-green-600 rounded-lg text-center disabled:opacity-50"
           >
