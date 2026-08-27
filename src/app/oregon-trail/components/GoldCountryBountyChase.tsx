@@ -20,7 +20,7 @@ import {
   type ChaseOutcome,
   type ChaseState,
 } from '@/lib/goldCountryAlley'
-import { catchWindowMs, powderWindowMs } from '@/lib/gftAgeMode'
+import { catchWindowMs, isKidMode, powderWindowMs } from '@/lib/gftAgeMode'
 
 function wallBoards(place: ReturnType<typeof alleyForFront>): string {
   if (place === 'barrel_lane') {
@@ -51,7 +51,7 @@ export function GoldCountryBountyChase({
   onResolved: (outcome: ChaseOutcome) => void
   onStreet: () => void
 }) {
-  const [chase, setChase] = useState<ChaseState>(() => startChase(alleyForFront(frontId), wet, dryFlask))
+  const [chase, setChase] = useState<ChaseState>(() => startChase(alleyForFront(frontId), wet, dryFlask, isKidMode()))
   const catchMs = catchWindowMs()
   const powderMs = powderWindowMs()
   const [leftMs, setLeftMs] = useState(catchMs)
@@ -231,7 +231,7 @@ export function GoldCountryBountyChase({
                 style={{ width: `${(leftMs / catchMs) * 100}%` }}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className={`grid gap-3 ${chase.tools.gun ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <button
                 type="button"
                 data-testid="catch-rope"
@@ -241,15 +241,16 @@ export function GoldCountryBountyChase({
               >
                 Rope
               </button>
-              <button
-                type="button"
-                data-testid="catch-gun"
-                disabled={!chase.tools.gun}
-                className="west-face-pill justify-center min-h-11 disabled:opacity-40"
-                onClick={() => pickTool('gun')}
-              >
-                Gun
-              </button>
+              {chase.tools.gun ? (
+                <button
+                  type="button"
+                  data-testid="catch-gun"
+                  className="west-face-pill justify-center min-h-11"
+                  onClick={() => pickTool('gun')}
+                >
+                  Gun
+                </button>
+              ) : null}
             </div>
           </div>
         )}

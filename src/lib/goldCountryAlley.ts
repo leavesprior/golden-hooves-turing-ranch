@@ -74,13 +74,18 @@ export const ALLEY_LOOK: Record<AlleyPlace, { title: string; ascii: string; wall
   },
 }
 
-export function startChase(place: AlleyPlace, wet = false, dryFlask = false): ChaseState {
+export function startChase(
+  place: AlleyPlace,
+  wet = false,
+  dryFlask = false,
+  kid = false,
+): ChaseState {
   const look = ALLEY_LOOK[place]
   return {
     place,
     distance: ALLEY_LENGTH,
     phase: 'run',
-    tools: { rope: true, gun: true },
+    tools: { rope: true, gun: !kid },
     theyShot: false,
     disarmed: false,
     hobbled: false,
@@ -88,8 +93,8 @@ export function startChase(place: AlleyPlace, wet = false, dryFlask = false): Ch
     dryFlask,
     outcome: null,
     log: wet
-      ? [`The alley. ${look.wall} Rain. The mud takes a foot.${dryFlask ? ' Your flask stayed dry.' : ''}`]
-      : [`The alley. ${look.wall}`],
+      ? [`The alley. ${look.wall} Rain. The mud takes a foot.${dryFlask ? ' Your flask stayed dry.' : ''}${kid ? ' Rope only.' : ''}`]
+      : [`The alley. ${look.wall}${kid ? ' Rope only.' : ''}`],
     ascii: true,
   }
 }
@@ -116,7 +121,9 @@ export function stepChase(state: ChaseState, agilityOk: boolean): ChaseState {
       ...state,
       distance: 0,
       phase: 'catch',
-      log: [...state.log, 'You have him in the lane. Rope or iron. Seconds.'],
+      log: [...state.log, state.tools.gun
+        ? 'You have him in the lane. Rope or iron. Seconds.'
+        : 'You have him in the lane. The rope. Seconds.'],
     }
   }
   return { ...state, distance: next, log: [...state.log, 'Closer.'] }
@@ -132,6 +139,14 @@ export function theyFire(state: ChaseState, hit: boolean, disable: CatchTool): C
       log: [...state.log, state.wet
         ? 'A click. Water in the nipple. Both choices hold.'
         : 'Powder. He missed. Both choices hold.'],
+    }
+  }
+  const remaining = (state.tools.rope ? 1 : 0) + (state.tools.gun ? 1 : 0)
+  if (remaining <= 1) {
+    return {
+      ...state,
+      theyShot: true,
+      log: [...state.log, 'He fired. The last choice still holds.'],
     }
   }
   return {

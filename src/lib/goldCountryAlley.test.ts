@@ -106,6 +106,15 @@ while (cap.phase === 'run') cap = stepChase(cap, true)
 cap = theyFire(cap, false, 'gun')
 ok(cap.log[cap.log.length - 1].includes('nipple'), 'a miss in rain names the drowned nipple')
 
+let kid = startChase('store_back', false, false, true)
+ok(kid.tools.rope && !kid.tools.gun, 'kid trail starts with rope, no iron')
+ok(kid.log[0].includes('Rope only'), 'kid start log names rope only')
+while (kid.phase === 'run') kid = stepChase(kid, true)
+ok(kid.log[kid.log.length - 1].includes('The rope'), 'kid catch copy is rope, not iron')
+const kidHit = theyFire(kid, true, 'rope')
+ok(kidHit.theyShot && kidHit.tools.rope && !kidHit.tools.gun, 'they-fire cannot take the last (rope) tool')
+ok(kidHit.log[kidHit.log.length - 1].includes('last choice'), 'last-tool hold is spoken')
+
 if (failed) {
   console.error(`${failed} failed, ${passed} passed`)
   process.exit(1)
