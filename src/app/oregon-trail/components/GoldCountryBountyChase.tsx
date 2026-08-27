@@ -10,6 +10,7 @@ import {
   theyFireLuckDifficulty,
   calledShot,
   catchTimeout,
+  chooseRopeAnkle,
   chooseTool,
   fleshWalls,
   startChase,
@@ -137,7 +138,7 @@ export function GoldCountryBountyChase({
           <p className="west-face-body mt-1 max-w-xl">{look.wall} After {alias}.</p>
           <p className="west-face-eyebrow mt-1" data-testid="alley-paper">
             Pocket paper · {paperAllowsDead ? 'dead or alive' : 'alive'}
-            {wet ? (dryFlask ? ' · flask kept dry' : ' · keep the powder dry') : ''}
+            {wet ? (dryFlask ? ' · powder horn kept dry' : ' · keep the powder dry') : ''}
           </p>
         </div>
         <button
@@ -231,7 +232,7 @@ export function GoldCountryBountyChase({
                 style={{ width: `${(leftMs / catchMs) * 100}%` }}
               />
             </div>
-            <div className={`grid gap-3 ${chase.tools.gun ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <div className={`grid gap-3 ${chase.tools.gun || chase.kid ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <button
                 type="button"
                 data-testid="catch-rope"
@@ -249,6 +250,16 @@ export function GoldCountryBountyChase({
                   onClick={() => pickTool('gun')}
                 >
                   Gun
+                </button>
+              ) : null}
+              {chase.kid && chase.tools.rope ? (
+                <button
+                  type="button"
+                  data-testid="catch-rope-ankle"
+                  className="west-face-pill justify-center min-h-11"
+                  onClick={() => setChase((s) => chooseRopeAnkle(s))}
+                >
+                  Ankle with the rope
                 </button>
               ) : null}
             </div>

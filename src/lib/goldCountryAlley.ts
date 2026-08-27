@@ -23,6 +23,7 @@ export type ChaseState = {
   hobbled: boolean
   wet: boolean
   dryFlask: boolean
+  kid: boolean
   outcome: ChaseOutcome | null
   log: string[]
   ascii: boolean
@@ -43,7 +44,7 @@ export function theyFireLuckDifficulty(state: ChaseState): number {
   return state.wet ? 8 : 12
 }
 
-/** Player gun called shots. Wet charge is +2 unless the shop flask stayed dry. */
+/** Player gun called shots. Wet charge is +2 unless the powder horn stayed dry. */
 export function gunShotDifficulty(state: ChaseState, shot: CalledShot): number {
   const base = shot === 'chest' ? 14 : 12
   if (state.wet && !state.dryFlask) return base + 2
@@ -91,9 +92,10 @@ export function startChase(
     hobbled: false,
     wet,
     dryFlask,
+    kid,
     outcome: null,
     log: wet
-      ? [`The alley. ${look.wall} Rain. The mud takes a foot.${dryFlask ? ' Your flask stayed dry.' : ''}${kid ? ' Rope only.' : ''}`]
+      ? [`The alley. ${look.wall} Rain. The mud takes a foot.${dryFlask ? ' Your powder horn stayed dry.' : ''}${kid ? ' Rope only.' : ''}`]
       : [`The alley. ${look.wall}${kid ? ' Rope only.' : ''}`],
     ascii: true,
   }
@@ -133,12 +135,16 @@ export function stepChase(state: ChaseState, agilityOk: boolean): ChaseState {
 export function theyFire(state: ChaseState, hit: boolean, disable: CatchTool): ChaseState {
   if (state.phase !== 'catch' || state.theyShot) return state
   if (!hit) {
+    const remaining = (state.tools.rope ? 1 : 0) + (state.tools.gun ? 1 : 0)
+    const hold = remaining <= 1
+      ? (state.kid ? 'The rope still holds.' : 'The last choice still holds.')
+      : 'Both choices hold.'
     return {
       ...state,
       theyShot: true,
       log: [...state.log, state.wet
-        ? 'A click. Water in the nipple. Both choices hold.'
-        : 'Powder. He missed. Both choices hold.'],
+        ? `A click. Water in the nipple. ${hold}`
+        : `Powder. He missed. ${hold}`],
     }
   }
   const remaining = (state.tools.rope ? 1 : 0) + (state.tools.gun ? 1 : 0)
@@ -259,6 +265,24 @@ export function calledShot(
     phase: 'run',
     distance: Math.max(1, Math.min(2, state.distance)),
     log: [...state.log, 'The knee. He limps. Close again.'],
+  }
+}
+
+export function alleyConfrontHint(kid: boolean): string {
+  return kid
+    ? 'The alley is the catch — the rope, seconds to choose.'
+    : 'The alley is the catch — gun and rope, seconds to choose.'
+}
+
+/** Kid catch — hobble with the rope. No iron, no chest. */
+export function chooseRopeAnkle(state: ChaseState): ChaseState {
+  if (state.phase !== 'catch' || !state.theyShot || !state.kid || !state.tools.rope) return state
+  return {
+    ...state,
+    phase: 'resolved',
+    outcome: 'alive',
+    hobbled: true,
+    log: [...state.log, 'The rope at the ankle. He does not run. Alive.'],
   }
 }
 

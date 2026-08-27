@@ -53,6 +53,14 @@ ok(
   emptyChairForFront('jackson_store', taken, none, none)?.includes('warm') === true,
   'Abe’s store keeps an empty chair',
 )
+ok(
+  trailForPoster('poster_lamp_shy')?.emptyChair.includes('back table') === true,
+  'take-paper toast can name Abe’s empty chair',
+)
+ok(
+  paperClueAt('sheriff_thorn', taken, none, none)?.card.includes('MURPHYS') === true,
+  'Thorn’s Carmen card is all-caps and names the next road',
+)
 ok(!huntIsHot('poster_lamp_shy', taken, none, none), 'zero cards is not hot')
 ok(
   paperClueAt('sheriff_thorn', taken, none, none)?.id === 'hunt_lamp_thorn',

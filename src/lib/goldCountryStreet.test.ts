@@ -89,6 +89,8 @@ ok(
 {
   const office = frontsForLocation('jackson').find((f) => f.duty === 'sheriff')!
   const store = frontsForLocation('jackson').find((f) => f.id === 'jackson_store')!
+  const horn = store.goods.find((g) => g.itemId === 'powder_horn')
+  ok(!!horn && /wet nipple/i.test(horn.desc), 'Abe’s powder horn copy names the wet nipple, not Wells Fargo')
   const express = frontsForLocation('jackson').find((f) => f.id === 'jackson_express')!
   const pin = posterPinsForLocation('jackson')[0]
   ok(!!pin && pin.x > office.x, 'Jackson paper hangs east of the office')

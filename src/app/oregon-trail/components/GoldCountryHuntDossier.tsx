@@ -1,6 +1,7 @@
 'use client'
 
 import { getGoldCountryLocation } from '../data/goldCountryLocations'
+import { getNPCById } from '../data/goldCountryNPCs'
 import { STREET_POSTERS, type TakenWarrant } from '@/lib/goldCountryStreet'
 import { activeHuntStatuses, trailForPoster } from '@/lib/goldCountryHunt'
 
@@ -47,7 +48,13 @@ export function GoldCountryHuntDossier({
                   {card.card}
                 </p>
               ))}
-              {!hunt.served && next && (
+              {!hunt.served && hunt.nextClue && (
+                <p className="mt-1 font-serif text-sm text-amber-200/90" data-testid="l3-next-mouth">
+                  Show it to {getNPCById(hunt.nextClue.sourceId)?.name ?? 'the next mouth'}
+                  {next ? ` · Next: ${next.name}` : ''}
+                </p>
+              )}
+              {!hunt.served && hunt.hot && !hunt.nextClue && next && (
                 <p className="mt-1 font-serif text-sm text-amber-200/90">
                   Next: {next.name}
                 </p>

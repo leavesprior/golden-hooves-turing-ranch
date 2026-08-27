@@ -254,9 +254,11 @@ export function GoldCountryExplore({
                     ? 'opacity-25 cursor-not-allowed border-white/10 bg-black/40 text-[#b8a88a]'
                     : here
                       ? 'border-[#e8dcc4] bg-[#e8dcc4] text-[#1a1208]'
-                      : stamped
-                        ? 'border-emerald-400/70 bg-black/75 text-emerald-100'
-                        : 'border-amber-400/80 bg-black/75 text-[#e8dcc4]'
+                      : onTrail
+                        ? 'border-[#e8dcc4] ring-2 ring-[#e8dcc4]/70 bg-black/80 text-amber-50'
+                        : stamped
+                          ? 'border-emerald-400/70 bg-black/75 text-emerald-100'
+                          : 'border-amber-400/80 bg-black/75 text-[#e8dcc4]'
                 }`}
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               >
@@ -274,6 +276,11 @@ export function GoldCountryExplore({
               <p className="west-face-eyebrow">{selectedCase ? `${selectedCase.year} · ${selectedCase.title}` : selectedLocData.region}</p>
               <p className="font-serif text-xl text-[#f3ead8]">{selectedLocData.name}</p>
               <p className="west-face-body mt-1">{selectedCase?.verb ?? selectedCase?.warrant ?? selectedLocData.fact}</p>
+              {trailTowns.includes(selectedLocation) && (
+                <p className="west-face-body mt-1 text-sm text-amber-200/90" data-testid="map-hunt-road">
+                  The hunt runs this road.
+                </p>
+              )}
               {selectedCase && (
                 <p className="west-face-body mt-1 text-sm">
                   {casePinsDone(selectedCase, state.searchedAreas, talked).done}/3 pins
@@ -439,6 +446,8 @@ export function GoldCountryExplore({
               onTakeDiscount={() => {
                 writeLevelPostWinChoice(3, 'take_discount')
                 setL3Choice('take_discount')
+                unlockStayGifts()
+                setStayUnlocked(true)
                 openVoucher(3)
               }}
               onContinue={() => {

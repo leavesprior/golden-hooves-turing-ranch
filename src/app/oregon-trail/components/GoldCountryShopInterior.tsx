@@ -3,6 +3,7 @@
 import type { GoldCountryNPC } from '../data/goldCountryNPCs'
 import type { SearchArea } from '../data/goldCountryEncounters'
 import type { ShopGood, StreetPoster, TakenWarrant, TownFront, WarrantCapture } from '@/lib/goldCountryStreet'
+import { alleyConfrontHint } from '@/lib/goldCountryAlley'
 
 export function GoldCountryShopInterior({
   front,
@@ -25,6 +26,7 @@ export function GoldCountryShopInterior({
   art,
   huntHot = true,
   emptyChair = null,
+  kid = false,
   onOpenGuestBook,
 }: {
   front: TownFront
@@ -48,6 +50,7 @@ export function GoldCountryShopInterior({
   art?: string | null
   huntHot?: boolean
   emptyChair?: string | null
+  kid?: boolean
   onOpenGuestBook?: () => void
 }) {
   const guestBookSearch = searches.find((area) => area.id === 'cabin_guest_book')
@@ -143,7 +146,7 @@ export function GoldCountryShopInterior({
                       <div className="mt-2 space-y-2">
                         <p className="text-sm text-[#cbbfa6] font-serif">
                           That is {poster?.alias}. Your paper says {takenWarrant.approach === 'alive' ? 'alive' : 'dead or alive'}.
-                          The alley is the catch — gun and rope, seconds to choose.
+                          {' '}{alleyConfrontHint(kid)}
                         </p>
                         <button
                           type="button"

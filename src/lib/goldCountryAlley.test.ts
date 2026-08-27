@@ -14,6 +14,8 @@ import {
   stepChase,
   theyFire,
   theyFireLuckDifficulty,
+  chooseRopeAnkle,
+  alleyConfrontHint,
 } from './goldCountryAlley'
 
 let passed = 0
@@ -27,6 +29,7 @@ function ok(cond: boolean, name: string) {
 }
 
 let s = startChase('store_back')
+ok(s.kid === false && s.tools.gun && s.tools.rope, 'adult start is not kid and has iron')
 ok(s.distance === ALLEY_LENGTH && s.phase === 'run' && s.ascii, 'chase starts in the lane, ASCII walls')
 s = fleshWalls(s)
 ok(!s.ascii, 'ascii2-to-pixel flesh')
@@ -97,9 +100,10 @@ ok(theyFireLuckDifficulty(mud) === 8 && theyFireLuckDifficulty(startChase('store
 ok(gunShotDifficulty(mud, 'hand') === 14 && gunShotDifficulty(startChase('store_back'), 'hand') === 12, 'wet iron is a harder called shot')
 ok(gunShotDifficulty(mud, 'chest') === 16, 'wet chest is 16')
 const flask = startChase('store_back', true, true)
-ok(flask.dryFlask && gunShotDifficulty(flask, 'hand') === 12, 'a dry flask waives the wet gun penalty')
+ok(flask.dryFlask && gunShotDifficulty(flask, 'hand') === 12, 'a dry powder horn waives the wet gun penalty')
 ok(theyFireLuckDifficulty(flask) === 8, 'their shot is still a wet nipple')
-ok(flask.log[0].includes('flask stayed dry'), 'start log names the flask')
+ok(flask.log[0].includes('powder horn stayed dry'), 'start log names the powder horn')
+ok(!flask.log[0].includes('flask'), 'alley log does not say flask')
 
 let cap = startChase('store_back', true)
 while (cap.phase === 'run') cap = stepChase(cap, true)
@@ -111,9 +115,22 @@ ok(kid.tools.rope && !kid.tools.gun, 'kid trail starts with rope, no iron')
 ok(kid.log[0].includes('Rope only'), 'kid start log names rope only')
 while (kid.phase === 'run') kid = stepChase(kid, true)
 ok(kid.log[kid.log.length - 1].includes('The rope'), 'kid catch copy is rope, not iron')
+ok(kid.kid === true, 'kid flag rides the chase state')
+const kidMiss = theyFire(kid, false, 'gun')
+ok(kidMiss.log[kidMiss.log.length - 1].includes('The rope still holds'), 'kid miss does not promise two choices')
 const kidHit = theyFire(kid, true, 'rope')
 ok(kidHit.theyShot && kidHit.tools.rope && !kidHit.tools.gun, 'they-fire cannot take the last (rope) tool')
 ok(kidHit.log[kidHit.log.length - 1].includes('last choice'), 'last-tool hold is spoken')
+const ankle = chooseRopeAnkle(kidMiss)
+ok(ankle.outcome === 'alive' && ankle.hobbled, 'kid ankle-with-the-rope brings him in alive')
+ok(ankle.phase === 'resolved' && !ankle.tools.gun, 'kid ankle never opens iron or chest')
+let adultCatch = startChase('store_back')
+while (adultCatch.phase === 'run') adultCatch = stepChase(adultCatch, true)
+adultCatch = theyFire(adultCatch, false, 'gun')
+const adultAnkle = chooseRopeAnkle(adultCatch)
+ok(adultAnkle.phase === 'catch' && adultAnkle.outcome == null && adultAnkle.tools.gun, 'adult catch cannot ankle-rope')
+ok(alleyConfrontHint(false).includes('gun and rope'), 'adult shop copy names gun and rope')
+ok(alleyConfrontHint(true).includes('the rope') && !alleyConfrontHint(true).includes('gun'), 'kid shop copy does not promise a gun')
 
 if (failed) {
   console.error(`${failed} failed, ${passed} passed`)

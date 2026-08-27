@@ -118,7 +118,7 @@ const G = {
   pick: { id: 'good_pick', name: 'Pick', desc: 'Iron from the bay. For quartz talk.', price: 14, itemId: 'iron_pick' },
   wine: { id: 'good_wine', name: 'Barrel pour', desc: 'French barrels, not a tasting room.', price: 18, itemId: 'wine_pour' },
   rope: { id: 'good_rope', name: 'Rope', desc: 'For a hole that moans.', price: 9, itemId: 'cave_rope' },
-  powder: { id: 'good_powder', name: 'Powder horn', desc: 'Wells Fargo has not built here yet. Still sells.', price: 16, itemId: 'powder_horn' },
+  powder: { id: 'good_powder', name: 'Powder horn', desc: 'Keep the charge dry in rain. A wet nipple clicks; wet iron is harder.', price: 16, itemId: 'powder_horn' },
   meat: { id: 'good_meat', name: 'Fresh cut', desc: 'Mutton for the hole. Ellis will keep a shop in town by 1850.', price: 11, itemId: 'fresh_cut' },
 }
 
@@ -249,7 +249,7 @@ export const TOWN_FRONTS: TownFront[] = [
     keeperNpcId: 'jackson_store_abe',
     patronNpcIds: ['ridge_stranger'],
     searchAreaIds: [],
-    goods: goods(G.flour, G.boots, G.pan, G.lamp),
+    goods: goods(G.flour, G.boots, G.pan, G.lamp, G.powder),
     interior: 'Bottles from the spring, flour, a lamp nobody at the back table will take.',
     warrantNpcId: 'ridge_stranger',
   },

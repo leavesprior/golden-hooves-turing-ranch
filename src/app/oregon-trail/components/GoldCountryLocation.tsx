@@ -53,11 +53,14 @@ import { GUEST_BOOK_AREA_ID } from '@/lib/goldCountryGuestBook'
 import {
   emptyChairForFront,
   huntIsHot,
+  huntStatus,
   npcInWind,
   paperClueAt,
   readHuntClues,
   showPaperTo,
+  trailForPoster,
 } from '@/lib/goldCountryHunt'
+import { isKidMode } from '@/lib/gftAgeMode'
 import NpcChat from '@/components/rpg/NpcChat'
 import { skyLabel, skyWashesStreet, streetSky } from '@/lib/goldCountryWeather'
 import { getGoldCountryLocation, getLocationSites } from '../data/goldCountryLocations'
@@ -125,6 +128,7 @@ export function GoldCountryLocation({
   const [warrantTakes, setWarrantTakes] = useState<Record<string, number>>(() => readWarrantTakes())
   const [huntClues, setHuntClues] = useState<string[]>(() => readHuntClues())
   const [huntVoice, setHuntVoice] = useState<string | null>(null)
+  const [huntCard, setHuntCard] = useState<string | null>(null)
   const [chaseNpc, setChaseNpc] = useState<GoldCountryNPC | null>(null)
 
   const location = getGoldCountryLocation(locationId)
@@ -184,6 +188,7 @@ export function GoldCountryLocation({
     setPostersSeen(readPostersSeen())
     setTakenWarrants(readTakenWarrants())
     setWarrantTakes(readWarrantTakes())
+    setHuntClues(readHuntClues())
   }, [locationId, state.phase, state.inventory.length, state.goldCountryDay])
 
   // Hook must be called before any early return (React rules-of-hooks)
@@ -247,10 +252,14 @@ export function GoldCountryLocation({
     setTakenWarrants(readTakenWarrants())
     setWarrantTakes(readWarrantTakes())
     setPostersSeen(readPostersSeen())
+    const gone = trailForPoster(paper.id)?.emptyChair
+    const purse = approach === 'alive'
+      ? `${taken.bountyAtTake}🌮 locked if you bring him in alive.`
+      : `${taken.bountyAtTake}🌮 locked. Dead or alive if you find him.`
     setShopNote(
-      approach === 'alive'
-        ? `Paper taken. He is already gone. Follow the street. ${taken.bountyAtTake}🌮 locked if you bring him in alive.`
-        : `Paper taken. He is already gone. Follow the street. ${taken.bountyAtTake}🌮 locked. Dead or alive if you find him.`,
+      gone
+        ? `Paper taken. ${gone} Follow the street. ${purse}`
+        : `Paper taken. He is already gone. Follow the street. ${purse}`,
     )
   }, [])
 
@@ -343,6 +352,7 @@ export function GoldCountryLocation({
     setSelectedNPC(npc)
     setNpcDialogueIndex(0)
     setHuntVoice(null)
+    setHuntCard(null)
     setView('npc')
   }
 
@@ -423,7 +433,12 @@ export function GoldCountryLocation({
         <header className="px-4 py-3 border-b border-[var(--west-line)] flex items-start justify-between gap-3">
           <div>
             <p className="west-face-eyebrow">
-              Level 2 · {level2Case ? `${level2Case.year} · ${level2Case.title}` : location.region}
+              {takenWarrants.some((t) => {
+                const st = huntStatus(t.id, takenIdsForStreet, arrests, huntClues)
+                return !!st && !st.served
+              })
+                ? 'Level 3 · the hunt'
+                : `Level 2 · ${level2Case ? `${level2Case.year} · ${level2Case.title}` : location.region}`}
               {pins ? ` · ${pins.done}/${pins.total}` : ''}
             </p>
             <h1 className="west-face-title text-3xl">{location.name}</h1>
@@ -688,8 +703,11 @@ export function GoldCountryLocation({
     const takenIds = takenWarrants.map((t) => t.id)
     const huntClue = paperClueAt(selectedNPC.id, takenIds, arrests, huntClues)
     const npcQuests = getNPCQuests(selectedNPC.id)
+    const lampPaperTaken = takenWarrants.some((t) => t.id === 'poster_lamp_shy')
     const availableQuests = npcQuests.filter(q =>
-      !state.completedQuests.includes(q.id) && isQuestAvailable(q, state.completedQuests)
+      !state.completedQuests.includes(q.id)
+      && isQuestAvailable(q, state.completedQuests)
+      && !(lampPaperTaken && q.id === 'quest_bounty_hunter')
     )
     const completedNPCQuests = npcQuests.filter(q => state.completedQuests.includes(q.id))
     const lockedQuests = npcQuests.filter(q =>
@@ -757,13 +775,21 @@ export function GoldCountryLocation({
                   onClick={() => {
                     const card = showPaperTo(selectedNPC.id, takenIds, arrests)
                     setHuntClues(readHuntClues())
-                    if (card) setHuntVoice(card.voice)
+                    if (card) {
+                      setHuntCard(card.card)
+                      setHuntVoice(card.voice)
+                    }
                   }}
                 >
                   Show the paper
                 </button>
                 <p className="west-face-body text-sm">Have you seen this man. 1849. No wire. Just the street.</p>
               </div>
+            )}
+            {huntCard && (
+              <p className="west-face-eyebrow mb-2 tracking-wide" data-testid="hunt-card-line">
+                {huntCard}
+              </p>
             )}
             {huntVoice && (
               <p className="west-face-body mb-4" data-testid="hunt-card-voice">
@@ -1221,6 +1247,7 @@ export function GoldCountryLocation({
           onConfront={handleConfront}
           huntHot={shopHuntHot}
           emptyChair={chair}
+          kid={isKidMode()}
           onOpenGuestBook={front.id === 'bobr_cabin_porch' ? openGuestBook : undefined}
           onStreet={() => {
             setSelectedFront(null)
