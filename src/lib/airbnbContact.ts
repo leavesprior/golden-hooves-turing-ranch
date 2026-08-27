@@ -23,14 +23,25 @@ export type TrailVoucher = {
   playerName: string
   percent: number
   tierName: string
-  level: 1 | 2
+  level: 1 | 2 | 3
+}
+
+function levelLabel(level: 1 | 2 | 3): string {
+  if (level === 1) return 'Golden Frog Trail — first level'
+  if (level === 2) return 'Explore the Gold Country — level 2'
+  return 'Warrant hunt — level 3'
+}
+
+function levelBit(level: 1 | 2 | 3): string {
+  if (level === 1) return 'I finished the Golden Frog Trail (level 1)'
+  if (level === 2) return 'I finished Level 2: Explore the Gold Country'
+  return 'I finished Level 3: the warrant hunt'
 }
 
 export function voucherLines(v: TrailVoucher): string {
-  const levelLabel = v.level === 1 ? 'Golden Frog Trail — first level' : 'Explore the Gold Country — level 2'
   return [
     'Back of Beyond Ranch',
-    levelLabel,
+    levelLabel(v.level),
     `${v.tierName} · ${v.percent}% off stay`,
     'Host verifies this on Airbnb. Not a self-apply coupon.',
     `Listing ${AIRBNB_ROOM_ID}`,
@@ -38,8 +49,5 @@ export function voucherLines(v: TrailVoucher): string {
 }
 
 export function airbnbDiscountMessage(v: TrailVoucher): string {
-  const levelBit = v.level === 1
-    ? 'I finished the Golden Frog Trail (level 1)'
-    : 'I finished Level 2: Explore the Gold Country'
-  return `Hi! ${levelBit} as ${v.playerName || 'a trail survivor'} (${v.tierName}, ${v.percent}% ). Redeem this on our stay at Hot Tub Hideaway. Sending this message so you can provide the discount.`
+  return `Hi! ${levelBit(v.level)} as ${v.playerName || 'a trail survivor'} (${v.tierName}, ${v.percent}% ). Redeem this on our stay at Hot Tub Hideaway. Sending this message so you can provide the discount.`
 }

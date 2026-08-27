@@ -25,8 +25,8 @@ interface GoldCountryBookingProps {
   onClose?: () => void
   onBookingIntent?: () => void
   graphicsTier?: string
-  /** 1 = trail win, 2 = Gold Country explore complete. Display only. */
-  level?: 1 | 2
+  /** 1 = trail, 2 = Gold Country cases, 3 = warrant hunt. Display only. */
+  level?: 1 | 2 | 3
   /** Floor the shown percent (L2 finish). Host still verifies. */
   minPercent?: number
 }

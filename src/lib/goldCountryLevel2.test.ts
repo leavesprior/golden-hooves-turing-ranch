@@ -5,11 +5,13 @@ import {
   LEVEL2_CASES,
   LEVEL2_VISIT_GOAL,
   caseForLocation,
+  casePinsDone,
   clueWorked,
   editorialTownId,
   level2MapPosition,
   level2PinPosition,
   level2Progress,
+  maybeStampCase,
   readLevel2Stamps,
   writeLevel2Stamp,
   writeTalkedNpc,
@@ -35,6 +37,16 @@ function ok(cond: boolean, name: string) {
 ok(LEVEL2_CASES.length === 8, 'eight cases')
 ok(LEVEL2_VISIT_GOAL === 5, 'goal is 5')
 ok(LEVEL2_CASES.every((c) => c.clues.length === 3 && c.warrant && c.icon), 'each case has 3 clues and a warrant')
+ok(
+  LEVEL2_CASES.every((c) => c.year === '1849' && c.then && c.becomes && c.now && c.thinking),
+  'each case has 1849 then / becomes / now / thinking',
+)
+const thenText = LEVEL2_CASES.map((c) => c.then).join(' ')
+ok(!/Twain|Clemens|1922|1928|Jubilee|Black Bart|Statue of Liberty/i.test(thenText), '1849 then-layer has no later-fame anachronisms')
+ok(
+  LEVEL2_CASES.some((c) => /Argonaut/i.test(c.becomes)) && LEVEL2_CASES.some((c) => /Twain|Clemens/i.test(c.becomes)),
+  'becomes-layer keeps dated later history',
+)
 ok(!!caseForLocation('angels_camp'), 'angels camp is a case')
 ok(editorialTownId('bobr_cabin') === 'bobr_ranch', 'cabin uses ranch painting')
 ok(editorialTownId('volcano') === 'volcano', 'volcano id unchanged')
@@ -44,10 +56,42 @@ ok(level2PinPosition('angels_camp', 38.07, -120.54).y !== level2PinPosition('bob
 
 const empty = level2Progress({})
 ok(empty.count === 0 && empty.complete === false, 'empty is not complete')
+ok(
+  level2Progress({ searchedAreaIds: ['jackson_tunnels'] }).count === 0,
+  'a single search does not complete a case',
+)
 
 ok(clueWorked(LEVEL2_CASES[1].clues[0], ['angels_hotel_register'], []), 'search clue counts')
 ok(!clueWorked(LEVEL2_CASES[1].clues[2], ['angels_hotel_register'], []), 'talk clue needs npc')
 ok(clueWorked(LEVEL2_CASES[1].clues[2], [], ['bartender_ben']), 'talk clue counts')
+
+const jackson = caseForLocation('jackson')!
+ok(jackson.clues.length === 3, 'jackson has three pins')
+ok(casePinsDone(jackson, [], []).done === 0, 'zero pins at arrival')
+ok(casePinsDone(jackson, ['jackson_tunnels'], []).done === 1, 'one search pin')
+ok(
+  casePinsDone(jackson, ['jackson_tunnels', 'jackson_telegraph_office'], ['sheriff_thorn']).complete,
+  'three pins complete the case',
+)
+
+const pinStore = new MockStorage()
+ok(
+  !maybeStampCase('jackson', ['jackson_tunnels'], [], pinStore).includes('jackson'),
+  'one pin does not stamp the case',
+)
+ok(
+  maybeStampCase(
+    'jackson',
+    ['jackson_tunnels', 'jackson_telegraph_office'],
+    ['sheriff_thorn'],
+    pinStore,
+  ).includes('jackson'),
+  'three pins stamp the case',
+)
+ok(
+  !/telegraph|Twain|Clemens|hanging tree|St\. Sava/i.test(jackson.then),
+  'jackson then-layer stays 1849',
+)
 
 const store = new MockStorage()
 writeLevel2Stamp('angels_camp', store)

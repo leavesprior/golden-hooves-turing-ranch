@@ -49,20 +49,30 @@ export async function POST(req: NextRequest) {
   const finalDelta = Math.max(-MAX_DELTA, Math.min(MAX_DELTA, Math.trunc(delta)));
   const safeSource = `game:${String(source ?? 'ingame').slice(0, 40).replace(/[^a-zA-Z0-9_:-]/g, '')}`;
 
-  const balance = dbAppendKarmaEvent({
-    eventId,
-    sessionId,
-    karmaType: karmaType as KarmaType,
-    delta: finalDelta,
-    source: safeSource,
-  });
+  try {
+    const balance = dbAppendKarmaEvent({
+      eventId,
+      sessionId,
+      karmaType: karmaType as KarmaType,
+      delta: finalDelta,
+      source: safeSource,
+    });
 
-  const asOf = new Date().toISOString();
-  const payload = `${sessionId}:${balance.good}:${balance.neutral}:${balance.bad}:${asOf}`;
-  const sig = signBalance(payload);
+    const asOf = new Date().toISOString();
+    const payload = `${sessionId}:${balance.good}:${balance.neutral}:${balance.bad}:${asOf}`;
+    const sig = signBalance(payload);
 
-  return NextResponse.json(
-    { ok: true, eventId, sessionId, balance, asOf, sig },
-    { headers: { 'Cache-Control': 'no-store' } },
-  );
+    return NextResponse.json(
+      { ok: true, eventId, sessionId, balance, asOf, sig },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  } catch (err) {
+    // Same HMR/native-load class as GET /api/karma/balance. Do not leak a raw
+    // 500: the local wallet already applied the earn/spend.
+    console.error('karma POST ledger unavailable:', err);
+    return NextResponse.json(
+      { ok: false, reason: 'ledger_unavailable' },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
 }

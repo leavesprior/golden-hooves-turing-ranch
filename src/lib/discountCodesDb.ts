@@ -70,12 +70,19 @@ function getDbPath(): string {
 
 let _db: Database.Database | null = null;
 let _dbLoadError: Error | null = null;
+let _dbLoadRetried = false;
 
 function getDb(): Database.Database {
   if (_db) return _db
   // Native better-sqlite3 can fail to re-register after Next HMR. Cache the
   // failure so we do not DLOPEN-storm and take the whole dev server down.
-  if (_dbLoadError) throw _dbLoadError
+  // One retry: a rebuilt binding or this module reloading can heal without
+  // killing the long-lived :3099 process. A second failure stays cached.
+  if (_dbLoadError) {
+    if (_dbLoadRetried) throw _dbLoadError
+    _dbLoadRetried = true
+    _dbLoadError = null
+  }
   try {
     const dbPath = getDbPath();
     _db = new Database(dbPath);

@@ -51,6 +51,7 @@ export default function NpcChat({
   intro,
   communicationSpell = false,
   karma = 0,
+  liveContext,
 }: {
   characterId: string
   name: string
@@ -60,6 +61,8 @@ export default function NpcChat({
   // (emoji if karma>=100, ASCII otherwise). Off by default → normal dialogue.
   communicationSpell?: boolean
   karma?: number
+  /** Street weather / kin — atmosphere only, never game-mechanic dump. */
+  liveContext?: string
 }) {
   const [open, setOpen] = useState(false)
   const [started, setStarted] = useState(false)
@@ -97,7 +100,7 @@ export default function NpcChat({
     // session-end enqueue under the id the oregon-trail poller drains (mirrors
     // WitnessDialogue). Without this, a DM-Table conversation never reaches the game.
     const playerId = getDmPlayerId()
-    const data = await post({ characterId, playerId })
+    const data = await post({ characterId, playerId, ...(liveContext ? { liveContext } : {}) })
     setLoading(false)
     if (!data) {
       setLines([{ role: 'npc', text: 'The wind carries nothing back. Try again later.' }])

@@ -1843,21 +1843,21 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
   // Angels Camp
   {
     id: 'angels_hotel_register',
-    name: 'Angels Hotel Register',
-    description: 'The historic hotel register where Twain signed in.',
+    name: 'Camp Register',
+    description: 'The canvas-hotel book at Angell\'s post — names, bets, and who still owes for flour.',
     location: 'angels_camp',
     icon: '📜',
     searchDifficulty: 3,
     statBonus: 'expertise',
     findings: [
-      { id: 'twain_entry', description: 'Twain\'s actual signature, dated 1864. Beneath it, a modern forgery.', probability: 0.7, isClue: true, clueId: 'forged_signature' },
-      { id: 'hotel_history', description: 'Fascinating entries from Gold Rush era guests.', probability: 1.0, isClue: false, karmaGained: 5 },
+      { id: 'twain_entry', description: 'A name entered twice in different hands. Someone is practicing a signature that is not yet famous.', probability: 0.7, isClue: true, clueId: 'forged_signature' },
+      { id: 'hotel_history', description: 'Creek-camp names, frog wagers, and a note: “ask Ben about the moaning hole.”', probability: 1.0, isClue: false, karmaGained: 5 },
     ],
   },
   {
     id: 'angels_saloon',
-    name: 'Angels Hotel Barroom',
-    description: 'The stone barroom where Twain heard the jumping frog story — the hotel still stands today. Dark corners hold secrets.',
+    name: "Angell's canvas bar",
+    description: 'Angell’s canvas bar. Miners already tell a jumping-frog yarn. Dark corners hold more than whiskey.',
     location: 'angels_camp',
     icon: '🍺',
     searchDifficulty: 5,
@@ -1871,21 +1871,21 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
   // Murphys
   {
     id: 'murphys_hotel_register',
-    name: 'Murphys Hotel Register',
-    description: 'The famous guest register with signatures from Twain, Grant, and Black Bart.',
+    name: 'Camp book',
+    description: 'The Murphy brothers’ counter book. Not yet a famous hotel register — just who ate, who paid, who lied.',
     location: 'murphys',
     icon: '📋',
     searchDifficulty: 3,
     statBonus: 'expertise',
     findings: [
-      { id: 'bart_signature', description: 'Black Bart\'s entry, written in his distinctive poetic hand.', probability: 0.8, isClue: true, clueId: 'bart_handwriting' },
-      { id: 'grant_entry', description: 'Ulysses S. Grant\'s bold signature from 1879.', probability: 1.0, isClue: false, karmaGained: 5 },
+      { id: 'bart_signature', description: 'A joke-name in the camp book, in a careful hand. Whoever wrote it wants to be remembered — not yet famous.', probability: 0.8, isClue: true, clueId: 'bart_handwriting' },
+      { id: 'grant_entry', description: 'A soldier’s name from Stevenson’s New York regiment, passing through toward Soldiers Gulch.', probability: 1.0, isClue: false, karmaGained: 5 },
     ],
   },
   {
     id: 'murphys_wine_cellar',
     name: 'Wine Cellar',
-    description: 'The deep wine cellars beneath the tasting rooms. Cool, dark, and full of secrets.',
+    description: 'A barrel pit under Pierre’s tent. Cool, dark, and not a tasting room.',
     location: 'murphys',
     icon: '🍷',
     searchDifficulty: 6,
@@ -1899,8 +1899,8 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
   // Moaning Cavern
   {
     id: 'moaning_cavern_depths',
-    name: 'Cavern Depths',
-    description: 'The deepest accessible section of the cavern. Few venture this far.',
+    name: 'The moaning mouth',
+    description: 'The drop the miners named for the sound. Rope, dark, bone underfoot.',
     location: 'moaning_cavern',
     icon: '🕳️',
     searchDifficulty: 7,
@@ -1944,21 +1944,21 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
   // Kennedy Mine
   {
     id: 'kennedy_mine_office',
-    name: 'Mine Office',
-    description: 'The old mine foreman\'s office. Dusty records line the walls.',
+    name: 'Claim office',
+    description: 'A plank office on the ridge above Jackson. Claim stakes, dust weights, a book that does not add.',
     location: 'kennedy_mine',
     icon: '📁',
     searchDifficulty: 5,
     statBonus: 'expertise',
     findings: [
-      { id: 'mine_records', description: 'Production records that don\'t add up. Gold is going missing.', probability: 0.7, isClue: true, clueId: 'gold_theft_records' },
-      { id: 'mine_diary', description: 'A miner\'s diary from 1922, written days before the disaster.', probability: 0.5, isClue: false, karmaGained: 10 },
+      { id: 'mine_records', description: 'The claim book lists placer ground. The expenses list timber for a shaft that is not on the map.', probability: 0.7, isClue: true, clueId: 'gold_theft_records' },
+      { id: 'mine_diary', description: 'An Italian miner’s note: green wood in the new hole, and a man who will not take a lamp.', probability: 0.5, isClue: false, karmaGained: 10 },
     ],
   },
   {
     id: 'kennedy_mine_shaft',
-    name: 'Upper Mine Shaft',
-    description: 'The entrance to the upper levels of Kennedy Mine. Dark and foreboding.',
+    name: 'The new hole',
+    description: 'A shaft being sunk too early, too quiet, on placer ground. Green timber. No visitors.',
     location: 'kennedy_mine',
     icon: '⛏️',
     searchDifficulty: 8,
@@ -1972,8 +1972,8 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
   // Mokelumne Hill
   {
     id: 'mokelumne_hotel_basement',
-    name: 'Hotel Leger Basement',
-    description: 'The infamous basement of Hotel Leger. Cold spots and creaking floors.',
+    name: 'Store cellar',
+    description: 'The cellar under a Mokelumne Hill store — the corner that will one day be the Léger. Cold, and not empty.',
     location: 'mokelumne_hill',
     icon: '🏚️',
     searchDifficulty: 6,
@@ -1993,7 +1993,7 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
     statBonus: 'expertise',
     findings: [
       { id: 'cemetery_grave', description: 'A recent grave with no name. The earth is freshly turned.', probability: 0.5, isClue: true, clueId: 'unmarked_grave' },
-      { id: 'cemetery_history', description: 'Headstones from the 1851 Chilean War. A sobering reminder of Gold Rush violence.', probability: 1.0, isClue: false, karmaGained: 5 },
+      { id: 'cemetery_history', description: 'French and Chilean names, some with no dates yet. The hill is filling faster than the priest can bless.', probability: 1.0, isClue: false, karmaGained: 5 },
     ],
   },
 
@@ -2015,28 +2015,28 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
   // Jackson
   {
     id: 'jackson_tunnels',
-    name: 'Chinese Tunnels',
-    description: 'The hidden tunnel network beneath Main Street, built by Chinese workers.',
+    name: 'Under the street',
+    description: 'A way Chinese miners are already cutting under Jackson’s muddy Main — not a tourist tunnel, a path.',
     location: 'jackson',
     icon: '🕯️',
     searchDifficulty: 8,
     statBonus: 'shrewdness',
     findings: [
-      { id: 'tunnel_evidence', description: 'Evidence of recent use: fresh footprints, a dropped lantern, and a coded note.', probability: 0.5, isClue: true, clueId: 'tunnel_activity' },
-      { id: 'tunnel_artifacts', description: 'Preserved Chinese artifacts from the 1850s. A time capsule of a forgotten community.', probability: 0.7, isClue: false, karmaGained: 15, itemGained: 'chinese_artifact' },
+      { id: 'tunnel_evidence', description: 'Fresh tool marks. A lamp still warm. A slip in the same hand as the copies on the express desk.', probability: 0.5, isClue: true, clueId: 'tunnel_activity' },
+      { id: 'tunnel_artifacts', description: 'A rice bowl, a work shoe, a character cut into the timber — someone lives this path, not visits it.', probability: 0.7, isClue: false, karmaGained: 15, itemGained: 'chinese_artifact' },
     ],
   },
   {
     id: 'jackson_telegraph_office',
-    name: 'Telegraph Office Records',
-    description: 'Past telegraph messages are filed here. Some may contain clues.',
+    name: 'Express desk',
+    description: 'Letters and dust by rider — Jackson has no wire yet. The desk still keeps copies.',
     location: 'jackson',
     icon: '📡',
     searchDifficulty: 4,
     statBonus: 'expertise',
     findings: [
-      { id: 'telegraph_messages', description: 'Coded telegraph messages that match the pattern from the investigation.', probability: 0.7, isClue: true, clueId: 'coded_telegraphs' },
-      { id: 'telegraph_news', description: 'News telegraphs from Sacramento about stagecoach robberies.', probability: 1.0, isClue: false },
+      { id: 'telegraph_messages', description: 'A coded express slip in the same hand as the under-street note. Someone is writing two ways at once.', probability: 0.7, isClue: true, clueId: 'coded_telegraphs' },
+      { id: 'telegraph_news', description: 'A rider’s copy: Sacramento prices, a warning about the hill, a name that also appears in the ranch guest book.', probability: 1.0, isClue: false },
     ],
   },
 

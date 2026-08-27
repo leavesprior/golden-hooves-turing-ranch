@@ -21,9 +21,10 @@
  *   1. Trail: Shop / Inn / Hunt / Camp / Continue. Kansas always has
  *      the Bridge of Death. Python/Adams eggs stay in the playable river,
  *      inn talk, and events — Goda chrome does not strip them.
- *   2. Win: take the discount  |  risk the next level.
- *      Next level = Gold Country: Dirk Gently holistic detective +
- *      Doctor Who time-slip + old-west warrant + Sandiego noir chase.
+ *   2. Win: take the discount  |  risk the next level. Same two
+ *      buttons after L2 and L3. Floor +5% per level (5 / 10 / 15).
+ *      After L3: stay gifts, not another percent.
+ *      L2 = Gold Country cases. L3 = warrant hunt.
  *   3. Ranch-house QR (?qr=ranch-house): /explore playable area + GPS NPCs.
  *   4. Later: hologram overlay on the same GPS people. Not this cut.
  */

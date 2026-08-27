@@ -122,6 +122,7 @@ export function KarmaProvider({ children }: KarmaProviderProps) {
     goodDelta: number,
     position: AlignmentPosition
   ) => {
+    if (lawfulDelta === 0 && goodDelta === 0) return
     const toast: KarmaToast = {
       id: `toast_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       message,
@@ -130,7 +131,7 @@ export function KarmaProvider({ children }: KarmaProviderProps) {
       position,
       timestamp: Date.now(),
     }
-    setToasts(prev => [...prev, toast])
+    setToasts(prev => [...prev, toast].slice(-2))
   }, [])
 
   // Apply karma action
