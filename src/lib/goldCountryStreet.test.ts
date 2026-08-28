@@ -10,6 +10,7 @@ import {
   everyLocationHasAFront,
   frontHoldsNpc,
   frontsForLocation,
+  goodsForAge,
   indoorNpcIds,
   outdoorSearchIds,
   paperOnNpc,
@@ -60,6 +61,11 @@ ok(
   paperOnNpc([{ id: 'poster_off_roll', approach: 'alive', bountyAtTake: 108 }], 'off_roll_stranger')?.form === 'claim_notice',
   'ridge paper names the man off the roll',
 )
+ok(
+  paperOnNpc([{ id: 'poster_lamp_shy', approach: 'alive', bountyAtTake: 32 }], 'ridge_stranger')?.id
+    !== posterForLocation('murphys')?.id,
+  'carried Jackson paper is not the Murphys door paper',
+)
 ok(!paperOnNpc([], 'ridge_stranger'), 'empty pocket is not paper on kin')
 ok(everyLocationHasAFront(), 'every Gold Country place has at least one front')
 ok(TOWN_FRONTS.every((f) => f.name.trim().length > 0 && f.interior.length > 0), 'fronts are named businesses with interiors')
@@ -91,6 +97,8 @@ ok(
   const store = frontsForLocation('jackson').find((f) => f.id === 'jackson_store')!
   const horn = store.goods.find((g) => g.itemId === 'powder_horn')
   ok(!!horn && /wet nipple/i.test(horn.desc), 'Abe’s powder horn copy names the wet nipple, not Wells Fargo')
+  ok(goodsForAge(store.goods, false).some((g) => g.itemId === 'powder_horn'), 'adult trail still sells the powder horn')
+  ok(!goodsForAge(store.goods, true).some((g) => g.itemId === 'powder_horn'), 'kid trail does not sell a powder horn')
   const express = frontsForLocation('jackson').find((f) => f.id === 'jackson_express')!
   const pin = posterPinsForLocation('jackson')[0]
   ok(!!pin && pin.x > office.x, 'Jackson paper hangs east of the office')

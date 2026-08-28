@@ -64,6 +64,10 @@ ok(
 ok(clueWorked(LEVEL2_CASES[1].clues[0], ['angels_hotel_register'], []), 'search clue counts')
 ok(!clueWorked(LEVEL2_CASES[1].clues[2], ['angels_hotel_register'], []), 'talk clue needs npc')
 ok(clueWorked(LEVEL2_CASES[1].clues[2], [], ['bartender_ben']), 'talk clue counts')
+ok(
+  casePinsDone(LEVEL2_CASES[1], ['angels_hotel_register', 'angels_saloon'], ['bartender_ben']).complete,
+  'Angels Camp 3/3 is register + barroom + Ben Coon',
+)
 
 const jackson = caseForLocation('jackson')!
 ok(jackson.clues.length === 3, 'jackson has three pins')

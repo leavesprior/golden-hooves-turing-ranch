@@ -126,6 +126,12 @@ function goods(...ids: ShopGood[]): ShopGood[] {
   return ids
 }
 
+/** Kid trail has no gun. A powder horn with wet-nipple copy is a false promise. */
+export function goodsForAge(list: ShopGood[], kid: boolean): ShopGood[] {
+  if (!kid) return list
+  return list.filter((g) => g.itemId !== 'powder_horn')
+}
+
 export const TOWN_FRONTS: TownFront[] = [
   {
     id: 'bobr_cabin_porch',

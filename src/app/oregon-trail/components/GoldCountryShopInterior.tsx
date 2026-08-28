@@ -3,6 +3,7 @@
 import type { GoldCountryNPC } from '../data/goldCountryNPCs'
 import type { SearchArea } from '../data/goldCountryEncounters'
 import type { ShopGood, StreetPoster, TakenWarrant, TownFront, WarrantCapture } from '@/lib/goldCountryStreet'
+import { goodsForAge } from '@/lib/goldCountryStreet'
 import { alleyConfrontHint } from '@/lib/goldCountryAlley'
 
 export function GoldCountryShopInterior({
@@ -55,6 +56,7 @@ export function GoldCountryShopInterior({
 }) {
   const guestBookSearch = searches.find((area) => area.id === 'cabin_guest_book')
   const lookAround = searches.filter((area) => area.id !== 'cabin_guest_book')
+  const goods = goodsForAge(front.goods, kid)
   const wanted = poster && poster.hideFrontId === front.id ? poster.hideNpcId : null
   const voice =
     front.kind === 'office' || front.duty === 'sheriff'
@@ -218,11 +220,11 @@ export function GoldCountryShopInterior({
           </div>
         )}
 
-        {front.goods.length > 0 && (
+        {goods.length > 0 && (
           <div className="west-face-paper">
             <h2 className="west-face-eyebrow mb-3">Goods · click to buy</h2>
             <ul className="space-y-2">
-              {front.goods.map((good) => {
+              {goods.map((good) => {
                 const sold = boughtIds.includes(good.id)
                 const price = priceOf(good)
                 const ok = canAfford(price)

@@ -287,8 +287,9 @@ export function GoldCountryLocation({
   }, [priceOf, spendNeutral, addInventoryItem, selectedFront])
 
   const settleCapture = useCallback(async (npc: GoldCountryNPC, method: WarrantCapture) => {
-    if (!poster || poster.hideNpcId !== npc.id) return
-    const taken = takenWarrants.find((t) => t.id === poster.id)
+    const paper = paperOnNpc(takenWarrants, npc.id)
+    if (!paper) return
+    const taken = takenWarrants.find((t) => t.id === paper.id)
     if (!taken) {
       setShopNote('Take the paper off the sheriff wall first.')
       return
@@ -299,31 +300,30 @@ export function GoldCountryLocation({
     }
     const pay = capturePayout(taken, method)
     setArrests(writeArrest(npc.id))
-    await earnNeutral(pay, method === 'alive' ? `Brought in ${poster.alias} alive` : `Took ${poster.alias} dead`)
+    await earnNeutral(pay, method === 'alive' ? `Brought in ${paper.alias} alive` : `Took ${paper.alias} dead`)
     if (method === 'dead') {
-      await addBadKarma(8, `Took ${poster.alias} dead`)
+      await addBadKarma(8, `Took ${paper.alias} dead`)
       setShopNote(`Taken dead. ${pay}🌮. It sits heavy.`)
     } else {
-      await earnGood(4, `Brought in ${poster.alias} alive`)
+      await earnGood(4, `Brought in ${paper.alias} alive`)
       setShopNote(`Brought in alive. ${pay}🌮 bounty. The poster is satisfied.`)
     }
-  }, [poster, takenWarrants, earnNeutral, addBadKarma, earnGood])
+  }, [takenWarrants, earnNeutral, addBadKarma, earnGood])
 
   const handleConfront = useCallback((npc: GoldCountryNPC) => {
-    if (!poster || poster.hideNpcId !== npc.id) return
-    const taken = takenWarrants.find((t) => t.id === poster.id)
-    if (!taken) {
+    const paper = paperOnNpc(takenWarrants, npc.id)
+    if (!paper) {
       setShopNote('Take the paper off the sheriff wall first.')
       return
     }
     const takenIds = takenWarrants.map((t) => t.id)
-    if (!huntIsHot(poster.id, takenIds, arrests, huntClues)) {
+    if (!huntIsHot(paper.id, takenIds, arrests, huntClues)) {
       setShopNote('The paper is not enough. Follow the street. He is in the wind.')
       return
     }
     setChaseNpc(npc)
     setView('bounty_chase')
-  }, [poster, takenWarrants, arrests, huntClues])
+  }, [takenWarrants, arrests, huntClues])
 
   const handleChaseResolved = useCallback((outcome: ChaseOutcome) => {
     const npc = chaseNpc
@@ -1174,9 +1174,18 @@ export function GoldCountryLocation({
     )
   }
 
-  if (view === 'bounty_chase' && chaseNpc && poster) {
-    const taken = takenWarrants.find((t) => t.id === poster.id)
-    const frontId = selectedFront?.id || poster.hideFrontId
+  if (view === 'bounty_chase' && chaseNpc) {
+    const paper = paperOnNpc(takenWarrants, chaseNpc.id)
+    const taken = paper ? takenWarrants.find((t) => t.id === paper.id) : undefined
+    const frontId = selectedFront?.id || paper?.hideFrontId || chaseNpc.id
+    if (!paper) {
+      return (
+        <div className="west-face-shell min-h-screen p-4">
+          <p className="west-face-body">The paper does not name this man.</p>
+          <button type="button" className="west-face-pill mt-3" onClick={() => { setChaseNpc(null); setView(selectedFront ? 'shop' : 'main') }}>Street</button>
+        </div>
+      )
+    }
     return (
       <>
         {shopNote && (
@@ -1186,7 +1195,7 @@ export function GoldCountryLocation({
         )}
         <GoldCountryBountyChase
           frontId={frontId}
-          alias={poster.alias}
+          alias={paper.alias}
           paperAllowsDead={taken?.approach === 'dead_or_alive'}
           wet={skyWashesStreet(sky)}
           dryFlask={state.inventory.includes('powder_horn')}
@@ -1219,7 +1228,8 @@ export function GoldCountryLocation({
       .filter((n): n is GoldCountryNPC => !!n)
       .filter((n) => !npcInWind(n.id, takenIds, arrests, huntClues))
     const chair = emptyChairForFront(front.id, takenIds, arrests, huntClues)
-    const shopHuntHot = poster ? huntIsHot(poster.id, takenIds, arrests, huntClues) : true
+    const hidePaper = paperOnNpc(takenWarrants, front.warrantNpcId)
+    const shopHuntHot = hidePaper ? huntIsHot(hidePaper.id, takenIds, arrests, huntClues) : false
     const indoorSearches = searchAreas.filter((a) => front.searchAreaIds.includes(a.id))
     return (
       <>
@@ -1235,9 +1245,9 @@ export function GoldCountryLocation({
           patrons={patrons}
           searches={indoorSearches}
           searchedAreaIds={state.searchedAreas}
-          poster={poster}
-          posterSeen={!!poster && postersSeen.includes(poster.id)}
-          takenWarrant={poster ? takenWarrants.find((t) => t.id === poster.id) : undefined}
+          poster={hidePaper}
+          posterSeen={!!hidePaper && postersSeen.includes(hidePaper.id)}
+          takenWarrant={hidePaper ? takenWarrants.find((t) => t.id === hidePaper.id) : undefined}
           arrested={!!front.warrantNpcId && arrests.includes(front.warrantNpcId)}
           boughtIds={boughtIds}
           canAfford={(price) => canAfford('neutral', price)}
