@@ -31,6 +31,7 @@ import { InteractiveTown } from '@/components/explore/InteractiveTown'
 import { GOLD_COUNTRY_MAP_ART, exploreMapPosition } from '@/lib/goldCountryEditorial'
 import { ProximityNpcs } from '@/components/westFace/ProximityNpcs'
 import { hasExploreQr } from '@/lib/exploreQrGate'
+import { interestHref, nextInterest } from '@/lib/overlay/interest-next'
 
 // ============================================
 // TOWN & ATTRACTION DATA
@@ -1624,6 +1625,7 @@ function ExplorerMap({ peekTown }: { peekTown?: string }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [inTown, setInTown] = useState(!!peekHit)
   const { progress, isTownVisited, getTownCompletionPercent, isMysterySolved, getMysteryProgress } = useExplorer()
+  const mapInterest = nextInterest(progress.visitedTowns, progress.lastVisitedTown)
 
   useEffect(() => {
     trackPageView('/explore')
@@ -1652,9 +1654,18 @@ function ExplorerMap({ peekTown }: { peekTown?: string }) {
     && !hasExploreQr({ search: typeof window !== 'undefined' ? window.location.search : `?town=${peekTown}`, storage: typeof window !== 'undefined' ? window.sessionStorage : null })
 
   if (inTown && selectedTown) {
+    const visits = [...new Set([...progress.visitedTowns, selectedTown.id])]
+    const interest = nextInterest(visits, selectedTown.id)
     return (
       <InteractiveTown
         town={selectedTown}
+        nextTrail={!interest.done && interest.trailWord && !interest.named ? (
+          <p className="west-face-body mt-3 max-w-xl" data-testid="explore-interest-next">
+            <Link href={interestHref(interest.id)} className="hover:text-[#f3ead8]">
+              {interest.trailWord}
+            </Link>
+          </p>
+        ) : null}
         onLeave={() => {
           if (peekOnly) {
             window.location.assign('/hub')
@@ -1684,6 +1695,13 @@ function ExplorerMap({ peekTown }: { peekTown?: string }) {
           Choose a nearby town. Keep GPS on — keepers, outfitters, and witnesses
           only speak when you are actually there. Easy clues send you back to the ranch site.
         </p>
+        {!mapInterest.done && mapInterest.trailWord && !mapInterest.named && (
+          <p className="west-face-body text-center mb-4 max-w-xl mx-auto" data-testid="explore-interest-next">
+            <Link href={interestHref(mapInterest.id)} className="hover:text-[#f3ead8]">
+              {mapInterest.trailWord}
+            </Link>
+          </p>
+        )}
 
         <ProximityNpcs />
 

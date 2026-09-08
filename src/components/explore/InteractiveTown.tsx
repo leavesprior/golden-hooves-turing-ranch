@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { arcadePresentAttractions, useExplorer, type Town, type Attraction } from '@/app/explore/explorerContext'
 import { useKarma } from '@/lib/karmaContext'
 import { VolcanoStayShow } from '@/components/VolcanoStayShow'
@@ -13,9 +13,11 @@ import {
 export function InteractiveTown({
   town,
   onLeave,
+  nextTrail,
 }: {
   town: Town
   onLeave: () => void
+  nextTrail?: ReactNode
 }) {
   const {
     visitAttraction,
@@ -27,6 +29,10 @@ export function InteractiveTown({
   const art = editorialForExplorePlace(town.id)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [npcLine, setNpcLine] = useState<string | null>(null)
+
+  useEffect(() => {
+    visitTown(town.id)
+  }, [town.id, visitTown])
 
   const present = arcadePresentAttractions(town.attractions)
   const eraFace = present.length < town.attractions.length
@@ -138,6 +144,7 @@ export function InteractiveTown({
             Secrets stay off the map until they unlock.
           </p>
         )}
+        {nextTrail}
         <div className="mt-3 flex flex-wrap gap-2 pl-14 md:pl-0" data-testid="explore-town-verbs">
           {present.map((a) => (
             <button

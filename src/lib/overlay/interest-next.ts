@@ -51,6 +51,14 @@ export function isPlayableInterest(id: string): boolean {
   return (EXPLORE_PEEK_TOWNS as readonly string[]).includes(id)
 }
 
+/** Hub and Explore share one door. Jackson has no explorer face — porch, not a fake peek. */
+export function interestHref(id: string | null | undefined): string {
+  if (!id) return '/explore'
+  if (id === 'kansas_river') return '/oregon-trail'
+  if (isPlayableInterest(id)) return `/explore?town=${id}`
+  return '/explore'
+}
+
 export function nextInterest(visited: readonly unknown[], last?: string) {
   const have = visitedSet(visited)
   const doors = INTEREST_DOORS

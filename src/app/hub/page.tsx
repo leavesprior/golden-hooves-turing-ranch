@@ -7,7 +7,7 @@ import { useKarma, ALIGNMENT_DISPLAY_NAMES } from '@/lib/karmaContext'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import { hasAnyCharacter } from '@/lib/sharedCharacter'
 import { KarmaToastContainer, HouseRulesQuiz } from '@/components/karma'
-import { isPlayableInterest, nextInterest } from '@/lib/overlay/interest-next'
+import { interestHref, nextInterest } from '@/lib/overlay/interest-next'
 import { readExplorerVisits } from '@/app/explore/explorerContext'
 
 /** One quiet row in More — depth stays, first paint does not. */
@@ -49,13 +49,7 @@ export default function HubPage() {
   const visitedTownIds = visits.visitedTownIds
   const lastTownId = visits.lastTownId
   const interest = nextInterest(visitedTownIds, lastTownId)
-  const interestHref = !interest.id
-    ? '/explore'
-    : interest.id === 'kansas_river'
-      ? '/oregon-trail'
-      : isPlayableInterest(interest.id)
-        ? `/explore?town=${interest.id}`
-        : '/explore'
+  const nextHref = interestHref(interest.id)
 
   const alignmentName = ALIGNMENT_DISPLAY_NAMES[alignmentPosition] || alignmentPosition
 
@@ -116,9 +110,9 @@ export default function HubPage() {
                 Walk the map
               </Link>
             </div>
-            {!interest.done && interest.trailWord && (
+            {!interest.done && interest.trailWord && !interest.named && (
               <p className="west-face-body mt-4 max-w-xl" data-testid="hub-interest-next">
-                <Link href={interestHref} className="hover:text-[#f3ead8]">
+                <Link href={nextHref} className="hover:text-[#f3ead8]">
                   {interest.trailWord}
                 </Link>
               </p>
