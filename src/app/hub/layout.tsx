@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Game Hub | Back of Beyond Ranch',
-  description: 'Your adventure command center at Back of Beyond Ranch. Access the Golden Frog Trail, Oregon Trail game, karma wallet, leaderboard, and all interactive experiences.',
+  title: 'Play | Back of Beyond Ranch',
+  description: 'Golden Frog Trail — an 1849 expedition. The towns are real. Play first; the rest of the land waits behind it.',
   openGraph: {
-    title: 'Game Hub | Back of Beyond Ranch',
-    description: 'Your adventure command center at Back of Beyond Ranch. Access the Golden Frog Trail, Oregon Trail game, karma wallet, leaderboard, and all interactive experiences.',
+    title: 'Play | Back of Beyond Ranch',
+    description: 'Golden Frog Trail — an 1849 expedition. The towns are real. Play first; the rest of the land waits behind it.',
     type: 'website',
   },
 }

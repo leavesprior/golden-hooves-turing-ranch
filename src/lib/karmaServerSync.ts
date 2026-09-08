@@ -6,6 +6,7 @@
 // person) are NOT done here — those go through the Frank/QSD presence gate.
 
 import type { KarmaBalance, KarmaType } from '@/lib/karmaBlockchain'
+import { allowedLedgerDelta } from '@/lib/karmaUnverifiedBound'
 
 const KARMA_SESSION_KEY = 'bobr_karma_session_id'
 
@@ -62,6 +63,7 @@ export async function postKarmaEvent(params: {
   delta: number
   source: string
 }): Promise<ServerBalanceResult> {
+  if (!allowedLedgerDelta(params.delta)) return { ok: false }
   const now = Date.now()
   if (now < karmaBackoffUntil) return { ok: false }
   if (now - karmaLastPostAt < KARMA_MIN_GAP_MS) return { ok: false }

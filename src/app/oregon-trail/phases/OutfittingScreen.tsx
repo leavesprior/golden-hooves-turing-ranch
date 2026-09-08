@@ -8,25 +8,14 @@ import { KarmaWallet } from '../components/KarmaWallet'
 import { KarmaConvertModal } from '../components/KarmaConvertModal'
 import { editorialForLandmark } from '@/lib/californiaTrailArt'
 import { readAgeMode } from '@/lib/gftAgeMode'
+import { WARE_WAGON, WARE_WAGON_COST, WARE_WAGON_PRICES } from '../data/wareWagon'
 
 export function OutfittingScreen() {
   const { state, purchaseSupplies, goToCharacterCreation } = useOregonTrail()
   const { balance, canAfford, spendNeutral, showConvertModal, setShowConvertModal, convertModalContext, setConvertModalContext } = useKarmaWallet()
-  const [supplies, setSupplies] = useState({
-    food: 0,
-    ammo: 0,
-    parts: 0,
-    medicine: 0,
-    oxen: 0,
-  })
+  const [supplies, setSupplies] = useState({ ...WARE_WAGON })
 
-  const prices = {
-    food: 0.2,
-    ammo: 2,
-    parts: 10,
-    medicine: 5,
-    oxen: 40,
-  }
+  const prices = WARE_WAGON_PRICES
 
   const costOf = (next: typeof supplies) =>
     next.food * prices.food +
@@ -199,6 +188,18 @@ export function OutfittingScreen() {
         <div className="mt-3 flex shrink-0 flex-col gap-2 rounded-lg bg-black/70 p-3">
           <button
             type="button"
+            data-testid="outfit-ware"
+            className="west-face-pill w-full text-center"
+            onClick={() => {
+              if (!canAfford('neutral', WARE_WAGON_COST)) return
+              setSupplies({ ...WARE_WAGON })
+            }}
+          >
+            Pack as Ware wrote · {WARE_WAGON_COST} tacos
+          </button>
+          <button
+            type="button"
+            data-testid="outfit-buy"
             onClick={handlePurchase}
             disabled={totalCost === 0}
             className="west-face-pill west-face-pill-cream w-full text-center"

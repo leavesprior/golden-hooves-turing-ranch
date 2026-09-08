@@ -16,6 +16,7 @@ import { KarmaStorage } from '@/lib/karmaStorage'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
 import { getKarmaSessionId, fetchServerBalance, postKarmaEvent, reconcile } from '@/lib/karmaServerSync'
 import { scaleKarmaGrant } from '@/lib/gftAgeMode'
+import { withinUnverifiedBound } from '@/lib/karmaUnverifiedBound'
 
 export type WalletMode = 'new' | 'continue'
 
@@ -547,6 +548,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
   // Take debt (1:1 neutral:bad)
   const takeDebt = useCallback(async (amount: number): Promise<boolean> => {
+    if (!withinUnverifiedBound(amount)) return false
     setState(prev => ({
       ...prev,
       balance: {

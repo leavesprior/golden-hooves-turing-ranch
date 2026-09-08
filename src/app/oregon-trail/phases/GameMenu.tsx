@@ -74,6 +74,7 @@ export function GameMenu() {
 
           <button
             type="button"
+            data-testid="outfit-wagon"
             onClick={handleStart}
             disabled={!leaderName.trim()}
             className={`w-full min-h-11 mt-6 py-3 font-serif text-xl rounded transition-colors ${
