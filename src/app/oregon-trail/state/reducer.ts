@@ -11,6 +11,7 @@ import type { OregonTrailState, GamePhase, PartyMember } from './types'
 import type { GameAction } from './actions'
 import { DEFAULT_STATE, DEFAULT_INVESTIGATION } from './constants'
 import { getTownArrivalMessage } from '../data/townArrivals'
+import { AMMO_ROUNDS_PER_BOX } from '../data/wareWagon'
 import { computeTravel } from './travelEngine'
 import {
   applyBuySupplies, applySellSupplies, applyRepairWagon,
@@ -95,7 +96,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       return {
         ...state,
         food: state.food + action.supplies.food,
-        ammunition: state.ammunition + action.supplies.ammo * 20,
+        ammunition: state.ammunition + action.supplies.ammo * AMMO_ROUNDS_PER_BOX,
         spareParts: state.spareParts + action.supplies.parts,
         medicine: state.medicine + action.supplies.medicine,
         oxen: state.oxen + action.supplies.oxen,

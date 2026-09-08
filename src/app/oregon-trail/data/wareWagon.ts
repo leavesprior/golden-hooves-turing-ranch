@@ -26,6 +26,11 @@ export const WARE_WAGON_PRICES = {
   oxen: 40,
 } as const
 
+/** One Matt box of powder is this many rounds in wagon state. Town shop must sell the same unit. */
+export const AMMO_ROUNDS_PER_BOX = 20
+export const AMMO_BUY_PER_ROUND = WARE_WAGON_PRICES.ammo / AMMO_ROUNDS_PER_BOX
+export const AMMO_SELL_PER_ROUND = AMMO_BUY_PER_ROUND / 2
+
 export const WARE_WAGON_COST = Math.ceil(
   WARE_WAGON.food * WARE_WAGON_PRICES.food +
   WARE_WAGON.ammo * WARE_WAGON_PRICES.ammo +

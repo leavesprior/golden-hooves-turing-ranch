@@ -5,6 +5,7 @@
  *   T2  sell without stock is a no-op
  *   T3  buy increases the resource
  *   T4  TownShop food sellPrice is half of basePrice (0.10 vs 0.20)
+ *   T5  Independence town powder is Matt's box, sold by the round — no taco print
  *
  *   npx tsx src/app/oregon-trail/state/shopSell.test.ts
  */
@@ -12,6 +13,13 @@
 import { DEFAULT_STATE } from './constants'
 import { gameReducer } from './reducer'
 import { readFileSync } from 'node:fs'
+import {
+  AMMO_BUY_PER_ROUND,
+  AMMO_ROUNDS_PER_BOX,
+  AMMO_SELL_PER_ROUND,
+  WARE_WAGON,
+  WARE_WAGON_PRICES,
+} from '../data/wareWagon'
 
 let passed = 0
 let failed = 0
@@ -47,6 +55,34 @@ console.log('T4 — TownShop food sell is half buy (source pin, no export)')
   const foodBlock = src.slice(src.indexOf("id: 'food'"), src.indexOf("id: 'ammo'"))
   ok(/basePrice:\s*0\.20/.test(foodBlock), 'food buy 0.20')
   ok(/sellPrice:\s*0\.10/.test(foodBlock), 'food sell 0.10 (half)')
+}
+
+console.log('T5 — dual-shop powder is one list')
+{
+  ok(AMMO_ROUNDS_PER_BOX === 20, 'box is 20 rounds')
+  ok(AMMO_BUY_PER_ROUND === 0.1, 'Matt $2 box is $0.10/rd')
+  ok(AMMO_SELL_PER_ROUND === 0.05, 'town sell is half buy')
+  const src = readFileSync(new URL('../components/TownShop.tsx', import.meta.url), 'utf8')
+  const ammoBlock = src.slice(src.indexOf("id: 'ammo'"), src.indexOf("id: 'medicine'"))
+  ok(/AMMO_BUY_PER_ROUND/.test(ammoBlock), 'town buy is Ware per-round')
+  ok(/AMMO_SELL_PER_ROUND/.test(ammoBlock), 'town sell is Ware half')
+  ok(/AMMO_ROUNDS_PER_BOX/.test(ammoBlock), 'town batch is Matt box')
+  ok(/unit:\s*'rd'/.test(ammoBlock), 'town unit is rounds')
+  const reducerSrc = readFileSync(new URL('./reducer.ts', import.meta.url), 'utf8')
+  ok(/ammo \* AMMO_ROUNDS_PER_BOX/.test(reducerSrc), 'purchase converts boxes to rounds')
+  const outfitSrc = readFileSync(new URL('../phases/OutfittingScreen.tsx', import.meta.url), 'utf8')
+  ok(!/Oxen \(pair\)/.test(outfitSrc), 'outfit oxen not labeled pair')
+  ok(!/unit: 'yoke'/.test(outfitSrc), 'outfit oxen unit is not yoke')
+  const bought = gameReducer(base, {
+    type: 'PURCHASE_SUPPLIES',
+    supplies: { food: 0, ammo: WARE_WAGON.ammo, parts: 0, medicine: 0, oxen: 0 },
+  })
+  const rounds = WARE_WAGON.ammo * AMMO_ROUNDS_PER_BOX
+  ok(bought.ammunition === base.ammunition + rounds, `Ware ${WARE_WAGON.ammo} boxes → ${rounds} rd`)
+  const paid = WARE_WAGON.ammo * WARE_WAGON_PRICES.ammo
+  const townSell = Math.floor(AMMO_SELL_PER_ROUND * rounds)
+  ok(townSell <= paid, 'selling Ware powder at town cannot print tacos')
+  ok(paid === 40 && townSell === 20, 'paid 40, town would give 20')
 }
 
 console.log(`\nshop-sell tests: ${passed} passed, ${failed} failed`)

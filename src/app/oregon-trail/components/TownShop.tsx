@@ -14,6 +14,11 @@ import { DOSMessage } from '@/components/ui/DOSMessage'
 import { FloatingNumber } from '@/components/ui/FloatingNumber'
 import { useVisualEffect } from '../hooks/useVisualEffect'
 import { useEscapeKey } from '../lib/useEscapeKey'
+import {
+  AMMO_BUY_PER_ROUND,
+  AMMO_ROUNDS_PER_BOX,
+  AMMO_SELL_PER_ROUND,
+} from '../data/wareWagon'
 
 interface ShopItem {
   id: string
@@ -43,12 +48,12 @@ const SHOP_INVENTORY: ShopItem[] = [
     id: 'ammo',
     name: 'Ammunition',
     emoji: '🎯',
-    basePrice: 2,
-    sellPrice: 1,
-    unit: 'box',
-    description: 'Box of 20 rounds',
+    basePrice: AMMO_BUY_PER_ROUND,
+    sellPrice: AMMO_SELL_PER_ROUND,
+    unit: 'rd',
+    description: 'Box of 20 rounds. Same powder Matt sold at the outfitters.',
     resource: 'ammunition',
-    quantity: 20,
+    quantity: AMMO_ROUNDS_PER_BOX,
   },
   {
     id: 'medicine',
@@ -484,6 +489,7 @@ export function TownShop({ onClose }: TownShopProps) {
               return (
                 <div
                   key={item.id}
+                  data-testid={`shop-item-${item.id}`}
                   className={`west-face-row ${itemAffordable ? 'cursor-pointer' : 'opacity-50'}`}
                   onClick={() => itemAffordable && setSelectedItem(item)}
                 >

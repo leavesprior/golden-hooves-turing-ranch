@@ -14,6 +14,7 @@ import {
   WARE_WAGON_PRICES,
   STARTING_NEUTRAL_FOR_WARE,
   OUTFIT_PURSE_LINE,
+  AMMO_ROUNDS_PER_BOX,
 } from '../data/wareWagon'
 
 export function OutfittingScreen() {
@@ -64,9 +65,9 @@ export function OutfittingScreen() {
     step: number
     price: number
   }> = [
-    { key: 'oxen', name: 'Oxen (pair)', blurb: 'The door west. Slow, sure, and they eat grass you do not pack.', unit: 'yoke', step: 1, price: prices.oxen },
+    { key: 'oxen', name: 'Oxen', blurb: 'The door west. Matt sells by the head; a yoke is two heads. Need 2 to leave.', unit: 'head', step: 1, price: prices.oxen },
     { key: 'food', name: 'Flour', blurb: 'Joseph Ware, 1849: about 180 lb per person. Need 100 lb to leave.', unit: 'lb', step: 50, price: prices.food },
-    { key: 'ammo', name: 'Powder & lead', blurb: 'Hunting and the occasional warrant.', unit: 'box', step: 1, price: prices.ammo },
+    { key: 'ammo', name: 'Powder & lead', blurb: 'Hunting and the occasional warrant. One box is 20 rounds in the wagon.', unit: 'box', step: 1, price: prices.ammo },
     { key: 'parts', name: 'Spare axle', blurb: 'A broken axle without a spare ends a company.', unit: 'ea', step: 1, price: prices.parts },
     { key: 'medicine', name: 'Medicine chest', blurb: 'Laudanum, quinine, and more hope than science.', unit: 'kit', step: 1, price: prices.medicine },
   ]
@@ -143,8 +144,13 @@ export function OutfittingScreen() {
                   <div className="min-w-0">
                     <h2 className="font-serif text-lg text-[#f3ead8]">{row.name}</h2>
                     <p className="west-face-body mt-1">
-                      ${row.price} buy · {row.unit}. On hand: {onHand[row.key]}
-                      {row.key === 'food' ? ' lb' : ''}. Adding {supplies[row.key]}.
+                      ${row.price} buy · {row.unit}
+                      {row.key === 'ammo' ? ` (${AMMO_ROUNDS_PER_BOX} rd)` : ''}. On hand:{' '}
+                      {row.key === 'ammo'
+                        ? `${onHand.ammo} rd`
+                        : `${onHand[row.key]}${row.key === 'food' ? ' lb' : ''}`}
+                      . Adding {supplies[row.key]}
+                      {row.key === 'ammo' ? ' boxes' : ''}.
                     </p>
                     <p className="mt-1 text-sm text-[#9a8b70]">{row.blurb}</p>
                     {!plusOk && (
