@@ -2,13 +2,21 @@
  * This load is a little over that, still inside the 400-taco starting purse.
  * It does not win the trail by itself. The inn does. */
 
-export const WARE_WAGON = {
+export type WagonLoad = {
+  food: number
+  ammo: number
+  parts: number
+  medicine: number
+  oxen: number
+}
+
+export const WARE_WAGON: WagonLoad = {
   food: 800,
   ammo: 20,
   parts: 2,
   medicine: 2,
   oxen: 4,
-} as const
+}
 
 export const WARE_WAGON_PRICES = {
   food: 0.2,

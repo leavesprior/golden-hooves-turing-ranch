@@ -299,6 +299,25 @@ export function getHistoricalDepthLevel(score: number): string {
   return 'Newcomer'
 }
 
+/** Hub/interest-next reads visits without mounting ExplorerProvider. */
+export function readExplorerVisits(): { visitedTownIds: string[]; lastTownId?: string } {
+  if (typeof window === 'undefined') return { visitedTownIds: [] }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return { visitedTownIds: [] }
+    const parsed = JSON.parse(raw)
+    const visitedTownIds = Array.isArray(parsed?.visitedTowns)
+      ? parsed.visitedTowns.filter((id: unknown) => typeof id === 'string')
+      : []
+    const lastTownId = typeof parsed?.lastVisitedTown === 'string'
+      ? parsed.lastVisitedTown
+      : visitedTownIds[visitedTownIds.length - 1]
+    return { visitedTownIds, lastTownId }
+  } catch {
+    return { visitedTownIds: [] }
+  }
+}
+
 // ============================================
 // DEFAULT STATE
 // ============================================
