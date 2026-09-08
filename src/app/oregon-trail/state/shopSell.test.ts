@@ -64,15 +64,17 @@ console.log('T5 — dual-shop powder is one list')
   ok(AMMO_SELL_PER_ROUND === 0.05, 'town sell is half buy')
   const src = readFileSync(new URL('../components/TownShop.tsx', import.meta.url), 'utf8')
   const ammoBlock = src.slice(src.indexOf("id: 'ammo'"), src.indexOf("id: 'medicine'"))
-  ok(/AMMO_BUY_PER_ROUND/.test(ammoBlock), 'town buy is Ware per-round')
-  ok(/AMMO_SELL_PER_ROUND/.test(ammoBlock), 'town sell is Ware half')
-  ok(/AMMO_ROUNDS_PER_BOX/.test(ammoBlock), 'town batch is Matt box')
+  ok(/basePrice:\s*AMMO_BUY_PER_ROUND/.test(ammoBlock), 'town buy binds Ware per-round')
+  ok(/sellPrice:\s*AMMO_SELL_PER_ROUND/.test(ammoBlock), 'town sell binds Ware half')
+  ok(/quantity:\s*AMMO_ROUNDS_PER_BOX/.test(ammoBlock), 'town batch binds Matt box')
   ok(/unit:\s*'rd'/.test(ammoBlock), 'town unit is rounds')
+  ok(/Math\.floor\(item\.sellPrice \* totalAmount\)/.test(src), 'handleSell mints floor(sellPrice * amount)')
   const reducerSrc = readFileSync(new URL('./reducer.ts', import.meta.url), 'utf8')
   ok(/ammo \* AMMO_ROUNDS_PER_BOX/.test(reducerSrc), 'purchase converts boxes to rounds')
   const outfitSrc = readFileSync(new URL('../phases/OutfittingScreen.tsx', import.meta.url), 'utf8')
   ok(!/Oxen \(pair\)/.test(outfitSrc), 'outfit oxen not labeled pair')
-  ok(!/unit: 'yoke'/.test(outfitSrc), 'outfit oxen unit is not yoke')
+  ok(/unit: 'head'/.test(outfitSrc), 'outfit oxen unit is head')
+  ok(/\$\{onHand\.ammo\} rd/.test(outfitSrc), 'outfit on-hand powder is rounds')
   const bought = gameReducer(base, {
     type: 'PURCHASE_SUPPLIES',
     supplies: { food: 0, ammo: WARE_WAGON.ammo, parts: 0, medicine: 0, oxen: 0 },
@@ -80,9 +82,12 @@ console.log('T5 — dual-shop powder is one list')
   const rounds = WARE_WAGON.ammo * AMMO_ROUNDS_PER_BOX
   ok(bought.ammunition === base.ammunition + rounds, `Ware ${WARE_WAGON.ammo} boxes → ${rounds} rd`)
   const paid = WARE_WAGON.ammo * WARE_WAGON_PRICES.ammo
+  // Same formula as TownShop handleSell: Math.floor(item.sellPrice * totalAmount)
   const townSell = Math.floor(AMMO_SELL_PER_ROUND * rounds)
+  const oldMint = Math.floor(1 * rounds)
   ok(townSell <= paid, 'selling Ware powder at town cannot print tacos')
   ok(paid === 40 && townSell === 20, 'paid 40, town would give 20')
+  ok(oldMint === 400 && oldMint > paid, 'the old $1/rd sell would have printed')
 }
 
 console.log(`\nshop-sell tests: ${passed} passed, ${failed} failed`)
