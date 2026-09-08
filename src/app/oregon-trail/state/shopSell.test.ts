@@ -20,7 +20,7 @@ import {
   WARE_WAGON,
   WARE_WAGON_PRICES,
 } from '../data/wareWagon'
-import { defaultSellAmount, sellStep } from '../data/shopLots'
+import { clampSellQty, defaultSellAmount, sellStep } from '../data/shopLots'
 
 let passed = 0
 let failed = 0
@@ -102,9 +102,12 @@ console.log('T5 — dual-shop powder is one list')
   ok(Math.floor(0.3 * 3) === 0, 'three units at 0.3 print nothing')
   const lotsSrc = readFileSync(new URL('../data/shopLots.ts', import.meta.url), 'utf8')
   ok(/Math\.ceil\(1 \/ sellPrice\)/.test(lotsSrc), 'sellStep is ceil 1/price')
-  ok(/mode === 'sell' \? sellStep\(item\.sellPrice\) : 1/.test(src), 'select-in-sell starts at step')
-  ok(/Math\.max\(step, q - step\)/.test(src), 'minus uses the taco step')
-  ok(/Math\.min\(stock, q \+ step\)/.test(src), 'plus uses the taco step')
+  ok(/mode === 'sell' \? clampSellQty\(sellStep\(item\.sellPrice\), stock\) : 1/.test(src), 'select-in-sell starts at clamped step')
+  ok(clampSellQty(5 - 20, 5) === 0, 'minus on 5 rd goes to 0, not 20')
+  ok(clampSellQty(20, 5) === 5, 'qty cannot exceed stock')
+  ok(/clampSellQty\(q - step, stock\)/.test(src), 'minus clamps to stock')
+  ok(/clampSellQty\(q \+ step, stock\)/.test(src), 'plus clamps to stock')
+  ok(!/Math\.max\(step, q - step\)/.test(src), 'old minus jump is gone')
   ok(/mode === 'sell' && Math\.floor\(item\.sellPrice \* quantity\) <= 0/.test(src), 'confirm sell floors')
   ok(/Math\.floor\(item\.sellPrice \* Math\.min\(amt, stock\)\) <= 0/.test(src), 'quick-set 1 is dead for powder')
   ok(!/item\.resource === 'food' \? 10 : 1/.test(src), 'old food-only step is gone')

@@ -12,3 +12,9 @@ export function sellStep(sellPrice: number): number {
   if (!(sellPrice > 0) || !Number.isFinite(sellPrice)) return 1
   return Math.max(1, Math.ceil(1 / sellPrice))
 }
+
+/** Sell qty never exceeds stock. Minus must not jump up to the step. */
+export function clampSellQty(qty: number, stock: number): number {
+  if (stock <= 0) return 0
+  return Math.min(stock, Math.max(0, qty))
+}

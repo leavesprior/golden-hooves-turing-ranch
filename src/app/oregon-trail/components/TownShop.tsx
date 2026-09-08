@@ -19,7 +19,7 @@ import {
   AMMO_ROUNDS_PER_BOX,
   AMMO_SELL_PER_ROUND,
 } from '../data/wareWagon'
-import { defaultSellAmount, sellStep } from '../data/shopLots'
+import { clampSellQty, defaultSellAmount, sellStep } from '../data/shopLots'
 
 interface ShopItem {
   id: string
@@ -465,8 +465,7 @@ export function TownShop({ onClose }: TownShopProps) {
               setMode('sell')
               if (selectedItem) {
                 const stockNow = getCurrentStock(selectedItem.resource)
-                const step = sellStep(selectedItem.sellPrice)
-                setQuantity(stockNow >= step ? step : stockNow)
+                setQuantity(clampSellQty(sellStep(selectedItem.sellPrice), stockNow))
               }
             }}
             className={`flex-1 py-2 text-sm font-bold ${
@@ -503,7 +502,7 @@ export function TownShop({ onClose }: TownShopProps) {
                   onClick={() => {
                     if (!itemAffordable) return
                     setSelectedItem(item)
-                    setQuantity(mode === 'sell' ? sellStep(item.sellPrice) : 1)
+                    setQuantity(mode === 'sell' ? clampSellQty(sellStep(item.sellPrice), stock) : 1)
                   }}
                 >
                   <div className="flex items-start gap-3 w-full">
@@ -548,15 +547,17 @@ export function TownShop({ onClose }: TownShopProps) {
                           <div className="flex items-center gap-2 md:gap-2 flex-wrap">
                             {/* Standard +/- controls */}
                             <button
+                              data-testid="shop-minus"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 if (mode === 'sell') {
                                   const step = sellStep(item.sellPrice)
-                                  setQuantity(q => Math.max(step, q - step))
+                                  setQuantity(q => clampSellQty(q - step, stock))
                                 } else {
                                   setQuantity(q => Math.max(1, q - 1))
                                 }
                               }}
+                              disabled={mode === 'sell' && clampSellQty(quantity - sellStep(item.sellPrice), stock) === quantity}
                               className="w-10 h-10 md:w-6 md:h-6 text-lg md:text-base bg-amber-700 rounded text-amber-200 active:bg-amber-600"
                             >
                               -
@@ -565,15 +566,17 @@ export function TownShop({ onClose }: TownShopProps) {
                               {quantity}
                             </span>
                             <button
+                              data-testid="shop-plus"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 if (mode === 'sell') {
                                   const step = sellStep(item.sellPrice)
-                                  setQuantity(q => Math.min(stock, q + step))
+                                  setQuantity(q => clampSellQty(q + step, stock))
                                 } else {
                                   setQuantity(q => q + 1)
                                 }
                               }}
+                              disabled={mode === 'sell' && clampSellQty(quantity + sellStep(item.sellPrice), stock) === quantity}
                               className="w-10 h-10 md:w-6 md:h-6 text-lg md:text-base bg-amber-700 rounded text-amber-200 active:bg-amber-600"
                             >
                               +
