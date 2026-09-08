@@ -60,7 +60,7 @@ export function InteractiveTown({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-[#0e0c0a]" data-testid="explore-town-face" data-town={town.id}>
+    <div className="game-chrome-pad fixed inset-0 z-40 flex flex-col bg-[#0e0c0a]" data-testid="explore-town-face" data-town={town.id}>
       <header className="flex items-center justify-between px-4 py-3">
         <div>
           <p className="west-face-eyebrow">In town</p>
@@ -132,7 +132,7 @@ export function InteractiveTown({
             Secrets stay off the map until they unlock.
           </p>
         )}
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2 pl-14 md:pl-0" data-testid="explore-town-verbs">
           {present.map((a) => (
             <button
               key={a.id}
