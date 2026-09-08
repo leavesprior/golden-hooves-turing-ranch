@@ -100,6 +100,7 @@ console.log('T5 — dual-shop powder is one list')
   ok(sellStep(20) === 1, 'oxen +/- is 1 head')
   ok(/sellStep\(item\.sellPrice\)/.test(src), 'expanded row binds sellStep')
   ok(!/item\.resource === 'food' \? 10 : 1/.test(src), 'old food-only step is gone')
+  ok(/Math\.floor\(item\.sellPrice \* stock\) <= 0/.test(src), 'Sell All disables a 0-taco dump')
 }
 
 console.log(`\nshop-sell tests: ${passed} passed, ${failed} failed`)

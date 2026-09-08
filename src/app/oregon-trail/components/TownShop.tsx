@@ -463,7 +463,11 @@ export function TownShop({ onClose }: TownShopProps) {
           <button
             onClick={() => {
               setMode('sell')
-              if (selectedItem) setQuantity(sellStep(selectedItem.sellPrice))
+              if (selectedItem) {
+                const stockNow = getCurrentStock(selectedItem.resource)
+                const step = sellStep(selectedItem.sellPrice)
+                setQuantity(stockNow >= step ? step : stockNow)
+              }
             }}
             className={`flex-1 py-2 text-sm font-bold ${
               mode === 'sell'
@@ -603,7 +607,7 @@ export function TownShop({ onClose }: TownShopProps) {
                                     e.stopPropagation()
                                     setQuantity(stock)
                                   }}
-                                  disabled={stock < 1}
+                                  disabled={stock < 1 || Math.floor(item.sellPrice * stock) <= 0}
                                   className={`px-3 py-2 md:px-2 md:py-0.5 rounded text-sm md:text-xs font-bold active:scale-95 ${
                                     quantity === stock
                                       ? 'bg-green-600 text-green-100'
