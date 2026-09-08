@@ -19,6 +19,7 @@ import {
   AMMO_ROUNDS_PER_BOX,
   AMMO_SELL_PER_ROUND,
 } from '../data/wareWagon'
+import { defaultSellAmount } from '../data/shopLots'
 
 interface ShopItem {
   id: string
@@ -477,6 +478,7 @@ export function TownShop({ onClose }: TownShopProps) {
           <div className="grid gap-3">
             {SHOP_INVENTORY.map(item => {
               const stock = getCurrentStock(item.resource)
+              const sellAmt = defaultSellAmount(item.sellPrice, item.quantity, stock)
               // Buy mode: price per batch (item.quantity units)
               // Sell mode: price per unit
               const displayPrice = mode === 'buy'
@@ -484,7 +486,7 @@ export function TownShop({ onClose }: TownShopProps) {
                 : item.sellPrice
               const itemAffordable = mode === 'buy'
                 ? canAfford('neutral', displayPrice)
-                : stock >= 1  // Can sell if you have at least 1 unit
+                : sellAmt > 0
 
               return (
                 <div
@@ -511,9 +513,10 @@ export function TownShop({ onClose }: TownShopProps) {
                             </button>
                             <button
                               type="button"
+                              data-testid={`shop-sell-${item.id}`}
                               className="west-face-pill"
-                              disabled={stock < 1}
-                              onClick={(e) => { e.stopPropagation(); void handleSell(item, item.resource === 'food' ? Math.min(50, stock) : 1) }}
+                              disabled={sellAmt <= 0}
+                              onClick={(e) => { e.stopPropagation(); void handleSell(item, sellAmt) }}
                             >
                               Sell
                             </button>

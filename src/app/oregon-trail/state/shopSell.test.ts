@@ -20,6 +20,7 @@ import {
   WARE_WAGON,
   WARE_WAGON_PRICES,
 } from '../data/wareWagon'
+import { defaultSellAmount } from '../data/shopLots'
 
 let passed = 0
 let failed = 0
@@ -88,6 +89,12 @@ console.log('T5 — dual-shop powder is one list')
   ok(townSell <= paid, 'selling Ware powder at town cannot print tacos')
   ok(paid === 40 && townSell === 20, 'paid 40, town would give 20')
   ok(oldMint === 400 && oldMint > paid, 'the old $1/rd sell would have printed')
+  ok(defaultSellAmount(AMMO_SELL_PER_ROUND, AMMO_ROUNDS_PER_BOX, rounds) === AMMO_ROUNDS_PER_BOX, 'Sell pill dumps one box')
+  ok(defaultSellAmount(AMMO_SELL_PER_ROUND, AMMO_ROUNDS_PER_BOX, 19) === 0, 'short powder does not no-op-click')
+  ok(defaultSellAmount(0.10, 50, 800) === 50, 'food Sell still dumps 50 lb')
+  ok(defaultSellAmount(0.10, 50, 9) === 0, 'food under 10 lb cannot floor a taco')
+  ok(/defaultSellAmount\(item\.sellPrice, item\.quantity, stock\)/.test(src), 'Sell pill binds the lot helper')
+  ok(!/item\.resource === 'food' \? Math.min\(50, stock\) : 1/.test(src), 'old qty=1 ammo Sell is gone')
 }
 
 console.log(`\nshop-sell tests: ${passed} passed, ${failed} failed`)
