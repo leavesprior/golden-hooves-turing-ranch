@@ -256,6 +256,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Try the frozen blended drinks made with real ice cream. Open Thu-Tue, 7am-3pm. Closed Wednesdays.',
         duration: '30 min - 1 hour',
         xp: 15,
+        period: 'later',
       },
       {
         id: 'wp_kit_carson',
@@ -267,6 +268,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Look for the marker near the corner of Highway 26 and Main Street, in the center of town.',
         duration: '15 min',
         xp: 10,
+        period: 'later',
       },
       {
         id: 'wp_general_store',

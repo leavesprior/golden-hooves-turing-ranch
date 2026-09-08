@@ -122,6 +122,26 @@ export const INSPECT_PAYLOADS: OverlayInspect[] = [
       { title: 'GROK_OBSERVATIONS.md Layer B vs C', url: '/home/granny/neoma-grok-workspace/bobr-rpg-evaluation/GROK_OBSERVATIONS.md' },
     ],
   },
+  {
+    id: 'west_point_crossroads_1849',
+    kind: 'town',
+    landmark: 'West Point',
+    era: { year: 1849 },
+    provenance: 'document',
+    carmen: {
+      trailWord: 'the crossroads camp on the old trading road, flour and rope before the high claims, a day from the ranch in the pines',
+      pointsTo: 'west_point',
+      obscurity: 2,
+      witness: 'the pack string and the native road',
+    },
+    finding:
+      'This is a supply camp at a fork the native road already knew. Canvas and rope, not a highway plaque. The espresso house and the scout’s marker are later stories on this same dirt.',
+    fact:
+      'West Point, Calaveras County, sits on older Native trading routes. Tradition credits a Kit Carson passage in 1844 with the later name. The Highway 26 & Main commemorative marker is not an 1849 campsite. Willows on Main is a present cafe in the old Academy Club.',
+    sources: [
+      { title: 'goldCountryCanon west_point (audit 2026-07-20)', url: 'src/data/goldCountryCanon.ts' },
+    ],
+  },
 ]
 
 export function inspectFor(kind: OverlayInspect['kind'], landmark?: string): OverlayInspect | undefined {
