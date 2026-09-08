@@ -83,6 +83,30 @@ const TOWNS: Town[] = [
         period: 'later',
       },
       {
+        id: 'vol_canvas_flat',
+        name: 'Canvas saloon',
+        icon: '⛺',
+        category: 'dining',
+        description: 'Rope and canvas on the bowl floor. Josiah Bell keeps flour and rope. The brick is not from this year.',
+        funFact: '1849 is tents. The brick hotel and the theatre have not been built.',
+        insiderTip: 'Cook, 1849: oak and grass three to five feet high. The bowl is not a crater.',
+        duration: '20 min',
+        xp: 15,
+        period: 'available',
+      },
+      {
+        id: 'vol_soldiers_gulch',
+        name: "Soldiers' Gulch",
+        icon: '⛏️',
+        category: 'adventure',
+        description: "Stevenson's New York regiment men mined here in 1848. The rush year is 1849, not the first flake.",
+        funFact: 'Morning mist in the limestone basin is why they called it Volcano.',
+        insiderTip: 'Walk the gravel, not the future brick. St. George sits later on washed ground.',
+        duration: '30 min',
+        xp: 15,
+        period: 'available',
+      },
+      {
         id: 'vol_cemetery',
         name: 'Pioneer Cemetery',
         icon: '🪦',
@@ -1617,7 +1641,7 @@ function ExplorerMap({ peekTown }: { peekTown?: string }) {
     TOWNS.map((t) => [t.id, exploreMapPosition(t.id, t.coordinates.lat, t.coordinates.lng)]),
   ) as Record<string, { x: number; y: number }>
 
-  const peekOnly = !!peekTown
+  const peekOnly = !!peekHit
     && !hasExploreQr({ search: typeof window !== 'undefined' ? window.location.search : `?town=${peekTown}`, storage: typeof window !== 'undefined' ? window.sessionStorage : null })
 
   if (inTown && selectedTown) {

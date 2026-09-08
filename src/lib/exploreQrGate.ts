@@ -10,7 +10,7 @@ export const EXPLORE_QR_PATH = `/explore?qr=${EXPLORE_QR_TOKEN}`
 export const EXPLORE_QR_PUBLIC_URL = `https://backofbeyondranch.farm${EXPLORE_QR_PATH}`
 
 /** Hub interest may open ONE of these without the ranch-house QR. Not the full map. */
-export const EXPLORE_PEEK_TOWNS = ['volcano', 'jackson', 'angels_camp', 'west_point', 'bobr_ranch'] as const
+export const EXPLORE_PEEK_TOWNS = ['volcano', 'angels_camp', 'west_point', 'bobr_ranch'] as const
 
 export type StorageLike = { getItem(key: string): string | null; setItem?(key: string, value: string): void }
 
