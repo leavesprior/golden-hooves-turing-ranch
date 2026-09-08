@@ -35,3 +35,7 @@ export const WARE_WAGON_COST = Math.ceil(
 )
 
 export const STARTING_NEUTRAL_FOR_WARE = 400
+
+/** First-camp copy: the purse is issued, not earned on the trail. */
+export const OUTFIT_PURSE_LINE =
+  `A new wagon is issued ${STARTING_NEUTRAL_FOR_WARE} tacos — the expedition stake. Neutral karma, not a prize. Matt's store takes it for oxen, flour, powder, an axle, and a medicine chest. Ware's load is ${WARE_WAGON_COST}; what is left buys a first night at the inn.`
