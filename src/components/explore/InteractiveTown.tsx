@@ -156,7 +156,7 @@ export function InteractiveTown({
               {isAttractionVisited(a.id) ? '✓ ' : ''}{a.name}
             </button>
           ))}
-          {(town.secretAttractions || []).filter((s) => isSecretUnlocked(s.id)).map((a) => (
+          {(town.secretAttractions || []).filter((s) => isSecretUnlocked(s.id) && s.period !== 'later').map((a) => (
             <button key={a.id} type="button" className="west-face-pill text-[11px]" onClick={() => enterBuilding(a.id)}>
               {a.name}
             </button>

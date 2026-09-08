@@ -518,6 +518,7 @@ const TOWNS: Town[] = [
         secretUnlock: 'Complete the prologue game AND stay at the ranch',
         duration: '1-2 hours',
         xp: 100,
+        period: 'later',
         badge: { id: 'tobias_heir', name: 'Tobias\'s Heir', icon: '💎', description: 'Found the hidden stash', rarity: 'legendary' },
       },
     ],
