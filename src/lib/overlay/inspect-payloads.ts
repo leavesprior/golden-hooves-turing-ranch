@@ -129,7 +129,7 @@ export const INSPECT_PAYLOADS: OverlayInspect[] = [
     era: { year: 1849 },
     provenance: 'document',
     carmen: {
-      trailWord: 'the crossroads camp on the old trading road, flour and rope before the high claims, a day from the ranch in the pines',
+      trailWord: 'the crossroads camp on the old trading road, flour and rope before the high claims, a day from the oak camp in the pines',
       pointsTo: 'west_point',
       obscurity: 2,
       witness: 'the pack string and the native road',
