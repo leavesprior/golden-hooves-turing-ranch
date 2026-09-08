@@ -185,6 +185,7 @@ export function OutfittingScreen() {
             type="button"
             data-testid="outfit-ware"
             className="west-face-pill w-full text-center"
+            disabled={!canAfford('neutral', WARE_WAGON_COST)}
             onClick={() => {
               if (!canAfford('neutral', WARE_WAGON_COST)) return
               setSupplies({ ...WARE_WAGON })
