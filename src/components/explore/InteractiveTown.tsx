@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useExplorer, type Town, type Attraction } from '@/app/explore/explorerContext'
+import { arcadePresentAttractions, useExplorer, type Town, type Attraction } from '@/app/explore/explorerContext'
 import { useKarma } from '@/lib/karmaContext'
 import { VolcanoStayShow } from '@/components/VolcanoStayShow'
 import {
@@ -28,8 +28,10 @@ export function InteractiveTown({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [npcLine, setNpcLine] = useState<string | null>(null)
 
-  const spots = TOWN_HOTSPOTS[town.id] || []
-  const npcs = TOWN_NPCS[town.id] || []
+  const present = arcadePresentAttractions(town.attractions)
+  const presentIds = new Set(present.map((a) => a.id))
+  const spots = (TOWN_HOTSPOTS[town.id] || []).filter((s) => presentIds.has(s.attractionId))
+  const npcs = (TOWN_NPCS[town.id] || []).filter((n) => n.period !== 'later')
   const byId = useMemo(() => {
     const m = new Map<string, Attraction>()
     for (const a of town.attractions) m.set(a.id, a)
@@ -41,7 +43,7 @@ export function InteractiveTown({
 
   const enterBuilding = (attractionId: string) => {
     const a = byId.get(attractionId)
-    if (!a) return
+    if (!a || a.period === 'later') return
     visitTown(town.id)
     if (!isAttractionVisited(a.id)) {
       visitAttraction(a.id, town.id)
@@ -58,7 +60,7 @@ export function InteractiveTown({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-[#0e0c0a]">
+    <div className="fixed inset-0 z-40 flex flex-col bg-[#0e0c0a]" data-testid="explore-town-face" data-town={town.id}>
       <header className="flex items-center justify-between px-4 py-3">
         <div>
           <p className="west-face-eyebrow">In town</p>
@@ -131,7 +133,7 @@ export function InteractiveTown({
           </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
-          {town.attractions.map((a) => (
+          {present.map((a) => (
             <button
               key={a.id}
               type="button"

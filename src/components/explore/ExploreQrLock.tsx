@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore, type ReactNode } from 'react'
 import Link from 'next/link'
-import { hasExploreQr } from '@/lib/exploreQrGate'
+import { exploreSurfaceOpen } from '@/lib/exploreQrGate'
 
 function subscribe(onStoreChange: () => void) {
   window.addEventListener('storage', onStoreChange)
@@ -10,7 +10,7 @@ function subscribe(onStoreChange: () => void) {
 }
 
 function getOpen() {
-  return hasExploreQr({ search: window.location.search, storage: window.sessionStorage })
+  return exploreSurfaceOpen({ search: window.location.search, storage: window.sessionStorage })
 }
 
 /**
@@ -32,7 +32,7 @@ export default function ExploreQrLock({
     <div className="min-h-screen bg-[var(--pixel-bg-dark)] text-[var(--read-ink)] flex items-center justify-center px-6">
       <div className="max-w-lg text-center space-y-5">
         <p className="read-label uppercase tracking-[0.18em] text-[var(--pixel-gold-mid)]">At the ranch house</p>
-        <h1 className="font-serif text-3xl sm:text-4xl text-[var(--pixel-gold-light)]">The playable area is here</h1>
+        <h1 data-testid="explore-qr-lock" className="font-serif text-3xl sm:text-4xl text-[var(--pixel-gold-light)]">The playable area is here</h1>
         <p className="read-body">
           Scan the QR on the ranch house to walk Gold Country towns from the porch.
           Leave GPS on — nearby keepers, outfitters, and witnesses only speak when you are actually there.

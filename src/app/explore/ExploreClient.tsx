@@ -30,6 +30,7 @@ import { VolcanoStayShow } from '@/components/VolcanoStayShow'
 import { InteractiveTown } from '@/components/explore/InteractiveTown'
 import { GOLD_COUNTRY_MAP_ART, exploreMapPosition } from '@/lib/goldCountryEditorial'
 import { ProximityNpcs } from '@/components/westFace/ProximityNpcs'
+import { hasExploreQr } from '@/lib/exploreQrGate'
 
 // ============================================
 // TOWN & ATTRACTION DATA
@@ -41,7 +42,7 @@ const TOWNS: Town[] = [
     name: 'Volcano',
     tagline: 'The Town That Wouldn\'t Die',
     description: 'Once home to 17,000 souls during the Gold Rush, now a charming ghost town with 85 residents and countless secrets.',
-    townStory: 'Founded in 1848, Volcano was named for the volcanic-like appearance of its gold-bearing quartz. It was briefly considered for California\'s capital and housed the state\'s first lending library, astronomical observatory, and little theatre.',
+    townStory: 'Founded in 1848 as a placer camp in a limestone bowl. Canvas and rope in 1849. Brick Main Street, St. George, Cobblestone Theatre, and Madeira\'s observatory are later.',
     coordinates: { lat: 38.4413, lng: -120.6294 },
     attractions: [
       {
@@ -54,6 +55,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Ask for Room 14 - it has the most paranormal activity according to ghost hunters.',
         duration: '1-2 hours',
         xp: 25,
+        period: 'later',
       },
       {
         id: 'vol_theatre',
@@ -66,6 +68,7 @@ const TOWNS: Town[] = [
         duration: '2-3 hours',
         xp: 20,
         coordinates: { lat: 38.4420, lng: -120.6280 },
+        period: 'later',
       },
       {
         id: 'vol_observatory',
@@ -77,6 +80,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Visit at dusk for atmospheric photos with the Sierra Nevada backdrop.',
         duration: '30 min',
         xp: 15,
+        period: 'later',
       },
       {
         id: 'vol_cemetery',
@@ -99,6 +103,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The cannon is near the General Store - perfect for a historic photo op.',
         duration: '15 min',
         xp: 10,
+        period: 'later',
       },
     ],
     secretAttractions: [
@@ -1582,16 +1587,17 @@ function ExplorerHUD() {
 }
 
 // Main Map Component
-function ExplorerMap() {
-  const [selectedTown, setSelectedTown] = useState<Town | null>(null)
+function ExplorerMap({ peekTown }: { peekTown?: string }) {
+  const peekHit = peekTown ? TOWNS.find((t) => t.id === peekTown) || null : null
+  const [selectedTown, setSelectedTown] = useState<Town | null>(peekHit)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [inTown, setInTown] = useState(false)
+  const [inTown, setInTown] = useState(!!peekHit)
   const { progress, isTownVisited, getTownCompletionPercent, isMysterySolved, getMysteryProgress } = useExplorer()
 
   useEffect(() => {
     trackPageView('/explore')
     try {
-      const q = new URLSearchParams(window.location.search).get('town')
+      const q = peekTown || new URLSearchParams(window.location.search).get('town')
       if (q) {
         const hit = TOWNS.find((t) => t.id === q)
         if (hit) {
@@ -1600,7 +1606,7 @@ function ExplorerMap() {
         }
       }
     } catch { /* ignore */ }
-  }, [])
+  }, [peekTown])
 
   const handleTownClick = (town: Town) => {
     setSelectedTown(town)
@@ -1611,8 +1617,26 @@ function ExplorerMap() {
     TOWNS.map((t) => [t.id, exploreMapPosition(t.id, t.coordinates.lat, t.coordinates.lng)]),
   ) as Record<string, { x: number; y: number }>
 
+  const peekOnly = !!peekTown
+    && !hasExploreQr({ search: typeof window !== 'undefined' ? window.location.search : `?town=${peekTown}`, storage: typeof window !== 'undefined' ? window.sessionStorage : null })
+
   if (inTown && selectedTown) {
-    return <InteractiveTown town={selectedTown} onLeave={() => setInTown(false)} />
+    return (
+      <InteractiveTown
+        town={selectedTown}
+        onLeave={() => {
+          if (peekOnly) {
+            window.location.assign('/hub')
+            return
+          }
+          setInTown(false)
+        }}
+      />
+    )
+  }
+
+  if (peekOnly) {
+    return null
   }
 
   return (
@@ -1789,7 +1813,7 @@ function ExplorerMap() {
 // MAIN EXPORT
 // ============================================
 
-export default function ExplorePage() {
+export default function ExplorePage({ peekTown }: { peekTown?: string } = {}) {
   const [toast, setToast] = useState<{ message: string; type: 'level' | 'badge' | 'secret' } | null>(null)
 
   useEffect(() => {
@@ -1811,7 +1835,7 @@ export default function ExplorePage() {
         setToast({ message: `Secret Unlocked: ${attraction.name}`, type: 'secret' })
       }}
     >
-      <ExplorerMap />
+      <ExplorerMap peekTown={peekTown} />
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-slide-in-up">
           <div className={`px-6 py-3 rounded-lg border-2 font-pixel text-sm shadow-lg ${

@@ -4,6 +4,7 @@ import ExploreClient from './ExploreClient'
 import {
   EXPLORE_QR_STORAGE,
   EXPLORE_QR_TOKEN,
+  peekTownFromSearch,
   tokenFromSearch,
 } from '@/lib/exploreQrGate'
 
@@ -23,15 +24,16 @@ export default async function ExplorePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const sp = await searchParams
-  const search = `?qr=${encodeURIComponent(first(sp.qr))}&gate=${encodeURIComponent(first(sp.gate))}`
+  const search = `?qr=${encodeURIComponent(first(sp.qr))}&gate=${encodeURIComponent(first(sp.gate))}&town=${encodeURIComponent(first(sp.town))}`
   const jar = await cookies()
   const initialOpen =
     tokenFromSearch(search) === EXPLORE_QR_TOKEN ||
-    jar.get(EXPLORE_QR_STORAGE)?.value === EXPLORE_QR_TOKEN
+    jar.get(EXPLORE_QR_STORAGE)?.value === EXPLORE_QR_TOKEN ||
+    peekTownFromSearch(search) !== ''
 
   return (
     <ExploreQrLock initialOpen={initialOpen}>
-      <ExploreClient />
+      <ExploreClient peekTown={peekTownFromSearch(search) || undefined} />
     </ExploreQrLock>
   )
 }

@@ -29,6 +29,12 @@ export interface Attraction {
   xp: number               // Experience points
   badge?: Badge
   coordinates?: { lat: number; lng: number }
+  /** Omit or 'available' = 1849-present. 'later' stays in data, off the arcade face. */
+  period?: 'available' | 'later'
+}
+
+export function arcadePresentAttractions<T extends { period?: 'available' | 'later' }>(attractions: T[]): T[] {
+  return attractions.filter((a) => a.period !== 'later')
 }
 
 export interface Badge {

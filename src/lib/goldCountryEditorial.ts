@@ -157,7 +157,16 @@ export interface TownNpc {
   x: number
   y: number
   line: string
+  period?: 'available' | 'later'
 }
+
+/** Overlay volcano-1849 later ledger. Pins stay in data; 1849 face must not show them. */
+export const VOLCANO_LATER_ATTRACTION_IDS = [
+  'vol_st_george',
+  'vol_theatre',
+  'vol_observatory',
+  'vol_cannon',
+] as const
 
 /** Building pins on each town painting (percent of the image). */
 export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
@@ -231,8 +240,8 @@ export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
 
 export const TOWN_NPCS: Record<string, TownNpc[]> = {
   volcano: [
-    { id: 'v_keeper', name: 'Box-office keeper', x: 58, y: 62, line: 'The Cobblestone keeps fifty. Sleep at the ranch if you want a seat that weekend.' },
-    { id: 'v_armand', name: 'Night clerk', x: 24, y: 62, line: 'Room 14 still has a guest who never checked out.' },
+    { id: 'v_keeper', name: 'Box-office keeper', x: 58, y: 62, line: 'The Cobblestone keeps fifty. Sleep at the ranch if you want a seat that weekend.', period: 'later' },
+    { id: 'v_armand', name: 'Night clerk', x: 24, y: 62, line: 'Room 14 still has a guest who never checked out.', period: 'later' },
   ],
   angels_camp: [
     { id: 'ac_coon', name: 'Bartender', x: 20, y: 68, line: 'A jumper is only as honest as the man who holds him.' },
