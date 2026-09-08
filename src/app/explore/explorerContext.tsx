@@ -50,6 +50,9 @@ export interface Town {
   id: string
   name: string
   tagline: string           // "The Town That Wouldn't Die"
+  /** 1849 arcade face when later attractions are filtered off. */
+  eraName?: string
+  eraTagline?: string
   description: string
   attractions: Attraction[]
   secretAttractions: Attraction[]

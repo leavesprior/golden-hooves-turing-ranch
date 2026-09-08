@@ -43,6 +43,8 @@ for (const id of ['bobr_cabin', 'bobr_treasure', 'bobr_gold_pan']) {
   ok(/period:\s*'later'/.test(block), `${id} tagged later in code`)
 }
 ok(!/period:\s*'later'/.test(src.split("id: 'bobr_campfire'")[1]?.slice(0, 700) || ''), 'campfire stays 1849-present')
+ok(/eraName:\s*'The oak camp'/.test(src), 'ranch 1849 face is named the oak camp')
+ok(/eraTagline:\s*'Fire at dusk'/.test(src), 'ranch 1849 tagline is fire at dusk')
 ok(/id: 'vol_canvas_flat'/.test(src) && /id: 'vol_soldiers_gulch'/.test(src), '1849 canvas and gulch exist in ExploreClient')
 ok(/Canvas and rope in 1849/.test(code), 'townStory is 1849 canvas, not brick capital')
 ok(!/housed the state's first lending library, astronomical observatory, and little theatre/.test(code), '1849 story does not claim later brick as present')

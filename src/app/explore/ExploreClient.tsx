@@ -451,6 +451,8 @@ const TOWNS: Town[] = [
     id: 'bobr_ranch',
     name: 'Back of Beyond Ranch',
     tagline: 'Your Base Camp',
+    eraName: 'The oak camp',
+    eraTagline: 'Fire at dusk',
     description: 'The real guest ranch in the Calaveras oak foothills — greenhouse porch, oaks, and the camp from which the Gold Country towns are walked.',
     townStory: 'Back of Beyond Ranch is the home place: a two-story cedar house with a glass sun porch under valley oaks, a few miles of West Point. Staging point for virtual adventures and the real explorations that start from the porch.',
     coordinates: { lat: 38.3947, lng: -120.5269 },

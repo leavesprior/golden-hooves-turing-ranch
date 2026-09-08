@@ -29,6 +29,9 @@ export function InteractiveTown({
   const [npcLine, setNpcLine] = useState<string | null>(null)
 
   const present = arcadePresentAttractions(town.attractions)
+  const eraFace = present.length < town.attractions.length
+  const faceName = eraFace && town.eraName ? town.eraName : town.name
+  const faceTagline = eraFace && town.eraTagline ? town.eraTagline : town.tagline
   const presentIds = new Set(present.map((a) => a.id))
   const spots = (TOWN_HOTSPOTS[town.id] || []).filter((s) => presentIds.has(s.attractionId))
   const npcs = (TOWN_NPCS[town.id] || []).filter((n) => n.period !== 'later')
@@ -64,8 +67,8 @@ export function InteractiveTown({
       <header className="flex items-center justify-between px-4 py-3">
         <div>
           <p className="west-face-eyebrow">In town</p>
-          <h1 className="west-face-title text-2xl">{town.name}</h1>
-          <p className="font-serif text-sm text-[#b8a88a]">{town.tagline}</p>
+          <h1 className="west-face-title text-2xl" data-testid="explore-town-title">{faceName}</h1>
+          <p className="font-serif text-sm text-[#b8a88a]">{faceTagline}</p>
         </div>
         <button type="button" className="west-face-pill" onClick={onLeave}>
           Leave town
