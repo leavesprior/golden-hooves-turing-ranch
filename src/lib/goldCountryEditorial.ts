@@ -176,6 +176,8 @@ export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
     { attractionId: 'vol_cannon', x: 14, y: 58 },
     { attractionId: 'vol_observatory', x: 78, y: 28 },
     { attractionId: 'vol_cemetery', x: 88, y: 62 },
+    { attractionId: 'vol_canvas_flat', x: 68, y: 70 },
+    { attractionId: 'vol_soldiers_gulch', x: 42, y: 82 },
   ],
   angels_camp: [
     { attractionId: 'ac_main_street', x: 50, y: 52 },
@@ -242,6 +244,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
   volcano: [
     { id: 'v_keeper', name: 'Box-office keeper', x: 58, y: 62, line: 'The Cobblestone keeps fifty. Sleep at the ranch if you want a seat that weekend.', period: 'later' },
     { id: 'v_armand', name: 'Night clerk', x: 24, y: 62, line: 'Room 14 still has a guest who never checked out.', period: 'later' },
+    { id: 'v_bell', name: 'Josiah Bell', x: 64, y: 74, line: 'Flour and rope. The brick is not from this year. The box on the bar is not from this gulch.' },
   ],
   angels_camp: [
     { id: 'ac_coon', name: 'Bartender', x: 20, y: 68, line: 'A jumper is only as honest as the man who holds him.' },

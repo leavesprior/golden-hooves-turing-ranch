@@ -34,7 +34,9 @@ ok(arcadePresentAttractions([{ id: 'vol_st_george' } as { id: string; period?: '
 
 ok(arcadePresentAttractions([{ id: 'x', period: 'later' as const }]).length === 0, 'later-only list is empty')
 
-ok(TOWN_NPCS.volcano.every((n) => n.period === 'later'), 'volcano NPCs tied to hotel/theatre are later')
+ok(TOWN_NPCS.volcano.filter((n) => n.period === 'later').map((n) => n.id).sort().join() === 'v_armand,v_keeper', 'hotel/theatre NPCs stay later')
+ok(TOWN_NPCS.volcano.some((n) => n.id === 'v_bell' && n.period !== 'later'), 'Josiah Bell is 1849-present on the canvas')
+ok(/id: 'vol_canvas_flat'/.test(src) && /id: 'vol_soldiers_gulch'/.test(src), '1849 canvas and gulch exist in ExploreClient')
 ok(/Canvas and rope in 1849/.test(code), 'townStory is 1849 canvas, not brick capital')
 ok(!/housed the state's first lending library, astronomical observatory, and little theatre/.test(code), '1849 story does not claim later brick as present')
 
