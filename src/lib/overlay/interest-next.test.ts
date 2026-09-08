@@ -1,0 +1,34 @@
+/**
+ * Hub interest never names a door with no playable face.
+ *   node_modules/.bin/tsx src/lib/overlay/interest-next.test.ts
+ */
+import { nextInterest, isPlayableInterest } from './interest-next'
+
+let passed = 0
+let failed = 0
+function ok(cond: boolean, name: string) {
+  if (cond) passed += 1
+  else { failed += 1; console.error('FAIL', name) }
+}
+
+const empty = nextInterest([])
+ok(empty.id === 'volcano', 'first door is volcano')
+ok(empty.named === false, 'carmen does not name volcano')
+
+const afterVolcano = nextInterest(['volcano'], 'volcano')
+ok(afterVolcano.id !== 'jackson', 'after volcano does not send jackson (no explorer face)')
+ok(afterVolcano.id === 'west_point', 'after volcano the next playable neighbor is west_point')
+ok(isPlayableInterest(afterVolcano.id || '') === true, 'chosen door is playable')
+
+const afterAngels = nextInterest(['angels_camp'], 'angels_camp')
+ok(afterAngels.id !== 'jackson', 'after angels does not send jackson')
+ok(afterAngels.id === 'bobr_ranch', 'after angels the playable neighbor is the ranch')
+
+const afterPlayable = nextInterest(
+  ['volcano', 'angels_camp', 'west_point', 'bobr_ranch', 'kansas_river'],
+  'west_point',
+)
+ok(afterPlayable.done === true, 'done when every playable door is visited even if jackson remains')
+
+if (failed) { console.error(`${failed} failed, ${passed} passed`); process.exit(1) }
+console.log(JSON.stringify({ ok: true, passed }))

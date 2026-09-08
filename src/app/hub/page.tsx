@@ -7,7 +7,7 @@ import { useKarma, ALIGNMENT_DISPLAY_NAMES } from '@/lib/karmaContext'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import { hasAnyCharacter } from '@/lib/sharedCharacter'
 import { KarmaToastContainer, HouseRulesQuiz } from '@/components/karma'
-import { nextInterest } from '@/lib/overlay/interest-next'
+import { isPlayableInterest, nextInterest } from '@/lib/overlay/interest-next'
 import { readExplorerVisits } from '@/app/explore/explorerContext'
 
 /** One quiet row in More — depth stays, first paint does not. */
@@ -53,7 +53,9 @@ export default function HubPage() {
     ? '/explore'
     : interest.id === 'kansas_river'
       ? '/oregon-trail'
-      : `/explore?town=${interest.id}`
+      : isPlayableInterest(interest.id)
+        ? `/explore?town=${interest.id}`
+        : '/explore'
 
   const alignmentName = ALIGNMENT_DISPLAY_NAMES[alignmentPosition] || alignmentPosition
 

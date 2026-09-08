@@ -1,11 +1,12 @@
 /**
  * Interest-next: the AR loop that can run without surviving the wagon.
- * Hub Explorer is already unlocked. Next door is an unvisited neighbor.
- * Carmen trail-word points at a place and never names it.
+ * Next door is an unvisited neighbor that has a playable face
+ * (peek town or the trail). Carmen trail-word points at a place and never names it.
  * No GPS coordinates here (sacred sites stay server-only).
  */
 import { INSPECT_PAYLOADS, inspectFor } from './inspect-payloads'
 import { OVERLAY_CONTRACT } from './overlay-contract'
+import { EXPLORE_PEEK_TOWNS } from '@/lib/exploreQrGate'
 
 export const INTEREST_DOORS = [
   { id: 'volcano', neighbors: ['jackson', 'west_point', 'angels_camp'] },
@@ -43,16 +44,18 @@ export function visitedSet(ids: readonly unknown[]): Set<string> {
   return out
 }
 
+export function isPlayableInterest(id: string): boolean {
+  if (id === 'kansas_river') return true
+  return (EXPLORE_PEEK_TOWNS as readonly string[]).includes(id)
+}
+
 export function nextInterest(visited: readonly unknown[], last?: string) {
   const have = visitedSet(visited)
   const doors = INTEREST_DOORS
-  if (have.size >= doors.length) {
-    return { id: null as string | null, trailWord: null as string | null, pointsTo: null as string | null, done: true }
-  }
   const lastDoor = doors.find((d) => d.id === last)
-  const neighbor = lastDoor?.neighbors.find((n) => !have.has(n) && doors.some((d) => d.id === n))
-  const id = (neighbor && doors.some((d) => d.id === neighbor) ? neighbor : doors.find((d) => !have.has(d.id))?.id) || null
-  if (!id) return { id: null, trailWord: null, pointsTo: null, done: true }
+  const neighbor = lastDoor?.neighbors.find((n) => !have.has(n) && doors.some((d) => d.id === n) && isPlayableInterest(n))
+  const id = (neighbor && isPlayableInterest(neighbor) ? neighbor : doors.find((d) => !have.has(d.id) && isPlayableInterest(d.id))?.id) || null
+  if (!id) return { id: null as string | null, trailWord: null as string | null, pointsTo: null as string | null, done: true }
   const inspectId = INSPECT_FOR_DOOR[id as DoorId]
   const inspect = inspectId ? INSPECT_PAYLOADS.find((p) => p.id === inspectId) : inspectFor('town')
   const trailWord = inspect?.carmen.trailWord ?? 'canvas, a creek, flour, and a road that does not yet have a name on a plaque'
