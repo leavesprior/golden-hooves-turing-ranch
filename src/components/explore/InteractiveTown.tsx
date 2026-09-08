@@ -90,14 +90,16 @@ export function InteractiveTown({
               type="button"
               title={a.name}
               onClick={() => enterBuilding(spot.attractionId)}
-              className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 px-2 py-1 text-xs font-serif shadow-lg ${
+              data-testid={`explore-spot-${spot.attractionId}`}
+              className={`absolute z-10 flex h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 px-2 text-xs font-serif shadow-lg ${
                 seen
                   ? 'border-emerald-500/70 bg-black/70 text-emerald-200'
                   : 'border-amber-400/80 bg-black/75 text-[#e8dcc4]'
               }`}
               style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
             >
-              {a.icon} {a.name}
+              <span aria-hidden>{a.icon}</span>
+              <span className="ml-1 hidden sm:inline">{a.name}</span>
             </button>
           )
         })}
@@ -108,10 +110,11 @@ export function InteractiveTown({
             type="button"
             title={npc.name}
             onClick={() => talkNpc(npc.line, npc.name)}
+            data-testid={`explore-npc-${npc.id}`}
             className="absolute z-10 -translate-x-1/2 -translate-y-full rounded-sm bg-[#e8dcc4] px-2 py-1 font-serif text-[11px] text-[#1a1208]"
             style={{ left: `${npc.x}%`, top: `${npc.y}%` }}
           >
-            Talk · {npc.name}
+            Talk<span className="hidden sm:inline"> · {npc.name}</span>
           </button>
         ))}
       </div>

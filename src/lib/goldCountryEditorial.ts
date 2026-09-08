@@ -251,7 +251,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
   ],
   west_point: [
     { id: 'wp_will', name: 'Willows regular', x: 36, y: 68, line: 'Highway 26 still does what the old trails did: everybody passes through.', period: 'later' },
-    { id: 'wp_pack', name: 'Packer', x: 52, y: 62, line: 'Flour, rope, and a road the native camps already knew. The plaque is not from this year.' },
+    { id: 'wp_pack', name: 'Packer', x: 72, y: 78, line: 'Flour, rope, and a road the native camps already knew. The plaque is not from this year.' },
   ],
   mokelumne_hill: [
     { id: 'mh_leger', name: 'Hotel night man', x: 46, y: 58, line: 'We keep a room for the living and a ledger for the rest.' },
