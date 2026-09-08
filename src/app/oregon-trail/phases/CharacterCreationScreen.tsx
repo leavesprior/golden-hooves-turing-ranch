@@ -116,6 +116,22 @@ export function CharacterCreationScreen() {
     setPointsRemaining(next.remaining)
   }
 
+  const spendEven = () => {
+    const order: StatName[] = ['Shrewdness', 'Agility', 'Durability', 'Diplomacy', 'Luck', 'Expertise']
+    let i = 0
+    while (remainingRef.current > 0 && i < 48) {
+      const stat = order[i % order.length]
+      const minValue = hasRolled ? baseStats[stat] : BASE_STATS[stat]
+      const next = applySaddleAdjust(statsRef.current, remainingRef.current, stat, 1, minValue)
+      i += 1
+      if (!next) continue
+      statsRef.current = next.stats
+      remainingRef.current = next.remaining
+    }
+    setStatPoints({ ...statsRef.current })
+    setPointsRemaining(remainingRef.current)
+  }
+
   const handleFinalize = () => {
     if (remainingRef.current !== 0 || !selectedBackground) return
 
@@ -170,6 +186,8 @@ export function CharacterCreationScreen() {
             {backgrounds.map(bg => (
               <button
                 key={bg.id}
+                type="button"
+                data-testid={`saddle-background-${bg.id}`}
                 onClick={() => setSelectedBackground(bg.id)}
                 className={`p-4 md:p-3 rounded border-2 text-left transition-all active:scale-[0.98] ${
                   selectedBackground === bg.id
@@ -198,6 +216,8 @@ export function CharacterCreationScreen() {
 
           <div className="flex items-center gap-3 mb-3">
             <button
+              type="button"
+              data-testid="saddle-roll"
               onClick={rollDice}
               disabled={isRolling}
               className={`flex-1 py-4 md:py-2 font-pixel text-base md:text-sm rounded border-2 transition-all active:scale-[0.98] ${
@@ -208,10 +228,15 @@ export function CharacterCreationScreen() {
             >
               {isRolling ? '\uD83C\uDFB2 Rolling...' : hasRolled ? '\uD83C\uDFB2 Reroll Stats (3d6)' : '\uD83C\uDFB2 Roll Stats (3d6 each)'}
             </button>
-            {!hasRolled && (
-              <div className="text-amber-500 text-xs">
-                or use standard allocation {'\u2192'}
-              </div>
+            {pointsRemaining > 0 && (
+              <button
+                type="button"
+                data-testid="saddle-standard"
+                onClick={spendEven}
+                className="py-4 md:py-2 px-3 font-pixel text-xs rounded border-2 border-amber-700 text-amber-200 hover:bg-amber-900/40"
+              >
+                Spend remaining evenly
+              </button>
             )}
           </div>
 
@@ -297,6 +322,8 @@ export function CharacterCreationScreen() {
                     </div>
                     <span className="w-8 text-center text-purple-200 text-base md:text-sm font-pixel">{shown}</span>
                     <button
+                      type="button"
+                      data-testid={`saddle-plus-${stat}`}
                       onClick={() => adjustStat(stat, 1)}
                       disabled={value >= 18 || pointsRemaining <= 0}
                       className="w-11 h-11 md:w-6 md:h-6 text-lg md:text-base bg-purple-800 text-purple-200 rounded disabled:opacity-30 active:bg-purple-600"
@@ -311,6 +338,8 @@ export function CharacterCreationScreen() {
 
         {/* Proceed stays in the iPhone fold above mute. */}
         <button
+          type="button"
+          data-testid="saddle-begin"
           onClick={handleFinalize}
           disabled={pointsRemaining !== 0 || !selectedBackground}
           className="relative z-10 mt-4 w-full py-4 md:py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 font-pixel text-base md:text-sm rounded border-4 border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
