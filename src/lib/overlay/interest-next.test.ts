@@ -27,6 +27,12 @@ const afterAngels = nextInterest(['angels_camp'], 'angels_camp')
 ok(afterAngels.id !== 'jackson', 'after angels does not send jackson')
 ok(afterAngels.id === 'bobr_ranch', 'after angels the playable neighbor is the ranch')
 
+const afterWest = nextInterest(['volcano', 'west_point'], 'west_point')
+ok(afterWest.id === 'bobr_ranch', 'after west_point the next playable neighbor is the oak camp')
+ok(afterWest.named === false, 'carmen does not name the ranch')
+ok(/oak camp/.test(afterWest.trailWord || ''), 'ranch has its own trail-word')
+ok(!/ranch|beyond/i.test(afterWest.trailWord || ''), 'trail-word does not say the guest-house name')
+
 const afterPlayable = nextInterest(
   ['volcano', 'angels_camp', 'west_point', 'bobr_ranch', 'kansas_river'],
   'west_point',

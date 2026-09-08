@@ -142,6 +142,25 @@ export const INSPECT_PAYLOADS: OverlayInspect[] = [
       { title: 'goldCountryCanon west_point (audit 2026-07-20)', url: 'src/data/goldCountryCanon.ts' },
     ],
   },
+  {
+    id: 'bobr_ranch_oak_camp_1849',
+    kind: 'town',
+    era: { year: 1849 },
+    provenance: 'testimony',
+    carmen: {
+      trailWord: 'the oak camp a day off the trading road, fire at dusk, the towns are the work',
+      pointsTo: 'bobr_ranch',
+      obscurity: 2,
+      witness: 'the fire and the oaks',
+    },
+    finding:
+      'This is a camp in the oaks, not a guest house. Fire at dusk. The glass porch, the loft, and the seeded pan are later comforts on the same dirt.',
+    fact:
+      'Back of Beyond Ranch is a present guest ranch near West Point. The 1849 arcade face is the camp: fire, oaks, and a road to the towns. Cabin booking, treasure-hunt QR, and guaranteed-flake panning are later.',
+    sources: [
+      { title: 'BOBR ranch as camp, not 1849 hotel', url: 'src/app/explore/ExploreClient.tsx' },
+    ],
+  },
 ]
 
 export function inspectFor(kind: OverlayInspect['kind'], landmark?: string): OverlayInspect | undefined {

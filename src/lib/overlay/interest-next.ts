@@ -23,6 +23,7 @@ const INSPECT_FOR_DOOR: Partial<Record<DoorId, string>> = {
   volcano: 'town_pause_1849_not_ladle',
   jackson: 'town_pause_1849_not_ladle',
   west_point: 'west_point_crossroads_1849',
+  bobr_ranch: 'bobr_ranch_oak_camp_1849',
   angels_camp: 'snake_give_the_grass',
   kansas_river: 'kansas_river_pappan_ferry',
 }

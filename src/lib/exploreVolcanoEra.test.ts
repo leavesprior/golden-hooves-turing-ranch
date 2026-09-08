@@ -38,6 +38,11 @@ ok(TOWN_NPCS.volcano.filter((n) => n.period === 'later').map((n) => n.id).sort()
 ok(TOWN_NPCS.volcano.some((n) => n.id === 'v_bell' && n.period !== 'later'), 'Josiah Bell is 1849-present on the canvas')
 ok(TOWN_NPCS.west_point.some((n) => n.id === 'wp_will' && n.period === 'later'), 'Willows regular is later')
 ok(TOWN_NPCS.west_point.some((n) => n.id === 'wp_pack' && n.period !== 'later'), 'Packer is 1849-present')
+for (const id of ['bobr_cabin', 'bobr_treasure', 'bobr_gold_pan']) {
+  const block = src.split(`id: '${id}'`)[1]?.slice(0, 900) || ''
+  ok(/period:\s*'later'/.test(block), `${id} tagged later in code`)
+}
+ok(!/period:\s*'later'/.test(src.split("id: 'bobr_campfire'")[1]?.slice(0, 700) || ''), 'campfire stays 1849-present')
 ok(/id: 'vol_canvas_flat'/.test(src) && /id: 'vol_soldiers_gulch'/.test(src), '1849 canvas and gulch exist in ExploreClient')
 ok(/Canvas and rope in 1849/.test(code), 'townStory is 1849 canvas, not brick capital')
 ok(!/housed the state's first lending library, astronomical observatory, and little theatre/.test(code), '1849 story does not claim later brick as present')

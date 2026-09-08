@@ -465,6 +465,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Book the loft room for the best stargazing through the skylight.',
         duration: 'As long as you stay!',
         xp: 50,
+        period: 'later',
       },
       {
         id: 'bobr_treasure',
@@ -476,6 +477,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Start at the old oak tree and follow the compass directions.',
         duration: '2-3 hours',
         xp: 40,
+        period: 'later',
       },
       {
         id: 'bobr_campfire',
@@ -498,6 +500,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Morning is best - the gold shows up better in angled sunlight.',
         duration: '1 hour',
         xp: 25,
+        period: 'later',
       },
     ],
     secretAttractions: [

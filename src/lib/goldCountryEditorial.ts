@@ -260,7 +260,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'sa_clerk', name: 'Court clerk', x: 36, y: 62, line: 'Bart was undone by laundry. Justice here still reads small marks.' },
   ],
   bobr_ranch: [
-    { id: 'br_tobias', name: 'Tobias', x: 62, y: 78, line: 'Back of Beyond is the camp. The towns are the work.' },
+    { id: 'br_tobias', name: 'Tobias', x: 62, y: 78, line: 'Fire here. The towns are the work. The house with glass is not from this year.' },
   ],
   nevada_city: [
     { id: 'nc_lamp', name: 'Lamp-lighter', x: 22, y: 70, line: 'Gaslight made this place think it was a city. The pines never agreed.' },
