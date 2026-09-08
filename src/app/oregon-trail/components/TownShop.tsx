@@ -19,7 +19,7 @@ import {
   AMMO_ROUNDS_PER_BOX,
   AMMO_SELL_PER_ROUND,
 } from '../data/wareWagon'
-import { defaultSellAmount } from '../data/shopLots'
+import { defaultSellAmount, sellStep } from '../data/shopLots'
 
 interface ShopItem {
   id: string
@@ -461,7 +461,10 @@ export function TownShop({ onClose }: TownShopProps) {
             Buy Supplies
           </button>
           <button
-            onClick={() => setMode('sell')}
+            onClick={() => {
+              setMode('sell')
+              if (selectedItem) setQuantity(sellStep(selectedItem.sellPrice))
+            }}
             className={`flex-1 py-2 text-sm font-bold ${
               mode === 'sell'
                 ? 'bg-amber-800 text-amber-200'
@@ -493,7 +496,11 @@ export function TownShop({ onClose }: TownShopProps) {
                   key={item.id}
                   data-testid={`shop-item-${item.id}`}
                   className={`west-face-row ${itemAffordable ? 'cursor-pointer' : 'opacity-50'}`}
-                  onClick={() => itemAffordable && setSelectedItem(item)}
+                  onClick={() => {
+                    if (!itemAffordable) return
+                    setSelectedItem(item)
+                    setQuantity(mode === 'sell' ? sellStep(item.sellPrice) : 1)
+                  }}
                 >
                   <div className="flex items-start gap-3 w-full">
                     <div className="flex-1">
@@ -540,7 +547,8 @@ export function TownShop({ onClose }: TownShopProps) {
                               onClick={(e) => {
                                 e.stopPropagation()
                                 if (mode === 'sell') {
-                                  setQuantity(q => Math.max(1, q - (item.resource === 'food' ? 10 : 1)))
+                                  const step = sellStep(item.sellPrice)
+                                  setQuantity(q => Math.max(step, q - step))
                                 } else {
                                   setQuantity(q => Math.max(1, q - 1))
                                 }
@@ -549,14 +557,14 @@ export function TownShop({ onClose }: TownShopProps) {
                             >
                               -
                             </button>
-                            <span className="text-amber-200 w-12 text-center text-base md:text-sm">
+                            <span data-testid="shop-qty" className="text-amber-200 w-12 text-center text-base md:text-sm">
                               {quantity}
                             </span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
                                 if (mode === 'sell') {
-                                  const step = item.resource === 'food' ? 10 : 1
+                                  const step = sellStep(item.sellPrice)
                                   setQuantity(q => Math.min(stock, q + step))
                                 } else {
                                   setQuantity(q => q + 1)
@@ -577,7 +585,7 @@ export function TownShop({ onClose }: TownShopProps) {
                                       e.stopPropagation()
                                       setQuantity(Math.min(amt, stock))
                                     }}
-                                    disabled={stock < 1}
+                                    disabled={stock < amt || Math.floor(item.sellPrice * Math.min(amt, stock)) <= 0}
                                     className={`px-3 py-2 md:px-2 md:py-0.5 rounded text-sm md:text-xs font-bold active:scale-95 ${
                                       quantity === Math.min(amt, stock) && amt <= stock
                                         ? 'bg-green-600 text-green-100'
@@ -622,6 +630,7 @@ export function TownShop({ onClose }: TownShopProps) {
                                 setSelectedItem(null)
                                 setQuantity(1)
                               }}
+                              disabled={mode === 'sell' && Math.floor(item.sellPrice * quantity) <= 0}
                               className={`px-4 py-2 md:px-3 md:py-1 rounded text-base md:text-sm font-bold active:scale-95 ${
                                 mode === 'buy'
                                   ? 'bg-green-700 text-green-100 hover:bg-green-600'

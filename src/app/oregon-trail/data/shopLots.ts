@@ -6,3 +6,9 @@ export function defaultSellAmount(sellPrice: number, quantity: number, stock: nu
   if (Math.floor(sellPrice * lot) <= 0) return 0
   return lot
 }
+
+/** Smallest qty that floors at least 1 taco. Food 10 lb, powder 20 rd, oxen 1 head. */
+export function sellStep(sellPrice: number): number {
+  if (!(sellPrice > 0) || !Number.isFinite(sellPrice)) return 1
+  return Math.max(1, Math.ceil(1 / sellPrice))
+}

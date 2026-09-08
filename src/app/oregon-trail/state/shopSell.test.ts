@@ -20,7 +20,7 @@ import {
   WARE_WAGON,
   WARE_WAGON_PRICES,
 } from '../data/wareWagon'
-import { defaultSellAmount } from '../data/shopLots'
+import { defaultSellAmount, sellStep } from '../data/shopLots'
 
 let passed = 0
 let failed = 0
@@ -95,6 +95,11 @@ console.log('T5 — dual-shop powder is one list')
   ok(defaultSellAmount(0.10, 50, 9) === 0, 'food under 10 lb cannot floor a taco')
   ok(/defaultSellAmount\(item\.sellPrice, item\.quantity, stock\)/.test(src), 'Sell pill binds the lot helper')
   ok(!/item\.resource === 'food' \? Math.min\(50, stock\) : 1/.test(src), 'old qty=1 ammo Sell is gone')
+  ok(sellStep(AMMO_SELL_PER_ROUND) === AMMO_ROUNDS_PER_BOX, 'powder +/- is 20 rd')
+  ok(sellStep(0.10) === 10, 'flour +/- is 10 lb')
+  ok(sellStep(20) === 1, 'oxen +/- is 1 head')
+  ok(/sellStep\(item\.sellPrice\)/.test(src), 'expanded row binds sellStep')
+  ok(!/item\.resource === 'food' \? 10 : 1/.test(src), 'old food-only step is gone')
 }
 
 console.log(`\nshop-sell tests: ${passed} passed, ${failed} failed`)
