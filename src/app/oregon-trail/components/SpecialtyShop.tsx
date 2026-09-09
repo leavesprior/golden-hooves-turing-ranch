@@ -18,6 +18,7 @@ import {
   type SpecialtyShop as SpecialtyShopType,
   type SpecialtyShopItem,
   meetsRequirement,
+  specialtyEffectDelivers,
 } from '../data/specialtyShops'
 
 interface SpecialtyShopProps {
@@ -79,6 +80,11 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
     }
     if (usesGoodKarma && !canAfford('good', goodCost)) {
       setMessage(`Need ${goodCost}🍪 Good Karma for ${item.name}!`)
+      return
+    }
+
+    if (!specialtyEffectDelivers(item.effect.type)) {
+      setMessage('Not on the bench tonight.')
       return
     }
 
@@ -212,7 +218,8 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
               const soldOut = remaining <= 0
               const req = meetsRequirement(item, getStats())
               const affordable = canAfford('neutral', item.price) && (!item.goodKarmaPrice || canAfford('good', item.goodKarmaPrice))
-              const available = !soldOut && req.meets && affordable
+              const delivers = specialtyEffectDelivers(item.effect.type)
+              const available = !soldOut && req.meets && affordable && delivers
 
               return (
                 <div
@@ -234,6 +241,9 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
                           <h3 className={`${theme.text} font-bold`}>{item.name}</h3>
                           {soldOut && (
                             <span className="text-xs text-red-400 bg-red-900/50 px-2 py-0.5 rounded">SOLD OUT</span>
+                          )}
+                          {!delivers && !soldOut && (
+                            <span className="text-xs text-amber-400 bg-amber-900/50 px-2 py-0.5 rounded">NOT ON THE BENCH</span>
                           )}
                           {purchasedItems.has(item.id) && !soldOut && (
                             <span className="text-xs text-green-400 bg-green-900/50 px-2 py-0.5 rounded ml-1">PURCHASED</span>

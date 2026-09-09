@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs'
 import { DEFAULT_STATE } from './constants'
 import { gameReducer } from './reducer'
+import { specialtyEffectDelivers } from '../data/specialtyShops'
 
 let passed = 0
 let failed = 0
@@ -33,6 +34,17 @@ const full = gameReducer(
   { type: 'REPAIR_WAGON' },
 )
 ok(full.wagonCondition === 100 && full.spareParts === 1, 'sound wagon is a no-op')
+
+ok(specialtyEffectDelivers('wagon_repair'), 'repair delivers')
+ok(specialtyEffectDelivers('health_restore'), 'elixir delivers')
+ok(specialtyEffectDelivers('resource_add'), 'spare wheels deliver')
+ok(specialtyEffectDelivers('stat_buff'), 'stat tonic delivers')
+ok(!specialtyEffectDelivers('cure_sickness'), 'tincture does not yet clear isSick')
+ok(!specialtyEffectDelivers('oxen_heal'), 'yoke does not yet move oxen')
+ok(!specialtyEffectDelivers('wagon_upgrade'), 'iron axle does not yet raise a max')
+ok(!specialtyEffectDelivers('speed_boost'), 'grease does not yet add a pace buff')
+ok(/Not on the bench tonight/.test(src), 'undelivered goods refuse the purse')
+ok(src.indexOf('specialtyEffectDelivers') < src.indexOf('spendNeutral'), 'refuse before charge')
 
 console.log(`\nspecialty-repair tests: ${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

@@ -35,6 +35,18 @@ export interface ShopItemEffect {
   description: string
 }
 
+/** Effects that actually move wagon/party state after spendNeutral. The rest are still copy. */
+export const SPECIALTY_EFFECTS_THAT_MOVE_STATE: ReadonlyArray<ShopItemEffect['type']> = [
+  'wagon_repair',
+  'health_restore',
+  'resource_add',
+  'stat_buff',
+]
+
+export function specialtyEffectDelivers(type: ShopItemEffect['type']): boolean {
+  return SPECIALTY_EFFECTS_THAT_MOVE_STATE.includes(type)
+}
+
 export interface SpecialtyShop {
   type: SpecialtyShopType
   name: string
