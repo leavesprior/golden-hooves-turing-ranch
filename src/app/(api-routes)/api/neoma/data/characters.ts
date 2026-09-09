@@ -270,13 +270,17 @@ const CHARACTER_REGISTRY: Record<string, CharacterDefinition> = {
  * canon sample when the LLM is unreachable, so this never hard-depends on Ollama.
  */
 function adaptNpcToCharacter(npc: GoldCountryNPC): CharacterDefinition {
+  const kin = npc.kinOf ? getNPCById(npc.kinOf) : undefined
+  const kinLine = kin
+    ? ` Your ${npc.kinRelation || 'kin'} is ${kin.name} (${kin.title}). Speak of them as family, not as a stranger.`
+    : ''
   return {
     personality: {
       id: npc.id,
       name: npc.name,
       role: npc.title,
       voiceRegister: npc.personality,
-      basePrompt: npc.ollamaPrompt,
+      basePrompt: npc.ollamaPrompt + kinLine,
       // Greeting first so the LLM-less greeting fallback speaks it; then the scripted lines.
       canonSamples: [npc.greeting, ...npc.dialogueLines].filter(Boolean),
       // Minimal meta-leak floor; period NPCs have no cowboy-stereotype set to scrub.
@@ -289,7 +293,7 @@ function adaptNpcToCharacter(npc: GoldCountryNPC): CharacterDefinition {
       farewellLine: npc.dialogueLines[npc.dialogueLines.length - 1] ?? npc.greeting,
     },
     initialDisposition: 'neutral',
-    agenda: `Speak as ${npc.name}, ${npc.title}, in the California Gold Country of 1849. Share what a person in your place and time truly knew; frame uncertain history as talk or legend; never invent facts and use nothing out of its time. Advance if the visitor is respectful and curious; stall if they are hostile or careless.`,
+    agenda: `Speak as ${npc.name}, ${npc.title}, in the California Gold Country of 1849.${kinLine} Share what a person in your place and time truly knew; frame uncertain history as talk or legend; never invent facts and use nothing out of its time. Advance if the visitor is respectful and curious; stall if they are hostile or careless.`,
   }
 }
 

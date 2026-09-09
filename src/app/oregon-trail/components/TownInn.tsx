@@ -12,6 +12,7 @@ import { rollGhostEncounter, type GhostEncounter, type GhostChoice } from '../da
 import { playSFX } from '../lib/audioManager'
 import { DOSMessage } from '@/components/ui/DOSMessage'
 import { useVisualEffect } from '../hooks/useVisualEffect'
+import { useEscapeKey } from '../lib/useEscapeKey'
 
 interface RoomOption {
   id: string
@@ -209,6 +210,7 @@ interface TownInnProps {
 }
 
 export function TownInn({ onClose, isWestPoint = false, onApplyBuff }: TownInnProps) {
+  useEscapeKey(onClose)
   const { state, restAtInn, buyFood, buyDrink } = useOregonTrail()
   const { comment, setMood } = useNarrator()
   const { getInteractionBonus, modifyReputation } = useReputation()

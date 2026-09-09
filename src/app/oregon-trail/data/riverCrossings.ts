@@ -66,6 +66,14 @@ export function getTraitLuckBonus(playerTraits: string[], method: CrossingMethod
 export type RiverCondition = 'low' | 'normal' | 'high' | 'flood'
 export type CrossingMethod = 'ford' | 'caulk' | 'ferry' | 'wait' | 'guide'
 
+/** Depth in feet. Flood must be checked before high — >7 is also >5. */
+export function riverConditionFromDepth(depth: number): RiverCondition {
+  if (depth < 2.5) return 'low'
+  if (depth > 7) return 'flood'
+  if (depth > 5) return 'high'
+  return 'normal'
+}
+
 export interface RiverState {
   name: string
   depth: number           // feet
@@ -155,11 +163,7 @@ export function generateRiverState(
   const depth = base.depth * weatherModifiers[weather] * seasonMod
   const speed = base.speed * weatherModifiers[weather] * seasonMod
 
-  // Determine condition
-  let condition: RiverCondition = 'normal'
-  if (depth < 2.5) condition = 'low'
-  else if (depth > 5) condition = 'high'
-  else if (depth > 7) condition = 'flood'
+  const condition = riverConditionFromDepth(depth)
 
   // Ferry and guide availability
   const ferryAvailable = condition !== 'flood' && Math.random() > 0.2

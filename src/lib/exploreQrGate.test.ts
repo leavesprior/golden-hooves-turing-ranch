@@ -3,7 +3,7 @@
  *   node_modules/.bin/tsx src/lib/exploreQrGate.test.ts
  */
 
-import { EXPLORE_QR_TOKEN, hasExploreQr } from './exploreQrGate'
+import { EXPLORE_QR_TOKEN, exploreSurfaceOpen, hasExploreQr, peekTownFromSearch } from './exploreQrGate'
 
 class MockStorage {
   private m = new Map<string, string>()
@@ -29,6 +29,19 @@ ok(s.getItem('bobr_explore_qr') === EXPLORE_QR_TOKEN, 'scan persists to session'
 ok(hasExploreQr({ search: '', storage: s }) === true, 'later visit in same session stays open')
 ok(hasExploreQr({ search: '', storage: new MockStorage(), cookie: 'bobr_explore_qr=ranch-house' }) === true, 'cookie opens')
 ok(hasExploreQr({ search: '', storage: new MockStorage(), cookie: 'other=1' }) === false, 'other cookie stays locked')
+
+ok(peekTownFromSearch('?town=volcano') === 'volcano', 'hub interest volcano is a peek')
+ok(peekTownFromSearch('?town=jackson') === '', 'jackson has no explorer face yet — not a peek')
+ok(peekTownFromSearch('?town=not-a-town') === '', 'unknown town is not a peek')
+ok(peekTownFromSearch('') === '', 'no town is not a peek')
+ok(hasExploreQr({ search: '?town=volcano', storage: new MockStorage() }) === false, 'town peek is not a QR unlock')
+const peekStore = new MockStorage()
+ok(exploreSurfaceOpen({ search: '?town=volcano', storage: peekStore }) === true, 'town peek opens the surface')
+ok(exploreSurfaceOpen({ search: '?town=jackson', storage: new MockStorage() }) === false, 'jackson peek stays locked until it has a face')
+ok(peekStore.getItem('bobr_explore_qr') == null, 'town peek does not persist ranch-house QR')
+ok(exploreSurfaceOpen({ search: '', storage: new MockStorage() }) === false, 'bare /explore stays locked')
+ok(exploreSurfaceOpen({ search: '?town=volcano&qr=nope', storage: new MockStorage() }) === true, 'valid peek still opens even with a junk qr')
+ok(hasExploreQr({ search: '?town=volcano&qr=nope', storage: new MockStorage() }) === false, 'junk qr does not become ranch-house')
 
 if (failed) { console.error(`${failed} failed, ${passed} passed`); process.exit(1) }
 console.log(`exploreQrGate tests passed (${passed})`)

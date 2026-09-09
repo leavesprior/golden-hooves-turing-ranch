@@ -156,6 +156,12 @@ export function getDiscountMultiplier(alignment: KarmaAlignment): number {
   return KARMA_MULTIPLIERS[position];
 }
 
+/** −85/−42 is Lawful Good. Raw "law -85" reads as chaotic without this. */
+export function formatAlignmentLegend(alignment: KarmaAlignment): string {
+  const name = ALIGNMENT_DISPLAY_NAMES[getAlignmentPosition(alignment)]
+  return `${name} · ${alignment.lawfulChaotic}/${alignment.goodEvil} (minus is lawful/good)`
+}
+
 /**
  * Calculate final discount with karma modifier
  */

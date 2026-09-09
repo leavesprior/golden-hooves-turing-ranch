@@ -136,21 +136,29 @@ export function ChapterIntro({ chapterNumber, title, subtitle, narrative, onComp
           ))}
         </div>
 
-        {/* Typing indicator */}
         {isTyping && visibleLines < narrative.length && (
           <div className="mt-6 flex justify-center">
             <span className="inline-block w-2 h-4 bg-amber-400 animate-pulse" />
           </div>
         )}
 
-        {/* Continue prompt */}
-        {showContinue && (
-          <div className="mt-12 animate-pulse">
-            <p className="font-pixel text-amber-400/80 text-sm">
-              Press any key to continue
-            </p>
-          </div>
-        )}
+        <button
+          type="button"
+          data-testid="chapter-continue"
+          className="west-face-pill west-face-pill-cream mt-10"
+          onClick={(e) => {
+            e.stopPropagation()
+            if (isTyping) {
+              setVisibleLines(narrative.length)
+              setIsTyping(false)
+              setShowContinue(true)
+              return
+            }
+            onComplete()
+          }}
+        >
+          {showContinue ? 'Continue' : 'Skip'}
+        </button>
       </div>
 
       {/* Atmospheric particles */}

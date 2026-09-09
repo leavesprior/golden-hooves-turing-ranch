@@ -7,32 +7,31 @@ import { KarmaToastContainer } from '@/components/karma'
 import { KarmaWallet } from '../components/KarmaWallet'
 import { KarmaConvertModal } from '../components/KarmaConvertModal'
 import { editorialForLandmark } from '@/lib/californiaTrailArt'
+import { readAgeMode } from '@/lib/gftAgeMode'
+import {
+  WARE_WAGON,
+  WARE_WAGON_COST,
+  WARE_WAGON_PRICES,
+  STARTING_NEUTRAL_FOR_WARE,
+  OUTFIT_PURSE_LINE,
+  AMMO_ROUNDS_PER_BOX,
+} from '../data/wareWagon'
 
 export function OutfittingScreen() {
   const { state, purchaseSupplies, goToCharacterCreation } = useOregonTrail()
   const { balance, canAfford, spendNeutral, showConvertModal, setShowConvertModal, convertModalContext, setConvertModalContext } = useKarmaWallet()
-  const [supplies, setSupplies] = useState({
-    food: 0,
-    ammo: 0,
-    parts: 0,
-    medicine: 0,
-    oxen: 0,
-  })
+  const [supplies, setSupplies] = useState({ ...WARE_WAGON })
 
-  const prices = {
-    food: 0.2,
-    ammo: 2,
-    parts: 10,
-    medicine: 5,
-    oxen: 40,
-  }
+  const prices = WARE_WAGON_PRICES
 
-  const totalCost =
-    supplies.food * prices.food +
-    supplies.ammo * prices.ammo +
-    supplies.parts * prices.parts +
-    supplies.medicine * prices.medicine +
-    supplies.oxen * prices.oxen
+  const costOf = (next: typeof supplies) =>
+    next.food * prices.food +
+    next.ammo * prices.ammo +
+    next.parts * prices.parts +
+    next.medicine * prices.medicine +
+    next.oxen * prices.oxen
+
+  const totalCost = costOf(supplies)
 
   const handlePurchase = async () => {
     const totalKarmaCost = Math.ceil(totalCost)
@@ -66,15 +65,32 @@ export function OutfittingScreen() {
     step: number
     price: number
   }> = [
-    { key: 'food', name: 'Flour', blurb: 'Joseph Ware, 1849: about 180 lb per person.', unit: 'lb', step: 50, price: prices.food },
-    { key: 'ammo', name: 'Powder & lead', blurb: 'Hunting and the occasional warrant.', unit: 'box', step: 1, price: prices.ammo },
+    { key: 'oxen', name: 'Oxen', blurb: 'The door west. Matt sells by the head; a yoke is two heads. Need 2 to leave.', unit: 'head', step: 1, price: prices.oxen },
+    { key: 'food', name: 'Flour', blurb: 'Joseph Ware, 1849: about 180 lb per person. Need 100 lb to leave.', unit: 'lb', step: 50, price: prices.food },
+    { key: 'ammo', name: 'Powder & lead', blurb: 'Hunting and the occasional warrant. One box is 20 rounds in the wagon.', unit: 'box', step: 1, price: prices.ammo },
     { key: 'parts', name: 'Spare axle', blurb: 'A broken axle without a spare ends a company.', unit: 'ea', step: 1, price: prices.parts },
     { key: 'medicine', name: 'Medicine chest', blurb: 'Laudanum, quinine, and more hope than science.', unit: 'kit', step: 1, price: prices.medicine },
-    { key: 'oxen', name: 'Oxen (pair)', blurb: 'Slow, sure, and they eat grass you do not have to pack.', unit: 'yoke', step: 1, price: prices.oxen },
   ]
+
+  const remainingAfterCart = Math.max(0, Math.floor((balance?.neutral ?? 0) - Math.ceil(totalCost)))
+  const purse = Math.floor(balance?.neutral ?? STARTING_NEUTRAL_FOR_WARE)
 
   const still =
     editorialForLandmark('Independence, Missouri') || '/place-art/editorial/independence.jpg'
+
+  const bump = (key: keyof typeof supplies, delta: number) => {
+    setSupplies((s) => {
+      const nextVal = Math.max(0, s[key] + delta)
+      const next = { ...s, [key]: nextVal }
+      if (delta > 0 && !canAfford('neutral', Math.ceil(costOf(next)))) return s
+      return next
+    })
+  }
+
+  const canPlus = (row: (typeof rows)[number]) => {
+    const next = { ...supplies, [row.key]: supplies[row.key] + row.step }
+    return canAfford('neutral', Math.ceil(costOf(next)))
+  }
 
   return (
     <div className="relative min-h-screen">
@@ -91,7 +107,7 @@ export function OutfittingScreen() {
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
       </div>
 
-      <div className="relative z-10 px-4 py-8 pb-28 sm:px-8 md:max-w-xl md:px-16">
+      <div className="relative z-10 px-4 py-6 sm:px-8 md:max-w-xl md:px-16">
         <p className="font-serif text-[11px] uppercase tracking-[0.28em] text-amber-100/80">
           First camp · Independence, Missouri
         </p>
@@ -101,62 +117,91 @@ export function OutfittingScreen() {
           of flour. You are not three people, but the prairie does not grade on a curve.
         </p>
 
-        <article className="west-face-paper mt-6">
-          <div className="flex items-start justify-between gap-4">
-            <p className="font-serif text-sm text-[#e8dcc4]">
-              {Math.max(0, Math.floor((balance?.neutral ?? 0) - Math.ceil(totalCost)))} remaining
-            </p>
-          </div>
-
-          <div className="mt-6">
-            {rows.map((row) => (
-              <div className="west-face-row" key={row.key}>
-                <div>
-                  <h2 className="font-serif text-lg text-[#f3ead8]">{row.name}</h2>
-                  <p className="west-face-body mt-1">
-                    ${row.price} buy · {row.unit}. On hand: {onHand[row.key]}
-                    {row.key === 'food' ? ' lb' : ''}. Adding {supplies[row.key]}.
-                  </p>
-                  <p className="mt-1 text-sm text-[#9a8b70]">{row.blurb}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    className="west-face-pill"
-                    onClick={() => setSupplies((s) => ({ ...s, [row.key]: Math.max(0, s[row.key] - row.step) }))}
-                  >
-                    −
-                  </button>
-                  <span className="w-10 text-center font-serif">{supplies[row.key]}</span>
-                  <button
-                    type="button"
-                    className="west-face-pill"
-                    onClick={() => setSupplies((s) => ({ ...s, [row.key]: s[row.key] + row.step }))}
-                  >
-                    +
-                  </button>
-                </div>
+        <article className="west-face-paper mt-4">
+          <div data-testid="outfit-purse">
+            <p className="west-face-eyebrow">Expedition stake</p>
+            <p className="west-face-body mt-2">{OUTFIT_PURSE_LINE}</p>
+            <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="font-serif text-[#f3ead8]">In the purse now</p>
+                <div className="mt-1"><KarmaWallet compact showBadKarma={false} /></div>
               </div>
-            ))}
+              <p className="font-serif text-sm text-[#e8dcc4]">
+                This load {Math.ceil(totalCost)} · {remainingAfterCart} left after buy
+              </p>
+            </div>
+            {purse <= 0 && (
+              <p className="mt-2 text-sm text-red-300">The stake is spent. Convert, or buy a smaller load.</p>
+            )}
           </div>
 
-          <div className="west-face-row items-center">
-            <div>
-              <p className="font-serif text-[#f3ead8]">This load</p>
-              <div className="mt-2"><KarmaWallet compact showBadKarma={false} /></div>
-            </div>
-            <p className={`font-serif ${!canAfford('neutral', Math.ceil(totalCost)) ? 'text-red-300' : 'text-[#e8dcc4]'}`}>
-              {Math.ceil(totalCost)} tacos
-            </p>
+          <div className="mt-2" data-testid="outfit-gate">
+            {rows.map((row) => {
+              const plusOk = canPlus(row)
+              const minusOk = supplies[row.key] > 0
+              return (
+                <div className="west-face-row" key={row.key} data-testid={`outfit-${row.key}`}>
+                  <div className="min-w-0">
+                    <h2 className="font-serif text-lg text-[#f3ead8]">{row.name}</h2>
+                    <p className="west-face-body mt-1">
+                      ${row.price} buy · {row.unit}
+                      {row.key === 'ammo' ? ` (${AMMO_ROUNDS_PER_BOX} rd)` : ''}. On hand:{' '}
+                      {row.key === 'ammo'
+                        ? `${onHand.ammo} rd`
+                        : `${onHand[row.key]}${row.key === 'food' ? ' lb' : ''}`}
+                      . Adding {supplies[row.key]}
+                      {row.key === 'ammo' ? ' boxes' : ''}.
+                    </p>
+                    <p className="mt-1 text-sm text-[#9a8b70]">{row.blurb}</p>
+                    {!plusOk && (
+                      <p className="mt-1 text-sm text-[#c4a574]">
+                        +{row.step} needs {Math.ceil(row.price * row.step)} tacos · {remainingAfterCart} left in this cart
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      className="west-face-pill"
+                      disabled={!minusOk}
+                      aria-label={`Less ${row.name}`}
+                      onClick={() => bump(row.key, -row.step)}
+                    >
+                      −
+                    </button>
+                    <span className="w-10 text-center font-serif">{supplies[row.key]}</span>
+                    <button
+                      type="button"
+                      className="west-face-pill"
+                      disabled={!plusOk}
+                      aria-label={`More ${row.name}`}
+                      onClick={() => bump(row.key, row.step)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </article>
 
-        <div
-          className="sticky z-30 mt-4 flex flex-col gap-2 rounded-lg bg-black/70 p-3"
-          style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
-        >
+        <div className="mt-3 mb-16 flex flex-col gap-2 rounded-lg bg-black/70 p-3 md:mb-4">
           <button
             type="button"
+            data-testid="outfit-ware"
+            className="west-face-pill w-full text-center"
+            disabled={!canAfford('neutral', WARE_WAGON_COST)}
+            onClick={() => {
+              if (!canAfford('neutral', WARE_WAGON_COST)) return
+              setSupplies({ ...WARE_WAGON })
+            }}
+          >
+            Pack as Ware wrote · {WARE_WAGON_COST} tacos
+          </button>
+          <button
+            type="button"
+            data-testid="outfit-buy"
             onClick={handlePurchase}
             disabled={totalCost === 0}
             className="west-face-pill west-face-pill-cream w-full text-center"
@@ -165,17 +210,20 @@ export function OutfittingScreen() {
           </button>
           <button
             type="button"
+            data-testid="outfit-saddle"
             onClick={goToCharacterCreation}
             disabled={state.oxen < 2 || state.food < 100}
             className="west-face-pill west-face-pill-cream w-full text-center"
           >
-            Wagons west
+            S.A.D.D.L.E. up
           </button>
           {(state.oxen < 2 || state.food < 100) && (
-            <p className="text-sm text-red-300">Need at least 2 oxen and 100 lbs of food</p>
+            <p className="text-sm text-red-300">Need at least 2 oxen and 100 lbs of food, then roll your agent</p>
           )}
         </div>
-        <p className="west-face-footer mt-3">First camp: Independence, Missouri. Mode: Adult Warrant. NEOMA, DM.</p>
+        <p className="west-face-footer mt-2">
+          First camp: Independence, Missouri. Mode: {readAgeMode() === 'under18' ? 'Kid trail' : 'Adult warrant'}. NEOMA, DM.
+        </p>
       </div>
 
       {showConvertModal && convertModalContext && (

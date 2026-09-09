@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react'
 import { useOregonTrail, LANDMARKS, hasCynthiasInn } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { useMystery } from '../mysteryContext'
-import { useCharacter } from '../characterContext'
+import { useCharacter, XP_REWARDS } from '../characterContext'
 import { useNarrator } from '../narratorContext'
 import { useChapter } from '../chapterContext'
 import { KarmaToastContainer } from '@/components/karma'
@@ -33,6 +33,7 @@ import { CrossGameStorage } from '@/lib/crossGameProgression'
 import { getTownArrivalMessage, type TownArrivalMessage } from '../data/townArrivals'
 import { recordTownArrival } from '../lib/townVisits'
 import { readArcadeAccess, showDeeperTown } from '@/lib/arcadeFirstLevel'
+import { townInnWhisper } from '../data/townInnWhisper'
 
 // Each authored arrival line carries a mood; tint the text so the town's
 // disposition reads at a glance instead of every stop sounding the same.
@@ -205,6 +206,15 @@ export function TownScreen({
                                     state.weather === 'rain' ? 'rain' :
                                     state.weather === 'storm' ? 'rain' : 'clear'
 
+  const minPartyHealth = state.party.length
+    ? Math.min(...state.party.map(m => m.health))
+    : 100
+  const innWhisper = townInnWhisper({
+    minHealth: minPartyHealth,
+    landmark: state.currentLandmark || '',
+    distance: state.distance,
+  })
+
   return (
     <div className={`visual64-shell min-h-screen bg-[#0c0906] text-[#e8dcc4]`}>
       <KarmaToastContainer />
@@ -244,6 +254,7 @@ export function TownScreen({
             <p className="text-yellow-200 text-xs mt-1">Shop</p>
           </button>
           <button
+            data-testid="town-inn"
             onClick={() => setShowInn(true)}
             className={`p-3 border-2 rounded-lg text-center ${
               isWestPoint
@@ -253,8 +264,11 @@ export function TownScreen({
           >
             <span className="text-2xl">{isWestPoint ? '🏔️' : '🏨'}</span>
             <p className={`text-xs mt-1 ${isWestPoint ? 'text-emerald-200' : 'text-purple-200'}`}>
-              {isWestPoint ? "Cynthia's" : 'Inn'}
+              {isWestPoint ? "Cynthia's" : 'Rest'}
             </p>
+            {innWhisper && (
+              <p className="mt-0.5 text-[10px] text-amber-100/80" data-testid="town-inn-whisper">{innWhisper}</p>
+            )}
           </button>
           {deeperTown && (
           <button
@@ -310,7 +324,10 @@ export function TownScreen({
             </button>
           )}
           <button
-            onClick={() => hunt()}
+            onClick={() => {
+              hunt()
+              addExperience(XP_REWARDS.SKILL_CHECK_SUCCESS)
+            }}
             disabled={state.ammunition < 10}
             className="p-3 bg-green-900/60 hover:bg-green-800/60 border-2 border-green-600 rounded-lg text-center disabled:opacity-50"
           >

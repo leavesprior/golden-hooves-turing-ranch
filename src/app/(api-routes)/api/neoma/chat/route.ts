@@ -32,6 +32,7 @@ import {
   type DmBoundaryFinding,
 } from '@/lib/dmSecurity'
 import { enqueueDirectives, appendCharacterTape, appendGuardianAlert } from '../dm/queueStore'
+import { isStreetSkyLabel } from '@/lib/goldCountryWeather'
 
 // ===================== CONFIG =====================
 
@@ -75,6 +76,8 @@ interface ChatSession {
   // DM Layer P1: optional game-client player id. P1 only accepts + records it
   // (tape + directive queue key); game clients thread it later.
   playerId: string | null
+  /** Street sky / kin atmosphere for L2 NPCs — lore only. */
+  liveContext: string | null
 }
 
 interface IPData {
@@ -604,6 +607,7 @@ interface ChatRequestBody {
   // DM Layer P1: optional game-client player id. Accepted + recorded only —
   // it keys the character tape and the directive queue. Invalid shapes ignored.
   playerId?: string
+  liveContext?: string
 }
 
 export async function POST(request: NextRequest) {
@@ -821,6 +825,10 @@ export async function POST(request: NextRequest) {
         typeof body.playerId === 'string' && PLAYER_ID_PATTERN.test(body.playerId)
           ? body.playerId
           : null,
+      liveContext:
+        typeof body.liveContext === 'string' && isStreetSkyLabel(body.liveContext.trim())
+          ? body.liveContext.trim()
+          : null,
     }
     sessions.set(session.id, session)
     const dmQueueCapability = session.playerId
@@ -842,7 +850,7 @@ export async function POST(request: NextRequest) {
           content: `[A visitor approaches ${character.personality.name}. Open the encounter in voice, 1-2 sentences, as the JSON object.]`,
         },
       ]
-      const turn = await runNpcTurn(character, session.npcState, opening, undefined, false)
+      const turn = await runNpcTurn(character, session.npcState, opening, session.liveContext || undefined, false)
       const greetingText = turn ? turn.response : character.personality.canonSamples[0]
 
       session.messages.push(
@@ -1058,7 +1066,7 @@ export async function POST(request: NextRequest) {
 
   // --- THREE-VECTOR NPC TURN (Tobias et al.) ---
   if (session.character && session.npcState) {
-    const turn = await runNpcTurn(session.character, session.npcState, session.messages)
+    const turn = await runNpcTurn(session.character, session.npcState, session.messages, session.liveContext || undefined)
     const baseFields = {
       ended: false,
       messageCount: session.messages.filter(m => m.role === 'user' && m.content !== '[connected]').length,

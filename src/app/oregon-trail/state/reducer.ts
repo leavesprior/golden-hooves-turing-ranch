@@ -11,10 +11,11 @@ import type { OregonTrailState, GamePhase, PartyMember } from './types'
 import type { GameAction } from './actions'
 import { DEFAULT_STATE, DEFAULT_INVESTIGATION } from './constants'
 import { getTownArrivalMessage } from '../data/townArrivals'
+import { AMMO_ROUNDS_PER_BOX } from '../data/wareWagon'
 import { computeTravel } from './travelEngine'
 import {
   applyBuySupplies, applySellSupplies, applyRepairWagon,
-  applyRestAtInn, applyBuyFood, applyBuyDrink,
+  applyRestAtInn, applyHunkerOnTrail, applyBuyFood, applyBuyDrink,
 } from './resourceEngine'
 import {
   applyGoToCharacterCreation, applyOpenInvestigation, applyCloseInvestigation,
@@ -95,7 +96,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       return {
         ...state,
         food: state.food + action.supplies.food,
-        ammunition: state.ammunition + action.supplies.ammo * 20,
+        ammunition: state.ammunition + action.supplies.ammo * AMMO_ROUNDS_PER_BOX,
         spareParts: state.spareParts + action.supplies.parts,
         medicine: state.medicine + action.supplies.medicine,
         oxen: state.oxen + action.supplies.oxen,
@@ -391,6 +392,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     case 'SELL_SUPPLIES': return applySellSupplies(state, action.resource, action.amount)
     case 'REPAIR_WAGON': return applyRepairWagon(state)
     case 'REST_AT_INN': return applyRestAtInn(state, action.healthBonus, action.moraleBonus)
+    case 'HUNKER': return applyHunkerOnTrail(state)
     case 'BUY_FOOD': return applyBuyFood(state, action.healthBonus, action.moraleBonus, action.partyWide)
     case 'BUY_DRINK': return applyBuyDrink(state, action.moraleBonus)
 

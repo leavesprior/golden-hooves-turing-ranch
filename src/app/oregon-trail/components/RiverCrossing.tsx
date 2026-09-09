@@ -19,6 +19,7 @@ import { useCharacter, type StatName } from '../characterContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { useNarrator } from '../narratorContext'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+import { PlacePictureLift } from '@/components/PlacePictureLift'
 import { editorialForLandmark } from '@/lib/californiaTrailArt'
 // NEW: Douglas Adams / Monty Python Easter Egg imports
 import { RiverAnimation } from './RiverAnimation'
@@ -281,9 +282,9 @@ export function RiverCrossing({
 
         {/* Phase-specific content */}
         {/* NEW: Bridge Keeper Easter Egg (Monty Python) */}
-        {phase === 'bridge_keeper' && charState && (
+        {phase === 'bridge_keeper' && (
           <BridgeKeeper
-            playerName={charState.character?.name || 'Traveler'}
+            playerName={charState?.character?.name || 'Traveler'}
             onSuccess={handleBridgeKeeperSuccess}
             onFailure={handleBridgeKeeperFailure}
             onCancel={handleBridgeKeeperCancel}
@@ -293,12 +294,14 @@ export function RiverCrossing({
         {phase === 'assess' && (
           <div className="text-center mb-6">
             {riverArt ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={riverArt}
-                alt=""
-                className="mb-4 h-44 w-full rounded-lg border-2 border-cyan-700/50 object-cover object-[center_45%]"
-              />
+              <PlacePictureLift src={riverArt} className="mb-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={riverArt}
+                  alt=""
+                  className="h-44 w-full rounded-lg border-2 border-cyan-700/50 object-cover object-[center_45%]"
+                />
+              </PlacePictureLift>
             ) : (
               <PlaceBackdrop
                 id={'ot_' + riverName.toLowerCase().replace(/ crossing$/, '').replace(/[^a-z]+/g, '_')}
@@ -326,6 +329,8 @@ export function RiverCrossing({
             {showBridgeKeeper && (
               <div className="mb-4">
                 <button
+                  type="button"
+                  data-testid="approach-ancient-bridge"
                   onClick={() => setPhase('bridge_keeper')}
                   className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-pixel rounded border-2 border-slate-500 transition-colors"
                 >

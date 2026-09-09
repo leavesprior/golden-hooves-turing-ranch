@@ -4,6 +4,7 @@
 
 import type { OregonTrailState, GamePhase } from './types'
 import { LEVEL2_CASE_IDS } from '@/lib/goldCountryLevel2'
+import { trailWeatherForDay } from '@/lib/goldCountryWeather'
 
 export function applyEnterGoldCountryExplore(prev: OregonTrailState): OregonTrailState {
   return {
@@ -97,5 +98,10 @@ export function applyAddInventoryItem(prev: OregonTrailState, itemId: string): O
 }
 
 export function applyAdvanceGoldCountryDay(prev: OregonTrailState, days: number): OregonTrailState {
-  return { ...prev, goldCountryDay: prev.goldCountryDay + days }
+  const goldCountryDay = prev.goldCountryDay + days
+  return {
+    ...prev,
+    goldCountryDay,
+    weather: trailWeatherForDay(goldCountryDay),
+  }
 }

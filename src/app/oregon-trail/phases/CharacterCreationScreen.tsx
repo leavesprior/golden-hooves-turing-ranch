@@ -1,11 +1,21 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
-import { useCharacter, BACKGROUND_DESCRIPTIONS, type StatName, type CharacterBackground } from '../characterContext'
+import {
+  useCharacter,
+  BACKGROUND_BONUSES,
+  BACKGROUND_DESCRIPTIONS,
+  BASE_STATS,
+  withBackgroundBonuses,
+  type StatName,
+  type CharacterBackground,
+} from '../characterContext'
 import { useNarrator } from '../narratorContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { NarratorOverlay } from '../components/NarratorOverlay'
+import { creationBonusPoints, isKidMode } from '@/lib/gftAgeMode'
+import { applySaddleAdjust } from '@/lib/gftSaddleAdjust'
 
 export function CharacterCreationScreen() {
   const { state: trailState, beginJourney } = useOregonTrail()
@@ -15,28 +25,26 @@ export function CharacterCreationScreen() {
   // Dice roll state
   const [hasRolled, setHasRolled] = useState(false)
   const [rollCount, setRollCount] = useState(0)
-  const [baseStats, setBaseStats] = useState({
-    Shrewdness: 3,
-    Agility: 3,
-    Durability: 3,
-    Diplomacy: 3,
-    Luck: 3,
-    Expertise: 3,
-  })
+  const [baseStats, setBaseStats] = useState({ ...BASE_STATS })
   const [lastRolls, setLastRolls] = useState<Record<string, number[]>>({})
   const [isRolling, setIsRolling] = useState(false)
 
   // Local state for character creation
   const [selectedBackground, setSelectedBackground] = useState<CharacterBackground | null>(null)
-  const [statPoints, setStatPoints] = useState({
-    Shrewdness: 3,
-    Agility: 3,
-    Durability: 3,
-    Diplomacy: 3,
-    Luck: 3,
-    Expertise: 3,
-  })
-  const [pointsRemaining, setPointsRemaining] = useState(12)
+  const [statPoints, setStatPoints] = useState({ ...BASE_STATS })
+  const [pointsRemaining, setPointsRemaining] = useState(() => creationBonusPoints(false))
+  const [kidTrail, setKidTrail] = useState(false)
+  const statsRef = React.useRef(statPoints)
+  const remainingRef = React.useRef(pointsRemaining)
+  statsRef.current = statPoints
+  remainingRef.current = pointsRemaining
+
+  useEffect(() => {
+    setKidTrail(isKidMode())
+    const n = creationBonusPoints(false)
+    setPointsRemaining(n)
+    remainingRef.current = n
+  }, [])
 
   // Roll 3d6 for each stat (like classic D&D)
   const rollDice = () => {
@@ -72,7 +80,10 @@ export function CharacterCreationScreen() {
 
         // Reset bonus points to 0 (base stats from roll are the foundation)
         setStatPoints(tempStats as typeof statPoints)
-        setPointsRemaining(6) // Fewer bonus points when rolling (6 instead of 12)
+        const rolledPts = creationBonusPoints(true)
+        setPointsRemaining(rolledPts)
+        statsRef.current = tempStats as typeof statPoints
+        remainingRef.current = rolledPts
       }
     }, 80)
   }
@@ -96,21 +107,33 @@ export function CharacterCreationScreen() {
   }))
 
   const adjustStat = (stat: StatName, delta: number) => {
-    const currentValue = statPoints[stat]
-    const minValue = hasRolled ? baseStats[stat] : 1
-    const maxValue = 18  // Max stat value (like D&D)
-    const newValue = currentValue + delta
+    const minValue = hasRolled ? baseStats[stat] : BASE_STATS[stat]
+    const next = applySaddleAdjust(statsRef.current, remainingRef.current, stat, delta, minValue)
+    if (!next) return
+    statsRef.current = next.stats
+    remainingRef.current = next.remaining
+    setStatPoints(next.stats)
+    setPointsRemaining(next.remaining)
+  }
 
-    if (newValue < minValue || newValue > maxValue) return
-    if (delta > 0 && pointsRemaining <= 0) return
-    if (delta < 0 && currentValue <= minValue) return
-
-    setStatPoints(prev => ({ ...prev, [stat]: newValue }))
-    setPointsRemaining(prev => prev - delta)
+  const spendEven = () => {
+    const order: StatName[] = ['Shrewdness', 'Agility', 'Durability', 'Diplomacy', 'Luck', 'Expertise']
+    let i = 0
+    while (remainingRef.current > 0 && i < 48) {
+      const stat = order[i % order.length]
+      const minValue = hasRolled ? baseStats[stat] : BASE_STATS[stat]
+      const next = applySaddleAdjust(statsRef.current, remainingRef.current, stat, 1, minValue)
+      i += 1
+      if (!next) continue
+      statsRef.current = next.stats
+      remainingRef.current = next.remaining
+    }
+    setStatPoints({ ...statsRef.current })
+    setPointsRemaining(remainingRef.current)
   }
 
   const handleFinalize = () => {
-    if (pointsRemaining !== 0 || !selectedBackground) return
+    if (remainingRef.current !== 0 || !selectedBackground) return
 
     // Create the character with the selected background
     const leaderName = trailState.party.find(m => m.role === 'leader')?.name || 'Agent'
@@ -122,7 +145,7 @@ export function CharacterCreationScreen() {
     // adjustment silently no-oped and only background defaults (base 5 +
     // background bonuses, e.g. Pinkerton 7/5/5/5/5/7) ever landed in the
     // character sheet, bobr_ot_character, and skill-check DCs.
-    createCharacter(leaderName, selectedBackground, { ...statPoints })
+    createCharacter(leaderName, selectedBackground, withBackgroundBonuses(statPoints, selectedBackground))
 
     if (hasRolled && getTotalStats() >= 70) {
       comment("The dice favor the bold. Or perhaps just the persistent.", 'observation')
@@ -144,14 +167,16 @@ export function CharacterCreationScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-gray-900 to-amber-950 p-4">
+    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-gray-900 to-amber-950 p-4 pb-28">
       <KarmaToastContainer />
       <NarratorOverlay position="corner" />
 
       <div className="max-w-2xl mx-auto pt-8">
         <header className="text-center mb-8">
           <h1 className="font-pixel text-purple-300 text-xl mb-2">Create Your Agent</h1>
-          <p className="text-purple-400 text-sm">Distribute your S.A.D.D.L.E. stats</p>
+          <p className="text-purple-400 text-sm">
+            Distribute your S.A.D.D.L.E. stats{kidTrail ? ' · kid trail' : ' · adult warrant'}
+          </p>
         </header>
 
         {/* Background Selection */}
@@ -161,6 +186,8 @@ export function CharacterCreationScreen() {
             {backgrounds.map(bg => (
               <button
                 key={bg.id}
+                type="button"
+                data-testid={`saddle-background-${bg.id}`}
                 onClick={() => setSelectedBackground(bg.id)}
                 className={`p-4 md:p-3 rounded border-2 text-left transition-all active:scale-[0.98] ${
                   selectedBackground === bg.id
@@ -189,6 +216,8 @@ export function CharacterCreationScreen() {
 
           <div className="flex items-center gap-3 mb-3">
             <button
+              type="button"
+              data-testid="saddle-roll"
               onClick={rollDice}
               disabled={isRolling}
               className={`flex-1 py-4 md:py-2 font-pixel text-base md:text-sm rounded border-2 transition-all active:scale-[0.98] ${
@@ -199,10 +228,15 @@ export function CharacterCreationScreen() {
             >
               {isRolling ? '\uD83C\uDFB2 Rolling...' : hasRolled ? '\uD83C\uDFB2 Reroll Stats (3d6)' : '\uD83C\uDFB2 Roll Stats (3d6 each)'}
             </button>
-            {!hasRolled && (
-              <div className="text-amber-500 text-xs">
-                or use standard allocation {'\u2192'}
-              </div>
+            {pointsRemaining > 0 && (
+              <button
+                type="button"
+                data-testid="saddle-standard"
+                onClick={spendEven}
+                className="py-4 md:py-2 px-3 font-pixel text-xs rounded border-2 border-amber-700 text-amber-200 hover:bg-amber-900/40"
+              >
+                Spend remaining evenly
+              </button>
             )}
           </div>
 
@@ -240,7 +274,7 @@ export function CharacterCreationScreen() {
 
           {!hasRolled && (
             <p className="text-gray-500 text-xs text-center">
-              Standard: 3 base + 12 bonus points | Rolled: 3d6 base + 6 bonus points
+              Standard: 5 base + background + {creationBonusPoints(false)} points. Rolled: 3d6 + background + {creationBonusPoints(true)}.
             </p>
           )}
         </div>
@@ -256,8 +290,10 @@ export function CharacterCreationScreen() {
 
           <div className="space-y-3">
             {(['Shrewdness', 'Agility', 'Durability', 'Diplomacy', 'Luck', 'Expertise'] as StatName[]).map(stat => {
+              const bonus = selectedBackground ? (BACKGROUND_BONUSES[selectedBackground][stat] || 0) : 0
               const value = statPoints[stat]
-              const baseValue = hasRolled ? baseStats[stat] : 3
+              const shown = value + bonus
+              const baseValue = hasRolled ? baseStats[stat] : BASE_STATS[stat]
 
               return (
                 <div key={stat} className="flex items-center gap-2 md:gap-3">
@@ -281,11 +317,13 @@ export function CharacterCreationScreen() {
                       )}
                       <div
                         className="h-full bg-purple-500 transition-all relative"
-                        style={{ width: `${(value / 18) * 100}%` }}
+                        style={{ width: `${(shown / 18) * 100}%` }}
                       />
                     </div>
-                    <span className="w-8 text-center text-purple-200 text-base md:text-sm font-pixel">{value}</span>
+                    <span className="w-8 text-center text-purple-200 text-base md:text-sm font-pixel">{shown}</span>
                     <button
+                      type="button"
+                      data-testid={`saddle-plus-${stat}`}
                       onClick={() => adjustStat(stat, 1)}
                       disabled={value >= 18 || pointsRemaining <= 0}
                       className="w-11 h-11 md:w-6 md:h-6 text-lg md:text-base bg-purple-800 text-purple-200 rounded disabled:opacity-30 active:bg-purple-600"
@@ -300,10 +338,11 @@ export function CharacterCreationScreen() {
 
         {/* Proceed stays in the iPhone fold above mute. */}
         <button
+          type="button"
+          data-testid="saddle-begin"
           onClick={handleFinalize}
           disabled={pointsRemaining !== 0 || !selectedBackground}
-          className="sticky z-20 w-full py-4 md:py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 font-pixel text-base md:text-sm rounded border-4 border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
-          style={{ bottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
+          className="relative z-10 mt-4 w-full py-4 md:py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 font-pixel text-base md:text-sm rounded border-4 border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
         >
           {!selectedBackground ? 'Select a background' : pointsRemaining > 0 ? `Assign ${pointsRemaining} more points` : 'Begin the trail'}
         </button>

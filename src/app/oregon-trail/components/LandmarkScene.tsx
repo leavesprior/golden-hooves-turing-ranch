@@ -2,7 +2,8 @@
 
 import React, { useMemo } from 'react'
 import { SmokeEffect, WaterEffect, SwayingTree, MountainSilhouette, WeatherParticles, CoveredWagonSprite, type TimeOfDay, type WeatherType } from './Graphics64bit'
-import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+import { PlaceBackdrop, placeArtSrc } from '@/components/PlaceBackdrop'
+import { PlacePictureLift } from '@/components/PlacePictureLift'
 import { editorialForLandmark } from '@/lib/californiaTrailArt'
 
 // visual64: real-place raster art (public/place-art) elevates the scene when a
@@ -260,6 +261,7 @@ export function LandmarkScene({
   const editorial = editorialForLandmark(landmarkName)
   const placeArt = editorial ? undefined : LANDMARK_PLACE_ART[landmarkName]
   const hasRaster = Boolean(editorial || placeArt)
+  const liftSrc = editorial || (placeArt ? placeArtSrc(placeArt) : null)
 
   return (
     <div className={`relative w-full overflow-hidden ${cinematic ? 'h-56 md:h-80 border-0 rounded-none' : `h-48 md:h-64 rounded-lg border-2 border-${config.accentColor}-600`} ${className}`}>
@@ -270,17 +272,21 @@ export function LandmarkScene({
       />
 
       {editorial ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={editorial}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover object-[center_42%]"
-        />
+        <PlacePictureLift src={editorial} className="absolute inset-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={editorial}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover object-[center_42%]"
+          />
+        </PlacePictureLift>
       ) : placeArt ? (
-        <PlaceBackdrop
-          id={placeArt}
-          className={`absolute inset-0 h-full ${cinematic ? 'visual64-scene-image' : ''}`}
-        />
+        <PlacePictureLift src={liftSrc} className="absolute inset-0">
+          <PlaceBackdrop
+            id={placeArt}
+            className={`absolute inset-0 h-full ${cinematic ? 'visual64-scene-image' : ''}`}
+          />
+        </PlacePictureLift>
       ) : null}
 
       {/* Weather effects */}

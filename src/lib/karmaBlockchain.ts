@@ -4,6 +4,8 @@
  * Used by Oregon Trail game for karma-based currency
  */
 
+import { withinUnverifiedBound } from './karmaUnverifiedBound'
+
 export type KarmaType = 'good' | 'neutral' | 'bad'
 export type KarmaTransactionType = 'transfer' | 'market_purchase' | 'donation' | 'treat' | 'momento'
 
@@ -326,6 +328,7 @@ export class KarmaBlockchainClient {
    * Take debt - gain neutral karma but also gain bad karma (1:1 ratio)
    */
   async takeDebt(amount: number): Promise<boolean> {
+    if (!withinUnverifiedBound(amount)) return false
     try {
       // First add the neutral karma
       await this.transfer(this.agentId, 'neutral', -amount, 'DEBT: Borrowed')

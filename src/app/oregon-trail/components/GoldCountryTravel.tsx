@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { getGoldCountryLocation, getLocationTravelDistance } from '../data/goldCountryLocations'
@@ -10,6 +10,7 @@ import {
   type EncounterChoice,
   type EncounterOutcome,
 } from '../data/goldCountryEncounters'
+import { goldCountryTravelTick } from '@/lib/goldCountryTravelTick'
 
 interface GoldCountryTravelProps {
   fromLocationId: string
@@ -34,6 +35,7 @@ export function GoldCountryTravel({
   const [outcome, setOutcome] = useState<EncounterOutcome | null>(null)
   const [travelProgress, setTravelProgress] = useState(0)
   const [rolledEncounter, setRolledEncounter] = useState(false)
+  const dayAdvancedRef = useRef(false)
 
   const fromLoc = getGoldCountryLocation(fromLocationId)
   const toLoc = getGoldCountryLocation(toLocationId)
@@ -49,35 +51,38 @@ export function GoldCountryTravel({
     return () => clearTimeout(timer)
   }, [phase])
 
-  // Travel progress + encounter check
+  // Progress only — never dispatch or setPhase inside this updater.
   useEffect(() => {
     if (phase !== 'traveling') return
 
     const interval = setInterval(() => {
-      setTravelProgress(prev => {
-        const next = prev + 5
-        if (next >= 50 && !rolledEncounter) {
-          setRolledEncounter(true)
-          const enc = getRandomEncounter(distance)
-          if (enc) {
-            setEncounter(enc)
-            setPhase('encounter')
-            clearInterval(interval)
-            return next
-          }
-        }
-        if (next >= 100) {
-          setPhase('arriving')
-          clearInterval(interval)
-          advanceGoldCountryDay(1)
-          return 100
-        }
-        return next
-      })
+      setTravelProgress((prev) => goldCountryTravelTick(prev).next)
     }, 100)
 
     return () => clearInterval(interval)
-  }, [phase, rolledEncounter, distance, advanceGoldCountryDay])
+  }, [phase])
+
+  // Encounter roll + day advance live in an effect, not in the progress updater.
+  // Updating OregonTrailProvider from setTravelProgress is a setState-in-render.
+  useEffect(() => {
+    if (phase !== 'traveling') return
+
+    if (travelProgress >= 50 && !rolledEncounter) {
+      setRolledEncounter(true)
+      const enc = getRandomEncounter(distance)
+      if (enc) {
+        setEncounter(enc)
+        setPhase('encounter')
+        return
+      }
+    }
+
+    if (travelProgress >= 100 && !dayAdvancedRef.current) {
+      dayAdvancedRef.current = true
+      setPhase('arriving')
+      advanceGoldCountryDay(1)
+    }
+  }, [phase, travelProgress, rolledEncounter, distance, advanceGoldCountryDay])
 
   // Auto-arrive after arriving phase
   useEffect(() => {

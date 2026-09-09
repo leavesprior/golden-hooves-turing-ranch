@@ -61,7 +61,7 @@ const SUPPLY_ITEMS: {
 export function PipBoyMenu({ isOpen, onClose, onOpenCamp }: GameMenuProps) {
   useEscapeKey(onClose)
 
-  const { state, setPace, setRations, getAllNPCRelationships } = useOregonTrail()
+  const { state, setPace, setRations, getAllNPCRelationships, openJournal } = useOregonTrail()
   const { balance } = useKarmaWallet()
   const { state: charState, getStat } = useCharacter()
   const { state: repState, getReputation, getReputationLevel, getAllFactions } = useReputation()
@@ -183,7 +183,11 @@ export function PipBoyMenu({ isOpen, onClose, onOpenCamp }: GameMenuProps) {
               )}
             </div>
             <button
-              onClick={() => playSFX('click')}
+              onClick={() => {
+                playSFX('click')
+                onClose()
+                openJournal()
+              }}
               className="font-pixel text-[10px] text-amber-400 border border-amber-600 px-3 py-1.5 rounded hover:bg-amber-900/30 transition-colors w-full"
             >
               [OPEN FULL JOURNAL]

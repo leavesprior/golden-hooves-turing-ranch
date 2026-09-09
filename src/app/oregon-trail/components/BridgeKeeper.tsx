@@ -179,6 +179,8 @@ export function BridgeKeeper({
           {phase === 'intro' && (
             <div className="space-y-3">
               <button
+                type="button"
+                data-testid="bridge-keeper-approach"
                 onClick={handleStartQuestions}
                 className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded border-2 border-slate-500 transition-colors"
               >
@@ -248,6 +250,8 @@ export function BridgeKeeper({
                 </div>
               )}
               <button
+                type="button"
+                data-testid={phase === 'failure' ? 'bridge-keeper-fail' : 'bridge-keeper-cross'}
                 onClick={handleContinue}
                 className={`w-full py-3 font-bold rounded border-2 transition-colors ${
                   phase === 'failure'

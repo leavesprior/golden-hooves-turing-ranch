@@ -24,12 +24,14 @@ import {
 } from './data/townMysteries'
 import { hasInvestigation } from '@/lib/townInvestigations'
 import { KarmaToastContainer } from '@/components/karma'
-import { useKarma } from '@/lib/karmaContext'
+import { useKarma, formatAlignmentLegend } from '@/lib/karmaContext'
 import { readSharedCharacter } from '@/lib/sharedCharacter'
 import { VolcanoStayShow } from '@/components/VolcanoStayShow'
 import { InteractiveTown } from '@/components/explore/InteractiveTown'
 import { GOLD_COUNTRY_MAP_ART, exploreMapPosition } from '@/lib/goldCountryEditorial'
 import { ProximityNpcs } from '@/components/westFace/ProximityNpcs'
+import { hasExploreQr } from '@/lib/exploreQrGate'
+import { interestHref, nextInterest } from '@/lib/overlay/interest-next'
 
 // ============================================
 // TOWN & ATTRACTION DATA
@@ -41,7 +43,7 @@ const TOWNS: Town[] = [
     name: 'Volcano',
     tagline: 'The Town That Wouldn\'t Die',
     description: 'Once home to 17,000 souls during the Gold Rush, now a charming ghost town with 85 residents and countless secrets.',
-    townStory: 'Founded in 1848, Volcano was named for the volcanic-like appearance of its gold-bearing quartz. It was briefly considered for California\'s capital and housed the state\'s first lending library, astronomical observatory, and little theatre.',
+    townStory: 'Founded in 1848 as a placer camp in a limestone bowl. Canvas and rope in 1849. Brick Main Street, St. George, Cobblestone Theatre, and Madeira\'s observatory are later.',
     coordinates: { lat: 38.4413, lng: -120.6294 },
     attractions: [
       {
@@ -54,6 +56,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Ask for Room 14 - it has the most paranormal activity according to ghost hunters.',
         duration: '1-2 hours',
         xp: 25,
+        period: 'later',
       },
       {
         id: 'vol_theatre',
@@ -66,6 +69,7 @@ const TOWNS: Town[] = [
         duration: '2-3 hours',
         xp: 20,
         coordinates: { lat: 38.4420, lng: -120.6280 },
+        period: 'later',
       },
       {
         id: 'vol_observatory',
@@ -77,17 +81,43 @@ const TOWNS: Town[] = [
         insiderTip: 'Visit at dusk for atmospheric photos with the Sierra Nevada backdrop.',
         duration: '30 min',
         xp: 15,
+        period: 'later',
+      },
+      {
+        id: 'vol_canvas_flat',
+        name: 'Canvas saloon',
+        icon: '⛺',
+        category: 'dining',
+        description: 'Rope and canvas on the bowl floor. Josiah Bell keeps flour and rope. The brick is not from this year.',
+        funFact: '1849 is tents. The brick hotel and the theatre have not been built.',
+        insiderTip: 'Cook, 1849: oak and grass three to five feet high. The bowl is not a crater.',
+        duration: '20 min',
+        xp: 15,
+        period: 'available',
+      },
+      {
+        id: 'vol_soldiers_gulch',
+        name: "Soldiers' Gulch",
+        icon: '⛏️',
+        category: 'adventure',
+        description: "Stevenson's New York regiment men mined here in 1848. The rush year is 1849, not the first flake.",
+        funFact: 'Morning mist in the limestone basin is why they called it Volcano.',
+        insiderTip: 'Walk the gravel, not the future brick. St. George sits later on washed ground.',
+        duration: '30 min',
+        xp: 15,
+        period: 'available',
       },
       {
         id: 'vol_cemetery',
         name: 'Pioneer Cemetery',
         icon: '🪦',
         category: 'mystery',
-        description: 'Final resting place of Gold Rush pioneers. Weathered headstones tell tales of hope and tragedy.',
-        funFact: 'Several graves are marked simply "Unknown" - miners who struck it rich often changed their names.',
-        insiderTip: 'Look for the graves dated 1850-1860 - the earliest settlers\' stories are etched in stone.',
+        description: 'Wood markers on a hill of grass. 1849 buries in boards, not cut stone.',
+        funFact: 'Unknown boards from the first winter. The famous names are later.',
+        insiderTip: 'Stone and 1850s dates sit later on this same hill.',
         duration: '45 min',
         xp: 20,
+        period: 'available',
       },
       {
         id: 'vol_cannon',
@@ -99,6 +129,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The cannon is near the General Store - perfect for a historic photo op.',
         duration: '15 min',
         xp: 10,
+        period: 'later',
       },
     ],
     secretAttractions: [
@@ -227,6 +258,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Try the frozen blended drinks made with real ice cream. Open Thu-Tue, 7am-3pm. Closed Wednesdays.',
         duration: '30 min - 1 hour',
         xp: 15,
+        period: 'later',
       },
       {
         id: 'wp_kit_carson',
@@ -238,6 +270,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Look for the marker near the corner of Highway 26 and Main Street, in the center of town.',
         duration: '15 min',
         xp: 10,
+        period: 'later',
       },
       {
         id: 'wp_general_store',
@@ -420,6 +453,8 @@ const TOWNS: Town[] = [
     id: 'bobr_ranch',
     name: 'Back of Beyond Ranch',
     tagline: 'Your Base Camp',
+    eraName: 'The oak camp',
+    eraTagline: 'Fire at dusk',
     description: 'The real guest ranch in the Calaveras oak foothills — greenhouse porch, oaks, and the camp from which the Gold Country towns are walked.',
     townStory: 'Back of Beyond Ranch is the home place: a two-story cedar house with a glass sun porch under valley oaks, a few miles of West Point. Staging point for virtual adventures and the real explorations that start from the porch.',
     coordinates: { lat: 38.3947, lng: -120.5269 },
@@ -434,6 +469,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Book the loft room for the best stargazing through the skylight.',
         duration: 'As long as you stay!',
         xp: 50,
+        period: 'later',
       },
       {
         id: 'bobr_treasure',
@@ -445,15 +481,16 @@ const TOWNS: Town[] = [
         insiderTip: 'Start at the old oak tree and follow the compass directions.',
         duration: '2-3 hours',
         xp: 40,
+        period: 'later',
       },
       {
         id: 'bobr_campfire',
         name: 'Campfire Circle',
         icon: '🔥',
         category: 'entertainment',
-        description: 'Evening gathering spot for stories, s\'mores, and stargazing.',
-        funFact: 'On clear nights, you can see the Milky Way - no light pollution here.',
-        insiderTip: 'Sunset to 9pm is the magic hour. Bring a blanket.',
+        description: 'Evening fire. Stories. The sky without a town\'s lamps.',
+        funFact: 'On a clear night the milky road is visible — no mill lights yet.',
+        insiderTip: 'Dusk until the coals die. A blanket helps.',
         duration: '1-2 hours',
         xp: 15,
       },
@@ -467,6 +504,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Morning is best - the gold shows up better in angled sunlight.',
         duration: '1 hour',
         xp: 25,
+        period: 'later',
       },
     ],
     secretAttractions: [
@@ -481,6 +519,7 @@ const TOWNS: Town[] = [
         secretUnlock: 'Complete the prologue game AND stay at the ranch',
         duration: '1-2 hours',
         xp: 100,
+        period: 'later',
         badge: { id: 'tobias_heir', name: 'Tobias\'s Heir', icon: '💎', description: 'Found the hidden stash', rarity: 'legendary' },
       },
     ],
@@ -1449,7 +1488,7 @@ function TownDrawer({
 // Progress HUD
 function ExplorerHUD() {
   const { progress, currentLevel, xpToNextLevel, progressPercent, getRandomTobiasTip, checkStreak } = useExplorer()
-  const { applyKarma, alignmentPosition, karma } = useKarma()
+  const { applyKarma, karma } = useKarma()
   const [partyName, setPartyName] = useState<string | null>(null)
   const [showTip, setShowTip] = useState(false)
   const [tip, setTip] = useState('')
@@ -1507,8 +1546,8 @@ function ExplorerHUD() {
       </div>
       <p className="mt-2 font-serif text-[11px] text-[#b8a88a]">
         {partyName || 'No named party yet — the map still takes a scout.'}
-        {' · '}{alignmentPosition.replace('_', ' ')}
-        {' · '}law {karma.alignment.lawfulChaotic} / good {karma.alignment.goodEvil}
+        {' · '}
+        <span data-testid="alignment-legend">{formatAlignmentLegend(karma.alignment)}</span>
       </p>
       {encounter && <p className="mt-1 font-serif text-xs italic text-[#e8dcc4]">{encounter}</p>}
 
@@ -1582,16 +1621,18 @@ function ExplorerHUD() {
 }
 
 // Main Map Component
-function ExplorerMap() {
-  const [selectedTown, setSelectedTown] = useState<Town | null>(null)
+function ExplorerMap({ peekTown }: { peekTown?: string }) {
+  const peekHit = peekTown ? TOWNS.find((t) => t.id === peekTown) || null : null
+  const [selectedTown, setSelectedTown] = useState<Town | null>(peekHit)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [inTown, setInTown] = useState(false)
+  const [inTown, setInTown] = useState(!!peekHit)
   const { progress, isTownVisited, getTownCompletionPercent, isMysterySolved, getMysteryProgress } = useExplorer()
+  const mapInterest = nextInterest(progress.visitedTowns, progress.lastVisitedTown)
 
   useEffect(() => {
     trackPageView('/explore')
     try {
-      const q = new URLSearchParams(window.location.search).get('town')
+      const q = peekTown || new URLSearchParams(window.location.search).get('town')
       if (q) {
         const hit = TOWNS.find((t) => t.id === q)
         if (hit) {
@@ -1600,7 +1641,7 @@ function ExplorerMap() {
         }
       }
     } catch { /* ignore */ }
-  }, [])
+  }, [peekTown])
 
   const handleTownClick = (town: Town) => {
     setSelectedTown(town)
@@ -1611,8 +1652,35 @@ function ExplorerMap() {
     TOWNS.map((t) => [t.id, exploreMapPosition(t.id, t.coordinates.lat, t.coordinates.lng)]),
   ) as Record<string, { x: number; y: number }>
 
+  const peekOnly = !!peekHit
+    && !hasExploreQr({ search: typeof window !== 'undefined' ? window.location.search : `?town=${peekTown}`, storage: typeof window !== 'undefined' ? window.sessionStorage : null })
+
   if (inTown && selectedTown) {
-    return <InteractiveTown town={selectedTown} onLeave={() => setInTown(false)} />
+    const visits = [...new Set([...progress.visitedTowns, selectedTown.id])]
+    const interest = nextInterest(visits, selectedTown.id)
+    return (
+      <InteractiveTown
+        town={selectedTown}
+        nextTrail={!interest.done && interest.trailWord && !interest.named ? (
+          <p className="west-face-body mt-3 max-w-xl" data-testid="explore-interest-next">
+            <a href={interestHref(interest.id)} className="hover:text-[#f3ead8]">
+              {interest.trailWord}
+            </a>
+          </p>
+        ) : null}
+        onLeave={() => {
+          if (peekOnly) {
+            window.location.assign('/hub')
+            return
+          }
+          setInTown(false)
+        }}
+      />
+    )
+  }
+
+  if (peekOnly) {
+    return null
   }
 
   return (
@@ -1629,6 +1697,13 @@ function ExplorerMap() {
           Choose a nearby town. Keep GPS on — keepers, outfitters, and witnesses
           only speak when you are actually there. Easy clues send you back to the ranch site.
         </p>
+        {!mapInterest.done && mapInterest.trailWord && !mapInterest.named && (
+          <p className="west-face-body text-center mb-4 max-w-xl mx-auto" data-testid="explore-interest-next">
+            <a href={interestHref(mapInterest.id)} className="hover:text-[#f3ead8]">
+              {mapInterest.trailWord}
+            </a>
+          </p>
+        )}
 
         <ProximityNpcs />
 
@@ -1789,7 +1864,7 @@ function ExplorerMap() {
 // MAIN EXPORT
 // ============================================
 
-export default function ExplorePage() {
+export default function ExplorePage({ peekTown }: { peekTown?: string } = {}) {
   const [toast, setToast] = useState<{ message: string; type: 'level' | 'badge' | 'secret' } | null>(null)
 
   useEffect(() => {
@@ -1811,7 +1886,7 @@ export default function ExplorePage() {
         setToast({ message: `Secret Unlocked: ${attraction.name}`, type: 'secret' })
       }}
     >
-      <ExplorerMap />
+      <ExplorerMap peekTown={peekTown} />
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-slide-in-up">
           <div className={`px-6 py-3 rounded-lg border-2 font-pixel text-sm shadow-lg ${

@@ -6,6 +6,7 @@ import { useKarmaWallet } from '../karmaWalletContext'
 import { useMystery } from '../mysteryContext'
 import { useAuth } from '@/lib/authContext'
 import { useSaveLoad } from '@/lib/saveLoadContext'
+import { applyLevel2Persist, snapshotLevel2Persist } from '@/lib/goldCountryStreet'
 
 export function SaveLoadIntegration() {
   const { state, loadState } = useOregonTrail()
@@ -48,6 +49,7 @@ export function SaveLoadIntegration() {
           totalBountyEarned: mysteryState.totalBountyEarned,
           notebookEntries: mysteryState.notebookEntries,
         },
+        level2: snapshotLevel2Persist(),
       }
     })
 
@@ -75,6 +77,9 @@ export function SaveLoadIntegration() {
       // Restore mystery/investigation state
       if (data.mysteryState) {
         loadMysteryState(data.mysteryState as Partial<import('../mysteryContext').MysteryState>)
+      }
+      if (data.level2) {
+        applyLevel2Persist(data.level2 as import('@/lib/goldCountryStreet').Level2Persist)
       }
     })
   }, [user, state, balance, alignment, mysteryState, setGameDataCollector, setGameDataLoader, setMetadataCollector, getAlignmentDisplayName, loadState, loadKarmaState, loadMysteryState, enableAutoSave])

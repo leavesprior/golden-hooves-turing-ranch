@@ -13,6 +13,14 @@ import { playSFX } from '../lib/audioManager'
 import { DOSMessage } from '@/components/ui/DOSMessage'
 import { FloatingNumber } from '@/components/ui/FloatingNumber'
 import { useVisualEffect } from '../hooks/useVisualEffect'
+import { useEscapeKey } from '../lib/useEscapeKey'
+import {
+  AMMO_BUY_PER_ROUND,
+  AMMO_ROUNDS_PER_BOX,
+  AMMO_SELL_PER_ROUND,
+  WARE_WAGON_PRICES,
+} from '../data/wareWagon'
+import { clampSellQty, defaultSellAmount, sellStep } from '../data/shopLots'
 
 interface ShopItem {
   id: string
@@ -42,19 +50,19 @@ const SHOP_INVENTORY: ShopItem[] = [
     id: 'ammo',
     name: 'Ammunition',
     emoji: '🎯',
-    basePrice: 2,
-    sellPrice: 1,
-    unit: 'box',
-    description: 'Box of 20 rounds',
+    basePrice: AMMO_BUY_PER_ROUND,
+    sellPrice: AMMO_SELL_PER_ROUND,
+    unit: 'rd',
+    description: 'Box of 20 rounds. Same powder Matt sold at the outfitters.',
     resource: 'ammunition',
-    quantity: 20,
+    quantity: AMMO_ROUNDS_PER_BOX,
   },
   {
     id: 'medicine',
     name: 'Medicine Kit',
     emoji: '💊',
     basePrice: 15,
-    sellPrice: 8,
+    sellPrice: WARE_WAGON_PRICES.medicine / 2,
     unit: 'kit',
     description: 'Laudanum, bandages, and salves',
     resource: 'medicine',
@@ -65,7 +73,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     name: 'Wagon Parts',
     emoji: '🔧',
     basePrice: 25,
-    sellPrice: 12,
+    sellPrice: WARE_WAGON_PRICES.parts / 2,
     unit: 'set',
     description: 'Axles, wheels, and tongues',
     resource: 'spareParts',
@@ -174,6 +182,7 @@ interface Transaction {
 }
 
 export function TownShop({ onClose }: TownShopProps) {
+  useEscapeKey(onClose)
   const { state, buySupplies, sellSupplies, getShopDiscount, getTrailMarketEvent, getTrailMarketPrices, addInventoryItem, restAtInn } = useOregonTrail()
   const { modifyStat, addTrait, addExperience } = useCharacter()
   const { comment, setMood } = useNarrator()
@@ -453,7 +462,13 @@ export function TownShop({ onClose }: TownShopProps) {
             Buy Supplies
           </button>
           <button
-            onClick={() => setMode('sell')}
+            onClick={() => {
+              setMode('sell')
+              if (selectedItem) {
+                const stockNow = getCurrentStock(selectedItem.resource)
+                setQuantity(clampSellQty(sellStep(selectedItem.sellPrice), stockNow))
+              }
+            }}
             className={`flex-1 py-2 text-sm font-bold ${
               mode === 'sell'
                 ? 'bg-amber-800 text-amber-200'
@@ -470,6 +485,7 @@ export function TownShop({ onClose }: TownShopProps) {
           <div className="grid gap-3">
             {SHOP_INVENTORY.map(item => {
               const stock = getCurrentStock(item.resource)
+              const sellAmt = defaultSellAmount(item.sellPrice, item.quantity, stock)
               // Buy mode: price per batch (item.quantity units)
               // Sell mode: price per unit
               const displayPrice = mode === 'buy'
@@ -477,13 +493,18 @@ export function TownShop({ onClose }: TownShopProps) {
                 : item.sellPrice
               const itemAffordable = mode === 'buy'
                 ? canAfford('neutral', displayPrice)
-                : stock >= 1  // Can sell if you have at least 1 unit
+                : sellAmt > 0
 
               return (
                 <div
                   key={item.id}
+                  data-testid={`shop-item-${item.id}`}
                   className={`west-face-row ${itemAffordable ? 'cursor-pointer' : 'opacity-50'}`}
-                  onClick={() => itemAffordable && setSelectedItem(item)}
+                  onClick={() => {
+                    if (!itemAffordable) return
+                    setSelectedItem(item)
+                    setQuantity(mode === 'sell' ? clampSellQty(sellStep(item.sellPrice), stock) : 1)
+                  }}
                 >
                   <div className="flex items-start gap-3 w-full">
                     <div className="flex-1">
@@ -503,9 +524,10 @@ export function TownShop({ onClose }: TownShopProps) {
                             </button>
                             <button
                               type="button"
+                              data-testid={`shop-sell-${item.id}`}
                               className="west-face-pill"
-                              disabled={stock < 1}
-                              onClick={(e) => { e.stopPropagation(); void handleSell(item, item.resource === 'food' ? Math.min(50, stock) : 1) }}
+                              disabled={sellAmt <= 0}
+                              onClick={(e) => { e.stopPropagation(); void handleSell(item, sellAmt) }}
                             >
                               Sell
                             </button>
@@ -526,31 +548,36 @@ export function TownShop({ onClose }: TownShopProps) {
                           <div className="flex items-center gap-2 md:gap-2 flex-wrap">
                             {/* Standard +/- controls */}
                             <button
+                              data-testid="shop-minus"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 if (mode === 'sell') {
-                                  setQuantity(q => Math.max(1, q - (item.resource === 'food' ? 10 : 1)))
+                                  const step = sellStep(item.sellPrice)
+                                  setQuantity(q => clampSellQty(q - step, stock))
                                 } else {
                                   setQuantity(q => Math.max(1, q - 1))
                                 }
                               }}
+                              disabled={mode === 'sell' && clampSellQty(quantity - sellStep(item.sellPrice), stock) === quantity}
                               className="w-10 h-10 md:w-6 md:h-6 text-lg md:text-base bg-amber-700 rounded text-amber-200 active:bg-amber-600"
                             >
                               -
                             </button>
-                            <span className="text-amber-200 w-12 text-center text-base md:text-sm">
+                            <span data-testid="shop-qty" className="text-amber-200 w-12 text-center text-base md:text-sm">
                               {quantity}
                             </span>
                             <button
+                              data-testid="shop-plus"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 if (mode === 'sell') {
-                                  const step = item.resource === 'food' ? 10 : 1
-                                  setQuantity(q => Math.min(stock, q + step))
+                                  const step = sellStep(item.sellPrice)
+                                  setQuantity(q => clampSellQty(q + step, stock))
                                 } else {
                                   setQuantity(q => q + 1)
                                 }
                               }}
+                              disabled={mode === 'sell' && clampSellQty(quantity + sellStep(item.sellPrice), stock) === quantity}
                               className="w-10 h-10 md:w-6 md:h-6 text-lg md:text-base bg-amber-700 rounded text-amber-200 active:bg-amber-600"
                             >
                               +
@@ -566,7 +593,7 @@ export function TownShop({ onClose }: TownShopProps) {
                                       e.stopPropagation()
                                       setQuantity(Math.min(amt, stock))
                                     }}
-                                    disabled={stock < 1}
+                                    disabled={stock < amt || Math.floor(item.sellPrice * Math.min(amt, stock)) <= 0}
                                     className={`px-3 py-2 md:px-2 md:py-0.5 rounded text-sm md:text-xs font-bold active:scale-95 ${
                                       quantity === Math.min(amt, stock) && amt <= stock
                                         ? 'bg-green-600 text-green-100'
@@ -584,7 +611,7 @@ export function TownShop({ onClose }: TownShopProps) {
                                     e.stopPropagation()
                                     setQuantity(stock)
                                   }}
-                                  disabled={stock < 1}
+                                  disabled={stock < 1 || Math.floor(item.sellPrice * stock) <= 0}
                                   className={`px-3 py-2 md:px-2 md:py-0.5 rounded text-sm md:text-xs font-bold active:scale-95 ${
                                     quantity === stock
                                       ? 'bg-green-600 text-green-100'
@@ -611,6 +638,7 @@ export function TownShop({ onClose }: TownShopProps) {
                                 setSelectedItem(null)
                                 setQuantity(1)
                               }}
+                              disabled={mode === 'sell' && Math.floor(item.sellPrice * quantity) <= 0}
                               className={`px-4 py-2 md:px-3 md:py-1 rounded text-base md:text-sm font-bold active:scale-95 ${
                                 mode === 'buy'
                                   ? 'bg-green-700 text-green-100 hover:bg-green-600'

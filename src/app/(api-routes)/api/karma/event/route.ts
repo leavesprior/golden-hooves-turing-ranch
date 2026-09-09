@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbAppendKarmaEvent, type KarmaType } from '@/lib/discountCodesDb';
 import { rateLimitOk, clientIpFrom, signBalance } from '@/lib/markerSession';
+import { allowedLedgerDelta } from '@/lib/karmaUnverifiedBound';
 
 export const runtime = 'nodejs';
 
@@ -16,7 +17,8 @@ const KARMA_TYPES = new Set<KarmaType>(['good', 'neutral', 'bad']);
 // here — those require the Frank/QSD presence gate and are Grok-gated.
 //
 // Idempotent on eventId so a retried/offline-replayed POST is a no-op.
-const MAX_DELTA = 10000; // sanity clamp; in-game earns are small
+// Arbitrary |delta| above UNVERIFIED_MAX_ABS_DELTA refuses unless it is an
+// exact catalog abs (1200/2000/3000). No client envelope skip.
 
 export async function POST(req: NextRequest) {
   const ip = clientIpFrom(req.headers);
@@ -45,24 +47,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'invalid_event_id' }, { status: 400 });
   }
 
-  // Server-owned delta: int, clamped. (In-game is unverified but still server-written.)
-  const finalDelta = Math.max(-MAX_DELTA, Math.min(MAX_DELTA, Math.trunc(delta)));
+  const truncated = Math.trunc(delta);
+  if (!allowedLedgerDelta(truncated)) {
+    return NextResponse.json(
+      { ok: false, reason: 'qsd_envelope_required', _conf: -1 },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+  const finalDelta = truncated;
   const safeSource = `game:${String(source ?? 'ingame').slice(0, 40).replace(/[^a-zA-Z0-9_:-]/g, '')}`;
 
-  const balance = dbAppendKarmaEvent({
-    eventId,
-    sessionId,
-    karmaType: karmaType as KarmaType,
-    delta: finalDelta,
-    source: safeSource,
-  });
+  try {
+    const balance = dbAppendKarmaEvent({
+      eventId,
+      sessionId,
+      karmaType: karmaType as KarmaType,
+      delta: finalDelta,
+      source: safeSource,
+    });
 
-  const asOf = new Date().toISOString();
-  const payload = `${sessionId}:${balance.good}:${balance.neutral}:${balance.bad}:${asOf}`;
-  const sig = signBalance(payload);
+    const asOf = new Date().toISOString();
+    const payload = `${sessionId}:${balance.good}:${balance.neutral}:${balance.bad}:${asOf}`;
+    const sig = signBalance(payload);
 
-  return NextResponse.json(
-    { ok: true, eventId, sessionId, balance, asOf, sig },
-    { headers: { 'Cache-Control': 'no-store' } },
-  );
+    return NextResponse.json(
+      { ok: true, eventId, sessionId, balance, asOf, sig },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  } catch (err) {
+    // Same HMR/native-load class as GET /api/karma/balance. Do not leak a raw
+    // 500: the local wallet already applied the earn/spend.
+    console.error('karma POST ledger unavailable:', err);
+    return NextResponse.json(
+      { ok: false, reason: 'ledger_unavailable' },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
 }

@@ -66,6 +66,7 @@ interface OregonTrailContextValue {
   buySupplies: (resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing' | 'oxen', amount: number, cost: number) => void
   sellSupplies: (resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing' | 'oxen', amount: number, goldGained: number) => void
   restAtInn: (healthBonus: number, moraleBonus: number, cost: number) => void
+  hunker: () => void
   buyFood: (healthBonus: number, moraleBonus: number, cost: number, partyWide: boolean) => void
   buyDrink: (moraleBonus: number, cost: number) => void
 
@@ -250,6 +251,10 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
 
   const restAtInn = useCallback((healthBonus: number, moraleBonus: number, cost: number) => {
     dispatch({ type: 'REST_AT_INN', healthBonus, moraleBonus, cost })
+  }, [])
+
+  const hunker = useCallback(() => {
+    dispatch({ type: 'HUNKER' })
   }, [])
 
   const buyFood = useCallback((healthBonus: number, moraleBonus: number, cost: number, partyWide: boolean) => {
@@ -527,6 +532,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     buySupplies,
     sellSupplies,
     restAtInn,
+    hunker,
     buyFood,
     buyDrink,
     // Mystery/RPG extensions

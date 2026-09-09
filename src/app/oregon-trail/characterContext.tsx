@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import { levelUpStatPoints, skillCheckDc } from '@/lib/gftAgeMode'
 
 // S.A.D.D.L.E. Stats (replacing basic party system)
 export interface SaddleStats {
@@ -78,6 +79,7 @@ interface CharacterContextValue {
 
   // Character creation
   createCharacter: (name: string, background: CharacterBackground, statsOverride?: SaddleStats, traits?: string[]) => void
+  clearCharacter: () => void
   loadCharacter: (character: Character) => void
   allocateStatPoints: (stats: Partial<SaddleStats>) => void
 
@@ -112,7 +114,7 @@ interface CharacterContextValue {
 const CharacterContext = createContext<CharacterContextValue | undefined>(undefined)
 
 // Background stat bonuses
-const BACKGROUND_BONUSES: Record<CharacterBackground, Partial<SaddleStats>> = {
+export const BACKGROUND_BONUSES: Record<CharacterBackground, Partial<SaddleStats>> = {
   pinkerton_veteran: { Shrewdness: 2, Expertise: 2 },
   frontier_scout: { Agility: 2, Expertise: 2 },
   army_officer: { Diplomacy: 2, Durability: 2 },
@@ -266,13 +268,28 @@ export const CHARACTER_TRAITS: Record<string, CharacterTrait> = {
 }
 
 // Base stats for new characters
-const BASE_STATS: SaddleStats = {
+export const BASE_STATS: SaddleStats = {
   Shrewdness: 5,
   Agility: 5,
   Durability: 5,
   Diplomacy: 5,
   Luck: 5,
   Expertise: 5
+}
+
+/** Fold background bonuses onto a SADDLE block. Creation UI shows this total. */
+export function withBackgroundBonuses(
+  stats: SaddleStats,
+  background: CharacterBackground,
+): SaddleStats {
+  const next: SaddleStats = { ...stats }
+  const bonuses = BACKGROUND_BONUSES[background]
+  for (const [stat, bonus] of Object.entries(bonuses)) {
+    if (typeof bonus === 'number') {
+      next[stat as StatName] = Math.min(18, next[stat as StatName] + bonus)
+    }
+  }
+  return next
 }
 
 const initialState: CharacterState = {
@@ -357,6 +374,11 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, [])
 
+  const clearCharacter = useCallback(() => {
+    setState(prev => ({ ...prev, character: null, lastSkillCheck: null, skillCheckHistory: [] }))
+    try { localStorage.removeItem(STORAGE_KEY) } catch {}
+  }, [])
+
   // Load a character from cloud save
   const loadCharacter = useCallback((character: Character) => {
     setState(prev => ({ ...prev, character }))
@@ -426,18 +448,19 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     }, duration * 1000)
   }, [modifyStat, getStat])
 
-  // Roll a skill check (Fallout-style)
+  // Roll a skill check (Fallout-style). Kid mode lowers the DC; adult is unchanged.
   const rollSkillCheck = useCallback((stat: StatName, difficulty: number): SkillCheckResult => {
     const statValue = getStat(stat)
+    const dc = skillCheckDc(difficulty)
 
-    // Roll d20 + stat value vs difficulty * 2
+    // Roll d20 + stat value vs difficulty
     const roll = Math.floor(Math.random() * 20) + 1
     const modifier = statValue
     const total = roll + modifier
 
-    // Critical success on natural 20 or total > difficulty + 10
+    // Critical success on natural 20 or total > DC + 10
     // Critical failure on natural 1
-    const criticalSuccess = roll === 20 || total >= difficulty + 10
+    const criticalSuccess = roll === 20 || total >= dc + 10
     const criticalFailure = roll === 1
 
     // Luck can affect critical range
@@ -446,14 +469,14 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
 
     const result: SkillCheckResult = {
       stat,
-      difficulty,
+      difficulty: dc,
       roll,
       modifier,
       total,
-      success: criticalFailure ? false : (criticalSuccess || total >= difficulty),
+      success: criticalFailure ? false : (criticalSuccess || total >= dc),
       criticalSuccess: roll >= effectiveCriticalRange || criticalSuccess,
       criticalFailure,
-      margin: total - difficulty
+      margin: total - dc
     }
 
     setState(prev => ({
@@ -486,7 +509,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
             experience: newExp - prev.character!.experienceToNextLevel,
             level: prev.character!.level + 1,
             experienceToNextLevel: Math.floor(prev.character!.experienceToNextLevel * 1.5),
-            pendingStatPoints: prev.character!.pendingStatPoints + 2,
+            pendingStatPoints: prev.character!.pendingStatPoints + levelUpStatPoints(),
             levelUpPending: true,
           }
         }
@@ -622,6 +645,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   const value: CharacterContextValue = {
     state,
     createCharacter,
+    clearCharacter,
     loadCharacter,
     allocateStatPoints,
     getStat,

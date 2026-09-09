@@ -157,7 +157,16 @@ export interface TownNpc {
   x: number
   y: number
   line: string
+  period?: 'available' | 'later'
 }
+
+/** Overlay volcano-1849 later ledger. Pins stay in data; 1849 face must not show them. */
+export const VOLCANO_LATER_ATTRACTION_IDS = [
+  'vol_st_george',
+  'vol_theatre',
+  'vol_observatory',
+  'vol_cannon',
+] as const
 
 /** Building pins on each town painting (percent of the image). */
 export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
@@ -167,6 +176,8 @@ export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
     { attractionId: 'vol_cannon', x: 14, y: 58 },
     { attractionId: 'vol_observatory', x: 78, y: 28 },
     { attractionId: 'vol_cemetery', x: 88, y: 62 },
+    { attractionId: 'vol_canvas_flat', x: 68, y: 70 },
+    { attractionId: 'vol_soldiers_gulch', x: 42, y: 82 },
   ],
   angels_camp: [
     { attractionId: 'ac_main_street', x: 50, y: 52 },
@@ -229,16 +240,50 @@ export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
   ],
 }
 
+/** Percent of the painting. Below this, a Talk chip sits on a pin (Look/browser leak). */
+export const STREET_HIT_CLEARANCE = 12
+
+export function presentStreetHits(townId: string): {
+  spots: TownHotspot[]
+  npcs: TownNpc[]
+} {
+  const later = new Set<string>(VOLCANO_LATER_ATTRACTION_IDS)
+  const spots = (TOWN_HOTSPOTS[townId] || []).filter((s) => !later.has(s.attractionId))
+  const npcs = (TOWN_NPCS[townId] || []).filter((n) => n.period !== 'later')
+  return { spots, npcs }
+}
+
+export function streetHitCollisions(min = STREET_HIT_CLEARANCE): {
+  townId: string
+  npc: string
+  spot: string
+  d: number
+}[] {
+  const out: { townId: string; npc: string; spot: string; d: number }[] = []
+  for (const townId of Object.keys(TOWN_HOTSPOTS)) {
+    const { spots, npcs } = presentStreetHits(townId)
+    for (const n of npcs) {
+      for (const s of spots) {
+        const d = Math.hypot(n.x - s.x, n.y - s.y)
+        if (d < min) out.push({ townId, npc: n.id, spot: s.attractionId, d: Math.round(d * 10) / 10 })
+      }
+    }
+  }
+  return out
+}
+
 export const TOWN_NPCS: Record<string, TownNpc[]> = {
   volcano: [
-    { id: 'v_keeper', name: 'Box-office keeper', x: 58, y: 62, line: 'The Cobblestone keeps fifty. Sleep at the ranch if you want a seat that weekend.' },
-    { id: 'v_armand', name: 'Night clerk', x: 24, y: 62, line: 'Room 14 still has a guest who never checked out.' },
+    { id: 'v_keeper', name: 'Box-office keeper', x: 58, y: 62, line: 'The Cobblestone keeps fifty. Sleep at the ranch if you want a seat that weekend.', period: 'later' },
+    { id: 'v_armand', name: 'Night clerk', x: 24, y: 62, line: 'Room 14 still has a guest who never checked out.', period: 'later' },
+    { id: 'v_bell', name: 'Josiah Bell', x: 54, y: 76, line: 'Flour and rope. The brick is not from this year. The box on the bar is not from this gulch.' },
   ],
   angels_camp: [
     { id: 'ac_coon', name: 'Bartender', x: 20, y: 68, line: 'A jumper is only as honest as the man who holds him.' },
   ],
   west_point: [
-    { id: 'wp_will', name: 'Willows regular', x: 36, y: 68, line: 'Highway 26 still does what the old trails did: everybody passes through.' },
+    { id: 'wp_will', name: 'Willows regular', x: 36, y: 68, line: 'Highway 26 still does what the old trails did: everybody passes through.', period: 'later' },
+    { id: 'wp_pack', name: 'Packer', x: 72, y: 78, line: 'Flour, rope, and a road the native camps already knew. The plaque is not from this year.' },
   ],
   mokelumne_hill: [
     { id: 'mh_leger', name: 'Hotel night man', x: 46, y: 58, line: 'We keep a room for the living and a ledger for the rest.' },
@@ -247,7 +292,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'sa_clerk', name: 'Court clerk', x: 36, y: 62, line: 'Bart was undone by laundry. Justice here still reads small marks.' },
   ],
   bobr_ranch: [
-    { id: 'br_tobias', name: 'Tobias', x: 62, y: 78, line: 'Back of Beyond is the camp. The towns are the work.' },
+    { id: 'br_tobias', name: 'Tobias', x: 62, y: 78, line: 'Fire here. The towns are the work. The house with glass is not from this year.' },
   ],
   nevada_city: [
     { id: 'nc_lamp', name: 'Lamp-lighter', x: 22, y: 70, line: 'Gaslight made this place think it was a city. The pines never agreed.' },
@@ -256,7 +301,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'gv_cornish', name: 'Cornish miner', x: 48, y: 62, line: 'The cow kicked a rock. After that we went down instead of along the creek.' },
   ],
   mariposa: [
-    { id: 'mp_clerk', name: 'County clerk', x: 22, y: 68, line: 'Oldest courthouse in the mountains. The oaks were here first.' },
+    { id: 'mp_clerk', name: 'County clerk', x: 16, y: 84, line: 'Oldest courthouse in the mountains. The oaks were here first.' },
   ],
   angels_camp_expanded: [
     { id: 'ace_plaque', name: 'Plaque reader', x: 20, y: 68, line: 'Twain heard the frog here. The rest of the country heard Twain.' },
