@@ -18,6 +18,7 @@ import {
   AMMO_BUY_PER_ROUND,
   AMMO_ROUNDS_PER_BOX,
   AMMO_SELL_PER_ROUND,
+  WARE_WAGON_PRICES,
 } from '../data/wareWagon'
 import { clampSellQty, defaultSellAmount, sellStep } from '../data/shopLots'
 
@@ -61,7 +62,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     name: 'Medicine Kit',
     emoji: '💊',
     basePrice: 15,
-    sellPrice: 8,
+    sellPrice: WARE_WAGON_PRICES.medicine / 2,
     unit: 'kit',
     description: 'Laudanum, bandages, and salves',
     resource: 'medicine',
@@ -72,7 +73,7 @@ const SHOP_INVENTORY: ShopItem[] = [
     name: 'Wagon Parts',
     emoji: '🔧',
     basePrice: 25,
-    sellPrice: 12,
+    sellPrice: WARE_WAGON_PRICES.parts / 2,
     unit: 'set',
     description: 'Axles, wheels, and tongues',
     resource: 'spareParts',
