@@ -10,6 +10,7 @@ export function Gunsmith() {
   const { state, canBuyRifle, buyRifle } = useSettlement()
   const { balance, spendNeutral } = useKarmaWallet()
   const trail = useOregonTrail()
+  const { buySupplies } = trail
 
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [ammoAmount, setAmmoAmount] = useState(50)
@@ -36,9 +37,8 @@ export function Gunsmith() {
     }
 
     const success = await spendNeutral(cost, `Ammunition: ${ammoAmount} rounds`)
-    if (success && trail.state) {
-      // Add ammo to trail state (this would need to be exposed from the context)
-      // For now we just show the message
+    if (success) {
+      buySupplies('ammunition', ammoAmount, 0)
       showMessage(`Purchased ${ammoAmount} rounds of ammunition!`, 'success')
     }
   }
