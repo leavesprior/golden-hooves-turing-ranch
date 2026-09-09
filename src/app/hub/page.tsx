@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useKarma, ALIGNMENT_DISPLAY_NAMES } from '@/lib/karmaContext'
+import { useKarma, formatAlignmentLegend } from '@/lib/karmaContext'
 import { useCrossGame } from '@/lib/crossGameProgressionContext'
 import { hasAnyCharacter } from '@/lib/sharedCharacter'
 import { KarmaToastContainer, HouseRulesQuiz } from '@/components/karma'
@@ -32,7 +32,7 @@ function MoreRow({ href, title, note, locked, lockHint }: {
 }
 
 export default function HubPage() {
-  const { alignmentPosition, discountMultiplier, hasCompletedHouseRules, houseRulesScore, karma } = useKarma()
+  const { discountMultiplier, hasCompletedHouseRules, houseRulesScore, karma } = useKarma()
   const { isUnlocked, unlockToasts, dismissUnlockToast } = useCrossGame()
   const [showQuiz, setShowQuiz] = useState(false)
   const [hasCharacter, setHasCharacter] = useState(false)
@@ -51,7 +51,7 @@ export default function HubPage() {
   const interest = nextInterest(visitedTownIds, lastTownId)
   const nextHref = interestHref(interest.id)
 
-  const alignmentName = ALIGNMENT_DISPLAY_NAMES[alignmentPosition] || alignmentPosition
+  const alignmentLegend = formatAlignmentLegend(karma.alignment)
 
   return (
     <div className="min-h-screen bg-[#0e0c0a] text-[#e8dcc4]">
@@ -117,6 +117,9 @@ export default function HubPage() {
                 </Link>
               </p>
             )}
+            <p className="west-face-body mt-3 text-sm" data-testid="alignment-legend">
+              {alignmentLegend}
+            </p>
           </div>
         </article>
 
@@ -159,7 +162,7 @@ export default function HubPage() {
           <div className="west-face-footer mt-4 flex flex-wrap items-center justify-between gap-3">
             <p>
               {hasCompletedHouseRules
-                ? `House rules remembered (${houseRulesScore}/10). Alignment: ${alignmentName} · stay discount ${discountMultiplier}×.`
+                ? `House rules remembered (${houseRulesScore}/10). Alignment: ${alignmentLegend} · stay discount ${discountMultiplier}×.`
                 : 'A short house-rules quiz, if you want the stay discount to know you.'}
             </p>
             <button type="button" className="west-face-pill" onClick={() => setShowQuiz(true)}>

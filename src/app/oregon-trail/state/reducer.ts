@@ -15,7 +15,7 @@ import { AMMO_ROUNDS_PER_BOX } from '../data/wareWagon'
 import { computeTravel } from './travelEngine'
 import {
   applyBuySupplies, applySellSupplies, applyRepairWagon,
-  applyRestAtInn, applyBuyFood, applyBuyDrink,
+  applyRestAtInn, applyHunkerOnTrail, applyBuyFood, applyBuyDrink,
 } from './resourceEngine'
 import {
   applyGoToCharacterCreation, applyOpenInvestigation, applyCloseInvestigation,
@@ -392,6 +392,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
     case 'SELL_SUPPLIES': return applySellSupplies(state, action.resource, action.amount)
     case 'REPAIR_WAGON': return applyRepairWagon(state)
     case 'REST_AT_INN': return applyRestAtInn(state, action.healthBonus, action.moraleBonus)
+    case 'HUNKER': return applyHunkerOnTrail(state)
     case 'BUY_FOOD': return applyBuyFood(state, action.healthBonus, action.moraleBonus, action.partyWide)
     case 'BUY_DRINK': return applyBuyDrink(state, action.moraleBonus)
 

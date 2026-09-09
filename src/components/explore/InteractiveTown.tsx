@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { arcadePresentAttractions, useExplorer, type Town, type Attraction } from '@/app/explore/explorerContext'
 import { useKarma } from '@/lib/karmaContext'
 import { VolcanoStayShow } from '@/components/VolcanoStayShow'
@@ -9,6 +9,8 @@ import {
   TOWN_HOTSPOTS,
   TOWN_NPCS,
 } from '@/lib/goldCountryEditorial'
+import { townAsciiInterior } from '@/lib/overlay/townAsciiInterior'
+import { PlacePictureLift } from '@/components/PlacePictureLift'
 
 export function InteractiveTown({
   town,
@@ -30,7 +32,7 @@ export function InteractiveTown({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [npcLine, setNpcLine] = useState<string | null>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     visitTown(town.id)
   }, [town.id, visitTown])
 
@@ -49,6 +51,7 @@ export function InteractiveTown({
   }, [town])
 
   const selected = selectedId ? byId.get(selectedId) : undefined
+  const interior = townAsciiInterior(selected?.id)
 
   const enterBuilding = (attractionId: string) => {
     const a = byId.get(attractionId)
@@ -82,14 +85,23 @@ export function InteractiveTown({
       </header>
 
       <div className="relative min-h-0 flex-1">
-        {art ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={art} alt="" className="absolute inset-0 h-full w-full object-contain object-center" />
+        {interior ? (
+          <pre
+            data-testid={interior.testid}
+            className="absolute inset-0 overflow-auto bg-[#0e0c0a] p-3 font-mono text-[11px] leading-[1.15] text-[#c4b896]"
+          >
+            {interior.rows.join('\n')}
+          </pre>
+        ) : art ? (
+          <PlacePictureLift src={art} className="absolute inset-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={art} alt="" className="absolute inset-0 h-full w-full object-contain object-center" />
+          </PlacePictureLift>
         ) : (
           <div className="absolute inset-0 bg-[#16130f]" />
         )}
 
-        {spots.map((spot) => {
+        {!interior && spots.map((spot) => {
           const a = byId.get(spot.attractionId)
           if (!a) return null
           const seen = isAttractionVisited(a.id)
@@ -113,7 +125,7 @@ export function InteractiveTown({
           )
         })}
 
-        {npcs.map((npc) => (
+        {!interior && npcs.map((npc) => (
           <button
             key={npc.id}
             type="button"
@@ -134,8 +146,12 @@ export function InteractiveTown({
           <article className="west-face-paper">
             <p className="west-face-eyebrow">{selected.category}</p>
             <h2 className="west-face-title text-xl">{selected.name}</h2>
-            <p className="west-face-body mt-2">{selected.description}</p>
-            <p className="mt-2 font-serif text-xs text-[#b8a88a]">{selected.funFact}</p>
+            <p className="west-face-body mt-2">
+              {interior ? interior.finding : selected.description}
+            </p>
+            <p className="mt-2 font-serif text-xs text-[#b8a88a]">
+              {interior ? interior.trailWord : selected.funFact}
+            </p>
             {selected.id === 'vol_theatre' && <VolcanoStayShow />}
           </article>
         ) : (

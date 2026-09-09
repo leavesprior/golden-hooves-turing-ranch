@@ -19,6 +19,7 @@ import { useCharacter, type StatName } from '../characterContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { useNarrator } from '../narratorContext'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
+import { PlacePictureLift } from '@/components/PlacePictureLift'
 import { editorialForLandmark } from '@/lib/californiaTrailArt'
 // NEW: Douglas Adams / Monty Python Easter Egg imports
 import { RiverAnimation } from './RiverAnimation'
@@ -293,12 +294,14 @@ export function RiverCrossing({
         {phase === 'assess' && (
           <div className="text-center mb-6">
             {riverArt ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={riverArt}
-                alt=""
-                className="mb-4 h-44 w-full rounded-lg border-2 border-cyan-700/50 object-cover object-[center_45%]"
-              />
+              <PlacePictureLift src={riverArt} className="mb-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={riverArt}
+                  alt=""
+                  className="h-44 w-full rounded-lg border-2 border-cyan-700/50 object-cover object-[center_45%]"
+                />
+              </PlacePictureLift>
             ) : (
               <PlaceBackdrop
                 id={'ot_' + riverName.toLowerCase().replace(/ crossing$/, '').replace(/[^a-z]+/g, '_')}

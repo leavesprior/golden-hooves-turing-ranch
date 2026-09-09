@@ -24,7 +24,7 @@ import {
 } from './data/townMysteries'
 import { hasInvestigation } from '@/lib/townInvestigations'
 import { KarmaToastContainer } from '@/components/karma'
-import { useKarma } from '@/lib/karmaContext'
+import { useKarma, formatAlignmentLegend } from '@/lib/karmaContext'
 import { readSharedCharacter } from '@/lib/sharedCharacter'
 import { VolcanoStayShow } from '@/components/VolcanoStayShow'
 import { InteractiveTown } from '@/components/explore/InteractiveTown'
@@ -112,11 +112,12 @@ const TOWNS: Town[] = [
         name: 'Pioneer Cemetery',
         icon: '🪦',
         category: 'mystery',
-        description: 'Final resting place of Gold Rush pioneers. Weathered headstones tell tales of hope and tragedy.',
-        funFact: 'Several graves are marked simply "Unknown" - miners who struck it rich often changed their names.',
-        insiderTip: 'Look for the graves dated 1850-1860 - the earliest settlers\' stories are etched in stone.',
+        description: 'Wood markers on a hill of grass. 1849 buries in boards, not cut stone.',
+        funFact: 'Unknown boards from the first winter. The famous names are later.',
+        insiderTip: 'Stone and 1850s dates sit later on this same hill.',
         duration: '45 min',
         xp: 20,
+        period: 'available',
       },
       {
         id: 'vol_cannon',
@@ -1487,7 +1488,7 @@ function TownDrawer({
 // Progress HUD
 function ExplorerHUD() {
   const { progress, currentLevel, xpToNextLevel, progressPercent, getRandomTobiasTip, checkStreak } = useExplorer()
-  const { applyKarma, alignmentPosition, karma } = useKarma()
+  const { applyKarma, karma } = useKarma()
   const [partyName, setPartyName] = useState<string | null>(null)
   const [showTip, setShowTip] = useState(false)
   const [tip, setTip] = useState('')
@@ -1545,8 +1546,8 @@ function ExplorerHUD() {
       </div>
       <p className="mt-2 font-serif text-[11px] text-[#b8a88a]">
         {partyName || 'No named party yet — the map still takes a scout.'}
-        {' · '}{alignmentPosition.replace('_', ' ')}
-        {' · '}law {karma.alignment.lawfulChaotic} / good {karma.alignment.goodEvil}
+        {' · '}
+        <span data-testid="alignment-legend">{formatAlignmentLegend(karma.alignment)}</span>
       </p>
       {encounter && <p className="mt-1 font-serif text-xs italic text-[#e8dcc4]">{encounter}</p>}
 
@@ -1662,9 +1663,9 @@ function ExplorerMap({ peekTown }: { peekTown?: string }) {
         town={selectedTown}
         nextTrail={!interest.done && interest.trailWord && !interest.named ? (
           <p className="west-face-body mt-3 max-w-xl" data-testid="explore-interest-next">
-            <Link href={interestHref(interest.id)} className="hover:text-[#f3ead8]">
+            <a href={interestHref(interest.id)} className="hover:text-[#f3ead8]">
               {interest.trailWord}
-            </Link>
+            </a>
           </p>
         ) : null}
         onLeave={() => {
@@ -1698,9 +1699,9 @@ function ExplorerMap({ peekTown }: { peekTown?: string }) {
         </p>
         {!mapInterest.done && mapInterest.trailWord && !mapInterest.named && (
           <p className="west-face-body text-center mb-4 max-w-xl mx-auto" data-testid="explore-interest-next">
-            <Link href={interestHref(mapInterest.id)} className="hover:text-[#f3ead8]">
+            <a href={interestHref(mapInterest.id)} className="hover:text-[#f3ead8]">
               {mapInterest.trailWord}
-            </Link>
+            </a>
           </p>
         )}
 

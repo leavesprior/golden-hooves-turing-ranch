@@ -94,6 +94,13 @@ const DB32_SCENE_BY_PLACE: Record<string, Db32SceneKey> = {
   kennedy_mine: 'mine', ch5_hydraulic_scar: 'mine',
 }
 
+export function placeArtSrc(id: string): string | null {
+  const editorial = editorialForExplorePlace(id)
+  if (editorial) return editorial
+  const art = PLACE_ART[id]
+  return art ? `/place-art/${art}.png` : null
+}
+
 export function PlaceBackdrop({ id, className = '' }: { id: string; className?: string }) {
   const [failed, setFailed] = useState(false)
   const [pixelFailed, setPixelFailed] = useState(false)

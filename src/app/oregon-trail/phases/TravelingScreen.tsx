@@ -41,7 +41,7 @@ export function TravelingScreen({
   onRepairWagon,
   lastStatVariant,
 }: TravelingScreenProps) {
-  const { state, travel, setPace, setRations, hunt } = useOregonTrail()
+  const { state, travel, setPace, setRations, hunt, hunker } = useOregonTrail()
   const { addExperience } = useCharacter()
   const { progress: chapterProgress } = useChapter()
 
@@ -192,6 +192,14 @@ export function TravelingScreen({
             className="px-4 py-3 bg-amber-700 hover:bg-amber-600 text-amber-100 font-pixel text-sm rounded border-4 border-amber-500 disabled:opacity-50 transition-colors"
           >
             Hunt
+          </button>
+          <button
+            type="button"
+            data-testid="trail-hunker"
+            onClick={() => hunker()}
+            className="px-4 py-3 bg-stone-800 hover:bg-stone-700 text-amber-100 font-pixel text-sm rounded border-4 border-amber-700 transition-colors"
+          >
+            Hunker
           </button>
           <button
             onClick={() => setShowCharacterSheet(true)}

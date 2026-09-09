@@ -13,6 +13,7 @@ import {
   calculateKarmaDiscount,
   ALIGNMENT_DISPLAY_NAMES,
   KARMA_MULTIPLIERS,
+  formatAlignmentLegend,
 } from './karmaStorage'
 import { isTopDownBetaRoute } from './topDownBetaRoute'
 
@@ -26,6 +27,7 @@ export {
   calculateKarmaDiscount,
   ALIGNMENT_DISPLAY_NAMES,
   KARMA_MULTIPLIERS,
+  formatAlignmentLegend,
 }
 
 // Toast notification for karma changes

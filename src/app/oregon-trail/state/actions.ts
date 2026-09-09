@@ -52,6 +52,7 @@ export type GameAction =
   | { type: 'SELL_SUPPLIES'; resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing' | 'oxen'; amount: number; karmaGained: number }
   | { type: 'REPAIR_WAGON' }
   | { type: 'REST_AT_INN'; healthBonus: number; moraleBonus: number; cost: number }
+  | { type: 'HUNKER' }
   | { type: 'BUY_FOOD'; healthBonus: number; moraleBonus: number; cost: number; partyWide: boolean }
   | { type: 'BUY_DRINK'; moraleBonus: number; cost: number }
 

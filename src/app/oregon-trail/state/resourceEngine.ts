@@ -53,6 +53,27 @@ export function applyRestAtInn(
   }
 }
 
+/** Trail camp. Costs a day and rations. Does not move miles. Does not auto. */
+export function applyHunkerOnTrail(prev: OregonTrailState): OregonTrailState {
+  if (prev.phase !== 'traveling') return prev
+  const party = (Array.isArray(prev.party) ? prev.party : []).filter(Boolean)
+  if (party.length === 0) return prev
+  const rationMultiplier = { filling: 3, meager: 2, bare_bones: 1 }[prev.rations] ?? 2
+  const foodConsumed = Math.ceil(party.length * rationMultiplier)
+  return {
+    ...prev,
+    food: Math.max(0, prev.food - foodConsumed),
+    morale: Math.min(100, prev.morale + 5),
+    party: party.map(member => ({
+      ...member,
+      health: Math.min(100, member.health + 10),
+    })),
+    day: prev.day + 1,
+    daysOnTrail: (prev.daysOnTrail || 0) + 1,
+    message: 'You hunker. The miles wait.',
+  }
+}
+
 export function applyBuyFood(
   prev: OregonTrailState,
   healthBonus: number,

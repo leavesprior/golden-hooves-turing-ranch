@@ -240,11 +240,43 @@ export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
   ],
 }
 
+/** Percent of the painting. Below this, a Talk chip sits on a pin (Look/browser leak). */
+export const STREET_HIT_CLEARANCE = 12
+
+export function presentStreetHits(townId: string): {
+  spots: TownHotspot[]
+  npcs: TownNpc[]
+} {
+  const later = new Set<string>(VOLCANO_LATER_ATTRACTION_IDS)
+  const spots = (TOWN_HOTSPOTS[townId] || []).filter((s) => !later.has(s.attractionId))
+  const npcs = (TOWN_NPCS[townId] || []).filter((n) => n.period !== 'later')
+  return { spots, npcs }
+}
+
+export function streetHitCollisions(min = STREET_HIT_CLEARANCE): {
+  townId: string
+  npc: string
+  spot: string
+  d: number
+}[] {
+  const out: { townId: string; npc: string; spot: string; d: number }[] = []
+  for (const townId of Object.keys(TOWN_HOTSPOTS)) {
+    const { spots, npcs } = presentStreetHits(townId)
+    for (const n of npcs) {
+      for (const s of spots) {
+        const d = Math.hypot(n.x - s.x, n.y - s.y)
+        if (d < min) out.push({ townId, npc: n.id, spot: s.attractionId, d: Math.round(d * 10) / 10 })
+      }
+    }
+  }
+  return out
+}
+
 export const TOWN_NPCS: Record<string, TownNpc[]> = {
   volcano: [
     { id: 'v_keeper', name: 'Box-office keeper', x: 58, y: 62, line: 'The Cobblestone keeps fifty. Sleep at the ranch if you want a seat that weekend.', period: 'later' },
     { id: 'v_armand', name: 'Night clerk', x: 24, y: 62, line: 'Room 14 still has a guest who never checked out.', period: 'later' },
-    { id: 'v_bell', name: 'Josiah Bell', x: 64, y: 74, line: 'Flour and rope. The brick is not from this year. The box on the bar is not from this gulch.' },
+    { id: 'v_bell', name: 'Josiah Bell', x: 54, y: 76, line: 'Flour and rope. The brick is not from this year. The box on the bar is not from this gulch.' },
   ],
   angels_camp: [
     { id: 'ac_coon', name: 'Bartender', x: 20, y: 68, line: 'A jumper is only as honest as the man who holds him.' },
@@ -269,7 +301,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'gv_cornish', name: 'Cornish miner', x: 48, y: 62, line: 'The cow kicked a rock. After that we went down instead of along the creek.' },
   ],
   mariposa: [
-    { id: 'mp_clerk', name: 'County clerk', x: 22, y: 68, line: 'Oldest courthouse in the mountains. The oaks were here first.' },
+    { id: 'mp_clerk', name: 'County clerk', x: 16, y: 84, line: 'Oldest courthouse in the mountains. The oaks were here first.' },
   ],
   angels_camp_expanded: [
     { id: 'ace_plaque', name: 'Plaque reader', x: 20, y: 68, line: 'Twain heard the frog here. The rest of the country heard Twain.' },

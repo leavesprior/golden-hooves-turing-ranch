@@ -327,6 +327,33 @@ export function readExplorerVisits(): { visitedTownIds: string[]; lastTownId?: s
   }
 }
 
+function progressFromStorage(fallback: ExplorerProgress): ExplorerProgress {
+  if (typeof window === 'undefined') return fallback
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return fallback
+    const parsed = JSON.parse(raw)
+    const storedIds = Array.isArray(parsed?.visitedTowns)
+      ? parsed.visitedTowns.filter((id: unknown) => typeof id === 'string')
+      : []
+    const visitedTowns = [...new Set([...fallback.visitedTowns, ...storedIds])]
+    const lastVisitedTown = typeof parsed?.lastVisitedTown === 'string'
+      ? parsed.lastVisitedTown
+      : fallback.lastVisitedTown
+    return {
+      ...fallback,
+      ...parsed,
+      visitedTowns,
+      lastVisitedTown,
+      challenges: parsed.challenges || fallback.challenges,
+      mysteries: parsed.mysteries || fallback.mysteries || [],
+      journalEntries: parsed.journalEntries || fallback.journalEntries || [],
+    }
+  } catch {
+    return fallback
+  }
+}
+
 // ============================================
 // DEFAULT STATE
 // ============================================
@@ -527,16 +554,23 @@ export function ExplorerProvider({
     return { xpGained, levelUp, badgeEarned }
   }, [getAllAttractions, onLevelUp, onBadgeEarned])
 
-  // Visit town
+  // Peek-to-peek is a hard nav. Merge stored visits so a new mount cannot
+  // write [thisTown] over the camp the player just left.
   const visitTown = useCallback((townId: string) => {
-    setProgress(prev => {
-      if (prev.visitedTowns.includes(townId)) return prev
-      return {
-        ...prev,
-        visitedTowns: [...prev.visitedTowns, townId],
-        lastVisitedTown: townId,
-      }
-    })
+    const prev = progressFromStorage(progressRef.current)
+    if (prev.visitedTowns.includes(townId)) {
+      progressRef.current = prev
+      setProgress(prev)
+      return
+    }
+    const next = {
+      ...prev,
+      visitedTowns: [...prev.visitedTowns, townId],
+      lastVisitedTown: townId,
+    }
+    progressRef.current = next
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+    setProgress(next)
   }, [])
 
   // Unlock secret
@@ -776,7 +810,10 @@ export function ExplorerProvider({
   // a stable callback (safe to call from an unmount/pagehide flush).
   const saveProgress = useCallback(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(progressRef.current))
+      const current = progressRef.current
+      const stored = progressFromStorage(current)
+      const richer = stored.visitedTowns.length >= (current.visitedTowns?.length || 0) ? stored : current
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(richer))
     } catch (e) {
       console.error('Failed to save explorer progress:', e)
     }

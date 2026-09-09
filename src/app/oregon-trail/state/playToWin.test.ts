@@ -62,7 +62,8 @@ function playToWin(): { state: OregonTrailState; ticks: number; log: string[] } 
     } else if (state.phase === 'event' && state.currentEvent?.choices?.length) {
       action = { type: 'HANDLE_EVENT_CHOICE', choiceId: pickSafestChoice(state) }
     } else if (state.phase === 'traveling') {
-      if (state.food < 350 && state.ammunition >= 10) action = { type: 'HUNT' }
+      if (minHealth < 40) action = { type: 'HUNKER' }
+      else if (state.food < 350 && state.ammunition >= 10) action = { type: 'HUNT' }
       else action = { type: 'TRAVEL' }
     } else {
       log.push(`unhandled ${state.phase}`)

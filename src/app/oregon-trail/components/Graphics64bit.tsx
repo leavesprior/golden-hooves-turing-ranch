@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { type GraphicsTier } from '../oregonTrailContext'
+import { PlacePictureLift } from '@/components/PlacePictureLift'
 
 // Time of day affects visuals
 export type TimeOfDay = 'dawn' | 'day' | 'dusk' | 'night'
@@ -630,14 +631,17 @@ export function TravelingScene({
 
   const pip = Math.max(4, Math.min(96, progress))
   const weatherNote = weather === 'clear' ? 'fair' : weather.replace('_', ' ')
+  const trailSrc = artSrc || '/place-art/ot_title_prairie_editorial.jpg'
 
   return (
     <div className="relative mb-2 h-52 overflow-hidden rounded-2xl border border-[rgba(232,220,196,0.12)]">
-      <img
-        src={artSrc || '/place-art/ot_title_prairie_editorial.jpg'}
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover object-[center_45%]"
-      />
+      <PlacePictureLift src={trailSrc} className="absolute inset-0">
+        <img
+          src={trailSrc}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-[center_45%]"
+        />
+      </PlacePictureLift>
       <div className="absolute inset-0 bg-gradient-to-t from-[#0e0c0a] via-[#0e0c0a]/25 to-black/15" />
       <p className="absolute left-4 top-3 font-serif text-[11px] uppercase tracking-[0.28em] text-[#e8dcc4]/80">
         {terrain} · {timeOfDay} · {weatherNote}

@@ -122,7 +122,7 @@ function getContextualLine(
 // ============================================================================
 
 export function CampMenu({ isOpen, onClose }: CampMenuProps) {
-  const { state, buyFood, restAtInn, repairWagon, buySupplies } = useOregonTrail()
+  const { state, buyFood, restAtInn, hunker, repairWagon, buySupplies } = useOregonTrail()
   const { balance, canAfford, spendNeutral } = useKarmaWallet()
   const narrator = useNarrator()
 
@@ -320,9 +320,14 @@ export function CampMenu({ isOpen, onClose }: CampMenuProps) {
                 type="button"
                 data-testid="camp-rest-night"
                 onClick={() => {
-                  restAtInn(10, 5, 0)
+                  if (state.phase === 'traveling') hunker()
+                  else restAtInn(10, 5, 0)
                   playSFX('success')
-                  setResultMessage('The company sleeps. Dawn comes whether you earned it or not.')
+                  setResultMessage(
+                    state.phase === 'traveling'
+                      ? 'You hunker. The miles wait.'
+                      : 'The company sleeps. Dawn comes whether you earned it or not.',
+                  )
                 }}
                 className="w-full min-h-11 px-3 py-2 font-pixel text-xs text-amber-100 bg-amber-900/50 border border-amber-700 rounded hover:bg-amber-900"
               >

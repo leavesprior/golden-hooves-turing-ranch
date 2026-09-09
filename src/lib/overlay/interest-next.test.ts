@@ -46,4 +46,10 @@ ok(interestHref(null) === '/explore', 'done goes to the porch')
 ok(interestHref(afterVolcano.id) === '/explore?town=west_point', 'after volcano the live door is west_point')
 
 if (failed) { console.error(`${failed} failed, ${passed} passed`); process.exit(1) }
-console.log(JSON.stringify({ ok: true, passed }))
+console.log(JSON.stringify({
+  ok: true,
+  passed,
+  after_volcano_id: afterVolcano.id,
+  after_volcano_named: afterVolcano.named,
+  jackson_href: interestHref('jackson'),
+}))
