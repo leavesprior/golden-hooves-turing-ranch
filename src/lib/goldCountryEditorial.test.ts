@@ -11,8 +11,10 @@ import {
 } from './goldCountryEditorial'
 import { getDefaultLocation } from '../app/adventure/data/chapterLocations'
 
-assert.equal(editorialForExplorePlace('volcano'), '/place-art/editorial/volcano_main.jpg?v=20260820a')
-assert.equal(editorialForExplorePlace('vol_theatre'), '/place-art/editorial/volcano_main.jpg?v=20260820a')
+assert.equal(editorialForExplorePlace('volcano'), '/place-art/editorial/volcano_1849.jpg?v=20260908a')
+assert.equal(editorialForExplorePlace('vol_theatre'), '/place-art/editorial/volcano_1849.jpg?v=20260908a')
+assert.equal(TOWN_EDITORIAL.volcano.includes('volcano_main'), false)
+assert.equal(TOWN_EDITORIAL.volcano.includes('volcano_1849'), true)
 assert.equal(editorialForExplorePlace('angels_camp'), '/place-art/editorial/angels_camp.jpg?v=20260820a')
 assert.equal(editorialForExplorePlace('angels_camp_expanded'), '/place-art/editorial/angels_camp_expanded.jpg?v=20260820a')
 assert.equal(editorialForExplorePlace('gv_empire_mine'), '/place-art/editorial/grass_valley.jpg?v=20260820a')
@@ -38,6 +40,8 @@ for (const file of [
   'murphys.jpg',
   'harris_ranch.jpg',
   'natural_bridges.jpg',
+  'volcano_1849.jpg',
+  'volcano_main.jpg',
 ]) {
   assert.equal(existsSync(join(editorialDir, file)), true, file)
 }

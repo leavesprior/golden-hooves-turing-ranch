@@ -4,6 +4,8 @@ const E = '/place-art/editorial'
 const V = '?v=20260820a'
 
 export const VOLCANO_MAIN_ART = `${E}/volcano_main.jpg${V}`
+/** 1849 explorer street: wood and canvas. Later brick hotel stays on volcano_main. */
+export const VOLCANO_1849_ART = `${E}/volcano_1849.jpg?v=20260908a`
 
 /** Painted Gold Country relief — regional map background, not a town street. */
 export const GOLD_COUNTRY_MAP_ART = `${E}/gold_country_map.jpg${V}`
@@ -49,7 +51,7 @@ export function exploreMapPosition(
 }
 
 export const TOWN_EDITORIAL: Record<string, string> = {
-  volcano: `${E}/volcano_main.jpg${V}`,
+  volcano: `${E}/volcano_1849.jpg?v=20260908a`,
   angels_camp: `${E}/angels_camp.jpg${V}`,
   angels_camp_expanded: `${E}/angels_camp_expanded.jpg${V}`,
   west_point: `${E}/west_point.jpg${V}`,
