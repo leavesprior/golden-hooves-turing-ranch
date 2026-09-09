@@ -26,7 +26,7 @@ interface SpecialtyShopProps {
 }
 
 export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
-  const { state, buySupplies, buyFood } = useOregonTrail()
+  const { state, buySupplies, buyFood, repairWagon } = useOregonTrail()
   const { getStat, modifyStat } = useCharacter()
   const { comment, setMood } = useNarrator()
   const {
@@ -82,6 +82,11 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
       return
     }
 
+    if (item.effect.type === 'wagon_repair' && state.wagonCondition >= 100) {
+      setMessage('The wagon is already sound.')
+      return
+    }
+
     // Spend karma
     const neutralSuccess = await spendNeutral(neutralCost, `${shop.name}: ${item.name}`)
     if (!neutralSuccess) {
@@ -96,11 +101,16 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
     // Apply effects
     const eff = item.effect
     switch (eff.type) {
-      case 'wagon_repair':
-        // Repair wagon condition
-        buySupplies('spareParts', 0, 0) // Trigger state update
+      case 'wagon_repair': {
+        const maxTicks = Math.max(0, Math.ceil((100 - state.wagonCondition) / 25))
+        const ticks = Math.min(Math.ceil((eff.value || 25) / 25), maxTicks)
+        if (ticks > 0) {
+          buySupplies('spareParts', ticks, 0)
+          for (let i = 0; i < ticks; i++) repairWagon()
+        }
         setMessage(`${item.name} applied! ${eff.description} (-${neutralCost}🌮)`)
         break
+      }
       case 'wagon_upgrade':
         setMessage(`${item.name} installed! ${eff.description} (-${neutralCost}🌮)`)
         break
@@ -150,7 +160,8 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
   }, [
     stock, getStats, canAfford, spendNeutral, spendGood,
     setConvertModalContext, setShowConvertModal, shop,
-    buySupplies, buyFood, modifyStat, comment, purchasedItems,
+    buySupplies, buyFood, repairWagon, modifyStat, comment, purchasedItems,
+    state.wagonCondition,
   ])
 
   // Color theme per shop type
