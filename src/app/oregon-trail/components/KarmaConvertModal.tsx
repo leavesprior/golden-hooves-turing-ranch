@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react'
 import { useKarmaWallet } from '../karmaWalletContext'
+import { convertGoodToTacos } from '@/lib/karmaUnverifiedBound'
 
 interface KarmaConvertModalProps {
   isOpen: boolean
@@ -42,7 +43,9 @@ export function KarmaConvertModal({
 
   // Calculate how much good karma needed to convert (2:1 ratio)
   const goodKarmaToConvert = Math.ceil(shortfall * 2)
-  const canConvert = balance.good >= goodKarmaToConvert
+  const tacosFromConvert = convertGoodToTacos(goodKarmaToConvert)
+  const boundBlocks = tacosFromConvert == null
+  const canConvert = !boundBlocks && balance.good >= goodKarmaToConvert
 
   // Handle conversion
   const handleConvert = useCallback(async () => {
@@ -123,11 +126,15 @@ export function KarmaConvertModal({
                 <div className="flex items-center gap-2">
                   <span className="text-amber-200 font-bold">Convert Good Karma</span>
                   {!canConvert && (
-                    <span className="text-red-400 text-xs">(Insufficient)</span>
+                    <span className="text-red-400 text-xs">
+                      {boundBlocks ? '(Past the play bound)' : '(Insufficient)'}
+                    </span>
                   )}
                 </div>
                 <p className="text-gray-400 text-xs mt-1">
-                  Sacrifice {goodKarmaToConvert}🍪 to receive {Math.floor(goodKarmaToConvert / 2)}🌮
+                  {boundBlocks
+                    ? 'The purse will not print past a thousand tacos.'
+                    : `Sacrifice ${goodKarmaToConvert}🍪 to receive ${tacosFromConvert}🌮`}
                 </p>
                 <p className="text-amber-500 text-xs mt-1">
                   You have {Math.floor(balance.good)}🍪 Good Karma
