@@ -216,7 +216,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
         effect: {
           type: 'cure_sickness',
           value: 1,
-          description: 'Instantly cures cholera. Also prevents cholera for 10 days.',
+          description: 'Clears sickness in the living party.',
         },
         stock: 2,
         npcHint: 'doctor',
@@ -243,7 +243,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
         effect: {
           type: 'cure_sickness',
           value: 1,
-          description: 'Cures snakebite instantly. Also provides snakebite immunity for 7 days.',
+          description: 'Clears sickness in the living party.',
         },
         stock: 2,
       },
@@ -271,7 +271,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
         effect: {
           type: 'cure_sickness',
           value: 1,
-          description: 'Reduces sickness recovery time by 3 days',
+          description: 'Clears sickness in the living party.',
         },
         stock: 5,
       },

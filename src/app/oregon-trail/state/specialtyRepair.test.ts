@@ -16,6 +16,7 @@ function ok(cond: boolean, name: string) {
 }
 
 const src = readFileSync(new URL('../components/SpecialtyShop.tsx', import.meta.url), 'utf8')
+const shops = readFileSync(new URL('../data/specialtyShops.ts', import.meta.url), 'utf8')
 const block = src.slice(src.indexOf("case 'wagon_repair'"), src.indexOf("case 'wagon_upgrade'"))
 
 ok(/repairWagon\(\)/.test(block), 'wagonwright calls repairWagon')
@@ -41,6 +42,10 @@ ok(specialtyEffectDelivers('health_restore'), 'elixir delivers')
 ok(specialtyEffectDelivers('resource_add'), 'spare wheels deliver')
 ok(specialtyEffectDelivers('stat_buff'), 'stat tonic delivers')
 ok(specialtyEffectDelivers('cure_sickness'), 'tincture delivers')
+ok(!/prevents cholera for 10 days/.test(shops), 'cholera copy does not promise 10-day immunity')
+ok(!/immunity for 7 days/.test(shops), 'antivenom copy does not promise 7-day immunity')
+ok(!/recovery time by 3 days/.test(shops), 'willow copy does not promise a 3-day recovery cut')
+ok((shops.match(/Clears sickness in the living party\./g) || []).length === 3, 'three cure items speak the same delivery')
 ok(/cureSickness\(\)/.test(src), 'apothecary calls cureSickness')
 ok(/Nobody is sick/.test(src), 'does not charge when nobody is sick')
 
