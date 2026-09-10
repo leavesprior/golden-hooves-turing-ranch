@@ -19,6 +19,7 @@ import {
   type SpecialtyShopItem,
   meetsRequirement,
   specialtyEffectDelivers,
+  specialtySpokenEffect,
 } from '../data/specialtyShops'
 
 interface SpecialtyShopProps {
@@ -270,7 +271,11 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
                         </div>
                       </div>
                       <p className={`${theme.accent} text-xs mt-1`}>{item.description}</p>
-                      <p className="text-green-400/80 text-xs mt-1 italic">{item.effect.description}</p>
+                      {delivers ? (
+                        <p className="text-green-400/80 text-xs mt-1 italic">{specialtySpokenEffect(item.effect)}</p>
+                      ) : (
+                        <p className="text-amber-400/80 text-xs mt-1 italic">{specialtySpokenEffect(item.effect)}</p>
+                      )}
 
                       {/* Stat requirement */}
                       {item.requiresStat && (
@@ -282,7 +287,7 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
                       {/* Stock indicator */}
                       <div className="flex justify-between items-center mt-2">
                         <span className="text-xs text-gray-500">Stock: {remaining}</span>
-                        {item.effect.duration && item.effect.duration > 0 && (
+                        {delivers && item.effect.duration && item.effect.duration > 0 && (
                           <span className="text-xs text-gray-500">Duration: {item.effect.duration} days</span>
                         )}
                       </div>

@@ -44,8 +44,16 @@ export const SPECIALTY_EFFECTS_THAT_MOVE_STATE: ReadonlyArray<ShopItemEffect['ty
   'cure_sickness',
 ]
 
+/** Spoken refuse for wares whose effect type is not on the bench. */
+export const SPECIALTY_BENCH_REFUSE = 'Not on the bench tonight.'
+
 export function specialtyEffectDelivers(type: ShopItemEffect['type']): boolean {
   return SPECIALTY_EFFECTS_THAT_MOVE_STATE.includes(type)
+}
+
+/** Green mechanical line: delivery copy, or the bench refuse. Never a fake buff. */
+export function specialtySpokenEffect(effect: ShopItemEffect): string {
+  return specialtyEffectDelivers(effect.type) ? effect.description : SPECIALTY_BENCH_REFUSE
 }
 
 export interface SpecialtyShop {
@@ -133,7 +141,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'wagon_upgrade',
           value: 15,
           duration: 0,
-          description: '+15 max wagon durability (permanent upgrade)',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 1,
         npcHint: 'blacksmith',
@@ -174,7 +182,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'oxen_heal',
           value: 2,
           duration: 0,
-          description: 'Oxen health improved, reduces oxen death chance by 50%',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 1,
         npcHint: 'farmer',
@@ -189,7 +197,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'speed_boost',
           value: 10,
           duration: 5,
-          description: '+10% travel speed for 5 days',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 5,
       },
@@ -285,7 +293,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'special',
           value: 10,
           duration: 10,
-          description: '50% disease resistance for entire party for 10 days',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 1,
         requiresStat: { stat: 'Shrewdness', minimum: 7 },
@@ -344,7 +352,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'special',
           value: 1,
           duration: 0,
-          description: 'River crossings never destroy collected clues',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 1,
       },
@@ -358,7 +366,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'special',
           value: 2,
           duration: 10,
-          description: '2x hunting food yield for 10 days',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 1,
         requiresStat: { stat: 'Agility', minimum: 6 },
@@ -400,7 +408,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'special',
           value: 5,
           duration: 0,
-          description: 'Earn 5🌮 neutral karma at each river crossing from gold panning',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 1,
       },
@@ -415,7 +423,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'special',
           value: 1,
           duration: 0,
-          description: 'Generates 3🌮 neutral karma per day while in Gold Country',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 1,
         requiresStat: { stat: 'Shrewdness', minimum: 8 },
@@ -460,7 +468,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'speed_boost',
           value: 15,
           duration: 10,
-          description: '+15% travel speed for 10 days',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 2,
       },
@@ -474,7 +482,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'wagon_upgrade',
           value: 10,
           duration: 0,
-          description: 'Wagon takes 25% less damage from terrain',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 1,
       },
@@ -488,7 +496,7 @@ export const SPECIALTY_SHOPS: SpecialtyShop[] = [
           type: 'oxen_heal',
           value: 1,
           duration: 0,
-          description: 'Oxen move faster on rough terrain, reduced lameness risk',
+          description: SPECIALTY_BENCH_REFUSE,
         },
         stock: 2,
       },
