@@ -2,6 +2,7 @@
  * Unverified play bound. Prints JSON for wheelwright.
  *   npx tsx src/lib/karmaUnverifiedBound.test.ts
  */
+import { readFileSync } from 'node:fs'
 import { UNVERIFIED_MAX_ABS_DELTA, withinUnverifiedBound, allowedLedgerDelta, convertGoodToTacos } from './karmaUnverifiedBound'
 
 const play = [
@@ -45,10 +46,17 @@ const convertResults = convert.map((c) => {
 })
 const results = [...playResults, ...ledgerResults, ...convertResults]
 
+const modal = readFileSync(new URL('../app/oregon-trail/components/KarmaConvertModal.tsx', import.meta.url), 'utf8')
+const modalPins = [
+  { name: 'modal_calls_bound', pass: /convertGoodToTacos\(goodKarmaToConvert\)/.test(modal) },
+  { name: 'modal_speaks_thousand', pass: /The purse will not print past a thousand tacos/.test(modal) },
+]
+
 const report = {
-  ok: UNVERIFIED_MAX_ABS_DELTA === 1000 && results.every((r) => r.pass),
+  ok: UNVERIFIED_MAX_ABS_DELTA === 1000 && results.every((r) => r.pass) && modalPins.every((p) => p.pass),
   bound: UNVERIFIED_MAX_ABS_DELTA,
   results,
+  modalPins,
   _conf: 1,
 }
 console.log(JSON.stringify(report, null, 2))
