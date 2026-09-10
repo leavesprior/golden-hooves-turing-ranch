@@ -53,6 +53,7 @@ export type GameAction =
   | { type: 'REPAIR_WAGON' }
   | { type: 'REST_AT_INN'; healthBonus: number; moraleBonus: number; cost: number }
   | { type: 'HUNKER' }
+  | { type: 'CURE_SICKNESS' }
   | { type: 'BUY_FOOD'; healthBonus: number; moraleBonus: number; cost: number; partyWide: boolean }
   | { type: 'BUY_DRINK'; moraleBonus: number; cost: number }
 
