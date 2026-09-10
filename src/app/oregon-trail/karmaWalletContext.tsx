@@ -16,7 +16,7 @@ import { KarmaStorage } from '@/lib/karmaStorage'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
 import { getKarmaSessionId, fetchServerBalance, postKarmaEvent, reconcile } from '@/lib/karmaServerSync'
 import { scaleKarmaGrant } from '@/lib/gftAgeMode'
-import { withinUnverifiedBound } from '@/lib/karmaUnverifiedBound'
+import { convertGoodToTacos, withinUnverifiedBound } from '@/lib/karmaUnverifiedBound'
 
 export type WalletMode = 'new' | 'continue'
 
@@ -518,7 +518,8 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
   // Convert good to neutral (2:1 ratio)
   const convertGoodToNeutral = useCallback(async (goodAmount: number): Promise<boolean> => {
-    const neutralReceived = Math.floor(goodAmount / 2)
+    const neutralReceived = convertGoodToTacos(goodAmount)
+    if (neutralReceived == null) return false
 
     // Check affordability using ref to avoid React 18 async batch timing issue
     if (stateRef.current.balance.good < goodAmount) return false
