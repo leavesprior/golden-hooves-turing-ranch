@@ -41,6 +41,7 @@ export const SPECIALTY_EFFECTS_THAT_MOVE_STATE: ReadonlyArray<ShopItemEffect['ty
   'health_restore',
   'resource_add',
   'stat_buff',
+  'cure_sickness',
 ]
 
 export function specialtyEffectDelivers(type: ShopItemEffect['type']): boolean {

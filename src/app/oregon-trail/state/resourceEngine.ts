@@ -53,6 +53,25 @@ export function applyRestAtInn(
   }
 }
 
+/** Apothecary tincture. Clears isSick. No-op if nobody living is sick. Does not auto. */
+export function applyCureSickness(prev: OregonTrailState): OregonTrailState {
+  const party = (Array.isArray(prev.party) ? prev.party : []).filter(Boolean)
+  if (!party.some((m) => m.isSick && m.health > 0)) return prev
+  return {
+    ...prev,
+    party: party.map((m) => {
+      if (m.health <= 0 || !m.isSick) return m
+      return {
+        ...m,
+        isSick: false,
+        sicknessType: undefined,
+        daysUntilRecovery: undefined,
+      }
+    }),
+    message: 'The tincture takes. The fever breaks.',
+  }
+}
+
 /** Trail camp. Costs a day and rations. Does not move miles. Does not auto. */
 export function applyHunkerOnTrail(prev: OregonTrailState): OregonTrailState {
   if (prev.phase !== 'traveling') return prev

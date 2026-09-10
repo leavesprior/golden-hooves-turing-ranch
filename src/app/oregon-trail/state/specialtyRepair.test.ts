@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs'
 import { DEFAULT_STATE } from './constants'
 import { gameReducer } from './reducer'
+import type { OregonTrailState } from './types'
 import { specialtyEffectDelivers } from '../data/specialtyShops'
 
 let passed = 0
@@ -39,7 +40,25 @@ ok(specialtyEffectDelivers('wagon_repair'), 'repair delivers')
 ok(specialtyEffectDelivers('health_restore'), 'elixir delivers')
 ok(specialtyEffectDelivers('resource_add'), 'spare wheels deliver')
 ok(specialtyEffectDelivers('stat_buff'), 'stat tonic delivers')
-ok(!specialtyEffectDelivers('cure_sickness'), 'tincture does not yet clear isSick')
+ok(specialtyEffectDelivers('cure_sickness'), 'tincture delivers')
+ok(/cureSickness\(\)/.test(src), 'apothecary calls cureSickness')
+ok(/Nobody is sick/.test(src), 'does not charge when nobody is sick')
+
+const illStart: OregonTrailState = {
+  ...DEFAULT_STATE,
+  party: [
+    { id: 'ada', name: 'Ada', health: 40, isSick: true, sicknessType: 'cholera', role: 'leader' },
+    { id: 'cole', name: 'Cole', health: 0, isSick: true, role: 'companion' },
+  ],
+}
+const ill = gameReducer(illStart, { type: 'CURE_SICKNESS' })
+ok(ill.party[0].isSick === false && ill.party[0].sicknessType === undefined, 'living sick is cleared')
+ok(ill.party[1].isSick === true && ill.party[1].health === 0, 'dead stay as they were')
+const well = gameReducer(
+  { ...DEFAULT_STATE, party: [{ id: 'ada', name: 'Ada', health: 80, isSick: false, role: 'leader' as const }] },
+  { type: 'CURE_SICKNESS' },
+)
+ok(well.party[0].isSick === false && well.message !== 'The tincture takes. The fever breaks.', 'nobody sick is a no-op')
 ok(!specialtyEffectDelivers('oxen_heal'), 'yoke does not yet move oxen')
 ok(!specialtyEffectDelivers('wagon_upgrade'), 'iron axle does not yet raise a max')
 ok(!specialtyEffectDelivers('speed_boost'), 'grease does not yet add a pace buff')

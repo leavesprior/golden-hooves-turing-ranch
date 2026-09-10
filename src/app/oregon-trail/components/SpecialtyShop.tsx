@@ -27,7 +27,7 @@ interface SpecialtyShopProps {
 }
 
 export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
-  const { state, buySupplies, buyFood, repairWagon } = useOregonTrail()
+  const { state, buySupplies, buyFood, repairWagon, cureSickness } = useOregonTrail()
   const { getStat, modifyStat } = useCharacter()
   const { comment, setMood } = useNarrator()
   const {
@@ -93,6 +93,14 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
       return
     }
 
+    if (item.effect.type === 'cure_sickness') {
+      const sick = (Array.isArray(state.party) ? state.party : []).some((m) => m.isSick && m.health > 0)
+      if (!sick) {
+        setMessage('Nobody is sick.')
+        return
+      }
+    }
+
     // Spend karma
     const neutralSuccess = await spendNeutral(neutralCost, `${shop.name}: ${item.name}`)
     if (!neutralSuccess) {
@@ -127,6 +135,7 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
         setMessage(`${item.name} administered! ${eff.description} (-${neutralCost}🌮)`)
         break
       case 'cure_sickness':
+        cureSickness()
         setMessage(`${item.name} applied! ${eff.description} (-${neutralCost}🌮)`)
         break
       case 'stat_buff':
@@ -166,8 +175,8 @@ export function SpecialtyShop({ shop, onClose }: SpecialtyShopProps) {
   }, [
     stock, getStats, canAfford, spendNeutral, spendGood,
     setConvertModalContext, setShowConvertModal, shop,
-    buySupplies, buyFood, repairWagon, modifyStat, comment, purchasedItems,
-    state.wagonCondition,
+    buySupplies, buyFood, repairWagon, cureSickness, modifyStat, comment, purchasedItems,
+    state.wagonCondition, state.party,
   ])
 
   // Color theme per shop type
