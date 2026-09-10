@@ -6,7 +6,12 @@ import { readFileSync } from 'node:fs'
 import { DEFAULT_STATE } from './constants'
 import { gameReducer } from './reducer'
 import type { OregonTrailState } from './types'
-import { specialtyEffectDelivers } from '../data/specialtyShops'
+import {
+  SPECIALTY_BENCH_REFUSE,
+  SPECIALTY_SHOPS,
+  specialtyEffectDelivers,
+  specialtySpokenEffect,
+} from '../data/specialtyShops'
 
 let passed = 0
 let failed = 0
@@ -67,8 +72,64 @@ ok(well.party[0].isSick === false && well.message !== 'The tincture takes. The f
 ok(!specialtyEffectDelivers('oxen_heal'), 'yoke does not yet move oxen')
 ok(!specialtyEffectDelivers('wagon_upgrade'), 'iron axle does not yet raise a max')
 ok(!specialtyEffectDelivers('speed_boost'), 'grease does not yet add a pace buff')
+ok(!specialtyEffectDelivers('special'), 'special wares do not yet move state')
 ok(/Not on the bench tonight/.test(src), 'undelivered goods refuse the purse')
 ok(src.indexOf('specialtyEffectDelivers') < src.indexOf('spendNeutral'), 'refuse before charge')
+ok(/delivers \?/.test(src), 'green mechanical line is gated on delivers')
+ok(/delivers && item\.effect\.duration/.test(src), 'duration days only when the ware delivers')
+
+const undelivered = SPECIALTY_SHOPS.flatMap((s) => s.items).filter(
+  (i) => !specialtyEffectDelivers(i.effect.type),
+)
+ok(undelivered.length >= 11, 'wagonwright/apothecary/outfitter/assayer/blacksmith leftovers exist')
+ok(
+  undelivered.every((i) => i.effect.description === SPECIALTY_BENCH_REFUSE),
+  'undelivered catalog copy is the bench refuse',
+)
+ok(
+  specialtySpokenEffect({
+    type: 'speed_boost',
+    value: 10,
+    description: '+10% travel speed for 5 days',
+  }) === SPECIALTY_BENCH_REFUSE,
+  'spoken grease line stays refuse even if data lies',
+)
+ok(
+  specialtySpokenEffect({
+    type: 'wagon_upgrade',
+    value: 15,
+    description: '+15 max wagon durability (permanent upgrade)',
+  }) === SPECIALTY_BENCH_REFUSE,
+  'spoken axle line stays refuse even if data lies',
+)
+ok(
+  specialtySpokenEffect({
+    type: 'oxen_heal',
+    value: 2,
+    description: 'Oxen health improved, reduces oxen death chance by 50%',
+  }) === SPECIALTY_BENCH_REFUSE,
+  'spoken yoke line stays refuse even if data lies',
+)
+ok(
+  specialtySpokenEffect({
+    type: 'special',
+    value: 10,
+    description: '50% disease resistance for entire party for 10 days',
+  }) === SPECIALTY_BENCH_REFUSE,
+  'spoken tonic line stays refuse even if data lies',
+)
+ok(
+  specialtySpokenEffect({
+    type: 'cure_sickness',
+    value: 1,
+    description: 'Clears sickness in the living party.',
+  }) === 'Clears sickness in the living party.',
+  'delivered tincture still speaks the fever that breaks',
+)
+ok(!/\+10% travel speed for 5 days/.test(shops), 'grease catalog does not promise a pace buff')
+ok(!/\+15 max wagon durability/.test(shops), 'axle catalog does not promise a durability raise')
+ok(!/oxen death chance/.test(shops), 'yoke catalog does not promise oxen survival')
+ok(!/50% disease resistance for entire party/.test(shops), 'tonic catalog does not promise 10-day immunity')
 
 console.log(`\nspecialty-repair tests: ${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)
