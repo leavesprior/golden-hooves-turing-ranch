@@ -4,8 +4,9 @@ const E = '/place-art/editorial'
 const V = '?v=20260820a'
 
 export const VOLCANO_MAIN_ART = `${E}/volcano_main.jpg${V}`
-/** 1849 explorer street: wood and canvas. Later brick hotel stays on volcano_main. */
-export const VOLCANO_1849_ART = `${E}/volcano_1849.jpg?v=20260908a`
+/** 1849 explorer street: wood and canvas. Later brick hotel stays on volcano_main.
+ *  1855 limestone arch is later; the 1849 still is tent and board. */
+export const VOLCANO_1849_ART = `${E}/volcano_1849.jpg?v=20260911a`
 
 /** Painted Gold Country relief — regional map background, not a town street. */
 export const GOLD_COUNTRY_MAP_ART = `${E}/gold_country_map.jpg${V}`
@@ -51,7 +52,7 @@ export function exploreMapPosition(
 }
 
 export const TOWN_EDITORIAL: Record<string, string> = {
-  volcano: `${E}/volcano_1849.jpg?v=20260908a`,
+  volcano: `${E}/volcano_1849.jpg?v=20260911a`,
   angels_camp: `${E}/angels_camp.jpg${V}`,
   angels_camp_expanded: `${E}/angels_camp_expanded.jpg${V}`,
   west_point: `${E}/west_point.jpg${V}`,
@@ -178,7 +179,7 @@ export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
     { attractionId: 'vol_cannon', x: 14, y: 58 },
     { attractionId: 'vol_observatory', x: 78, y: 28 },
     { attractionId: 'vol_cemetery', x: 88, y: 62 },
-    { attractionId: 'vol_canvas_flat', x: 68, y: 70 },
+    { attractionId: 'vol_canvas_flat', x: 52, y: 48 },
     { attractionId: 'vol_soldiers_gulch', x: 42, y: 82 },
   ],
   angels_camp: [
