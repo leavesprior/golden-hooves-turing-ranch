@@ -48,6 +48,8 @@ ok(/eraTagline:\s*'Fire at dusk'/.test(src), 'ranch 1849 tagline is fire at dusk
 ok(/id: 'vol_canvas_flat'/.test(src) && /id: 'vol_soldiers_gulch'/.test(src), '1849 canvas and gulch exist in ExploreClient')
 ok(/Canvas and rope in 1849/.test(code), 'townStory is 1849 canvas, not brick capital')
 ok(!/housed the state's first lending library, astronomical observatory, and little theatre/.test(code), '1849 story does not claim later brick as present')
+ok(!/stone walls still stand/.test(src), 'tunnels copy does not promise later stone on the 1849 face')
+ok(/Cut stone comes later/.test(src), 'tunnels copy says cut stone is later')
 
 const townFace = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/explore/InteractiveTown.tsx'), 'utf8')
 ok(/Looked at \$\{a\.name\}/.test(townFace), 'pin click looks; it does not enter a walkable room')
