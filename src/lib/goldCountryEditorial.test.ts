@@ -11,8 +11,8 @@ import {
 } from './goldCountryEditorial'
 import { getDefaultLocation } from '../app/adventure/data/chapterLocations'
 
-assert.equal(editorialForExplorePlace('volcano'), '/place-art/editorial/volcano_1849.jpg?v=20260908a')
-assert.equal(editorialForExplorePlace('vol_theatre'), '/place-art/editorial/volcano_1849.jpg?v=20260908a')
+assert.equal(editorialForExplorePlace('volcano'), '/place-art/editorial/volcano_1849.jpg?v=20260911a')
+assert.equal(editorialForExplorePlace('vol_theatre'), '/place-art/editorial/volcano_1849.jpg?v=20260911a')
 assert.equal(TOWN_EDITORIAL.volcano.includes('volcano_main'), false)
 assert.equal(TOWN_EDITORIAL.volcano.includes('volcano_1849'), true)
 assert.equal(editorialForExplorePlace('angels_camp'), '/place-art/editorial/angels_camp.jpg?v=20260820a')

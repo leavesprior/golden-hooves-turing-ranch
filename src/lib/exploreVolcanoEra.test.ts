@@ -49,5 +49,10 @@ ok(/id: 'vol_canvas_flat'/.test(src) && /id: 'vol_soldiers_gulch'/.test(src), '1
 ok(/Canvas and rope in 1849/.test(code), 'townStory is 1849 canvas, not brick capital')
 ok(!/housed the state's first lending library, astronomical observatory, and little theatre/.test(code), '1849 story does not claim later brick as present')
 
+const townFace = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/explore/InteractiveTown.tsx'), 'utf8')
+ok(/Looked at \$\{a\.name\}/.test(townFace), 'pin click looks; it does not enter a walkable room')
+ok(!/same as walking a town in the old RPGs/.test(townFace), 'empty-state does not claim an old-RPG walk')
+ok(/Click a building on the street to look closer/.test(townFace), 'empty-state speaks look')
+
 if (failed) { console.error(`${failed} failed, ${passed} passed`); process.exit(1) }
 console.log(JSON.stringify({ ok: true, passed, later_ids: VOLCANO_LATER_ATTRACTION_IDS.length }))

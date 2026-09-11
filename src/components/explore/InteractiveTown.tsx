@@ -59,7 +59,7 @@ export function InteractiveTown({
     visitTown(town.id)
     if (!isAttractionVisited(a.id)) {
       visitAttraction(a.id, town.id)
-      applyKarma('gold_country_explore', `Entered ${a.name} in ${town.name}`, -2, -1)
+      applyKarma('gold_country_explore', `Looked at ${a.name} in ${town.name}`, -2, -1)
     }
     setSelectedId(a.id)
     setNpcLine(null)
@@ -156,7 +156,7 @@ export function InteractiveTown({
           </article>
         ) : (
           <p className="font-serif text-sm text-[#b8a88a]">
-            Click a building on the street, or talk to someone standing in it — same as walking a town in the old RPGs.
+            Click a building on the street to look closer, or talk to someone standing in it.
             Secrets stay off the map until they unlock.
           </p>
         )}
