@@ -528,8 +528,10 @@ const TOWNS: Town[] = [
     id: 'nevada_city',
     name: 'Nevada City',
     tagline: 'The Queen of the Northern Mines',
-    description: 'One of Gold Country\'s most beautifully preserved Victorian towns, founded in 1849 and still radiating charm from its gas-lit streets.',
-    townStory: 'Founded in 1849 during the first wave of the Gold Rush, Nevada City quickly became one of the wealthiest towns in California. It housed the state\'s first long-distance telephone line, produced the Pelton water wheel that revolutionized hydroelectric power, and its Victorian downtown remains one of the best-preserved in the West.',
+    eraName: 'Deer Creek camp',
+    eraTagline: 'Gravel, not gaslight',
+    description: '1849 is a creek camp. Victorian brick, gaslight, and the National Hotel are later.',
+    townStory: 'Founded in 1849 on Deer Creek gravel. Canvas and rockers first. The Victorian downtown, the 1856 hotel, and gaslight come later.',
     coordinates: { lat: 39.2616, lng: -121.0161 },
     attractions: [
       {
@@ -542,6 +544,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The bar serves cocktails in the original Gold Rush-era saloon. Try the signature Gold Dust Fizz.',
         duration: '1-2 hours',
         xp: 30,
+        period: 'later',
         badge: { id: 'historic_lodger', name: 'Historic Lodger', icon: '🏨', description: 'Visited one of California\'s oldest hotels', rarity: 'uncommon' },
       },
       {
@@ -554,6 +557,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Don\'t miss the Donner Party exhibit upstairs — it includes artifacts recovered from the infamous 1846-47 camp.',
         duration: '1.5 hours',
         xp: 25,
+        period: 'later',
       },
       {
         id: 'nc_deer_creek',
@@ -565,6 +569,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Follow the creek trail from Broad Street down to the old foundry site — the best swimming holes are past the bridge.',
         duration: '1-2 hours',
         xp: 20,
+        period: 'available',
       },
       {
         id: 'nc_theater',
@@ -576,6 +581,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Check the schedule for Friday night shows — the intimate venue makes every seat feel front-row.',
         duration: '2-3 hours',
         xp: 25,
+        period: 'later',
       },
       {
         id: 'nc_foundry',
@@ -587,6 +593,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The building now hosts concerts and events. The stone walls create incredible acoustics.',
         duration: '1 hour',
         xp: 20,
+        period: 'later',
       },
       {
         id: 'nc_broad_street',
@@ -598,6 +605,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Wednesday evenings in summer feature a farmers market with live music — the whole town turns out.',
         duration: '2-3 hours',
         xp: 15,
+        period: 'later',
       },
       {
         id: 'nc_victorian_museum',
@@ -609,6 +617,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The costume collection includes original 1870s gowns — ask to see the restoration workshop.',
         duration: '1.5 hours',
         xp: 20,
+        period: 'later',
       },
     ],
     secretAttractions: [
@@ -623,6 +632,7 @@ const TOWNS: Town[] = [
         secretUnlock: 'Visit the Foundry AND Deer Creek',
         duration: '45 min',
         xp: 60,
+        period: 'later',
         badge: { id: 'pelton_discoverer', name: 'Pelton Discoverer', icon: '💡', description: 'Found where hydroelectric power was born', rarity: 'rare' },
       },
       {
@@ -636,6 +646,7 @@ const TOWNS: Town[] = [
         secretUnlock: 'Reach Level 4 (Gold Country Guide)',
         duration: '1 hour',
         xp: 55,
+        period: 'later',
       },
     ],
   },

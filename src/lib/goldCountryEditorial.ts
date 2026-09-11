@@ -171,6 +171,21 @@ export const VOLCANO_LATER_ATTRACTION_IDS = [
   'vol_cannon',
 ] as const
 
+/** Nevada City 1849 face is the creek. Victorian brick and gaslight stay later. */
+export const NEVADA_CITY_LATER_ATTRACTION_IDS = [
+  'nc_national_hotel',
+  'nc_theater',
+  'nc_broad_street',
+  'nc_firehouse',
+  'nc_foundry',
+  'nc_victorian_museum',
+] as const
+
+const LATER_STREET_PIN_IDS = new Set<string>([
+  ...VOLCANO_LATER_ATTRACTION_IDS,
+  ...NEVADA_CITY_LATER_ATTRACTION_IDS,
+])
+
 /** Building pins on each town painting (percent of the image). */
 export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
   volcano: [
@@ -250,8 +265,7 @@ export function presentStreetHits(townId: string): {
   spots: TownHotspot[]
   npcs: TownNpc[]
 } {
-  const later = new Set<string>(VOLCANO_LATER_ATTRACTION_IDS)
-  const spots = (TOWN_HOTSPOTS[townId] || []).filter((s) => !later.has(s.attractionId))
+  const spots = (TOWN_HOTSPOTS[townId] || []).filter((s) => !LATER_STREET_PIN_IDS.has(s.attractionId))
   const npcs = (TOWN_NPCS[townId] || []).filter((n) => n.period !== 'later')
   return { spots, npcs }
 }
@@ -298,7 +312,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'br_tobias', name: 'Tobias', x: 62, y: 78, line: 'Fire here. The towns are the work. The house with glass is not from this year.' },
   ],
   nevada_city: [
-    { id: 'nc_lamp', name: 'Lamp-lighter', x: 22, y: 70, line: 'Gaslight made this place think it was a city. The pines never agreed.' },
+    { id: 'nc_lamp', name: 'Lamp-lighter', x: 22, y: 70, line: 'Gaslight made this place think it was a city. The pines never agreed.', period: 'later' },
   ],
   grass_valley: [
     { id: 'gv_cornish', name: 'Cornish miner', x: 48, y: 62, line: 'The cow kicked a rock. After that we went down instead of along the creek.' },
