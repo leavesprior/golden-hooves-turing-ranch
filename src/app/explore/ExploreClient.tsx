@@ -140,7 +140,7 @@ const TOWNS: Town[] = [
         category: 'mystery',
         description: 'Secret underground tunnels built by Chinese miners. Most are sealed, but traces remain.',
         funFact: 'Chinese miners were forced to work claims white miners had abandoned - and sometimes found rich deposits.',
-        insiderTip: 'Ask locals about the old Chinese camp near the creek - some stone walls still stand.',
+        insiderTip: 'Ask along the creek for the old Chinese camp. 1849 is wood and canvas. Cut stone comes later.',
         secretUnlock: 'Reach Level 3 (Forty-Niner)',
         duration: '30 min',
         xp: 50,
