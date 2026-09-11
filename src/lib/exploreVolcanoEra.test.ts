@@ -7,6 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { arcadePresentAttractions } from '../app/explore/explorerContext'
 import {
+  GRASS_VALLEY_LATER_ATTRACTION_IDS,
   NEVADA_CITY_LATER_ATTRACTION_IDS,
   TOWN_NPCS,
   VOLCANO_LATER_ATTRACTION_IDS,
@@ -67,6 +68,18 @@ ok(/Victorian downtown, the 1856 hotel, and gaslight come later/.test(src), 'Nev
 ok(TOWN_NPCS.nevada_city.some((n) => n.id === 'nc_lamp' && n.period === 'later'), 'lamp-lighter is later')
 ok(!presentStreetHits('nevada_city').spots.some((s) => s.attractionId === 'nc_national_hotel'), '1856 hotel pin is off the 1849 street')
 ok(presentStreetHits('nevada_city').spots.some((s) => s.attractionId === 'nc_deer_creek'), 'Deer Creek pin stays')
+
+for (const id of GRASS_VALLEY_LATER_ATTRACTION_IDS) {
+  const block = src.split(`id: '${id}'`)[1]?.slice(0, 900) || ''
+  ok(/period:\s*'later'/.test(block), `${id} tagged later in code`)
+}
+ok(/period:\s*'available'/.test(src.split("id: 'gv_condon_park'")[1]?.slice(0, 900) || ''), 'pine ridge stays 1849-present')
+ok(/eraName:\s*'The pine ridge'/.test(src), 'Grass Valley 1849 face is the pine ridge')
+ok(/The town is not from this year/.test(src), 'Grass Valley 1849 tagline is not-yet-a-town')
+ok(/The town starts in 1850/.test(src), 'Grass Valley story does not claim the 1850 town as 1849')
+ok(TOWN_NPCS.grass_valley.some((n) => n.id === 'gv_cornish' && n.period === 'later'), 'Cornish miner is later')
+ok(!presentStreetHits('grass_valley').spots.some((s) => s.attractionId === 'gv_empire_mine'), 'Empire Mine pin is off the 1849 street')
+ok(presentStreetHits('grass_valley').spots.some((s) => s.attractionId === 'gv_condon_park'), 'pine ridge pin stays')
 
 const townFace = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/explore/InteractiveTown.tsx'), 'utf8')
 ok(/Looked at \$\{a\.name\}/.test(townFace), 'pin click looks; it does not enter a walkable room')

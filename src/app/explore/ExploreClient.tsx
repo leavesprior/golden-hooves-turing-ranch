@@ -654,8 +654,10 @@ const TOWNS: Town[] = [
     id: 'grass_valley',
     name: 'Grass Valley',
     tagline: 'Birthplace of Hard Rock Mining',
-    description: 'Where Gold Country went underground. Grass Valley pioneered quartz mining and produced more gold than any other district in California.',
-    townStory: 'Founded in 1850 when a cow kicked over a rock and revealed a gold-bearing quartz vein, Grass Valley transformed gold mining from creek panning into an industrial enterprise. Cornish miners brought hard-rock expertise from England\'s tin mines, and the Empire Mine became the deepest and richest in the state.',
+    eraName: 'The pine ridge',
+    eraTagline: 'The town is not from this year',
+    description: '1849 is pines and creek. The cow-kick quartz, Empire Mine, and Holbrooke are later (1850).',
+    townStory: '1849 is a pine ridge above the creeks. The town starts in 1850 when a cow kicks a quartz vein. Empire Mine, Holbrooke, and Cornish pasties come later.',
     coordinates: { lat: 39.2190, lng: -121.0611 },
     attractions: [
       {
@@ -668,6 +670,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Take the underground tunnel tour — the temperature drops 30 degrees and you can see gold still glittering in the quartz walls.',
         duration: '3-4 hours',
         xp: 40,
+        period: 'later',
         badge: { id: 'deep_miner', name: 'Deep Miner', icon: '⛏️', description: 'Explored the Empire Mine', rarity: 'rare' },
       },
       {
@@ -680,6 +683,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The house is a reproduction — the original burned — but the garden is planted with Lola\'s documented favorite flowers.',
         duration: '45 min',
         xp: 20,
+        period: 'later',
       },
       {
         id: 'gv_north_star',
@@ -691,6 +695,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The museum is free and volunteer-run. Drop a donation — they\'re preserving irreplaceable mining history.',
         duration: '1.5 hours',
         xp: 25,
+        period: 'later',
       },
       {
         id: 'gv_holbrooke',
@@ -702,6 +707,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The Golden Gate Saloon downstairs is the oldest continuously operating saloon in the region. Order at the original bar.',
         duration: '1 hour',
         xp: 20,
+        period: 'later',
       },
       {
         id: 'gv_mill_street',
@@ -713,6 +719,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Marshall\'s Pasties has been making traditional Cornish pasties here for decades — get one with a side of local history.',
         duration: '2 hours',
         xp: 15,
+        period: 'later',
       },
       {
         id: 'gv_condon_park',
@@ -720,10 +727,11 @@ const TOWNS: Town[] = [
         icon: '🌲',
         category: 'nature',
         description: 'Forested park with trails through old-growth pines and remnants of Gold Rush-era mining operations.',
-        funFact: 'The park sits atop old hydraulic mining grounds. You can still see the terraced hillsides where water cannons blasted away soil to reach gold.',
-        insiderTip: 'The Wolf Creek trail is an easy 2-mile loop through forest and mining ruins. Best in spring wildflower season.',
+        funFact: '1849 is pine and creek. The water cannons that terrace these hills come later.',
+        insiderTip: 'Walk the ridge timber. Hydraulic scars and mill brick are not from this year.',
         duration: '1-2 hours',
         xp: 15,
+        period: 'available',
       },
     ],
     secretAttractions: [
@@ -738,6 +746,7 @@ const TOWNS: Town[] = [
         secretUnlock: 'Visit the Empire Mine AND North Star Museum',
         duration: '1.5 hours',
         xp: 55,
+        period: 'later',
         badge: { id: 'cornish_explorer', name: 'Cornish Explorer', icon: '🕳️', description: 'Found the Cornish miners\' prospect tunnels', rarity: 'rare' },
       },
     ],
