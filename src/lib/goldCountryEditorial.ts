@@ -181,9 +181,19 @@ export const NEVADA_CITY_LATER_ATTRACTION_IDS = [
   'nc_victorian_museum',
 ] as const
 
+/** Grass Valley 1849 face is pine ridge. The 1850 town and mines stay later. */
+export const GRASS_VALLEY_LATER_ATTRACTION_IDS = [
+  'gv_empire_mine',
+  'gv_lola_montez',
+  'gv_holbrooke',
+  'gv_north_star',
+  'gv_mill_street',
+] as const
+
 const LATER_STREET_PIN_IDS = new Set<string>([
   ...VOLCANO_LATER_ATTRACTION_IDS,
   ...NEVADA_CITY_LATER_ATTRACTION_IDS,
+  ...GRASS_VALLEY_LATER_ATTRACTION_IDS,
 ])
 
 /** Building pins on each town painting (percent of the image). */
@@ -249,6 +259,7 @@ export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
     { attractionId: 'gv_holbrooke', x: 72, y: 52 },
     { attractionId: 'gv_north_star', x: 52, y: 48 },
     { attractionId: 'gv_mill_street', x: 82, y: 50 },
+    { attractionId: 'gv_condon_park', x: 50, y: 78 },
   ],
   mariposa: [
     { attractionId: 'mp_courthouse', x: 52, y: 32 },
@@ -315,7 +326,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'nc_lamp', name: 'Lamp-lighter', x: 22, y: 70, line: 'Gaslight made this place think it was a city. The pines never agreed.', period: 'later' },
   ],
   grass_valley: [
-    { id: 'gv_cornish', name: 'Cornish miner', x: 48, y: 62, line: 'The cow kicked a rock. After that we went down instead of along the creek.' },
+    { id: 'gv_cornish', name: 'Cornish miner', x: 48, y: 62, line: 'The cow kicked a rock. After that we went down instead of along the creek.', period: 'later' },
   ],
   mariposa: [
     { id: 'mp_clerk', name: 'County clerk', x: 16, y: 84, line: 'Oldest courthouse in the mountains. The oaks were here first.' },
