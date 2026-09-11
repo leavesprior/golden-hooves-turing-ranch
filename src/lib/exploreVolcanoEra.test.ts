@@ -6,7 +6,12 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { arcadePresentAttractions } from '../app/explore/explorerContext'
-import { VOLCANO_LATER_ATTRACTION_IDS, TOWN_NPCS } from './goldCountryEditorial'
+import {
+  NEVADA_CITY_LATER_ATTRACTION_IDS,
+  TOWN_NPCS,
+  VOLCANO_LATER_ATTRACTION_IDS,
+  presentStreetHits,
+} from './goldCountryEditorial'
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '../app/explore/ExploreClient.tsx')
 const src = readFileSync(root, 'utf8')
@@ -50,6 +55,18 @@ ok(/Canvas and rope in 1849/.test(code), 'townStory is 1849 canvas, not brick ca
 ok(!/housed the state's first lending library, astronomical observatory, and little theatre/.test(code), '1849 story does not claim later brick as present')
 ok(!/stone walls still stand/.test(src), 'tunnels copy does not promise later stone on the 1849 face')
 ok(/Cut stone comes later/.test(src), 'tunnels copy says cut stone is later')
+
+for (const id of NEVADA_CITY_LATER_ATTRACTION_IDS) {
+  const block = src.split(`id: '${id}'`)[1]?.slice(0, 900) || ''
+  ok(/period:\s*'later'/.test(block), `${id} tagged later in code`)
+}
+ok(/period:\s*'available'/.test(src.split("id: 'nc_deer_creek'")[1]?.slice(0, 900) || ''), 'Deer Creek stays 1849-present')
+ok(/eraName:\s*'Deer Creek camp'/.test(src), 'Nevada City 1849 face is the creek camp')
+ok(/Gravel, not gaslight/.test(src), 'Nevada City 1849 tagline is gravel')
+ok(/Victorian downtown, the 1856 hotel, and gaslight come later/.test(src), 'Nevada City story does not claim Victorian as present')
+ok(TOWN_NPCS.nevada_city.some((n) => n.id === 'nc_lamp' && n.period === 'later'), 'lamp-lighter is later')
+ok(!presentStreetHits('nevada_city').spots.some((s) => s.attractionId === 'nc_national_hotel'), '1856 hotel pin is off the 1849 street')
+ok(presentStreetHits('nevada_city').spots.some((s) => s.attractionId === 'nc_deer_creek'), 'Deer Creek pin stays')
 
 const townFace = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/explore/InteractiveTown.tsx'), 'utf8')
 ok(/Looked at \$\{a\.name\}/.test(townFace), 'pin click looks; it does not enter a walkable room')
