@@ -5,6 +5,7 @@ import type { SearchArea } from '../data/goldCountryEncounters'
 import type { ShopGood, StreetPoster, TakenWarrant, TownFront, WarrantCapture } from '@/lib/goldCountryStreet'
 import { goodsForAge } from '@/lib/goldCountryStreet'
 import { alleyConfrontHint } from '@/lib/goldCountryAlley'
+import { asciiForStreetFront } from '@/lib/overlay/townAsciiInterior'
 
 export function GoldCountryShopInterior({
   front,
@@ -47,13 +48,14 @@ export function GoldCountryShopInterior({
   onBuy: (good: ShopGood) => void
   onConfront: (npc: GoldCountryNPC, method: WarrantCapture) => void
   onStreet: () => void
-  /** Same painted still as the street, so stepping inside does not drop the town. */
+  /** Street still when this front has no readable interior. Canvas saloon reads instead. */
   art?: string | null
   huntHot?: boolean
   emptyChair?: string | null
   kid?: boolean
   onOpenGuestBook?: () => void
 }) {
+  const ascii = asciiForStreetFront(front.id)
   const guestBookSearch = searches.find((area) => area.id === 'cabin_guest_book')
   const lookAround = searches.filter((area) => area.id !== 'cabin_guest_book')
   const goods = goodsForAge(front.goods, kid)
@@ -88,12 +90,23 @@ export function GoldCountryShopInterior({
       </header>
 
       <div className="relative min-h-[42vh] sm:min-h-[52vh] bg-[#120e0a]">
-        {art ? (
-          <img src={art} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
-        ) : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0e0c0a] via-black/45 to-black/25" />
+        {ascii ? (
+          <pre
+            data-testid={ascii.testid}
+            className="absolute inset-0 overflow-auto bg-[#0e0c0a] p-3 font-mono text-[11px] leading-[1.15] text-[#c4b896]"
+          >
+            {ascii.rows.join('\n')}
+          </pre>
+        ) : (
+          <>
+            {art ? (
+              <img src={art} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+            ) : null}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0e0c0a] via-black/45 to-black/25" />
+          </>
+        )}
         <p className="relative z-10 max-w-xl px-4 pt-10 font-serif text-[#e8dcc4] drop-shadow-[0_1px_8px_rgba(0,0,0,0.8)]">
-          {front.interior}
+          {ascii ? ascii.finding : front.interior}
         </p>
       </div>
 
