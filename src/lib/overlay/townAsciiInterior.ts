@@ -1,4 +1,5 @@
-/** 1849 interiors for explorer pins. Street photo is later brick; these are the year. */
+/** 1849 interiors for explorer pins and the matching Oregon Trail shop fronts.
+ * Readable glyph rooms, not a walk. Later brick stays on volcano_main. */
 import { volcanoSaloonRows, VOLCANO_SALOON_INSPECT } from './volcano-canvas-saloon'
 import { soldiersGulchRows, SOLDIERS_GULCH_INSPECT } from './volcano-soldiers-gulch'
 import { volcanoCemeteryRows, VOLCANO_CEMETERY_INSPECT } from './volcano-cemetery'
@@ -8,6 +9,15 @@ export type TownAsciiInterior = {
   rows: string[]
   finding: string
   trailWord: string
+}
+
+/** Oregon Trail street-front id → explorer pin that already has a reading. */
+export const STREET_FRONT_ASCII: Record<string, string> = {
+  volcano_canvas: 'vol_canvas_flat',
+}
+
+export function asciiForStreetFront(frontId: string): TownAsciiInterior | null {
+  return townAsciiInterior(STREET_FRONT_ASCII[frontId])
 }
 
 export function townAsciiInterior(attractionId?: string): TownAsciiInterior | null {
