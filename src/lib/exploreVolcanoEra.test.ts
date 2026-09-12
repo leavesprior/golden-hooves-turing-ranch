@@ -10,6 +10,7 @@ import {
   GRASS_VALLEY_LATER_ATTRACTION_IDS,
   MOKELUMNE_HILL_LATER_ATTRACTION_IDS,
   NEVADA_CITY_LATER_ATTRACTION_IDS,
+  SAN_ANDREAS_LATER_ATTRACTION_IDS,
   TOWN_HOTSPOTS,
   TOWN_NPCS,
   VOLCANO_LATER_ATTRACTION_IDS,
@@ -101,6 +102,19 @@ ok(presentStreetHits('mokelumne_hill').spots.some((s) => s.attractionId === 'mh_
   const d = hotel && camp ? Math.hypot(hotel.x - camp.x, hotel.y - camp.y) : 0
   ok(d >= 12, `hill camp pin is off the later hotel (${d})`)
 }
+
+for (const id of SAN_ANDREAS_LATER_ATTRACTION_IDS) {
+  const block = src.split(`id: '${id}'`)[1]?.slice(0, 900) || ''
+  ok(/period:\s*'later'/.test(block), `${id} tagged later in code`)
+}
+ok(/period:\s*'available'/.test(src.split("id: 'sa_gulch_camp'")[1]?.slice(0, 900) || ''), 'gulch camp stays 1849-present')
+ok(/eraName:\s*'The gulch camp'/.test(src), 'San Andreas 1849 face is the gulch camp')
+ok(/Not the county seat yet/.test(src), 'San Andreas 1849 tagline is not-yet-the-seat')
+ok(/Mexican miners in the gulch, winter 1848/.test(src), 'San Andreas story starts in the 1848 gulch, not Bart')
+ok(!/San Andreas became the Calaveras County seat in 1866/.test(code), '1849 story does not claim the 1866 seat as present')
+ok(TOWN_NPCS.san_andreas.some((n) => n.id === 'sa_clerk' && n.period === 'later'), 'court clerk is later')
+ok(!presentStreetHits('san_andreas').spots.some((s) => s.attractionId === 'sa_courthouse'), '1867 courthouse pin is off the 1849 street')
+ok(!presentStreetHits('san_andreas').spots.some((s) => s.attractionId === 'sa_gulch_camp'), 'gulch camp is a list pill, not a pin on the later courthouse painting')
 
 const townFace = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/explore/InteractiveTown.tsx'), 'utf8')
 ok(/Looked at \$\{a\.name\}/.test(townFace), 'pin click looks; it does not enter a walkable room')

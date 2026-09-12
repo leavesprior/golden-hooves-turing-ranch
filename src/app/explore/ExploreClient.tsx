@@ -403,10 +403,24 @@ const TOWNS: Town[] = [
     id: 'san_andreas',
     name: 'San Andreas',
     tagline: 'Where Black Bart Faced Justice',
-    description: 'County seat where the notorious Black Bart was brought to trial in 1883, undone by a laundry mark on a dropped handkerchief.',
-    townStory: 'San Andreas became the Calaveras County seat in 1866. In 1883 it gained fame in the Black Bart case: after Bart dropped a handkerchief at a Calaveras County stage robbery, detectives traced its laundry mark to a San Francisco laundry and arrested him there - then brought him to San Andreas to answer for the crime.',
+    eraName: 'The gulch camp',
+    eraTagline: 'Not the county seat yet',
+    description: '1849 is Mexican tents on the gulch. The courthouse, the county seat, and Black Bart are later.',
+    townStory: 'Mexican miners in the gulch, winter 1848. Canvas and bateas in 1849. The courthouse, the county seat, and Black Bart come later.',
     coordinates: { lat: 38.1960, lng: -120.6807 },
     attractions: [
+      {
+        id: 'sa_gulch_camp',
+        name: 'San Andreas Gulch',
+        icon: '⛺',
+        category: 'adventure',
+        description: 'Mexican miners camped a quarter-mile above the later town in winter 1848 and washed the gulch with bateas. 1849 is tents. The brick courthouse is not from this year.',
+        funFact: 'By 1849 nearly a thousand Mexican miners were on the hill. The canvas church that named the camp San Andreas comes later (1852).',
+        insiderTip: 'Walk the gulch. The seat, the museum, and Bart\'s laundry mark come later.',
+        duration: '30 min',
+        xp: 15,
+        period: 'available',
+      },
       {
         id: 'sa_courthouse',
         name: 'Historic Courthouse',
@@ -417,6 +431,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The museum has the actual laundry mark that led to Bart\'s capture: F.X.O.7',
         duration: '1.5 hours',
         xp: 30,
+        period: 'later',
         badge: { id: 'detective', name: 'Amateur Detective', icon: '🔍', description: 'Solved the Black Bart case', rarity: 'uncommon' },
       },
       {
@@ -429,6 +444,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Don\'t miss the underground mine replica in the basement.',
         duration: '2 hours',
         xp: 25,
+        period: 'later',
       },
       {
         id: 'sa_frog_park',
@@ -440,6 +456,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Great picnic spot - there\'s often a food truck nearby on weekends.',
         duration: '30 min',
         xp: 10,
+        period: 'later',
       },
       {
         id: 'sa_main_street',
@@ -451,6 +468,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The best antique shops are on the south end of Main Street.',
         duration: '1-2 hours',
         xp: 15,
+        period: 'later',
       },
     ],
     secretAttractions: [
@@ -465,6 +483,7 @@ const TOWNS: Town[] = [
         secretUnlock: 'Visit the courthouse AND complete 5 history sites',
         duration: '30 min',
         xp: 50,
+        period: 'later',
         badge: { id: 'bart_tracker', name: 'Bart Tracker', icon: '🎭', description: 'Followed Black Bart\'s evidence trail', rarity: 'legendary' },
       },
     ],
