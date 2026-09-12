@@ -303,10 +303,24 @@ const TOWNS: Town[] = [
     id: 'mokelumne_hill',
     name: 'Mokelumne Hill',
     tagline: 'The Murder Capital',
-    description: 'Once the deadliest town in the Gold Country. A murder a week was common in 1851. Now peacefully haunted.',
-    townStory: 'At its peak, "Moke Hill" had 10,000 residents and was so lawless that it earned the nickname "Murder Capital of Gold Country." The Hotel Leger is said to be haunted by victims.',
+    eraName: 'The hill camp',
+    eraTagline: 'Tents, not the Leger',
+    description: '1849 is tents on Stockton Hill. Hotel Leger, the courthouse, and the murder-capital year are later.',
+    townStory: 'Gold on Stockton Hill in 1848. Canvas and wagons in 1849. Hotel Leger (1851), the courthouse, and a killing a week come later.',
     coordinates: { lat: 38.2993, lng: -120.7091 },
     attractions: [
+      {
+        id: 'mh_hill_camp',
+        name: 'Stockton Hill',
+        icon: '⛺',
+        category: 'adventure',
+        description: 'Samuel Pearsall of Stevenson\'s regiment found gold on the north side of Stockton Hill in 1848. 1849 is tents and a fire. The brick hotel is not from this year.',
+        funFact: 'By November 1848 twenty men were mining, Syree kept a trading tent, and the Fourcade brothers had settled. The hill is not yet a county seat.',
+        insiderTip: 'Walk the wagon road. The Leger, the gallows story, and Odd Fellows brick come later.',
+        duration: '30 min',
+        xp: 15,
+        period: 'available',
+      },
       {
         id: 'mh_hotel_leger',
         name: 'Hotel Leger',
@@ -317,6 +331,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Book a night if you dare - the haunted room tours are available to non-guests too.',
         duration: '1-2 hours (tour)',
         xp: 35,
+        period: 'later',
         badge: { id: 'ghost_hunter', name: 'Ghost Hunter', icon: '👻', description: 'Braved the haunted Hotel Leger', rarity: 'rare' },
       },
       {
@@ -329,6 +344,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Ask at the hotel which wing was the courthouse - you can have a drink where justice was once served.',
         duration: '1 hour',
         xp: 20,
+        period: 'later',
       },
       {
         id: 'mh_gallows',
@@ -340,6 +356,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Look for the state historical landmark plaque in town (CHL 269) for the official story.',
         duration: '30 min',
         xp: 25,
+        period: 'later',
       },
       {
         id: 'mh_french_cemetery',
@@ -351,6 +368,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The ironwork gates and fences are original - beautiful examples of 1850s French craftsmanship.',
         duration: '45 min',
         xp: 20,
+        period: 'later',
       },
       {
         id: 'mh_ioof_hall',
@@ -362,6 +380,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The building is often open during town events - check for local festivals.',
         duration: '30 min',
         xp: 15,
+        period: 'later',
       },
     ],
     secretAttractions: [
@@ -376,6 +395,7 @@ const TOWNS: Town[] = [
         secretUnlock: 'Complete the Black Bart Mystery Trail',
         duration: '2 hours (hike)',
         xp: 65,
+        period: 'later',
       },
     ],
   },

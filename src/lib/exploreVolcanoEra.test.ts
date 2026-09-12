@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url'
 import { arcadePresentAttractions } from '../app/explore/explorerContext'
 import {
   GRASS_VALLEY_LATER_ATTRACTION_IDS,
+  MOKELUMNE_HILL_LATER_ATTRACTION_IDS,
   NEVADA_CITY_LATER_ATTRACTION_IDS,
+  TOWN_HOTSPOTS,
   TOWN_NPCS,
   VOLCANO_LATER_ATTRACTION_IDS,
   presentStreetHits,
@@ -80,6 +82,25 @@ ok(/The town starts in 1850/.test(src), 'Grass Valley story does not claim the 1
 ok(TOWN_NPCS.grass_valley.some((n) => n.id === 'gv_cornish' && n.period === 'later'), 'Cornish miner is later')
 ok(!presentStreetHits('grass_valley').spots.some((s) => s.attractionId === 'gv_empire_mine'), 'Empire Mine pin is off the 1849 street')
 ok(!presentStreetHits('grass_valley').spots.some((s) => s.attractionId === 'gv_condon_park'), 'pine ridge is a list pill, not a pin on the later mine painting')
+
+for (const id of MOKELUMNE_HILL_LATER_ATTRACTION_IDS) {
+  const block = src.split(`id: '${id}'`)[1]?.slice(0, 900) || ''
+  ok(/period:\s*'later'/.test(block), `${id} tagged later in code`)
+}
+ok(/period:\s*'available'/.test(src.split("id: 'mh_hill_camp'")[1]?.slice(0, 900) || ''), 'Stockton Hill stays 1849-present')
+ok(/eraName:\s*'The hill camp'/.test(src), 'Mokelumne Hill 1849 face is the hill camp')
+ok(/Tents, not the Leger/.test(src), 'Mokelumne Hill 1849 tagline is tents')
+ok(/Gold on Stockton Hill in 1848/.test(src), 'Mokelumne Hill story starts on Stockton Hill, not the murder capital')
+ok(!/Murder Capital of Gold Country/.test(code), '1849 story does not claim the 1851 murder capital as present')
+ok(TOWN_NPCS.mokelumne_hill.some((n) => n.id === 'mh_leger' && n.period === 'later'), 'hotel night man is later')
+ok(!presentStreetHits('mokelumne_hill').spots.some((s) => s.attractionId === 'mh_hotel_leger'), 'Hotel Leger pin is off the 1849 street')
+ok(presentStreetHits('mokelumne_hill').spots.some((s) => s.attractionId === 'mh_hill_camp'), 'Stockton Hill camp pin stays on the wagons')
+{
+  const hotel = TOWN_HOTSPOTS.mokelumne_hill.find((s) => s.attractionId === 'mh_hotel_leger')
+  const camp = TOWN_HOTSPOTS.mokelumne_hill.find((s) => s.attractionId === 'mh_hill_camp')
+  const d = hotel && camp ? Math.hypot(hotel.x - camp.x, hotel.y - camp.y) : 0
+  ok(d >= 12, `hill camp pin is off the later hotel (${d})`)
+}
 
 const townFace = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/explore/InteractiveTown.tsx'), 'utf8')
 ok(/Looked at \$\{a\.name\}/.test(townFace), 'pin click looks; it does not enter a walkable room')
