@@ -886,10 +886,24 @@ const TOWNS: Town[] = [
     id: 'mariposa',
     name: 'Mariposa',
     tagline: 'Gateway to Yosemite, Mother of Counties',
-    description: 'The original Mariposa County once encompassed one-fifth of California. This gateway town bridges the Gold Rush and the grandeur of Yosemite.',
-    townStory: 'Founded in 1849 by Mexican miners who named it for the mariposa lilies blanketing the hills. Mariposa\'s original county was the largest in California — stretching from the Coast Range to Nevada. John C. Fremont\'s controversial land grant put it at the center of Gold Rush legal history, and its courthouse has dispensed justice continuously since 1854.',
+    eraName: 'The lily camp',
+    eraTagline: 'The courthouse is not from this year',
+    description: '1849 is miners on Mariposa Creek, named for the lilies. The courthouse, the grove, and Yosemite stage are later.',
+    townStory: 'Mexican miners on Mariposa Creek in 1849, named for the lilies. The courthouse (1854), the grove, and the Yosemite stage come later.',
     coordinates: { lat: 37.4849, lng: -119.9663 },
     attractions: [
+      {
+        id: 'mp_lily_camp',
+        name: 'Mariposa Creek',
+        icon: '⛺',
+        category: 'adventure',
+        description: 'The 1849 camp sat on a flat along Mariposa Creek, below the later hill. Canvas and lilies. The white courthouse is not from this year.',
+        funFact: 'Winter floods in 1849–50 pushed the camp onto higher ground. The 1854 courthouse sits on that later hill.',
+        insiderTip: 'Walk the creek. The clock tower, the sequoia grove, and Fremont\'s stone walls come later.',
+        duration: '30 min',
+        xp: 15,
+        period: 'available',
+      },
       {
         id: 'mp_mining_museum',
         name: 'California State Mining and Mineral Museum',
@@ -900,6 +914,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The fluorescent mineral room is spectacular in the dark — ask for the special lights-out demonstration.',
         duration: '2 hours',
         xp: 30,
+        period: 'later',
         badge: { id: 'mineral_collector', name: 'Mineral Collector', icon: '💎', description: 'Explored California\'s mineral treasury', rarity: 'uncommon' },
       },
       {
@@ -912,6 +927,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Ask at the clerk\'s office about seeing the Fremont land grant documents. They\'re preserved in the archives and sometimes shown to visitors.',
         duration: '1 hour',
         xp: 25,
+        period: 'later',
       },
       {
         id: 'mp_museum',
@@ -923,6 +939,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The Miwok exhibit is excellent — Mariposa County was home to the Southern Sierra Miwok for thousands of years before gold was discovered.',
         duration: '1.5 hours',
         xp: 20,
+        period: 'later',
       },
       {
         id: 'mp_main_street',
@@ -934,6 +951,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The 1850 Building on the south end is one of the oldest commercial structures in the Mother Lode. The pizza inside is surprisingly good.',
         duration: '1-2 hours',
         xp: 15,
+        period: 'later',
       },
       {
         id: 'mp_grove',
@@ -945,6 +963,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Go early — the parking lot fills by 10 AM in summer. The 2-mile loop to the Grizzly Giant is the essential hike.',
         duration: 'Half day',
         xp: 35,
+        period: 'later',
       },
       {
         id: 'mp_fremont_site',
@@ -956,6 +975,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The estate grounds are partially accessible from Bear Valley Road. Look for the old stone walls and foundations.',
         duration: '1 hour',
         xp: 20,
+        period: 'later',
       },
     ],
     secretAttractions: [
@@ -970,6 +990,7 @@ const TOWNS: Town[] = [
         secretUnlock: 'Visit the Courthouse AND the Fremont Estate Grounds',
         duration: '1 hour',
         xp: 65,
+        period: 'later',
         badge: { id: 'fremont_seeker', name: 'Fremont Seeker', icon: '🪙', description: 'Searched for Fremont\'s lost fortune', rarity: 'legendary' },
       },
     ],

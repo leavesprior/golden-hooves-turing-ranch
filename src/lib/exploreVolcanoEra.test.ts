@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { arcadePresentAttractions } from '../app/explore/explorerContext'
 import {
   GRASS_VALLEY_LATER_ATTRACTION_IDS,
+  MARIPOSA_LATER_ATTRACTION_IDS,
   MOKELUMNE_HILL_LATER_ATTRACTION_IDS,
   NEVADA_CITY_LATER_ATTRACTION_IDS,
   SAN_ANDREAS_LATER_ATTRACTION_IDS,
@@ -115,6 +116,19 @@ ok(!/San Andreas became the Calaveras County seat in 1866/.test(code), '1849 sto
 ok(TOWN_NPCS.san_andreas.some((n) => n.id === 'sa_clerk' && n.period === 'later'), 'court clerk is later')
 ok(!presentStreetHits('san_andreas').spots.some((s) => s.attractionId === 'sa_courthouse'), '1867 courthouse pin is off the 1849 street')
 ok(!presentStreetHits('san_andreas').spots.some((s) => s.attractionId === 'sa_gulch_camp'), 'gulch camp is a list pill, not a pin on the later courthouse painting')
+
+for (const id of MARIPOSA_LATER_ATTRACTION_IDS) {
+  const block = src.split(`id: '${id}'`)[1]?.slice(0, 900) || ''
+  ok(/period:\s*'later'/.test(block), `${id} tagged later in code`)
+}
+ok(/period:\s*'available'/.test(src.split("id: 'mp_lily_camp'")[1]?.slice(0, 900) || ''), 'lily camp stays 1849-present')
+ok(/eraName:\s*'The lily camp'/.test(src), 'Mariposa 1849 face is the lily camp')
+ok(/The courthouse is not from this year/.test(src), 'Mariposa 1849 tagline is not-yet-the-courthouse')
+ok(/Mexican miners on Mariposa Creek in 1849/.test(src), 'Mariposa story starts on the creek, not the 1854 seat')
+ok(!/courthouse has dispensed justice continuously since 1854/.test(code), '1849 story does not claim the 1854 courthouse as present')
+ok(TOWN_NPCS.mariposa.some((n) => n.id === 'mp_clerk' && n.period === 'later'), 'county clerk is later')
+ok(!presentStreetHits('mariposa').spots.some((s) => s.attractionId === 'mp_courthouse'), '1854 courthouse pin is off the 1849 street')
+ok(!presentStreetHits('mariposa').spots.some((s) => s.attractionId === 'mp_lily_camp'), 'lily camp is a list pill, not a pin on the later courthouse painting')
 
 const townFace = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/explore/InteractiveTown.tsx'), 'utf8')
 ok(/Looked at \$\{a\.name\}/.test(townFace), 'pin click looks; it does not enter a walkable room')
