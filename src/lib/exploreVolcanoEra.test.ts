@@ -10,6 +10,7 @@ import {
   ANGELS_CAMP_EXPANDED_LATER_ATTRACTION_IDS,
   ANGELS_CAMP_LATER_ATTRACTION_IDS,
   GRASS_VALLEY_LATER_ATTRACTION_IDS,
+  WEST_POINT_LATER_ATTRACTION_IDS,
   MARIPOSA_LATER_ATTRACTION_IDS,
   MOKELUMNE_HILL_LATER_ATTRACTION_IDS,
   NEVADA_CITY_LATER_ATTRACTION_IDS,
@@ -153,6 +154,25 @@ ok(!presentStreetHits('angels_camp').spots.some((s) => s.attractionId === 'ac_fr
 ok(!presentStreetHits('angels_camp').spots.some((s) => s.attractionId === 'ac_creek_camp'), 'creek camp is a list pill, not a pin on the later frog-banner painting')
 ok(!presentStreetHits('angels_camp_expanded').spots.some((s) => s.attractionId === 'ace_ross_saloon'), '1855 hotel pin is off the 1849 street')
 ok(!presentStreetHits('angels_camp_expanded').spots.some((s) => s.attractionId === 'ace_creek_camp'), 'creek camp is a list pill, not a pin on the later hotel painting')
+
+for (const id of WEST_POINT_LATER_ATTRACTION_IDS) {
+  const block = src.split(`id: '${id}'`)[1]?.slice(0, 900) || ''
+  ok(/period:\s*'later'/.test(block), `${id} tagged later in code`)
+}
+ok(/period:\s*'available'/.test(src.split("id: 'wp_trail_camp'")[1]?.slice(0, 900) || ''), 'pack road stays 1849-present')
+ok(/eraName:\s*'The trail camp'/.test(src), 'West Point 1849 face is the trail camp')
+ok(/The plaque is not from this year/.test(src), 'West Point 1849 tagline is plaque-later')
+ok(/The native camps already knew this pass/.test(src), 'West Point story starts on the native pass, not Willows')
+ok(!/it became a critical supply point for Gold Rush miners/.test(code), '1849 story does not claim the later supply town as present')
+ok(!presentStreetHits('west_point').spots.some((s) => s.attractionId === 'wp_willows'), 'Willows pin is off the 1849 street')
+ok(!presentStreetHits('west_point').spots.some((s) => s.attractionId === 'wp_kit_carson'), 'plaque pin is off the 1849 street')
+ok(presentStreetHits('west_point').spots.some((s) => s.attractionId === 'wp_trail_camp'), 'trail camp pin stays on the dirt road')
+{
+  const pack = TOWN_NPCS.west_point.find((n) => n.id === 'wp_pack')
+  const camp = TOWN_HOTSPOTS.west_point.find((s) => s.attractionId === 'wp_trail_camp')
+  const d = pack && camp ? Math.hypot(pack.x - camp.x, pack.y - camp.y) : 0
+  ok(d >= 12, `trail camp pin is off the packer (${d})`)
+}
 
 const townFace = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/explore/InteractiveTown.tsx'), 'utf8')
 ok(/Looked at \$\{a\.name\}/.test(townFace), 'pin click looks; it does not enter a walkable room')
