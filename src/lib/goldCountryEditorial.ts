@@ -207,12 +207,23 @@ export const SAN_ANDREAS_LATER_ATTRACTION_IDS = [
   'sa_frog_park',
 ] as const
 
+/** Mariposa 1849 face is the lily camp. The 1854 courthouse and grove stay later. */
+export const MARIPOSA_LATER_ATTRACTION_IDS = [
+  'mp_mining_museum',
+  'mp_courthouse',
+  'mp_museum',
+  'mp_main_street',
+  'mp_grove',
+  'mp_fremont_site',
+] as const
+
 const LATER_STREET_PIN_IDS = new Set<string>([
   ...VOLCANO_LATER_ATTRACTION_IDS,
   ...NEVADA_CITY_LATER_ATTRACTION_IDS,
   ...GRASS_VALLEY_LATER_ATTRACTION_IDS,
   ...MOKELUMNE_HILL_LATER_ATTRACTION_IDS,
   ...SAN_ANDREAS_LATER_ATTRACTION_IDS,
+  ...MARIPOSA_LATER_ATTRACTION_IDS,
 ])
 
 /** Building pins on each town painting (percent of the image). */
@@ -349,7 +360,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'gv_cornish', name: 'Cornish miner', x: 48, y: 62, line: 'The cow kicked a rock. After that we went down instead of along the creek.', period: 'later' },
   ],
   mariposa: [
-    { id: 'mp_clerk', name: 'County clerk', x: 16, y: 84, line: 'Oldest courthouse in the mountains. The oaks were here first.' },
+    { id: 'mp_clerk', name: 'County clerk', x: 16, y: 84, line: 'Oldest courthouse in the mountains. The oaks were here first.', period: 'later' },
   ],
   angels_camp_expanded: [
     { id: 'ace_plaque', name: 'Plaque reader', x: 20, y: 68, line: 'Twain heard the frog here. The rest of the country heard Twain.' },
