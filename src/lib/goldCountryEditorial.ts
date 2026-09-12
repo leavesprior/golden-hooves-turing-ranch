@@ -259,7 +259,6 @@ export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
     { attractionId: 'gv_holbrooke', x: 72, y: 52 },
     { attractionId: 'gv_north_star', x: 52, y: 48 },
     { attractionId: 'gv_mill_street', x: 82, y: 50 },
-    { attractionId: 'gv_condon_park', x: 50, y: 78 },
   ],
   mariposa: [
     { attractionId: 'mp_courthouse', x: 52, y: 32 },

@@ -79,7 +79,7 @@ ok(/The town is not from this year/.test(src), 'Grass Valley 1849 tagline is not
 ok(/The town starts in 1850/.test(src), 'Grass Valley story does not claim the 1850 town as 1849')
 ok(TOWN_NPCS.grass_valley.some((n) => n.id === 'gv_cornish' && n.period === 'later'), 'Cornish miner is later')
 ok(!presentStreetHits('grass_valley').spots.some((s) => s.attractionId === 'gv_empire_mine'), 'Empire Mine pin is off the 1849 street')
-ok(presentStreetHits('grass_valley').spots.some((s) => s.attractionId === 'gv_condon_park'), 'pine ridge pin stays')
+ok(!presentStreetHits('grass_valley').spots.some((s) => s.attractionId === 'gv_condon_park'), 'pine ridge is a list pill, not a pin on the later mine painting')
 
 const townFace = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/explore/InteractiveTown.tsx'), 'utf8')
 ok(/Looked at \$\{a\.name\}/.test(townFace), 'pin click looks; it does not enter a walkable room')
