@@ -190,10 +190,20 @@ export const GRASS_VALLEY_LATER_ATTRACTION_IDS = [
   'gv_mill_street',
 ] as const
 
+/** Mokelumne Hill 1849 face is the Stockton Hill camp. Hotel Leger and the seat stay later. */
+export const MOKELUMNE_HILL_LATER_ATTRACTION_IDS = [
+  'mh_hotel_leger',
+  'mh_courthouse',
+  'mh_ioof_hall',
+  'mh_gallows',
+  'mh_french_cemetery',
+] as const
+
 const LATER_STREET_PIN_IDS = new Set<string>([
   ...VOLCANO_LATER_ATTRACTION_IDS,
   ...NEVADA_CITY_LATER_ATTRACTION_IDS,
   ...GRASS_VALLEY_LATER_ATTRACTION_IDS,
+  ...MOKELUMNE_HILL_LATER_ATTRACTION_IDS,
 ])
 
 /** Building pins on each town painting (percent of the image). */
@@ -233,6 +243,8 @@ export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
     { attractionId: 'mh_ioof_hall', x: 28, y: 62 },
     { attractionId: 'mh_gallows', x: 72, y: 48 },
     { attractionId: 'mh_french_cemetery', x: 86, y: 58 },
+    // Campfire wagons at the foot of the later brick hotel (viewed 2026-09-11).
+    { attractionId: 'mh_hill_camp', x: 68, y: 82 },
   ],
   san_andreas: [
     { attractionId: 'sa_courthouse', x: 48, y: 42 },
@@ -313,7 +325,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'wp_pack', name: 'Packer', x: 72, y: 78, line: 'Flour, rope, and a road the native camps already knew. The plaque is not from this year.' },
   ],
   mokelumne_hill: [
-    { id: 'mh_leger', name: 'Hotel night man', x: 46, y: 58, line: 'We keep a room for the living and a ledger for the rest.' },
+    { id: 'mh_leger', name: 'Hotel night man', x: 46, y: 58, line: 'We keep a room for the living and a ledger for the rest.', period: 'later' },
   ],
   san_andreas: [
     { id: 'sa_clerk', name: 'Court clerk', x: 36, y: 62, line: 'Bart was undone by laundry. Justice here still reads small marks.' },
