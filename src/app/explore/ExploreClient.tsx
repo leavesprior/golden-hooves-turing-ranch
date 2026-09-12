@@ -152,10 +152,24 @@ const TOWNS: Town[] = [
     id: 'angels_camp',
     name: 'Angels Camp',
     tagline: 'Home of the Jumping Frog',
-    description: 'Where Mark Twain heard the story that launched his career. Every year, frogs compete for glory at the Frog Jump Jubilee.',
-    townStory: 'Founded by Henry Pinkney Angell in 1848, Angels Camp became famous after Mark Twain\'s 1865 short story "The Celebrated Jumping Frog of Calaveras County" put it on the literary map.',
+    eraName: 'The creek camp',
+    eraTagline: 'Twain and the frog come later',
+    description: '1849 is Angell\'s trading post on the creek. The stone hotel, Twain\'s winter, and the frog jump are later.',
+    townStory: 'Henry Angell kept a trading post here in 1848. Canvas and a creek in 1849. The stone hotel (1855), Twain\'s winter, and the frog jump come later.',
     coordinates: { lat: 38.0684, lng: -120.5394 },
     attractions: [
+      {
+        id: 'ac_creek_camp',
+        name: "Angell's trading post",
+        icon: '⛺',
+        category: 'adventure',
+        description: 'Henry Pinkney Angell set a store and camp on this creek in 1848. 1849 is canvas. The frog banner and the brick saloon are not from this year.',
+        funFact: 'The camp is named for the shopkeeper, not the amphibian. The jubilee starts in 1928.',
+        insiderTip: 'Walk the creek. Twain, the stone hotel, and the sidewalk frogs come later.',
+        duration: '30 min',
+        xp: 15,
+        period: 'available',
+      },
       {
         id: 'ac_frog_jubilee',
         name: 'Frog Jump Jubilee',
@@ -166,6 +180,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Come in May for the real competition, but you can see the arena year-round.',
         duration: 'Full day (during festival)',
         xp: 30,
+        period: 'later',
       },
       {
         id: 'ac_twain_cabin',
@@ -177,6 +192,7 @@ const TOWNS: Town[] = [
         insiderTip: 'There was no Twain cabin at Angels Camp itself - the restored Mark Twain Cabin sits on Jackass Hill near Tuttletown. The Angels Camp Museum holds artifacts from his stay here.',
         duration: '1 hour',
         xp: 25,
+        period: 'later',
         badge: { id: 'twain_pilgrim', name: 'Twain Pilgrim', icon: '📚', description: 'Walked in Mark Twain\'s footsteps', rarity: 'uncommon' },
       },
       {
@@ -189,6 +205,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Ask about the guided tour of the outdoor mining exhibits - worth the extra time.',
         duration: '2 hours',
         xp: 20,
+        period: 'later',
       },
       {
         id: 'ac_sutter_mine',
@@ -200,6 +217,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The underground portion is 58°F year-round - bring a jacket even in summer.',
         duration: '1.5 hours',
         xp: 35,
+        period: 'later',
       },
       {
         id: 'ac_main_street',
@@ -211,6 +229,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Check out the historic markers embedded in the sidewalks - each tells a story.',
         duration: '1-2 hours',
         xp: 15,
+        period: 'later',
       },
     ],
     secretAttractions: [
@@ -225,6 +244,7 @@ const TOWNS: Town[] = [
         secretUnlock: 'Visit all Angels Camp attractions',
         duration: '1 hour',
         xp: 75,
+        period: 'later',
         badge: { id: 'nugget_hunter', name: 'Nugget Hunter', icon: '🏆', description: 'Found the largest nugget site', rarity: 'legendary' },
       },
     ],
@@ -794,10 +814,24 @@ const TOWNS: Town[] = [
     id: 'angels_camp_expanded',
     name: 'Angels Camp (Old Town)',
     tagline: 'City of Twain and Frogs',
-    description: 'Where Mark Twain heard the story that launched American humor. Every spring, frogs still compete for glory at the world-famous Frog Jump.',
-    townStory: 'Founded in 1848 by Henry Pinkney Angell, a shopkeeper who set up a trading post and mining camp here. Angels Camp became a literary landmark when Mark Twain wintered here in 1864-65 and heard the jumping frog tale at the Angels Hotel bar that became his first major published work. The town celebrates with an annual Frog Jump that draws competitors worldwide.',
+    eraName: 'The creek camp',
+    eraTagline: 'Twain and the frog come later',
+    description: '1849 is the trading post on Angels Creek. The brick hotel, the bronze frog, and Twain\'s winter are later.',
+    townStory: 'Henry Angell kept a trading post here in 1848. Canvas and a creek in 1849. The stone hotel (1855), Twain\'s winter, and the frog jump come later.',
     coordinates: { lat: 38.0684, lng: -120.5394 },
     attractions: [
+      {
+        id: 'ace_creek_camp',
+        name: 'Angels Creek',
+        icon: '⛺',
+        category: 'adventure',
+        description: 'The 1849 camp sits on the creek. Canvas and a store. The brick Angels Hotel and the bronze frog are not from this year.',
+        funFact: '1848 is a shopkeeper. 1849 is tents. The jubilee is 1928.',
+        insiderTip: 'Stay on the dirt. The hotel porch and the frog statue come later.',
+        duration: '30 min',
+        xp: 15,
+        period: 'available',
+      },
       {
         id: 'ace_museum',
         name: 'Angels Camp Museum',
@@ -808,6 +842,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Ask docents about the Twain notebook reproductions. They have pages from his Angels Camp journal.',
         duration: '2 hours',
         xp: 25,
+        period: 'later',
       },
       {
         id: 'ace_fairgrounds',
@@ -819,6 +854,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Come during the third weekend in May for the real competition. You can rent a frog and enter for a small fee.',
         duration: 'Full day (festival)',
         xp: 30,
+        period: 'later',
       },
       {
         id: 'ace_utica_park',
@@ -830,6 +866,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The trail along Angels Creek is flat and shady — perfect for families. Old mine tailings are visible from the path.',
         duration: '1-2 hours',
         xp: 15,
+        period: 'later',
       },
       {
         id: 'ace_main_street',
@@ -841,6 +878,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The south end of Main Street has the oldest buildings. Look for date stones carved into the facades.',
         duration: '1-2 hours',
         xp: 15,
+        period: 'later',
       },
       {
         id: 'ace_ross_saloon',
@@ -852,6 +890,7 @@ const TOWNS: Town[] = [
         insiderTip: 'Look for the historical landmark plaque at the corner of Main Street — the hotel is California Historical Landmark No. 734.',
         duration: '30 min',
         xp: 20,
+        period: 'later',
       },
       {
         id: 'ace_twain_cabin',
@@ -863,6 +902,7 @@ const TOWNS: Town[] = [
         insiderTip: 'The Angels Camp Museum displays Twain memorabilia and journal reproductions from his stay. For the cabin itself, drive south to Jackass Hill.',
         duration: '30 min',
         xp: 20,
+        period: 'later',
         badge: { id: 'twain_scholar', name: 'Twain Scholar', icon: '📚', description: 'Studied where Twain found his voice', rarity: 'uncommon' },
       },
     ],
@@ -878,6 +918,7 @@ const TOWNS: Town[] = [
         secretUnlock: 'Visit the Angels Hotel Bar AND the Museum',
         duration: '30 min',
         xp: 50,
+        period: 'later',
         badge: { id: 'twain_detective', name: 'Twain Detective', icon: '🔍', description: 'Found the original Angels Hotel', rarity: 'rare' },
       },
     ],
