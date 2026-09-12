@@ -199,11 +199,20 @@ export const MOKELUMNE_HILL_LATER_ATTRACTION_IDS = [
   'mh_french_cemetery',
 ] as const
 
+/** San Andreas 1849 face is the gulch camp. The 1867 courthouse and Bart stay later. */
+export const SAN_ANDREAS_LATER_ATTRACTION_IDS = [
+  'sa_courthouse',
+  'sa_museum',
+  'sa_main_street',
+  'sa_frog_park',
+] as const
+
 const LATER_STREET_PIN_IDS = new Set<string>([
   ...VOLCANO_LATER_ATTRACTION_IDS,
   ...NEVADA_CITY_LATER_ATTRACTION_IDS,
   ...GRASS_VALLEY_LATER_ATTRACTION_IDS,
   ...MOKELUMNE_HILL_LATER_ATTRACTION_IDS,
+  ...SAN_ANDREAS_LATER_ATTRACTION_IDS,
 ])
 
 /** Building pins on each town painting (percent of the image). */
@@ -328,7 +337,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'mh_leger', name: 'Hotel night man', x: 46, y: 58, line: 'We keep a room for the living and a ledger for the rest.', period: 'later' },
   ],
   san_andreas: [
-    { id: 'sa_clerk', name: 'Court clerk', x: 36, y: 62, line: 'Bart was undone by laundry. Justice here still reads small marks.' },
+    { id: 'sa_clerk', name: 'Court clerk', x: 36, y: 62, line: 'Bart was undone by laundry. Justice here still reads small marks.', period: 'later' },
   ],
   bobr_ranch: [
     { id: 'br_tobias', name: 'Tobias', x: 62, y: 78, line: 'Fire here. The towns are the work. The house with glass is not from this year.' },
