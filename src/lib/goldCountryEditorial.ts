@@ -217,6 +217,26 @@ export const MARIPOSA_LATER_ATTRACTION_IDS = [
   'mp_fremont_site',
 ] as const
 
+/** Angels Camp 1849 face is the creek camp. Twain, the 1855 hotel, and the frog stay later. */
+export const ANGELS_CAMP_LATER_ATTRACTION_IDS = [
+  'ac_frog_jubilee',
+  'ac_twain_cabin',
+  'ac_museum',
+  'ac_sutter_mine',
+  'ac_main_street',
+  'ac_carson_hill',
+] as const
+
+export const ANGELS_CAMP_EXPANDED_LATER_ATTRACTION_IDS = [
+  'ace_museum',
+  'ace_fairgrounds',
+  'ace_utica_park',
+  'ace_main_street',
+  'ace_ross_saloon',
+  'ace_twain_cabin',
+  'ace_angels_hotel',
+] as const
+
 const LATER_STREET_PIN_IDS = new Set<string>([
   ...VOLCANO_LATER_ATTRACTION_IDS,
   ...NEVADA_CITY_LATER_ATTRACTION_IDS,
@@ -224,6 +244,8 @@ const LATER_STREET_PIN_IDS = new Set<string>([
   ...MOKELUMNE_HILL_LATER_ATTRACTION_IDS,
   ...SAN_ANDREAS_LATER_ATTRACTION_IDS,
   ...MARIPOSA_LATER_ATTRACTION_IDS,
+  ...ANGELS_CAMP_LATER_ATTRACTION_IDS,
+  ...ANGELS_CAMP_EXPANDED_LATER_ATTRACTION_IDS,
 ])
 
 /** Building pins on each town painting (percent of the image). */
@@ -338,7 +360,7 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'v_bell', name: 'Josiah Bell', x: 54, y: 76, line: 'Flour and rope. The brick is not from this year. The box on the bar is not from this gulch.' },
   ],
   angels_camp: [
-    { id: 'ac_coon', name: 'Bartender', x: 20, y: 68, line: 'A jumper is only as honest as the man who holds him.' },
+    { id: 'ac_coon', name: 'Bartender', x: 20, y: 68, line: 'A jumper is only as honest as the man who holds him.', period: 'later' },
   ],
   west_point: [
     { id: 'wp_will', name: 'Willows regular', x: 36, y: 68, line: 'Highway 26 still does what the old trails did: everybody passes through.', period: 'later' },
@@ -363,6 +385,6 @@ export const TOWN_NPCS: Record<string, TownNpc[]> = {
     { id: 'mp_clerk', name: 'County clerk', x: 16, y: 84, line: 'Oldest courthouse in the mountains. The oaks were here first.', period: 'later' },
   ],
   angels_camp_expanded: [
-    { id: 'ace_plaque', name: 'Plaque reader', x: 20, y: 68, line: 'Twain heard the frog here. The rest of the country heard Twain.' },
+    { id: 'ace_plaque', name: 'Plaque reader', x: 20, y: 68, line: 'Twain heard the frog here. The rest of the country heard Twain.', period: 'later' },
   ],
 }

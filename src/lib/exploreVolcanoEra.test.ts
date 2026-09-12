@@ -7,6 +7,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { arcadePresentAttractions } from '../app/explore/explorerContext'
 import {
+  ANGELS_CAMP_EXPANDED_LATER_ATTRACTION_IDS,
+  ANGELS_CAMP_LATER_ATTRACTION_IDS,
   GRASS_VALLEY_LATER_ATTRACTION_IDS,
   MARIPOSA_LATER_ATTRACTION_IDS,
   MOKELUMNE_HILL_LATER_ATTRACTION_IDS,
@@ -129,6 +131,28 @@ ok(!/courthouse has dispensed justice continuously since 1854/.test(code), '1849
 ok(TOWN_NPCS.mariposa.some((n) => n.id === 'mp_clerk' && n.period === 'later'), 'county clerk is later')
 ok(!presentStreetHits('mariposa').spots.some((s) => s.attractionId === 'mp_courthouse'), '1854 courthouse pin is off the 1849 street')
 ok(!presentStreetHits('mariposa').spots.some((s) => s.attractionId === 'mp_lily_camp'), 'lily camp is a list pill, not a pin on the later courthouse painting')
+
+for (const id of ANGELS_CAMP_LATER_ATTRACTION_IDS) {
+  const block = src.split(`id: '${id}'`)[1]?.slice(0, 900) || ''
+  ok(/period:\s*'later'/.test(block), `${id} tagged later in code`)
+}
+for (const id of ANGELS_CAMP_EXPANDED_LATER_ATTRACTION_IDS) {
+  const block = src.split(`id: '${id}'`)[1]?.slice(0, 900) || ''
+  ok(/period:\s*'later'/.test(block), `${id} tagged later in code`)
+}
+ok(/period:\s*'available'/.test(src.split("id: 'ac_creek_camp'")[1]?.slice(0, 900) || ''), 'Angell trading post stays 1849-present')
+ok(/period:\s*'available'/.test(src.split("id: 'ace_creek_camp'")[1]?.slice(0, 900) || ''), 'Angels Creek stays 1849-present')
+ok(/eraName:\s*'The creek camp'/.test(src), 'Angels Camp 1849 face is the creek camp')
+ok(/Twain and the frog come later/.test(src), 'Angels Camp 1849 tagline is Twain-later')
+ok(/Henry Angell kept a trading post here in 1848/.test(src), 'Angels Camp story starts at the 1848 store, not the 1865 frog')
+ok(!/put it on the literary map/.test(code), '1849 story does not claim Twain 1865 as present')
+ok(!/became a literary landmark when Mark Twain wintered here/.test(code), 'expanded 1849 story does not claim Twain winter as present')
+ok(TOWN_NPCS.angels_camp.some((n) => n.id === 'ac_coon' && n.period === 'later'), 'frog bartender is later')
+ok(TOWN_NPCS.angels_camp_expanded.some((n) => n.id === 'ace_plaque' && n.period === 'later'), 'Twain plaque reader is later')
+ok(!presentStreetHits('angels_camp').spots.some((s) => s.attractionId === 'ac_frog_jubilee'), 'frog-jump pin is off the 1849 street')
+ok(!presentStreetHits('angels_camp').spots.some((s) => s.attractionId === 'ac_creek_camp'), 'creek camp is a list pill, not a pin on the later frog-banner painting')
+ok(!presentStreetHits('angels_camp_expanded').spots.some((s) => s.attractionId === 'ace_ross_saloon'), '1855 hotel pin is off the 1849 street')
+ok(!presentStreetHits('angels_camp_expanded').spots.some((s) => s.attractionId === 'ace_creek_camp'), 'creek camp is a list pill, not a pin on the later hotel painting')
 
 const townFace = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../components/explore/InteractiveTown.tsx'), 'utf8')
 ok(/Looked at \$\{a\.name\}/.test(townFace), 'pin click looks; it does not enter a walkable room')
