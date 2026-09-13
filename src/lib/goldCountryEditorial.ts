@@ -237,6 +237,15 @@ export const ANGELS_CAMP_EXPANDED_LATER_ATTRACTION_IDS = [
   'ace_angels_hotel',
 ] as const
 
+/** West Point 1849 face is the trail camp. Willows, the plaque, and the boardwalks stay later. */
+export const WEST_POINT_LATER_ATTRACTION_IDS = [
+  'wp_main_street',
+  'wp_willows',
+  'wp_kit_carson',
+  'wp_general_store',
+  'wp_sandy_gulch',
+] as const
+
 const LATER_STREET_PIN_IDS = new Set<string>([
   ...VOLCANO_LATER_ATTRACTION_IDS,
   ...NEVADA_CITY_LATER_ATTRACTION_IDS,
@@ -246,6 +255,7 @@ const LATER_STREET_PIN_IDS = new Set<string>([
   ...MARIPOSA_LATER_ATTRACTION_IDS,
   ...ANGELS_CAMP_LATER_ATTRACTION_IDS,
   ...ANGELS_CAMP_EXPANDED_LATER_ATTRACTION_IDS,
+  ...WEST_POINT_LATER_ATTRACTION_IDS,
 ])
 
 /** Building pins on each town painting (percent of the image). */
@@ -278,6 +288,8 @@ export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
     { attractionId: 'wp_willows', x: 28, y: 48 },
     { attractionId: 'wp_general_store', x: 55, y: 50 },
     { attractionId: 'wp_kit_carson', x: 70, y: 42 },
+    // Dirt road in the log-cabin painting (viewed 2026-09-12).
+    { attractionId: 'wp_trail_camp', x: 48, y: 84 },
   ],
   mokelumne_hill: [
     { attractionId: 'mh_hotel_leger', x: 42, y: 38 },
