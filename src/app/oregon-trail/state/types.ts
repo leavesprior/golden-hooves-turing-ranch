@@ -110,6 +110,8 @@ export interface InvestigationState {
 }
 
 export interface OregonTrailState {
+  /** Source recorded when the existing outcome closes this chapter. */
+  passing?: import('./passing').PassingRecord
   // Journey progress
   day: number
   distance: number        // Miles traveled (0-2000)

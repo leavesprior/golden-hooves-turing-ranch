@@ -12,7 +12,7 @@ export function RiverScreen() {
   const { earnNeutral, earnGood, addBadKarma } = useKarmaWallet()
   const { comment } = useNarrator()
 
-  const handleRiverCrossingComplete = useCallback(async (success: boolean, effects: CrossingOutcome['effects']) => {
+  const handleRiverCrossingComplete = useCallback(async (success: boolean, effects: CrossingOutcome['effects'], message?: string) => {
     // Apply karma changes from crossing
     if (effects.karmaChange) {
       if (effects.karmaChange.neutral && effects.karmaChange.neutral > 0) {
@@ -33,10 +33,10 @@ export function RiverScreen() {
       comment("The river extracts its toll. It always does, one way or another.", 'warning')
     }
 
-    // Generate outcome message
-    const outcomeMessage = success
+    // Keep the resolved cause for the travel log and any resulting Passing.
+    const outcomeMessage = message || (success
       ? 'Crossed safely! The journey continues.'
-      : 'The crossing took its toll. Some supplies were lost.'
+      : 'The crossing took its toll. Some supplies were lost.')
 
     // Apply all effects to game state and return to traveling
     applyRiverCrossingEffects(effects, outcomeMessage)

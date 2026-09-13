@@ -25,12 +25,14 @@ import { editorialForLandmark } from '@/lib/californiaTrailArt'
 import { RiverAnimation } from './RiverAnimation'
 import { BridgeKeeper } from './BridgeKeeper'
 import { shouldShowBridgeKeeper } from '../data/adamsEasterEggs'
+import { TrailOutcomePicture } from './TrailOutcomePicture'
+import { RIVER_FAILURE_CAPTIONS } from '../data/trailOutcomeArt'
 
 interface RiverCrossingProps {
   riverName: string
   weather: Weather
   dayOfYear?: number
-  onComplete: (success: boolean, effects: CrossingOutcome['effects']) => void
+  onComplete: (success: boolean, effects: CrossingOutcome['effects'], message?: string) => void
   onCancel?: () => void
 }
 
@@ -182,7 +184,9 @@ export function RiverCrossing({
 
   const handleContinue = () => {
     if (outcome) {
-      onComplete(outcome.success, outcome.effects)
+      onComplete(outcome.success, outcome.effects, [outcome.message, outcome.flavorText,
+        outcome.failureScene ? outcome.failureSceneCaption ?? RIVER_FAILURE_CAPTIONS[outcome.failureScene] : '',
+      ].filter(Boolean).join(' '))
     }
   }
 
@@ -204,7 +208,7 @@ export function RiverCrossing({
       foodLost: 20,
       karmaChange: { good: 0, neutral: 0, bad: 0 },
       daysLost: 1
-    })
+    }, 'A wrong answer to the Bridge Keeper sent the party into the Gorge of Eternal Peril. The river took its toll.')
   }
 
   const handleBridgeKeeperCancel = () => {
@@ -457,7 +461,7 @@ export function RiverCrossing({
         )}
 
         {phase === 'outcome' && outcome && (
-          <div className={`
+          <div data-testid="river-outcome" className={`
             rounded-lg border-4 p-6 mb-6
             ${outcome.success
               ? outcome.critical
@@ -473,7 +477,7 @@ export function RiverCrossing({
               <div className="text-4xl mb-2">
                 {outcome.success
                   ? outcome.critical ? '🌟' : '✅'
-                  : outcome.critical ? '💀' : '⚠️'
+                  : '⚠️'
                 }
               </div>
               <h2 className={`font-pixel text-xl ${
@@ -482,6 +486,8 @@ export function RiverCrossing({
                 {outcome.message}
               </h2>
             </div>
+
+            {outcome.failureScene && <TrailOutcomePicture art={outcome.failureScene} caption={outcome.failureSceneCaption ?? RIVER_FAILURE_CAPTIONS[outcome.failureScene]} />}
 
             {/* Flavor Text */}
             <p className="text-gray-200 italic text-center mb-4">
@@ -526,6 +532,7 @@ export function RiverCrossing({
 
             {/* Continue Button */}
             <button
+              data-testid="river-continue"
               onClick={handleContinue}
               className="w-full mt-4 py-3 bg-cyan-700 hover:bg-cyan-600 text-cyan-100 font-pixel text-sm rounded border-2 border-cyan-500 transition-colors"
             >

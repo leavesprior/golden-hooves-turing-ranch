@@ -3,6 +3,7 @@
 
 import { type StatName } from '../characterContext'
 import { type Weather } from '../oregonTrailContext'
+import type { RiverFailureScene } from './trailOutcomeArt'
 
 // Trait bonuses that affect river crossings
 export interface RiverTraitBonus {
@@ -104,6 +105,8 @@ export interface CrossingChoice {
 }
 
 export interface CrossingOutcome {
+  failureScene?: RiverFailureScene
+  failureSceneCaption?: string
   success: boolean
   critical: boolean      // critical success or failure
   message: string
@@ -337,6 +340,7 @@ function resolveFord(river: RiverState, stats: Record<StatName, number>, luck: n
       success: false,
       critical: true,
       message: 'Disaster strikes!',
+      failureScene: 'rocks',
       flavorText: pickRandom(FORD_OUTCOMES.criticalFailure),
       effects: {
         foodLost: Math.floor(Math.random() * 50) + 30,
@@ -375,6 +379,7 @@ function resolveFord(river: RiverState, stats: Record<StatName, number>, luck: n
     success: false,
     critical: false,
     message: 'The crossing went poorly.',
+    failureScene: river.condition === 'low' ? 'mud' : 'drifting',
     flavorText: pickRandom(FORD_OUTCOMES.failure),
     effects: {
       foodLost: severeLoss ? Math.floor(Math.random() * 40) + 20 : Math.floor(Math.random() * 20) + 10,
@@ -414,6 +419,8 @@ function resolveCaulk(river: RiverState, stats: Record<StatName, number>, luck: 
       success: false,
       critical: true,
       message: 'The wagon capsizes!',
+      failureScene: 'drifting',
+      failureSceneCaption: 'After the capsize: the wagon drifts half underwater. It makes a poor submarine.',
       flavorText: pickRandom(CAULK_OUTCOMES.criticalFailure),
       effects: {
         foodLost: Math.floor(Math.random() * 80) + 40,
@@ -442,6 +449,7 @@ function resolveCaulk(river: RiverState, stats: Record<StatName, number>, luck: 
     success: false,
     critical: false,
     message: 'Water gets into the wagon.',
+    failureScene: 'drifting',
     flavorText: pickRandom(CAULK_OUTCOMES.failure),
     effects: {
       foodLost: Math.floor(Math.random() * 30) + 15,

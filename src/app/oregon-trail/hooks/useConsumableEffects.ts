@@ -32,11 +32,15 @@ export function useConsumableEffects() {
   }, [state.day, lastTickDay])
 
   const handleUseConsumable = useCallback((itemId: string) => {
-    const item = getConsumableItem(itemId)
+    // The character sheet uses the owned bottle's ID; the catalog names its drink.
+    const consumableId = itemId === 'pan_galactic_gargle_blaster'
+      ? 'pan_galactic_gargle_blaster_drink'
+      : itemId
+    const item = getConsumableItem(consumableId)
     if (!item) return
     // Pan Galactic Gargle Blaster routes through the reducer (escalation chain +
     // comical death), and only if the player actually acquired one.
-    if (itemId === 'pan_galactic_gargle_blaster_drink') {
+    if (consumableId === 'pan_galactic_gargle_blaster_drink') {
       if (!state.inventory.includes('pan_galactic_gargle_blaster')) {
         comment('You reach for a Pan Galactic Gargle Blaster you do not have. Probably for the best.', 'observation')
         return
@@ -45,10 +49,10 @@ export function useConsumableEffects() {
       return
     }
     // Update active effects (timed buffs/debuffs)
-    const updatedEffects = applyConsumable(itemId, activeEffects, state.day)
+    const updatedEffects = applyConsumable(consumableId, activeEffects, state.day)
     setActiveEffects(updatedEffects)
     // Apply instant effects (heal, morale, cure)
-    const instant = getInstantEffects(itemId)
+    const instant = getInstantEffects(consumableId)
     if (instant.healAmount > 0) {
       buyFood(instant.healAmount, 0, 0, true)
     }
