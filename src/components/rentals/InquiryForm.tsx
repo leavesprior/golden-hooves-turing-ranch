@@ -219,8 +219,8 @@ export default function InquiryForm({ onSuccess }: Props) {
           {submitting ? 'Sending…' : 'Get Quote'}
         </button>
         <p style={{ fontSize: '0.75rem', opacity: 0.7, margin: 0 }}>
-          Alpine County STR permit posted in footer. Direct booking via
-          back of beyond ranch — no platform fees.
+          Calaveras County TOT 12% is stated on the quote. This page does
+          not hold dates on Airbnb until the host verifies payment.
         </p>
       </form>
     </PixelCard>

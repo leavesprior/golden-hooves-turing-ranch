@@ -20,6 +20,21 @@ export function middleware(request: NextRequest) {
     return new NextResponse('Not Found', { status: 404 })
   }
 
+  // Direct-booking preview (wrong-county TOT lived here). Off in production
+  // unless DIRECT_BOOKING_PREVIEW=true. Localhost stays open for dry-runs.
+  const isDirectBookingPreview =
+    path === '/rentals/availability' ||
+    path.startsWith('/rentals/availability/') ||
+    path === '/api/bookings/inquiry' ||
+    path === '/api/bookings/confirm-deposit'
+  if (
+    isDirectBookingPreview &&
+    !isLocalhost &&
+    process.env.DIRECT_BOOKING_PREVIEW !== 'true'
+  ) {
+    return new NextResponse('Not Found', { status: 404 })
+  }
+
   // /dm-table is the "secret" local-only Neoma DM entrance. Its own header
   // declares NEVER-MAIN, yet it reached main. Gate it to a bare 404 in every
   // environment unless DM_TABLE_ENABLED=true is explicitly set (mirrors the

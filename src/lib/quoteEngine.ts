@@ -1,39 +1,27 @@
 /**
  * Direct-booking quote engine — pure pricing logic.
  *
- * Canonical source: BOBR v4 plan §8.2 + advertising plan 2026-06-02 + execution
- * audit 2026-05-28.
+ * Listing 30045739 is West Point, unincorporated Calaveras — not Alpine /
+ * Bear Valley. Live Airbnb checkout (2026-09-11/12) is the fee source of
+ * truth: extra-guest $38/night after 4, cleaning ~$130, pet $269/stay.
+ * Calaveras TOT is 12% of occupancy (nights + extra + cleaning + pet).
  *
- * Inputs: check_in, check_out, guests. Output: line-itemed total with TOT.
- *
- * Order of operations (conservative — discounts apply to gross, TOT applies to
- * discounted subtotal, cleaning is added last):
- *   1. base nightly = premium-window override OR default median ($395)
- *   2. weekend bump (Fri/Sat in premium windows: Bear Valley $560 → $600)
- *   3. extra-guest fee: $25/guest/night for guest 7+
- *   4. gross = sum(per-night base + extra-guest) over [check_in, check_out)
- *   5. − 25% weekly discount if nights ≥ 7
- *   6. − 8% Book-Early-Stay-Long if nights ≥ 7 AND advance_days ≥ 60 AND
- *        check-in falls in a shoulder month
- *   7. + Alpine County 14% TOT on the discounted subtotal (v4 + ca-str-legal)
- *   8. + cleaning fee (config; default 0 until Leif sets)
+ * Nightly rates here are a local default only. Confirm against live Airbnb
+ * checkout for the same dates before sending a quote to a guest. Do not
+ * auto-apply weekly / book-early discounts — those would undercut Airbnb.
  *
  * Pure function — no DB reads, no env access, no side effects.
  */
 
-const DEFAULT_BASE_NIGHTLY = 395;
-const EXTRA_GUEST_THRESHOLD = 6;     // 7th and beyond pay extra
-const EXTRA_GUEST_FEE = 25;
-const WEEKLY_DISCOUNT_THRESHOLD = 7; // nights
-const WEEKLY_DISCOUNT_RATE = 0.25;
-const BOOK_EARLY_THRESHOLD_DAYS = 60;
-const BOOK_EARLY_RATE = 0.08;
-const ALPINE_TOT_RATE = 0.14;        // Alpine County Measure G, eff. 2025-01-01
-const FLOOR_NIGHTLY = 300;           // per v4 §3 floor-discipline guard
-
-// Shoulder months for Book-Early-Stay-Long eligibility. Conservative: only
-// confirmed soft months. Excludes Bear Valley window and major holidays.
-const SHOULDER_MONTHS = new Set([4, 5, 9, 10, 11]); // Apr, May, Sep, Oct, Nov
+export const DEFAULT_BASE_NIGHTLY = 395;
+export const EXTRA_GUEST_THRESHOLD = 4; // 5th guest and beyond pay extra
+export const EXTRA_GUEST_FEE = 38;
+export const CALAVERAS_TOT_RATE = 0.12;
+export const DEFAULT_CLEANING_FEE = 130;
+export const PET_FEE_PER_STAY = 269;
+export const FLOOR_NIGHTLY = 300;
+export const MAX_GUESTS = 12;
+export const MAX_PETS = 4;
 
 /** Premium-window override schedule. Each entry overrides the default nightly. */
 interface PremiumWindow {
@@ -45,7 +33,6 @@ interface PremiumWindow {
   minNights: number;
 }
 
-// Canonical v4/v5 premium windows. Extend as Leif sets new events.
 export const PREMIUM_WINDOWS: PremiumWindow[] = [
   {
     name: 'Bear Valley Music Festival',
@@ -107,21 +94,25 @@ export interface QuoteResult {
   ok: true;
   nights: number;
   guests: number;
-  per_night: QuoteLine[];          // one entry per night, for the breakdown
-  subtotal_gross: number;          // sum of per_night before discounts
-  discounts: QuoteLine[];          // weekly + book-early
+  pets: number;
+  per_night: QuoteLine[];
+  subtotal_gross: number;          // room + extra-guest, before cleaning/pet/TOT
+  discounts: QuoteLine[];          // always empty — parity with live Airbnb
   subtotal_after_discounts: number;
+  occupancy_subtotal: number;      // TOT base: nights+extra+cleaning+pet
   tot: number;
   cleaning_fee: number;
+  pet_fee: number;
   total: number;
-  warnings: string[];              // floor-discipline + min-night flags
+  warnings: string[];
   meta: {
     base_nightly_default: number;
     extra_guest_fee_per_night: number;
-    alpine_tot_rate: number;
+    tot_rate: number;
+    tot_jurisdiction: 'Calaveras County';
     floor_nightly: number;
     advance_days: number;
-    is_shoulder_checkin: boolean;
+    nightly_is_default: boolean;
   };
 }
 
@@ -134,9 +125,11 @@ export interface QuoteInput {
   check_in: string;
   check_out: string;
   guests: number;
-  advance_days?: number;           // override if provided; else derived from now()
+  pets?: number;
+  advance_days?: number;
   cleaning_fee?: number;
-  now?: Date;                      // for deterministic tests; defaults to new Date()
+  nightly?: number;                // override default/window nightly for every night
+  now?: Date;
 }
 
 export function quote(input: QuoteInput): QuoteResult | QuoteError {
@@ -144,8 +137,15 @@ export function quote(input: QuoteInput): QuoteResult | QuoteError {
   if (nights <= 0) {
     return { ok: false, reason: 'check_out must be after check_in' };
   }
-  if (!Number.isInteger(input.guests) || input.guests < 1 || input.guests > 12) {
+  if (!Number.isInteger(input.guests) || input.guests < 1 || input.guests > MAX_GUESTS) {
     return { ok: false, reason: 'guests must be 1..12' };
+  }
+  const pets = input.pets ?? 0;
+  if (!Number.isInteger(pets) || pets < 0 || pets > MAX_PETS) {
+    return { ok: false, reason: 'pets must be 0..4' };
+  }
+  if (input.nightly !== undefined && !(Number.isFinite(input.nightly) && input.nightly > 0)) {
+    return { ok: false, reason: 'nightly must be a positive number' };
   }
 
   const now = input.now ?? new Date();
@@ -158,15 +158,12 @@ export function quote(input: QuoteInput): QuoteResult | QuoteError {
       ),
     );
 
-  const checkInMonth = isoToDate(input.check_in).getUTCMonth() + 1;
-  const isShoulderCheckin = SHOULDER_MONTHS.has(checkInMonth);
-
-  // Walk each night, building line items.
   const extraGuests = Math.max(0, input.guests - EXTRA_GUEST_THRESHOLD);
   const extraGuestNightly = extraGuests * EXTRA_GUEST_FEE;
   const perNight: QuoteLine[] = [];
   const warnings: string[] = [];
-  let subtotalGross = 0;
+  let roomSubtotal = 0;
+  const nightlyIsDefault = input.nightly === undefined;
 
   for (let i = 0; i < nights; i++) {
     const iso = isoOnly(new Date(isoToDate(input.check_in).getTime() + i * 86_400_000));
@@ -174,12 +171,15 @@ export function quote(input: QuoteInput): QuoteResult | QuoteError {
     let nightly: number;
     let label: string;
 
-    if (win) {
+    if (input.nightly !== undefined) {
+      nightly = input.nightly;
+      label = `${iso} — confirmed nightly`;
+    } else if (win) {
       nightly = win.base + (isFriOrSat(iso) ? win.weekendBump : 0);
       label = `${iso} — ${win.name}${isFriOrSat(iso) ? ' (Fri/Sat)' : ''}`;
     } else {
       nightly = DEFAULT_BASE_NIGHTLY;
-      label = `${iso} — base rate`;
+      label = `${iso} — default nightly (confirm on Airbnb)`;
     }
 
     const total = nightly + extraGuestNightly;
@@ -190,46 +190,21 @@ export function quote(input: QuoteInput): QuoteResult | QuoteError {
         ? `${nightly} base + ${extraGuestNightly} extra-guest (${extraGuests} × ${EXTRA_GUEST_FEE})`
         : undefined,
     });
-    subtotalGross += total;
+    roomSubtotal += nightly;
   }
 
-  // Discounts.
+  const extraGuestTotal = extraGuestNightly * nights;
+  const subtotalGross = roomSubtotal + extraGuestTotal;
   const discounts: QuoteLine[] = [];
-  let weeklyAmount = 0;
-  if (nights >= WEEKLY_DISCOUNT_THRESHOLD) {
-    weeklyAmount = subtotalGross * WEEKLY_DISCOUNT_RATE;
-    discounts.push({
-      label: '25% weekly discount',
-      amount: -weeklyAmount,
-      detail: `nights ≥ ${WEEKLY_DISCOUNT_THRESHOLD}`,
-    });
-  }
+  const subtotalAfterDiscounts = subtotalGross;
 
-  let earlyAmount = 0;
-  if (
-    nights >= WEEKLY_DISCOUNT_THRESHOLD &&
-    advanceDays >= BOOK_EARLY_THRESHOLD_DAYS &&
-    isShoulderCheckin
-  ) {
-    earlyAmount = (subtotalGross - weeklyAmount) * BOOK_EARLY_RATE;
-    discounts.push({
-      label: '8% Book Early Stay Long',
-      amount: -earlyAmount,
-      detail: `≥${BOOK_EARLY_THRESHOLD_DAYS}d advance, ≥${WEEKLY_DISCOUNT_THRESHOLD} nights, shoulder-month check-in`,
-    });
-  }
-
-  const subtotalAfterDiscounts = subtotalGross - weeklyAmount - earlyAmount;
-
-  // Floor-discipline warning (worst-case stacked nightly).
   const effectiveNightly = subtotalAfterDiscounts / nights;
   if (effectiveNightly < FLOOR_NIGHTLY) {
     warnings.push(
-      `Effective nightly ${effectiveNightly.toFixed(2)} is below floor ${FLOOR_NIGHTLY} — v4 §3 conflict; host review required`,
+      `Effective nightly ${effectiveNightly.toFixed(2)} is below floor ${FLOOR_NIGHTLY} — host review required`,
     );
   }
 
-  // Per-window min-night flag.
   const checkInWindow = lookupWindow(input.check_in);
   if (checkInWindow && nights < checkInWindow.minNights) {
     warnings.push(
@@ -237,29 +212,44 @@ export function quote(input: QuoteInput): QuoteResult | QuoteError {
     );
   }
 
-  const tot = subtotalAfterDiscounts * ALPINE_TOT_RATE;
-  const cleaningFee = input.cleaning_fee ?? 0;
-  const total = subtotalAfterDiscounts + tot + cleaningFee;
+  if (nightlyIsDefault) {
+    warnings.push(
+      'Nightly is a local default. Confirm against live Airbnb checkout for these dates before sending this quote.',
+    );
+  }
+
+  const cleaningFee = input.cleaning_fee ?? DEFAULT_CLEANING_FEE;
+  if (!(Number.isFinite(cleaningFee) && cleaningFee >= 0)) {
+    return { ok: false, reason: 'cleaning_fee must be >= 0' };
+  }
+  const petFee = pets * PET_FEE_PER_STAY;
+  const occupancySubtotal = subtotalAfterDiscounts + cleaningFee + petFee;
+  const tot = occupancySubtotal * CALAVERAS_TOT_RATE;
+  const total = occupancySubtotal + tot;
 
   return {
     ok: true,
     nights,
     guests: input.guests,
+    pets,
     per_night: perNight,
     subtotal_gross: round2(subtotalGross),
-    discounts: discounts.map(d => ({ ...d, amount: round2(d.amount) })),
+    discounts,
     subtotal_after_discounts: round2(subtotalAfterDiscounts),
+    occupancy_subtotal: round2(occupancySubtotal),
     tot: round2(tot),
     cleaning_fee: round2(cleaningFee),
+    pet_fee: round2(petFee),
     total: round2(total),
     warnings,
     meta: {
       base_nightly_default: DEFAULT_BASE_NIGHTLY,
       extra_guest_fee_per_night: extraGuestNightly,
-      alpine_tot_rate: ALPINE_TOT_RATE,
+      tot_rate: CALAVERAS_TOT_RATE,
+      tot_jurisdiction: 'Calaveras County',
       floor_nightly: FLOOR_NIGHTLY,
       advance_days: advanceDays,
-      is_shoulder_checkin: isShoulderCheckin,
+      nightly_is_default: nightlyIsDefault,
     },
   };
 }

@@ -270,7 +270,7 @@ export default function CluePage() {
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <PixelButton href="/rentals" variant="orange" size="sm">
-                Book Direct & Save 10%
+                Book the ranch
               </PixelButton>
               <PixelButton
                 href={airbnbBookingLink('game')}
