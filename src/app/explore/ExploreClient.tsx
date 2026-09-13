@@ -42,7 +42,9 @@ const TOWNS: Town[] = [
     id: 'volcano',
     name: 'Volcano',
     tagline: 'The Town That Wouldn\'t Die',
-    description: 'Once home to 17,000 souls during the Gold Rush, now a charming ghost town with 85 residents and countless secrets.',
+    eraName: 'The canvas camp',
+    eraTagline: 'Brick Main Street comes later',
+    description: '1849 is canvas and rope in a limestone bowl. Brick Main Street, St. George, and the theatre are later.',
     townStory: 'Founded in 1848 as a placer camp in a limestone bowl. Canvas and rope in 1849. Brick Main Street, St. George, Cobblestone Theatre, and Madeira\'s observatory are later.',
     coordinates: { lat: 38.4413, lng: -120.6294 },
     attractions: [
