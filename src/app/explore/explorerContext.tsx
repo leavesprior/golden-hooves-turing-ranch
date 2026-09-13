@@ -327,30 +327,29 @@ export function readExplorerVisits(): { visitedTownIds: string[]; lastTownId?: s
   }
 }
 
-function progressFromStorage(fallback: ExplorerProgress): ExplorerProgress {
-  if (typeof window === 'undefined') return fallback
+/** Read a complete saved snapshot only at initialization or an explicit load. */
+function progressFromStorage(): ExplorerProgress | null {
+  if (typeof window === 'undefined') return null
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return fallback
+    if (!raw) return null
     const parsed = JSON.parse(raw)
-    const storedIds = Array.isArray(parsed?.visitedTowns)
-      ? parsed.visitedTowns.filter((id: unknown) => typeof id === 'string')
-      : []
-    const visitedTowns = [...new Set([...fallback.visitedTowns, ...storedIds])]
-    const lastVisitedTown = typeof parsed?.lastVisitedTown === 'string'
-      ? parsed.lastVisitedTown
-      : fallback.lastVisitedTown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    const historicalDepthScore = parsed.historicalDepthScore ?? 0
     return {
-      ...fallback,
+      ...DEFAULT_PROGRESS,
       ...parsed,
-      visitedTowns,
-      lastVisitedTown,
-      challenges: parsed.challenges || fallback.challenges,
-      mysteries: parsed.mysteries || fallback.mysteries || [],
-      journalEntries: parsed.journalEntries || fallback.journalEntries || [],
+      visitedTowns: Array.isArray(parsed.visitedTowns)
+        ? parsed.visitedTowns.filter((id: unknown) => typeof id === 'string')
+        : [],
+      challenges: parsed.challenges || DEFAULT_CHALLENGES,
+      mysteries: parsed.mysteries || [],
+      historicalDepthScore,
+      historicalDepthLevel: getHistoricalDepthLevel(historicalDepthScore),
+      journalEntries: parsed.journalEntries || [],
     }
   } catch {
-    return fallback
+    return null
   }
 }
 
@@ -407,21 +406,38 @@ export function ExplorerProvider({
   onBadgeEarned,
   onSecretUnlocked,
 }: ExplorerProviderProps) {
-  const [progress, setProgress] = useState<ExplorerProgress>(DEFAULT_PROGRESS)
-
-  // Latest-progress ref so callbacks with [] deps can compute side-effect
-  // inputs OUTSIDE setProgress updaters. Updaters must stay PURE: Strict Mode
-  // re-invokes them during render, so any CrossGameStorage/localStorage call
-  // inside one fires setState in other providers mid-render ("Cannot update a
-  // component while rendering a different component") and double-applies
-  // side effects. Ref is updated in an effect, never during render.
+  const [progress, setProgressState] = useState<ExplorerProgress>(DEFAULT_PROGRESS)
   const progressRef = useRef(progress)
-  useEffect(() => { progressRef.current = progress }, [progress])
+  const progressLoadedRef = useRef(false)
 
-  // Load saved progress on mount
-  useEffect(() => {
-    loadProgressFromStorage()
+  // A town's child layout effect can run before this provider's mount effect.
+  // Hydrate once before that first action so it preserves the previous town.
+  // Thereafter this mounted snapshot owns progress; stale disk data must not
+  // replace new XP, journal entries, favorites, or a deliberate reset.
+  const getCurrentProgress = useCallback(() => {
+    if (!progressLoadedRef.current) {
+      progressRef.current = progressFromStorage() ?? DEFAULT_PROGRESS
+      progressLoadedRef.current = true
+    }
+    return progressRef.current
   }, [])
+
+  // Apply the existing pure transformers in the action/effect callback, before
+  // scheduling React state. Immediate revisits and pagehide see pending changes.
+  // React receives a value: no storage writes, callbacks, or ref mutations run
+  // inside a React updater that Strict Mode could replay during rendering.
+  const setProgress = useCallback((update: React.SetStateAction<ExplorerProgress>) => {
+    const current = getCurrentProgress()
+    const next = typeof update === 'function' ? update(current) : update
+    progressRef.current = next
+    setProgressState(next)
+  }, [getCurrentProgress])
+
+  useEffect(() => {
+    // Hydrate browser-only storage after the server's default snapshot.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setProgress(getCurrentProgress())
+  }, [getCurrentProgress, setProgress])
 
   // Calculate current level info
   const currentLevel = EXPLORER_LEVELS.reduce((acc, level) => {
@@ -445,7 +461,7 @@ export function ExplorerProvider({
   // setProgress updater (from progressRef) so the updater has no Date.now(),
   // no closure mutation, and no side effects. Side effects run after.
   const visitAttraction = useCallback((attractionId: string, townId: string) => {
-    const current = progressRef.current
+    const current = getCurrentProgress()
     const attraction = current.visitedAttractions.includes(attractionId)
       ? undefined // Already visited
       : getAllAttractions().find(a => a.id === attractionId)
@@ -552,33 +568,28 @@ export function ExplorerProvider({
     }
 
     return { xpGained, levelUp, badgeEarned }
-  }, [getAllAttractions, onLevelUp, onBadgeEarned])
+  }, [getAllAttractions, onLevelUp, onBadgeEarned, getCurrentProgress, setProgress])
 
-  // Peek-to-peek is a hard nav. Merge stored visits so a new mount cannot
-  // write [thisTown] over the camp the player just left.
+  // Peek-to-peek is a hard nav. The first action hydrates the previous save;
+  // revisits use current progress and must not reload a stale disk snapshot.
   const visitTown = useCallback((townId: string) => {
-    const prev = progressFromStorage(progressRef.current)
-    if (prev.visitedTowns.includes(townId)) {
-      progressRef.current = prev
-      setProgress(prev)
-      return
-    }
+    const prev = getCurrentProgress()
+    if (prev.visitedTowns.includes(townId)) return
     const next = {
       ...prev,
       visitedTowns: [...prev.visitedTowns, townId],
       lastVisitedTown: townId,
     }
-    progressRef.current = next
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* ignore */ }
     setProgress(next)
-  }, [])
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+  }, [getCurrentProgress, setProgress])
 
   // Unlock secret
   // Pure-updater discipline: secret lookup, XP, badge and journal entry are
   // computed OUTSIDE the setProgress updater (from progressRef); the updater
   // has no Date.now() and no closure mutation.
   const unlockSecret = useCallback((secretId: string) => {
-    const current = progressRef.current
+    const current = getCurrentProgress()
 
     if (current.unlockedSecrets.includes(secretId)) {
       return { xpGained: 0, attraction: null }
@@ -652,7 +663,7 @@ export function ExplorerProvider({
     }
 
     return { xpGained, attraction }
-  }, [towns, onSecretUnlocked])
+  }, [towns, onSecretUnlocked, getCurrentProgress, setProgress])
 
   // Toggle favorite
   const toggleFavorite = useCallback((attractionId: string) => {
@@ -665,7 +676,7 @@ export function ExplorerProvider({
           : [...prev.favoriteAttractions, attractionId],
       }
     })
-  }, [])
+  }, [setProgress])
 
   // Check for badges
   const checkForBadges = useCallback((): Badge[] => {
@@ -711,14 +722,14 @@ export function ExplorerProvider({
     }
 
     return newBadges
-  }, [progress, getAllAttractions, onBadgeEarned])
+  }, [progress, getAllAttractions, onBadgeEarned, setProgress])
 
   // Update challenge progress
   // Pure-updater discipline: completion/reward decided OUTSIDE the updater
   // (from progressRef); onBadgeEarned (a parent setState path) no longer
   // fires from inside the updater, and Date.now() is computed once outside.
   const updateChallengeProgress = useCallback((challengeId: string, increment = 1) => {
-    const current = progressRef.current
+    const current = getCurrentProgress()
     const challenge = current.challenges.find(c => c.id === challengeId)
     if (!challenge || challenge.completed) return
 
@@ -765,7 +776,7 @@ export function ExplorerProvider({
     })
 
     if (rewardBadge && onBadgeEarned) onBadgeEarned(rewardBadge)
-  }, [onBadgeEarned])
+  }, [onBadgeEarned, getCurrentProgress, setProgress])
 
   // Get challenges
   const getActiveChallenges = useCallback(() => {
@@ -805,42 +816,22 @@ export function ExplorerProvider({
     return totalAttractions > 0 ? (visitedCount / totalAttractions) * 100 : 0
   }, [towns, progress.visitedAttractions])
 
-  // Persistence
-  // Reads progressRef so it always persists the LATEST committed state and can be
-  // a stable callback (safe to call from an unmount/pagehide flush).
+  // Persist the mounted snapshot, including actions not yet rendered. Disk is
+  // an input to initial/explicit load, never an authority over pending changes.
   const saveProgress = useCallback(() => {
     try {
-      const current = progressRef.current
-      const stored = progressFromStorage(current)
-      const richer = stored.visitedTowns.length >= (current.visitedTowns?.length || 0) ? stored : current
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(richer))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(getCurrentProgress()))
     } catch (e) {
       console.error('Failed to save explorer progress:', e)
     }
-  }, [])
+  }, [getCurrentProgress])
 
   const loadProgressFromStorage = useCallback(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        const historicalDepthScore = parsed.historicalDepthScore ?? 0
-        setProgress({
-          ...DEFAULT_PROGRESS,
-          ...parsed,
-          challenges: parsed.challenges || DEFAULT_CHALLENGES,
-          mysteries: parsed.mysteries || [],
-          historicalDepthScore,
-          historicalDepthLevel: getHistoricalDepthLevel(historicalDepthScore),
-          journalEntries: parsed.journalEntries || [],
-        })
-        return true
-      }
-    } catch (e) {
-      console.error('Failed to load explorer progress:', e)
-    }
-    return false
-  }, [])
+    const saved = progressFromStorage()
+    if (!saved) return false
+    setProgress(saved)
+    return true
+  }, [setProgress])
 
   const loadProgress = useCallback(() => {
     return loadProgressFromStorage()
@@ -853,7 +844,7 @@ export function ExplorerProvider({
       console.error('Failed to clear explorer progress:', e)
     }
     setProgress({ ...DEFAULT_PROGRESS })
-  }, [])
+  }, [setProgress])
 
   // Gamification helpers
   const getRandomTobiasTip = useCallback(() => {
@@ -862,7 +853,8 @@ export function ExplorerProvider({
 
   const checkStreak = useCallback(() => {
     const today = new Date().toDateString()
-    const lastPlay = progress.lastPlayDate
+    const current = getCurrentProgress()
+    const lastPlay = current.lastPlayDate
 
     if (!lastPlay) {
       setProgress(prev => ({ ...prev, lastPlayDate: today, streakDays: 1 }))
@@ -875,10 +867,10 @@ export function ExplorerProvider({
 
     if (diffDays === 0) {
       // Same day, streak maintained
-      return { maintained: true, newStreak: progress.streakDays }
+      return { maintained: true, newStreak: current.streakDays }
     } else if (diffDays === 1) {
       // Next day, streak continues
-      const newStreak = progress.streakDays + 1
+      const newStreak = current.streakDays + 1
       setProgress(prev => ({ ...prev, lastPlayDate: today, streakDays: newStreak }))
       return { maintained: true, newStreak }
     } else {
@@ -886,13 +878,13 @@ export function ExplorerProvider({
       setProgress(prev => ({ ...prev, lastPlayDate: today, streakDays: 1 }))
       return { maintained: false, newStreak: 1 }
     }
-  }, [progress.lastPlayDate, progress.streakDays])
+  }, [getCurrentProgress, setProgress])
 
   // === Mystery Deduction Methods (Carmen Sandiego style) ===
 
   const discoverClue = useCallback((mysteryId: string, clueId: string) => {
     // Already-found check OUTSIDE the updater (no closure mutation inside it)
-    const existing = progressRef.current.mysteries.find(m => m.mysteryId === mysteryId)
+    const existing = getCurrentProgress().mysteries.find(m => m.mysteryId === mysteryId)
     if (existing?.cluesFound.includes(clueId)) {
       return { xpGained: 0, isNew: false } // Already found
     }
@@ -927,7 +919,7 @@ export function ExplorerProvider({
     })
 
     return { xpGained, isNew: true }
-  }, [])
+  }, [getCurrentProgress, setProgress])
 
   const attemptMysteryDeduction = useCallback((mysteryId: string, optionId: string) => {
     const result = attemptDeduction(mysteryId, optionId)
@@ -941,7 +933,7 @@ export function ExplorerProvider({
     // Now: side-effect inputs are computed OUTSIDE from progressRef, the
     // updater is pure, and CrossGameStorage runs AFTER the state update.
     const now = Date.now()
-    const current = progressRef.current
+    const current = getCurrentProgress()
     const mystery = TOWN_MYSTERIES.find(m => m.id === mysteryId)
 
     // Badge to award on correct deduction (decided outside the updater)
@@ -1028,7 +1020,7 @@ export function ExplorerProvider({
     }
 
     return result
-  }, [])
+  }, [getCurrentProgress, setProgress])
 
   const getMysteryProgress = useCallback((mysteryId: string): MysteryProgressEntry | null => {
     return progress.mysteries.find(m => m.mysteryId === mysteryId) || null
