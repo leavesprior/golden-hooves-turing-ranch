@@ -263,8 +263,8 @@ export const BRIDGE_QUESTIONS: BridgeQuestion[] = [
   // Easy questions
   {
     question: "What... is your name?",
-    correctAnswer: ["any", "*player_name*"],
-    wrongAnswerEffect: "none"
+    correctAnswer: ["*player_name*"],
+    wrongAnswerEffect: "The Keeper points. 'That is not the name of the one who stands before me.' The planks give way.",
   },
   {
     question: "What... is your quest?",
@@ -282,6 +282,9 @@ export const BRIDGE_QUESTIONS: BridgeQuestion[] = [
       "outlaw",
       "black bart",
       "pinkerton",
+      "holy grail",
+      "grail",
+      "to seek the holy grail",
     ],
     wrongAnswerEffect: "none"
   },
@@ -534,17 +537,32 @@ export function shouldShowBridgeKeeper(input: {
 /**
  * Check if a bridge crossing question answer is correct
  */
-export function checkBridgeAnswer(question: BridgeQuestion, answer: string): boolean {
+export function checkBridgeAnswer(
+  question: BridgeQuestion,
+  answer: string,
+  playerName?: string,
+): boolean {
   const lowerAnswer = answer.toLowerCase().trim()
+  if (!lowerAnswer) return false
 
-  // "any" means any answer is accepted
-  if (question.correctAnswer.includes("any")) {
+  const accepted = Array.isArray(question.correctAnswer)
+    ? question.correctAnswer
+    : [question.correctAnswer]
+
+  if (accepted.includes('*player_name*')) {
+    const n = (playerName || '').toLowerCase().trim()
+    if (!n) return false
+    if (lowerAnswer === n || n.includes(lowerAnswer) || lowerAnswer.includes(n)) return true
+    const first = n.split(/\s+/)[0]
+    return Boolean(first) && lowerAnswer === first
+  }
+
+  // "any" means any non-empty answer is accepted (favorite color)
+  if (accepted.includes('any')) {
     return true
   }
 
-  // Check against all valid answers
-  for (const valid of question.correctAnswer) {
-    if (valid === "*player_name*") continue  // Placeholder for actual name check
+  for (const valid of accepted) {
     if (lowerAnswer.includes(valid.toLowerCase())) {
       return true
     }
