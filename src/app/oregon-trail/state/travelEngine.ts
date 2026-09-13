@@ -302,7 +302,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
 
   if (prev.oxen < 1 && !prev.wagonAbandoned) {
     if (survivors.length === 0) {
-      return { ...prev, phase: 'game_over' as GamePhase, message: 'The last of the party lay down within sight of the next rise. The trail keeps its own counsel about who reaches the end of it.' }
+      return { ...prev, party: updatedParty, phase: 'game_over' as GamePhase, message: 'The last of the party lay down within sight of the next rise. The trail keeps its own counsel about who reaches the end of it.' }
     }
     return {
       ...prev,
@@ -321,7 +321,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
     }
   }
   if (survivors.length === 0) {
-    return { ...prev, phase: 'game_over' as GamePhase, message: 'The last of the party lay down within sight of the next rise. The trail keeps its own counsel about who reaches the end of it.' }
+    return { ...prev, party: updatedParty, phase: 'game_over' as GamePhase, message: 'The last of the party lay down within sight of the next rise. The trail keeps its own counsel about who reaches the end of it.' }
   }
 
   // Recalculate bonuses after potential desertion

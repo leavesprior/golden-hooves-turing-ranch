@@ -47,6 +47,7 @@ import { getCriticalDescription } from '../data/criticalDescriptions'
 import { createRelationship, applyDispositionChange } from '../data/npcRelationships'
 import type { PartyRole } from '../data/posseSystem'
 import { getHuntingMessage } from '../data/eventMessages'
+import { createPassingRecord, hasNewPartyDeath, readPassingRecord } from './passing'
 
 /**
  * Save migration (#8): corrupted/legacy saves can carry duplicate party ids
@@ -75,6 +76,16 @@ export function migrateParty(party: PartyMember[]): PartyMember[] {
 }
 
 export function gameReducer(state: OregonTrailState, action: GameAction): OregonTrailState {
+  const next = reduceGameState(state, action)
+  if (action.type === 'LOAD_STATE' || next.phase !== 'game_over' || state.phase === 'game_over' || next === state) return next
+  // Attach provenance after the existing outcome resolves. Direct phase
+  // setters have no fresh cause; do not turn stale message text into one.
+  const knownSource = (action.type === 'TRAVEL' && hasNewPartyDeath(state.party, next.party)) || action.type === 'DRINK_GARGLE_BLASTER'
+    || action.type === 'HANDLE_EVENT_CHOICE' || action.type === 'APPLY_RIVER_CROSSING_EFFECTS'
+  return { ...next, passing: createPassingRecord(state, next, knownSource) }
+}
+
+function reduceGameState(state: OregonTrailState, action: GameAction): OregonTrailState {
   switch (action.type) {
     // === Game lifecycle ===
 
@@ -130,6 +141,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       // merge in any nodes added after the save was written (never clobbers
       // recorded progress). Same migration choke point as the party fix.
       loaded.livingTrail = migrateLivingTrail(loaded.livingTrail)
+      if (loaded.passing !== undefined) loaded.passing = readPassingRecord(loaded.passing)
       return loaded
     }
 
@@ -184,7 +196,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         wagonAbandoned: outcome.wagonAbandoned ? true : state.wagonAbandoned,
         day: state.day + (outcome.daysLost || 0),
         party: updatedParty,
-        phase: postEventPhase,
+        phase: hasNewPartyDeath(state.party, updatedParty) ? 'game_over' : postEventPhase,
         currentEvent: null,
         message: action.outcomeMessageOverride ?? outcome.message,
       }
@@ -388,7 +400,7 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         day: state.day + (effects.daysLost || 0),
         daysOnTrail: state.daysOnTrail + (effects.daysLost || 0),
         riversCrossed: state.riversCrossed + 1,
-        phase: 'traveling' as GamePhase,
+        phase: hasNewPartyDeath(state.party, updatedRiverParty) ? 'game_over' : 'traveling',
         message,
       }
     }

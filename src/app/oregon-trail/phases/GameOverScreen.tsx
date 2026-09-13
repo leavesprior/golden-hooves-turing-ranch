@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
 import { successorLegacy } from '@/app/adventure/play/perilEngine'
+import { passingForState } from '../state/passing'
+import { HEALTH_MESSAGES } from '../data/eventMessages'
+import { TrailOutcomePicture } from '../components/TrailOutcomePicture'
 
 /**
  * THE PASSING — canon rule #1: mortality is a WIN condition, never a fail-state.
@@ -20,9 +23,22 @@ export function GameOverScreen() {
   const { state, resetGame } = useOregonTrail()
   const [stage, setStage] = useState<'passing' | 'legacy'>('passing')
 
-  const fallen = state.wagonLeader || 'the wagon leader'
-  const legacy = successorLegacy(fallen, 0)
-  const heirName = `${fallen.split(' ').slice(-1)[0] || 'the fallen'}'s heir`
+  const passing = passingForState(state)
+  const fallen = passing.fallenName
+  // Stable across renders and reloads; memorial prose never consumes gameplay RNG.
+  const epitaphIndex = Array.from(`${fallen}:${passing.cause}`).reduce((sum, char) => (sum + char.charCodeAt(0)) % HEALTH_MESSAGES.death.length, 0)
+  const markerCaption = passing.kind === 'town'
+    ? `A stone marker at ${passing.place}.`
+    : passing.kind === 'river'
+      ? `A wooden cross and cairn by ${passing.place}.`
+      : passing.kind === 'trail'
+        ? `A wooden cross and cairn along the trail. Last landmark: ${passing.place}.`
+        : 'A memorial along the trail. The place of passing was not recorded.'
+  // A final companion death may be the memorial subject; the established
+  // wagon leader's family still owns the inherited continuation.
+  const legacyOwner = state.wagonLeader || fallen
+  const legacy = successorLegacy(legacyOwner, 0)
+  const heirName = `${legacyOwner.split(' ').slice(-1)[0] || 'the fallen'}'s heir`
 
   // Fire once per mount, not once per render (the old code logged on every
   // render, flooding the cross-game event log).
@@ -36,19 +52,23 @@ export function GameOverScreen() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-950 via-amber-950/20 to-stone-950 flex items-center justify-center p-4">
-      <div className="max-w-xl text-center">
+    <div data-testid="passing-screen" className="min-h-screen bg-gradient-to-b from-stone-950 via-amber-950/20 to-stone-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-xl text-center">
 
         {stage === 'passing' ? (
           <>
-            <div className="text-5xl mb-6 opacity-70">🌾</div>
             <h1 className="font-pixel text-amber-200 text-2xl mb-6">The Trail Claims Its Own</h1>
-
-            <p className="text-stone-300 mb-6 leading-relaxed">{state.message}</p>
+            <div data-testid="passing-marker" data-kind={passing.kind}>
+              <TrailOutcomePicture art={passing.kind === 'town' ? 'grave-town' : 'grave-trail'} caption={markerCaption} />
+              <h2 data-testid="passing-name" className="font-pixel text-amber-200 text-xl mb-3">{fallen}</h2>
+              <p data-testid="passing-epitaph" className="text-stone-300 italic mb-2">{HEALTH_MESSAGES.death[epitaphIndex]}</p>
+              <p className="text-stone-400 text-sm mb-6">Asked for a short rest. Negotiations got out of hand.</p>
+            </div>
+            <p data-testid="passing-cause" className="text-stone-300 mb-6 leading-relaxed">{passing.cause}</p>
 
             <p className="text-stone-400 text-sm mb-8 leading-relaxed">
               {fallen} went as far as the road allowed, which is as much as the road
-              has ever asked of anyone. The oxen do not stop. The river does not
+              has ever asked of anyone. The road runs onward. The river does not
               pause. Somewhere ahead, the same country waits for whoever comes next.
             </p>
 
@@ -60,6 +80,7 @@ export function GameOverScreen() {
             </dl>
 
             <button
+              data-testid="passing-lay-to-rest"
               onClick={() => setStage('legacy')}
               className="px-6 py-3 bg-amber-800 hover:bg-amber-700 text-amber-100 font-pixel text-sm rounded border-4 border-amber-600"
             >
@@ -82,6 +103,7 @@ export function GameOverScreen() {
             </p>
 
             <button
+              data-testid="passing-heir"
               onClick={resetGame}
               className="px-6 py-3 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 font-pixel text-sm rounded border-4 border-emerald-600"
             >
