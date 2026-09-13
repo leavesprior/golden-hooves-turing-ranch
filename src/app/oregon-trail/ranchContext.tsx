@@ -212,6 +212,9 @@ const RanchContext = createContext<RanchContextValue | undefined>(undefined)
 
 export function RanchProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<RanchState>(defaultRanchState)
+  // Readiness must commit with the loaded state, not open a ref while the first
+  // render still holds defaults. This also guards explicit saveRanch callers.
+  const [storageReady, setStorageReady] = useState(false)
   const { balance, spendNeutral, earnNeutral, canAfford } = useKarmaWallet()
 
   // Load saved state on mount
@@ -220,8 +223,11 @@ export function RanchProvider({ children }: { children: ReactNode }) {
 
     try {
       const saved = localStorage.getItem(RANCH_STORAGE_KEY)
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved)
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          throw new Error('Saved ranch must be an object')
+        }
         // Deep-merge the per-type records (2026-06-18 fix): a shallow ...parsed
         // replaces livestock/livestockHealth wholesale, so an OLD save (before the
         // donkeys/pigs/emus/sheep + soil were added) drops those keys -> undefined
@@ -247,21 +253,24 @@ export function RanchProvider({ children }: { children: ReactNode }) {
           }
         })
       }
+      setStorageReady(true)
     } catch (e) {
+      // Preserve unreadable saved bytes until an explicit reset or a new load.
+      setStorageReady(false)
       console.error('[RanchContext] Failed to load saved state:', e)
     }
   }, [])
 
   // Save state when it changes
   const saveRanch = useCallback(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !storageReady) return
 
     try {
       localStorage.setItem(RANCH_STORAGE_KEY, JSON.stringify(state))
     } catch (e) {
       console.error('[RanchContext] Failed to save state:', e)
     }
-  }, [state])
+  }, [state, storageReady])
 
   useEffect(() => {
     saveRanch()
@@ -1030,6 +1039,7 @@ export function RanchProvider({ children }: { children: ReactNode }) {
     setState(defaultRanchState)
     if (typeof window !== 'undefined') {
       localStorage.removeItem(RANCH_STORAGE_KEY)
+      setStorageReady(true)
     }
   }, [])
 
