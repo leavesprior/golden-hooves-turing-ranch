@@ -148,6 +148,10 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
       const choice = state.currentEvent.choices.find(c => c.id === action.choiceId)
       if (!choice) return state
       const outcome = choice.outcome
+      const expertise = state.saddle?.Expertise ?? 5
+      const walkMiles = action.choiceId === 'walk_to_town'
+        ? (outcome.distanceDelta ?? (4 + Math.floor(expertise / 2)))
+        : (outcome.distanceDelta || 0)
       const updatedParty = state.party.map(member => ({
         ...member,
         health: Math.max(0, Math.min(100, member.health + (outcome.healthDelta || 0))),
@@ -173,6 +177,11 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         ammunition: Math.max(0, state.ammunition + (outcome.ammoDelta || 0)),
         medicine: Math.max(0, state.medicine + (outcome.medicineDelta || 0)),
         spareParts: Math.max(0, state.spareParts + (outcome.spareParts || 0)),
+        oxen: Math.max(0, state.oxen + (outcome.oxenDelta || 0)),
+        distance: Math.max(0, state.distance + walkMiles),
+        totalMilesTraveled: state.totalMilesTraveled + walkMiles,
+        milesUntilNextLandmark: Math.max(0, state.milesUntilNextLandmark - walkMiles),
+        wagonAbandoned: outcome.wagonAbandoned ? true : state.wagonAbandoned,
         day: state.day + (outcome.daysLost || 0),
         party: updatedParty,
         phase: postEventPhase,
@@ -228,7 +237,8 @@ export function gameReducer(state: OregonTrailState, action: GameAction): Oregon
         return { ...state, message: 'Not enough ammunition to hunt!' }
       }
       const roll = Math.random()
-      const success = roll > 0.3
+      const agility = state.saddle?.Agility ?? 5
+      const success = roll > Math.max(0.12, 0.3 - (agility - 5) * 0.02)
       const isCritSuccess = roll > 0.95
       const isCritFailure = roll < 0.05
       const ammoUsed = Math.floor(Math.random() * 10) + 5

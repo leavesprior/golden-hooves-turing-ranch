@@ -7,7 +7,45 @@
  * It's a pure function with no side effects (no React hooks, no context calls).
  */
 
-import type { OregonTrailState, GamePhase } from './types'
+import type { OregonTrailState, GamePhase, RandomEvent } from './types'
+
+/** Zero-oxen fork. Choice ids are the verbs the brief named. */
+export const NO_OXEN_EVENT: RandomEvent = {
+  id: 'no_oxen',
+  title: 'The yoke is empty',
+  description: 'No oxen. The wagon does not move. Humboldt Sink is already white with abandoned bows. Walk, hire a teamster, or leave the wagon.',
+  choices: [
+    {
+      id: 'walk_to_town',
+      text: 'Walk toward the next town (Expertise sets the miles)',
+      outcome: {
+        message: 'You walk. The wagon waits. Time and weather still collect their due.',
+        daysLost: 1,
+        healthDelta: -2,
+        foodDelta: -8,
+      },
+    },
+    {
+      id: 'hire_teamster',
+      text: 'Pay a teamster to fetch a yoke (two head)',
+      outcome: {
+        message: 'A teamster brings two head. The purse is lighter. The wagon rolls.',
+        oxenDelta: 2,
+        daysLost: 2,
+        foodDelta: -20,
+      },
+    },
+    {
+      id: 'abandon_wagon',
+      text: 'Abandon the wagon and walk (Humboldt already knows this choice)',
+      outcome: {
+        message: 'You leave the wagon. Walking is slower. The desert keeps what you drop.',
+        wagonAbandoned: true,
+        healthDelta: -4,
+      },
+    },
+  ],
+}
 import { LANDMARKS, RANDOM_EVENTS, getRandomWeather } from './constants'
 import {
   calculatePartyBonuses,
@@ -63,9 +101,20 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
 
   // Calculate daily distance based on pace and conditions
   const paceMultiplier = { steady: 1, strenuous: 1.5, grueling: 2 }[prev.pace] ?? 1
-  const weatherPenalty = { fair: 0, rain: 0.2, storm: 0.5, snow: 0.6 }[prev.weather] ?? 0
+  let weatherPenalty = { fair: 0, rain: 0.2, storm: 0.5, snow: 0.6 }[prev.weather] ?? 0
+  const luck = prev.saddle?.Luck ?? 5
+  weatherPenalty *= Math.max(0.4, 1 - (luck - 5) * 0.05)
   const baseDistance = 15 // Miles per day with good conditions
   let dailyDistance = Math.round(baseDistance * paceMultiplier * (1 - weatherPenalty) * speedBonus)
+  const expertise = prev.saddle?.Expertise ?? 5
+  const durability = prev.saddle?.Durability ?? 5
+  if (prev.oxen < 1) {
+    if (prev.wagonAbandoned) {
+      dailyDistance = Math.max(1, 4 + Math.floor((expertise - 5) / 3))
+    } else {
+      dailyDistance = 0
+    }
+  }
 
   // Town-stop guarantee (Leif 2026-07-20): never travel PAST the next landmark in
   // a single tick. Clamp the day's distance to the gap so the party always ARRIVES
@@ -96,6 +145,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   if (prev.pace === 'grueling') healthChange -= 2
   if (prev.weather === 'storm') healthChange -= 2
   if (prev.weather === 'snow') healthChange -= 3
+  healthChange += Math.floor((durability - 5) / 4)
   // Desert heat exhaustion
   if (inDesertTerrain) {
     healthChange -= 2  // Base desert health drain
@@ -142,6 +192,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
   }
   // Apply wagon protection from mechanic
   wagonDegradation *= wagonProtection
+  wagonDegradation *= Math.max(0.5, 1 - (expertise - 5) * 0.04)
 
   // Update scarcity day tracking
   const newScarcityDays = updateScarcityDays(resourceSnapshot, prev.scarcityDays)
@@ -248,6 +299,27 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
 
   // Check for deaths
   const survivors = updatedParty.filter(m => m.health > 0)
+
+  if (prev.oxen < 1 && !prev.wagonAbandoned) {
+    if (survivors.length === 0) {
+      return { ...prev, phase: 'game_over' as GamePhase, message: 'The last of the party lay down within sight of the next rise. The trail keeps its own counsel about who reaches the end of it.' }
+    }
+    return {
+      ...prev,
+      day: prev.day + 1,
+      daysOnTrail: prev.daysOnTrail + 1,
+      food: newFood,
+      morale: newMorale,
+      wagonCondition: newWagonCond,
+      oxen: newOxen,
+      clothing: newClothing,
+      party: survivors,
+      scarcityDays: newScarcityDays,
+      phase: 'event' as GamePhase,
+      currentEvent: NO_OXEN_EVENT,
+      message: 'No oxen. The wagon does not move.',
+    }
+  }
   if (survivors.length === 0) {
     return { ...prev, phase: 'game_over' as GamePhase, message: 'The last of the party lay down within sight of the next rise. The trail keeps its own counsel about who reaches the end of it.' }
   }

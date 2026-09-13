@@ -27,6 +27,7 @@ function day(weather: 'fair' | 'rain' | 'storm' | 'snow', pace: 'steady' | 'stre
     phase: 'traveling',
     party: [{ id: 'a', name: 'A', health: 100, isSick: false, role: 'leader' as const }],
     food: 80,
+    oxen: 4,
   })
 }
 

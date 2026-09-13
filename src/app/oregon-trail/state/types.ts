@@ -85,6 +85,9 @@ export interface EventOutcome {
     healthDelta: number
   }
   daysLost?: number
+  oxenDelta?: number
+  distanceDelta?: number
+  wagonAbandoned?: boolean
   // Karma Blockchain currency
   neutralKarmaDelta?: number  // 🌮 Primary currency (replaces gold)
   goodKarmaDelta?: number     // 🍪 Premium/special items
@@ -134,6 +137,17 @@ export interface OregonTrailState {
 
   // Wagon status
   wagonCondition: number  // 0-100
+  /** True after abandon_wagon. Walking uses Expertise, not a dead yoke. */
+  wagonAbandoned?: boolean
+  /** Optional S.A.D.D.L.E. snapshot. Old saves omit it; travel then uses the 5-buy-in floor. */
+  saddle?: {
+    Shrewdness?: number
+    Agility?: number
+    Durability?: number
+    Diplomacy?: number
+    Luck?: number
+    Expertise?: number
+  }
 
   // Settings
   pace: Pace

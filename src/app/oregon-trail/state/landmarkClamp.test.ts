@@ -30,6 +30,7 @@ console.log('T1 — grueling day 7 miles from Kansas arrives, does not skip')
     phase: 'traveling' as const,
     party: [{ id: 'a', name: 'A', health: 100, isSick: false, role: 'leader' as const }],
     food: 80,
+    oxen: 4,
   }
   const next = computeTravel(start)
   ok(next.distance === 102, `distance 102 not past, got ${next.distance}`)
@@ -50,6 +51,7 @@ console.log('T2 — steady day far from the river is not clamped to zero')
     phase: 'traveling' as const,
     party: [{ id: 'a', name: 'A', health: 100, isSick: false, role: 'leader' as const }],
     food: 80,
+    oxen: 4,
   }
   const next = computeTravel(start)
   ok(next.distance === 24, `steady 15 mi, got ${next.distance}`)
@@ -67,6 +69,7 @@ console.log('T3 — stale nextLandmark must not throw')
     phase: 'traveling' as const,
     party: [{ id: 'a', name: 'A', health: 100, isSick: false, role: 'leader' as const }],
     food: 80,
+    oxen: 4,
   }
   let threw = false
   let next: OregonTrailState = start as OregonTrailState
@@ -85,6 +88,7 @@ console.log('T4 — missing party/pace/weather must not throw')
     weather: 'locusts' as unknown as typeof DEFAULT_STATE.weather,
     rations: undefined as unknown as typeof DEFAULT_STATE.rations,
     food: 80,
+    oxen: 4,
     milesUntilNextLandmark: 90,
     nextLandmark: 'Kansas River Crossing',
   }
