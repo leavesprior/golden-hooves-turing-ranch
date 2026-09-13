@@ -84,7 +84,7 @@ export function BridgeKeeper({
 
   const handleSubmitAnswer = () => {
     const currentQuestion = questions[currentQuestionIndex]
-    const isCorrect = checkBridgeAnswer(currentQuestion, answer)
+    const isCorrect = checkBridgeAnswer(currentQuestion, answer, playerName)
 
     // Special case: asking about swallow type reverses the encounter
     if (currentQuestion.isSwallowQuestion &&

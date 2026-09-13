@@ -23,6 +23,15 @@ const quest = BRIDGE_QUESTIONS.find((q) => q.question.includes('quest'))!
 ok(checkBridgeAnswer(quest, 'Golden Frog Trail') === true, 'quest accepts Golden Frog')
 ok(checkBridgeAnswer(quest, 'the first discount') === true, 'quest accepts discount')
 ok(checkBridgeAnswer(quest, 'gold country') === true, 'quest still accepts gold country')
+ok(checkBridgeAnswer(quest, 'to seek the Holy Grail') === true, 'quest accepts the movie grail')
+
+const nameQ = BRIDGE_QUESTIONS.find((q) => q.question.includes('name'))!
+ok(checkBridgeAnswer(nameQ, 'Ada Cole', 'Ada Cole') === true, 'name matches the SADDLE person')
+ok(checkBridgeAnswer(nameQ, 'ada', 'Ada Cole') === true, 'name is case-insensitive first name')
+ok(checkBridgeAnswer(nameQ, 'Ada Cole') === false, 'name without the player is refused')
+ok(checkBridgeAnswer(nameQ, 'Lancelot', 'Ada Cole') === false, 'wrong name is refused')
+ok(checkBridgeAnswer(nameQ, '   ', 'Ada Cole') === false, 'blank name is refused')
+ok(nameQ.wrongAnswerEffect !== 'none', 'wrong name throws the player')
 
 const swallow = BRIDGE_QUESTIONS.find((q) => q.isSwallowQuestion)!
 ok(checkBridgeAnswer(swallow, 'African or European?') === true, 'swallow reversal still works')
