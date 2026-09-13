@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
 import type { ExplorerContextValue, ExplorerProgress, Town } from './explorerContext'
+import { normalizeTownWalkSnapshot, stepTownWalk, townWalkMap, isTownWalkPassable, type TownWalkSnapshot } from '../../lib/townWalk'
 
 const STORAGE_KEY = 'gold_country_explorer_progress'
 const plain = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
@@ -25,7 +26,7 @@ type StateSlot = { value: unknown; pending: Array<unknown | ((prev: unknown) => 
  * can interleave; replay React updaters and mount effects to catch side effects.
  * The separate browser test covers actual React/DOM lifecycle behavior.
  */
-function harness(code: string, storage = new Map<string, string>()) {
+function harness(code: string, storage = new Map<string, string>(), onRender?: (context: ExplorerContextValue) => void) {
   const slots: unknown[] = []
   const states: StateSlot[] = []
   const effects: Effect[] = []
@@ -114,6 +115,7 @@ function harness(code: string, storage = new Map<string, string>()) {
         children: null, towns: [town],
         onBadgeEarned: (badge: unknown) => { assertEffectsAllowed(); calls.push({ name: 'badge', args: [badge] }) },
       }).props.value
+      onRender?.(value)
     } finally { rendering = false }
   }
   function flushEffects() {
@@ -340,6 +342,158 @@ async function main() {
     assert.equal(h.value.loadProgress(), false)
     h.value.saveProgress()
     assert.equal(h.saved().totalXP, 22)
+    h.unmount()
+  })
+
+  test('walking getters are render-safe copied defaults without adding visits or save data', () => {
+    const h = harness(code, seeded(), context => {
+      assert.ok(context.getTownWalk('west_point')) // Reads during render cannot touch storage.
+    })
+    h.mount()
+    const before = plain(h.value.progress)
+    const walk = h.value.getTownWalk('west_point')!
+    assert.deepEqual(plain(walk.position), townWalkMap('west_point')!.spawn)
+    assert.equal(h.value.getTownWalk('bobr_ranch'), undefined)
+    walk.position.x = 999
+    assert.deepEqual(plain(h.value.getTownWalk('west_point')!.position), townWalkMap('west_point')!.spawn)
+    assert.deepEqual(plain(h.value.progress), before)
+    h.value.saveProgress()
+    assert.equal(h.saved().townWalks, undefined, 'legacy save shape stays unchanged until walking is saved')
+    assert.deepEqual(h.calls, [], 'reading a scene cannot award exploration or karma')
+    h.unmount()
+  })
+
+  test('several walking positions before one render persist the latest copied position', () => {
+    const h = harness(code, seeded())
+    h.mount()
+    let walk = h.value.getTownWalk('west_point')!
+    const map = townWalkMap(walk.townId)!
+    for (const direction of ['up', 'up', 'left'] as const) {
+      const position = stepTownWalk(map, walk.position, direction)
+      assert.notDeepEqual(position, walk.position, 'fixture exercises actual successful moves')
+      walk = { ...walk, position }
+      h.value.saveTownWalk(walk)
+    }
+    const expected = plain(walk)
+    walk.position.x = 999 // The caller must not retain ownership of saved coordinates.
+    h.pagehide() // Before React has committed any of those moves.
+    assert.deepEqual(h.saved().townWalks?.west_point, expected)
+    assert.equal(h.saved().totalXP, 7)
+    assert.deepEqual(h.saved().visitedTowns, ['angels_camp'])
+    assert.deepEqual(h.calls, [])
+    h.settle()
+    const returned = h.value.getTownWalk('west_point')!
+    returned.position.y = 999
+    h.value.saveProgress()
+    assert.deepEqual(h.saved().townWalks?.west_point, expected, 'getter results are copies too')
+    h.unmount()
+  })
+
+  test('same-turn town snapshots compose with attraction progress and favorite deletion', () => {
+    const h = harness(code, seeded())
+    h.mount('west_point')
+    h.value.visitAttraction('wp_trail_camp', 'west_point')
+    h.value.toggleFavorite('kept_favorite')
+    const expected: Record<string, TownWalkSnapshot> = {}
+    for (const townId of ['west_point', 'volcano'] as const) {
+      const walk = h.value.getTownWalk(townId)!
+      walk.position = stepTownWalk(townWalkMap(townId)!, walk.position, 'up')
+      expected[townId] = plain(walk)
+      h.value.saveTownWalk(walk)
+    }
+    h.value.visitTown('volcano') // Its immediate write must include both pending walk saves.
+    assert.deepEqual(h.saved().townWalks, expected)
+    assert.equal(h.saved().totalXP, 22)
+    assert.equal(h.saved().journalEntries.length, 1)
+    assert.deepEqual(h.saved().favoriteAttractions, [])
+    h.unmount()
+    const next = harness(code, h.storage)
+    next.mount('west_point')
+    assert.deepEqual(plain(next.value.getTownWalk('west_point')), expected.west_point)
+    assert.deepEqual(plain(next.value.getTownWalk('volcano')), expected.volcano)
+    next.unmount()
+  })
+
+  test('room and exact exterior return position survive immediate unmount and reload', () => {
+    for (const townId of ['west_point', 'volcano'] as const) {
+      const h = harness(code, seeded())
+      h.mount()
+      const exterior = townWalkMap(townId)!
+      const entrance = exterior.targets.find(target => target.kind === 'entrance')!
+      if (entrance.kind !== 'entrance') throw new Error('fixture entrance missing')
+      const returnPosition = { x: entrance.position.x, y: entrance.position.y + 1 }
+      assert.ok(isTownWalkPassable(exterior, returnPosition))
+      const inside: TownWalkSnapshot = {
+        ...normalizeTownWalkSnapshot(townId, undefined)!,
+        roomId: entrance.destination.roomId,
+        position: { ...entrance.destination.position },
+        exteriorReturnPosition: { ...returnPosition },
+      }
+      h.value.saveTownWalk(inside)
+      inside.exteriorReturnPosition!.x = 999
+      h.unmount()
+      const next = harness(code, h.storage)
+      next.mount()
+      const restored = next.value.getTownWalk(townId)!
+      assert.equal(restored.roomId, 'shelter')
+      assert.deepEqual(plain(restored.position), entrance.destination.position)
+      assert.deepEqual(plain(restored.exteriorReturnPosition), returnPosition)
+      const { exteriorReturnPosition, ...outside } = restored
+      next.value.saveTownWalk({ ...outside, roomId: 'exterior', position: exteriorReturnPosition! })
+      next.pagehide()
+      assert.deepEqual(next.saved().townWalks?.[townId]?.position, returnPosition)
+      assert.equal(next.saved().townWalks?.[townId]?.exteriorReturnPosition, undefined)
+      next.unmount()
+    }
+  })
+
+  test('invalid walking saves recover only walking fields and preserve campaign data', () => {
+    const campaign = { ...initial,
+      journalEntries: [{ id: 'kept_note', timestamp: 1, type: 'note', townId: 'angels_camp', title: 'Keep', content: 'Prior campaign note' }],
+      futureCampaignField: { retained: true },
+    }
+    const valid = normalizeTownWalkSnapshot('west_point', undefined)!
+    const blocked = townWalkMap('west_point')!.props.find(prop => prop.blocksMovement)!.position
+    for (const townWalks of [
+      { west_point: { ...valid, version: 999 } },
+      { west_point: { ...valid, position: blocked } },
+      { west_point: { ...valid, position: { x: 'wrong', y: 1 } } },
+      { west_point: { ...valid, townId: 'volcano' } },
+      { west_point: { ...valid, roomId: 'lost_room' }, unknown_town: valid },
+      null, [], 'wrong',
+    ]) {
+      const storage = new Map([[STORAGE_KEY, JSON.stringify({ ...campaign, townWalks })]])
+      const h = harness(code, storage)
+      h.mount()
+      const restored = h.value.getTownWalk('west_point')!
+      assert.equal(restored.roomId, 'exterior')
+      assert.deepEqual(plain(restored.position), townWalkMap('west_point')!.spawn)
+      h.value.saveProgress()
+      const saved = h.saved() as ExplorerProgress & { futureCampaignField: { retained: boolean } }
+      assert.equal(saved.totalXP, campaign.totalXP)
+      assert.deepEqual(saved.journalEntries, campaign.journalEntries)
+      assert.deepEqual(saved.favoriteAttractions, campaign.favoriteAttractions)
+      assert.deepEqual(saved.visitedTowns, campaign.visitedTowns)
+      assert.deepEqual(saved.futureCampaignField, campaign.futureCampaignField)
+      assert.deepEqual(h.calls, [])
+      h.unmount()
+    }
+  })
+
+  test('bad return coordinates are removed without moving a valid saved interior position', () => {
+    const h = harness(code, seeded())
+    h.mount()
+    const room = townWalkMap('west_point', 'shelter')!
+    h.value.saveTownWalk({ ...normalizeTownWalkSnapshot('west_point', undefined)!,
+      roomId: 'shelter', position: { ...room.spawn }, exteriorReturnPosition: { x: -1, y: 3 },
+    })
+    h.value.saveProgress()
+    assert.equal(h.saved().townWalks?.west_point?.exteriorReturnPosition, undefined)
+    assert.deepEqual(h.saved().townWalks?.west_point?.position, room.spawn)
+    assert.equal(h.saved().townWalks?.west_point?.roomId, 'shelter')
+    h.value.resetProgress()
+    h.value.saveProgress()
+    assert.equal(h.saved().townWalks, undefined, 'a deliberate reset does not restore old positions')
     h.unmount()
   })
 

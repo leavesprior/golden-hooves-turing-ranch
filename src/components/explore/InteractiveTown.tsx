@@ -13,6 +13,8 @@ import { townAsciiInterior } from '@/lib/overlay/townAsciiInterior'
 import { PlacePictureLift } from '@/components/PlacePictureLift'
 import { PlaceScene } from '@/components/PlaceScene'
 import { placeSceneFor, type PlaceSceneEra } from '@/lib/placeSceneAssets'
+import { TownWalkScene } from './TownWalkScene'
+import { townWalkMap } from '@/lib/townWalk'
 
 export function InteractiveTown({
   town,
@@ -28,6 +30,8 @@ export function InteractiveTown({
     visitTown,
     isAttractionVisited,
     isSecretUnlocked,
+    getTownWalk,
+    saveTownWalk,
   } = useExplorer()
   const { applyKarma } = useKarma()
   const scene = placeSceneFor(town.id)
@@ -35,6 +39,8 @@ export function InteractiveTown({
   const [sceneEra, setSceneEra] = useState<PlaceSceneEra>('1849')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [npcLine, setNpcLine] = useState<string | null>(null)
+  const [walking, setWalking] = useState(false)
+  const walkSnapshot = getTownWalk(town.id)
 
   useLayoutEffect(() => {
     visitTown(town.id)
@@ -47,6 +53,7 @@ export function InteractiveTown({
   const presentIds = new Set(present.map((a) => a.id))
   const spots = (TOWN_HOTSPOTS[town.id] || []).filter((s) => presentIds.has(s.attractionId))
   const npcs = (TOWN_NPCS[town.id] || []).filter((n) => n.period !== 'later')
+  const walkAttractions = [...present, ...(town.secretAttractions || []).filter(a => a.period !== 'later' && isSecretUnlocked(a.id))]
   const byId = useMemo(() => {
     const m = new Map<string, Attraction>()
     for (const a of town.attractions) m.set(a.id, a)
@@ -85,12 +92,21 @@ export function InteractiveTown({
           <h1 className="west-face-title text-2xl" data-testid="explore-town-title">{faceName}</h1>
           <p className="font-serif text-sm text-[#b8a88a]">{faceTagline}</p>
         </div>
-        <button type="button" className="west-face-pill" onClick={onLeave}>
-          Leave town
-        </button>
+        <div className="flex flex-wrap justify-end gap-2">
+          {townWalkMap(town.id) && (!walking || sceneEra === 'today') && <button type="button" className="west-face-pill" data-testid="town-walk-start"
+            onClick={() => { setWalking(true); setSceneEra('1849') }}>Walk the camp</button>}
+          <button type="button" className="west-face-pill" onClick={onLeave}>Leave town</button>
+        </div>
       </header>
 
-      <PlaceScene placeId={town.id} era={sceneEra} onEraChange={setSceneEra}>
+      {walking && sceneEra === '1849' && walkSnapshot ? <TownWalkScene
+        snapshot={walkSnapshot} onChange={saveTownWalk}
+        allowedAttractionIds={walkAttractions.map(a => a.id)} allowedNpcIds={npcs.map(n => n.id)}
+        onAttraction={enterBuilding}
+        onTalk={id => { const npc = npcs.find(n => n.id === id); if (npc) talkNpc(npc.line, npc.name) }}
+        onBackToLook={() => { setWalking(false); setSelectedId(null); setNpcLine(null) }}
+        onToday={scene ? () => setSceneEra('today') : undefined}
+      /> : <PlaceScene placeId={town.id} era={sceneEra} onEraChange={setSceneEra}>
         {interior ? (
           <pre
             data-testid={interior.testid}
@@ -145,9 +161,9 @@ export function InteractiveTown({
             Talk<span className="hidden sm:inline"> · {npc.name}</span>
           </button>
         ))}
-      </PlaceScene>
+      </PlaceScene>}
 
-      <aside className="max-h-[38vh] overflow-y-auto border-t border-[rgba(232,220,196,0.12)] bg-[#0e0c0a] px-4 py-3">
+      <aside className={`${walking && sceneEra === '1849' ? 'max-h-[24vh] md:max-h-[38vh]' : 'max-h-[38vh]'} overflow-y-auto border-t border-[rgba(232,220,196,0.12)] bg-[#0e0c0a] px-4 py-3`}>
         {npcLine && <p className="mb-3 font-serif text-sm italic text-[#e8dcc4]">{npcLine}</p>}
         {selected ? (
           <article className="west-face-paper">

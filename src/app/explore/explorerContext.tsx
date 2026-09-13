@@ -9,6 +9,7 @@ import {
 } from './data/townMysteries'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
 import { getSiteRefForTown, type TownSiteRef } from './data/townSites'
+import { normalizeTownWalkSnapshot, type TownWalkSnapshot, type TownWalkTownId } from '@/lib/townWalk'
 
 // ============================================
 // TYPES
@@ -116,6 +117,8 @@ export interface ExplorerProgress {
   historicalDepthScore: number
   historicalDepthLevel: string
   journalEntries: JournalEntry[]
+  /** Optional presentation state; existing saves need no campaign migration. */
+  townWalks?: Partial<Record<TownWalkTownId, TownWalkSnapshot>>
 }
 
 export interface ExplorerContextValue {
@@ -148,6 +151,8 @@ export interface ExplorerContextValue {
   saveProgress: () => void
   loadProgress: () => boolean
   resetProgress: () => void
+  getTownWalk: (townId: string) => TownWalkSnapshot | undefined
+  saveTownWalk: (snapshot: TownWalkSnapshot) => void
 
   // Mystery Deduction (Carmen Sandiego style)
   discoverClue: (mysteryId: string, clueId: string) => { xpGained: number; isNew: boolean }
@@ -327,6 +332,17 @@ export function readExplorerVisits(): { visitedTownIds: string[]; lastTownId?: s
   }
 }
 
+/** Repair only local walking data; never reset the surrounding campaign. */
+function normalizeStoredTownWalks(value: unknown): NonNullable<ExplorerProgress['townWalks']> {
+  const walks: NonNullable<ExplorerProgress['townWalks']> = {}
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return walks
+  for (const [townId, saved] of Object.entries(value)) {
+    const normalized = normalizeTownWalkSnapshot(townId, saved)
+    if (normalized) walks[normalized.townId] = normalized
+  }
+  return walks
+}
+
 /** Read a complete saved snapshot only at initialization or an explicit load. */
 function progressFromStorage(): ExplorerProgress | null {
   if (typeof window === 'undefined') return null
@@ -347,6 +363,7 @@ function progressFromStorage(): ExplorerProgress | null {
       historicalDepthScore,
       historicalDepthLevel: getHistoricalDepthLevel(historicalDepthScore),
       journalEntries: parsed.journalEntries || [],
+      ...(Object.hasOwn(parsed, 'townWalks') ? { townWalks: normalizeStoredTownWalks(parsed.townWalks) } : {}),
     }
   } catch {
     return null
@@ -816,6 +833,25 @@ export function ExplorerProvider({
     return totalAttractions > 0 ? (visitedCount / totalAttractions) * 100 : 0
   }, [towns, progress.visitedAttractions])
 
+  // Safe to call while rendering: normalization returns copied coordinates,
+  // and reading a scene neither hydrates storage nor awards a town visit.
+  const getTownWalk = useCallback((townId: string): TownWalkSnapshot | undefined => {
+    const walks = progress.townWalks
+    const saved = walks && Object.hasOwn(walks, townId) ? walks[townId as TownWalkTownId] : undefined
+    return normalizeTownWalkSnapshot(townId, saved)
+  }, [progress.townWalks])
+
+  const saveTownWalk = useCallback((snapshot: TownWalkSnapshot) => {
+    const normalized = normalizeTownWalkSnapshot(snapshot.townId, snapshot)
+    if (!normalized) return
+    // The shared accepted-state setter composes rapid moves before React commits;
+    // the existing debounce/pagehide/unmount writers persist this same snapshot.
+    setProgress(current => ({
+      ...current,
+      townWalks: { ...current.townWalks, [normalized.townId]: normalized },
+    }))
+  }, [setProgress])
+
   // Persist the mounted snapshot, including actions not yet rendered. Disk is
   // an input to initial/explicit load, never an authority over pending changes.
   const saveProgress = useCallback(() => {
@@ -1099,6 +1135,8 @@ export function ExplorerProvider({
     saveProgress,
     loadProgress,
     resetProgress,
+    getTownWalk,
+    saveTownWalk,
     discoverClue,
     attemptMysteryDeduction,
     getMysteryProgress,
