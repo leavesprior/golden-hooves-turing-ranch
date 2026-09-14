@@ -23,7 +23,7 @@ export const RANCH_AMENITIES: { icon: string; name: string; desc: string }[] = [
   { icon: '🔌', name: 'Overnight EV Charging', desc: 'Full by morning' },
   { icon: '🏔️', name: '360° Sierra Views', desc: 'Two lakes on the ranch' },
   { icon: '🌲', name: 'Deep Forest Quiet', desc: 'Genuinely silent nights' },
-  { icon: '💸', name: 'Book Direct', desc: 'Skip the platform fees' },
+  { icon: '🏡', name: 'Whole ranch', desc: 'Sleeps 12, one house' },
 ]
 
 export function EventShell({ children }: { children: React.ReactNode }) {
@@ -113,12 +113,11 @@ export function WhyStay() {
  */
 export function BookDirectCTA() {
   return (
-    <PixelCard title="📅 Book Direct — No Platform Fees" className="mb-8">
+    <PixelCard title="📅 Stay for the show" className="mb-8">
       <div className="space-y-5">
         <p className="font-[var(--font-pixel)] text-[9px] leading-relaxed text-[var(--pixel-ui-text)]">
-          Reserve your dates directly and skip the extra platform service fees.
-          Questions about the drive, the group size, or which event you&apos;re
-          coming for? We&apos;re happy to help.
+          Check dates on Airbnb. Questions about the drive, the group size, or
+          which event you&apos;re coming for? Write contact@backofbeyondranch.farm.
         </p>
 
         {/* TODO: replace with OwnerRez availability+booking widget embed */}

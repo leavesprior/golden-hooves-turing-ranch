@@ -14,7 +14,7 @@ import {
 export const metadata: Metadata = {
   title: 'Lodging Near the Amador County Fair 2026 | Back of Beyond Ranch',
   description:
-    'Where to stay for the Amador County Fair 2026 (Jul 30 – Aug 2) in Plymouth, CA — a 6-bedroom forest ranch about 45-55 minutes away in West Point. Sleeps 12, hot tub, game room, overnight EV charging. Book direct, no platform fees.',
+    'Where to stay for the Amador County Fair 2026 (Jul 30 – Aug 2) in Plymouth, CA — a 6-bedroom forest ranch about 45-55 minutes away in West Point. Sleeps 12, hot tub, game room, overnight EV charging. Check dates on Airbnb.',
   alternates: { canonical: '/events/amador-county-fair' },
   openGraph: {
     title: 'Where to Stay for the Amador County Fair 2026',

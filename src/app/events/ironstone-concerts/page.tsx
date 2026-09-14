@@ -14,7 +14,7 @@ import {
 export const metadata: Metadata = {
   title: 'Lodging Near Ironstone Amphitheatre 2026 | Back of Beyond Ranch',
   description:
-    'Where to stay for Ironstone Amphitheatre concerts in 2026 — a 6-bedroom forest ranch in West Point, CA, about 50 minutes from Murphys. Sleeps 12, hot tub, overnight EV charging. Book direct, no platform fees.',
+    'Where to stay for Ironstone Amphitheatre concerts in 2026 — a 6-bedroom forest ranch in West Point, CA, about 50 minutes from Murphys. Sleeps 12, hot tub, overnight EV charging. Check dates on Airbnb.',
   alternates: { canonical: '/events/ironstone-concerts' },
   openGraph: {
     title: 'Where to Stay for Ironstone Amphitheatre Concerts 2026',

@@ -314,17 +314,15 @@ export default function RentalsPage() {
 
           {/* Booking Sidebar */}
           <div className="space-y-6">
-            <PixelCard title="Book direct">
+            <PixelCard title="Book the ranch">
               <div className="space-y-4">
                 <p className="read-body">
-                  Book direct and save 10% versus Airbnb. Instant confirmation. Free cancellation.
+                  Check dates on Airbnb, or write contact@backofbeyondranch.farm
+                  if you already know the ranch.
                 </p>
                 <BookStayButton variant="gold" size="lg">
                   Check Availability
                 </BookStayButton>
-                <p className="read-body text-center">
-                  Send me a message on Airbnb when requesting to book and I will provide the discount.
-                </p>
                 <BookStayButton variant="clear" size="md">
                   Message on Airbnb
                 </BookStayButton>

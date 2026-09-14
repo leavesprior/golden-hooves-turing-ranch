@@ -15,8 +15,10 @@ interface QuoteResult {
   subtotal_gross: number
   discounts: QuoteLine[]
   subtotal_after_discounts: number
+  occupancy_subtotal?: number
   tot: number
   cleaning_fee: number
+  pet_fee?: number
   total: number
   warnings: string[]
 }
@@ -73,8 +75,12 @@ export default function QuoteDisplay({ code, quote }: Props) {
         <Row key={i} label={d.label + (d.detail ? ` (${d.detail})` : '')} value={fmt(d.amount)} muted />
       ))}
       <Row label="After discounts" value={fmt(quote.subtotal_after_discounts)} />
-      <Row label="Alpine County 14% TOT" value={fmt(quote.tot)} muted />
-      {quote.cleaning_fee > 0 && <Row label="Cleaning fee" value={fmt(quote.cleaning_fee)} muted />}
+      <Row label="Cleaning" value={fmt(quote.cleaning_fee)} muted />
+      {(quote.pet_fee ?? 0) > 0 && <Row label="Pet" value={fmt(quote.pet_fee ?? 0)} muted />}
+      {quote.occupancy_subtotal != null && (
+        <Row label="Occupancy subtotal" value={fmt(quote.occupancy_subtotal)} />
+      )}
+      <Row label="Calaveras County TOT 12%" value={fmt(quote.tot)} muted />
       <hr style={{ borderColor: 'var(--pixel-ui-border)', margin: '0.6rem 0' }} />
       <Row label="Total" value={fmt(quote.total)} bold />
 

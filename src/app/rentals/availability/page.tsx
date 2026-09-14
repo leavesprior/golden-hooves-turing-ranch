@@ -39,8 +39,10 @@ interface QuoteResult {
   subtotal_gross: number
   discounts: QuoteLine[]
   subtotal_after_discounts: number
+  occupancy_subtotal?: number
   tot: number
   cleaning_fee: number
+  pet_fee?: number
   total: number
   warnings: string[]
 }
@@ -84,7 +86,7 @@ export default function AvailabilityPreviewPage() {
               <QuoteDisplay code={phase.confirmationCode} quote={phase.quote} />
               <DepositHandoff
                 confirmationCode={phase.confirmationCode}
-                defaultAmount={Math.max(100, Math.round(phase.quote.total * 0.25))}
+                defaultAmount={Math.round(phase.quote.total)}
                 onConfirmed={bookingId => setPhase({ kind: 'deposit_recorded', bookingId })}
               />
               <p style={{ textAlign: 'center', fontSize: '0.8rem' }}>
@@ -129,9 +131,10 @@ export default function AvailabilityPreviewPage() {
 
         <PixelCard title="How direct booking works">
           <p style={{ lineHeight: 1.5 }}>
-            Open dates are synced from our live booking calendar. We accept
-            Venmo, PayPal, or Google Pay deposits — no platform fees.
-            Alpine County 14% TOT is included in your quote.
+            Open dates are synced from our live booking calendar. Quotes use
+            Calaveras County TOT 12% on nights, extra-guest, cleaning, and pet.
+            Nightly rates are confirmed against Airbnb before we take payment.
+            Dates are not held until the host verifies.
           </p>
         </PixelCard>
       </main>

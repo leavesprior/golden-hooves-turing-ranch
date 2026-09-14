@@ -14,7 +14,7 @@ import {
 export const metadata: Metadata = {
   title: 'Lodging for the Bear Valley Music Festival 2026 | Back of Beyond Ranch',
   description:
-    'Where to stay for the Bear Valley Music Festival 2026 (Jul 17 – Aug 2) — a spacious 6-bedroom forest ranch basecamp about 2 hours away in West Point, CA. Sleeps 12, hot tub, baby grand, overnight EV charging. Book direct, no platform fees.',
+    'Where to stay for the Bear Valley Music Festival 2026 (Jul 17 – Aug 2) — a spacious 6-bedroom forest ranch basecamp about 2 hours away in West Point, CA. Sleeps 12, hot tub, baby grand, overnight EV charging. Check dates on Airbnb.',
   alternates: { canonical: '/events/bear-valley-music-festival' },
   openGraph: {
     title: 'Where to Stay for the Bear Valley Music Festival 2026',

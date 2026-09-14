@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Events Near Back of Beyond Ranch | Gold Country Lodging 2026',
     description:
-      'Your forest basecamp for Gold Country’s best weekends — book the whole 6-bedroom ranch, direct, and skip the platform fees.',
+      'Your forest basecamp for Gold Country’s best weekends — book the whole 6-bedroom ranch in West Point.',
     url: 'https://backofbeyondranch.farm/events',
     siteName: 'Back of Beyond Ranch',
     images: [{ url: '/cabin-photos/cabin-3.jpg', width: 1200, height: 800 }],
@@ -60,7 +60,7 @@ export default function EventsHubPage() {
       <EventHero
         eyebrow="Gold Country · West Point, CA"
         title="Events Near Back of Beyond Ranch"
-        subhead="Your forest basecamp for Gold Country's best weekends — book the whole ranch, direct, and skip the platform fees."
+        subhead="Your forest basecamp for Gold Country's best weekends — book the whole ranch in West Point."
       />
 
       <div className="mb-10">
