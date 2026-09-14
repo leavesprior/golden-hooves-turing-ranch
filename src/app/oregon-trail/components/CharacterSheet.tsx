@@ -2,10 +2,11 @@
 
 import React, { useState, useCallback, useEffect } from 'react'
 import { useEscapeKey } from '../lib/useEscapeKey'
-import { useCharacter, CHARACTER_TRAITS, BACKGROUND_DESCRIPTIONS, type CharacterBackground, type StatName } from '../characterContext'
+import { useCharacter, CHARACTER_TRAITS, BACKGROUND_DESCRIPTIONS, type StatName } from '../characterContext'
 import { useOregonTrail } from '../oregonTrailContext'
 import { getAbsurdItem, type AbsurdItem } from '../data/absurdItems'
 import { DISCOVERABLE_TRAITS, getDiscoveredTraitDisplay, getTraitRarityColor, getTraitRarityLabel, getTraitCategoryIcon } from '../data/discoverableTraits'
+import { PlayerPortrait } from './PlayerPortrait'
 
 // =============================================================================
 // CharacterSheet - Interactive character stats, inventory, party, and wagon UI
@@ -28,17 +29,6 @@ interface CharacterSheetProps {
     remainingTurns: number
     stackCount: number
   }>
-}
-
-// Background portrait emojis
-const BACKGROUND_PORTRAITS: Record<CharacterBackground, string> = {
-  pinkerton_veteran: '\u{1F575}',
-  frontier_scout: '\u{1F3AF}',
-  army_officer: '\u{2694}',
-  gambler: '\u{1F0CF}',
-  doctor: '\u{2695}',
-  preacher: '\u{271D}',
-  outlaw_reformed: '\u{1F3AD}',
 }
 
 // Stat display abbreviations and colors
@@ -203,7 +193,6 @@ export function CharacterSheet({
     }
 
     const bgInfo = BACKGROUND_DESCRIPTIONS[character.background]
-    const portrait = BACKGROUND_PORTRAITS[character.background]
     const statNames = Object.keys(STAT_CONFIG) as StatName[]
 
     return (
@@ -211,9 +200,7 @@ export function CharacterSheet({
         {/* Character Header */}
         <div className="flex items-start gap-4 bg-amber-900/40 rounded-lg p-3 border border-amber-700/50">
           {/* Portrait */}
-          <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center bg-amber-800 rounded-lg border-2 border-amber-600 text-3xl md:text-4xl shrink-0">
-            {portrait}
-          </div>
+          <PlayerPortrait background={character.background} name={character.name} data-testid="sheet-player-portrait" />
           {/* Info */}
           <div className="flex-1 min-w-0">
             <h3 className="text-amber-100 font-bold text-lg font-pixel truncate">{character.name}</h3>

@@ -289,6 +289,7 @@ export function RiverCrossing({
         {phase === 'bridge_keeper' && (
           <BridgeKeeper
             playerName={charState?.character?.name || 'Traveler'}
+            playerBackground={charState.character?.background}
             onSuccess={handleBridgeKeeperSuccess}
             onFailure={handleBridgeKeeperFailure}
             onCancel={handleBridgeKeeperCancel}
