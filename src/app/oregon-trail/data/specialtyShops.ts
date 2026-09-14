@@ -1,7 +1,7 @@
 /**
  * Specialty Shops & Hireable Guides
  *
- * Towns occasionally have specialty shops (wagonwright, apothecary, etc.)
+ * Towns have stable specialty shops (wagonwright, apothecary, etc.)
  * and unique NPC guides that can be hired for travel segments.
  */
 
@@ -649,22 +649,61 @@ export const HIREABLE_GUIDES: HireableGuide[] = [
 // ============================================================================
 
 /**
- * Determine which specialty shops appear at a given landmark.
- * Uses landmark type and random chance.
+ * Authored shop roster: these buildings are ALWAYS at this fort/town.
+ * Do not re-roll with day or miles — the wagonwright who remembered you
+ * must still be there when you come back.
+ */
+export const TOWN_SHOP_ROSTER: Readonly<Record<string, readonly SpecialtyShopType[]>> = {
+  'Independence, Missouri': ['outfitter', 'wagonwright'],
+  'Fort Kearny': ['blacksmith', 'wagonwright'],
+  'Fort Laramie': ['blacksmith', 'apothecary'],
+  'Fort Bridger': ['wagonwright', 'blacksmith'],
+  'Fort Hall': ['outfitter', 'apothecary'],
+  'Fort Boise': ['blacksmith'],
+  'Sacramento regional gateway': ['assayer', 'outfitter'],
+  Volcano: ['assayer', 'apothecary'],
+  'West Point': ['wagonwright', 'blacksmith'],
+  'Angels Camp': ['outfitter', 'assayer'],
+  Jackson: ['blacksmith', 'wagonwright'],
+  Murphys: ['apothecary', 'outfitter'],
+  'Mokelumne Hill': ['assayer', 'blacksmith'],
+  'Nevada City': ['assayer', 'apothecary'],
+  'Grass Valley': ['blacksmith', 'outfitter'],
+}
+
+function hashLandmark(name: string): number {
+  let h = 2166136261
+  for (let i = 0; i < name.length; i++) {
+    h ^= name.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return ((h >>> 0) % 2147483646) + 1
+}
+
+/**
+ * Shops at a landmark. Roster towns are constant. Unknown towns hash the
+ * *name only* (never day/distance) so a return visit sees the same keepers.
+ * The legacy seed argument is ignored for compatibility with older callers.
  */
 export function getAvailableShops(
   landmarkName: string,
   landmarkType: string,
-  seed?: number
+  _ignoredSeed?: number
 ): SpecialtyShop[] {
-  const rng = seed !== undefined
-    ? () => { seed = (seed! * 16807) % 2147483647; return seed! / 2147483647 }
-    : Math.random
-
-  return SPECIALTY_SHOPS.filter(shop => {
-    if (!shop.requiredLandmarkTypes.includes(landmarkType)) return false
-    return rng() < shop.spawnChance
-  })
+  // Exact names matter: Independence Rock is not Independence, Missouri.
+  const roster = Object.hasOwn(TOWN_SHOP_ROSTER, landmarkName)
+    ? TOWN_SHOP_ROSTER[landmarkName]
+    : undefined
+  const eligible = SPECIALTY_SHOPS.filter(shop => shop.requiredLandmarkTypes.includes(landmarkType))
+  if (roster) {
+    return eligible.filter(shop => roster.includes(shop.type))
+  }
+  let seed = hashLandmark(landmarkName)
+  const rng = () => {
+    seed = (seed * 16807) % 2147483647
+    return seed / 2147483647
+  }
+  return eligible.filter(shop => rng() < shop.spawnChance)
 }
 
 /**
