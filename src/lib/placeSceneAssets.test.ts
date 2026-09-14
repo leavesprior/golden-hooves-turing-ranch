@@ -76,21 +76,25 @@ assert.equal(oakCamp.readUInt32BE(20), 180)
 
 // The public-host middleware supplies an additional policy in standalone
 // deployments. Every active policy must allow the frame; localhost skips it.
-const oldCanary = process.env.LAN_CANARY
-try {
-  delete process.env.LAN_CANARY
-  const response = middleware(new NextRequest('https://bobr.example/explore?town=west_point', {
-    headers: { host: 'bobr.example' },
-  }))
-  const policy = response.headers.get('content-security-policy') ?? ''
-  const directive = (name: string) => policy.split(';').map(value => value.trim()).find(value => value.startsWith(`${name} `))
-  assert.equal(directive('frame-src'), 'frame-src https://www.google.com/maps/embed', 'public middleware permits only the official embed path')
-  assert.equal(directive('default-src'), "default-src 'self'")
-  assert.equal(directive('connect-src'), "connect-src 'self'")
-  assert.equal(directive('frame-ancestors'), "frame-ancestors 'none'")
-} finally {
-  if (oldCanary === undefined) delete process.env.LAN_CANARY
-  else process.env.LAN_CANARY = oldCanary
+async function verifyPublicPolicy() {
+  const oldCanary = process.env.LAN_CANARY
+  try {
+    delete process.env.LAN_CANARY
+    const response = await middleware(new NextRequest('https://bobr.example/explore?town=west_point', {
+      headers: { host: 'bobr.example' },
+    }))
+    const policy = response.headers.get('content-security-policy') ?? ''
+    const directive = (name: string) => policy.split(';').map(value => value.trim()).find(value => value.startsWith(`${name} `))
+    assert.equal(directive('frame-src'), 'frame-src https://www.google.com/maps/embed', 'public middleware permits only the official embed path')
+    assert.equal(directive('default-src'), "default-src 'self'")
+    assert.equal(directive('connect-src'), "connect-src 'self'")
+    assert.equal(directive('frame-ancestors'), "frame-ancestors 'none'")
+  } finally {
+    if (oldCanary === undefined) delete process.env.LAN_CANARY
+    else process.env.LAN_CANARY = oldCanary
+  }
 }
 
-console.log('PlaceScene assets: canonical aliases, unsupported fallback, official embed/map coordinate parity, public middleware CSP, property-photo identity and fictional 1849 art PASS')
+verifyPublicPolicy().then(() => {
+  console.log('PlaceScene assets: canonical aliases, unsupported fallback, official embed/map coordinate parity, public middleware CSP, property-photo identity and fictional 1849 art PASS')
+}).catch(error => { console.error(error); process.exitCode = 1 })
