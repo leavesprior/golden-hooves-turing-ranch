@@ -11,6 +11,8 @@ import {
 } from '@/lib/goldCountryEditorial'
 import { townAsciiInterior } from '@/lib/overlay/townAsciiInterior'
 import { PlacePictureLift } from '@/components/PlacePictureLift'
+import { PlaceScene } from '@/components/PlaceScene'
+import { placeSceneFor, type PlaceSceneEra } from '@/lib/placeSceneAssets'
 
 export function InteractiveTown({
   town,
@@ -28,7 +30,9 @@ export function InteractiveTown({
     isSecretUnlocked,
   } = useExplorer()
   const { applyKarma } = useKarma()
-  const art = editorialForExplorePlace(town.id)
+  const scene = placeSceneFor(town.id)
+  const art = scene?.historical.src ?? editorialForExplorePlace(town.id)
+  const [sceneEra, setSceneEra] = useState<PlaceSceneEra>('1849')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [npcLine, setNpcLine] = useState<string | null>(null)
 
@@ -56,6 +60,7 @@ export function InteractiveTown({
   const enterBuilding = (attractionId: string) => {
     const a = byId.get(attractionId)
     if (!a || a.period === 'later') return
+    setSceneEra('1849')
     visitTown(town.id)
     if (!isAttractionVisited(a.id)) {
       visitAttraction(a.id, town.id)
@@ -66,6 +71,7 @@ export function InteractiveTown({
   }
 
   const talkNpc = (line: string, name: string) => {
+    setSceneEra('1849')
     applyKarma('gold_country_explore', `Talked with ${name} in ${town.name}`, 0, -2)
     setNpcLine(`${name}: “${line}”`)
     setSelectedId(null)
@@ -84,7 +90,7 @@ export function InteractiveTown({
         </button>
       </header>
 
-      <div className="relative min-h-0 flex-1">
+      <PlaceScene placeId={town.id} era={sceneEra} onEraChange={setSceneEra}>
         {interior ? (
           <pre
             data-testid={interior.testid}
@@ -95,7 +101,8 @@ export function InteractiveTown({
         ) : art ? (
           <PlacePictureLift src={art} className="absolute inset-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={art} alt="" className="absolute inset-0 h-full w-full object-contain object-center" />
+            <img src={art} alt={scene?.historical.alt ?? ''} className="absolute inset-0 h-full w-full object-contain object-center"
+              style={scene?.historical.pixelated ? { imageRendering: 'pixelated' } : undefined} />
           </PlacePictureLift>
         ) : (
           <div className="absolute inset-0 bg-[#16130f]" />
@@ -117,7 +124,7 @@ export function InteractiveTown({
                   ? 'border-emerald-500/70 bg-black/70 text-emerald-200'
                   : 'border-amber-400/80 bg-black/75 text-[#e8dcc4]'
               }`}
-              style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
+              style={{ left: `${town.id === 'bobr_ranch' && spot.attractionId === 'bobr_campfire' ? 47 : spot.x}%`, top: `${town.id === 'bobr_ranch' && spot.attractionId === 'bobr_campfire' ? 74 : spot.y}%` }}
             >
               <span aria-hidden>{a.icon}</span>
               <span className="ml-1 hidden sm:inline">{a.name}</span>
@@ -138,7 +145,7 @@ export function InteractiveTown({
             Talk<span className="hidden sm:inline"> · {npc.name}</span>
           </button>
         ))}
-      </div>
+      </PlaceScene>
 
       <aside className="max-h-[38vh] overflow-y-auto border-t border-[rgba(232,220,196,0.12)] bg-[#0e0c0a] px-4 py-3">
         {npcLine && <p className="mb-3 font-serif text-sm italic text-[#e8dcc4]">{npcLine}</p>}
