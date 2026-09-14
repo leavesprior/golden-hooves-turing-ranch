@@ -9,6 +9,9 @@ import { hasAnyCharacter } from '@/lib/sharedCharacter'
 import { KarmaToastContainer, HouseRulesQuiz } from '@/components/karma'
 import { interestHref, nextInterest } from '@/lib/overlay/interest-next'
 import { readExplorerVisits } from '@/app/explore/explorerContext'
+import BookStayButton from '@/components/pixel/BookStayButton'
+import { readArcadeAccess } from '@/lib/arcadeFirstLevel'
+import { hasExploreQr } from '@/lib/exploreQrGate'
 
 /** One quiet row in More — depth stays, first paint does not. */
 function MoreRow({ href, title, note, locked, lockHint }: {
@@ -36,6 +39,8 @@ export default function HubPage() {
   const { isUnlocked, unlockToasts, dismissUnlockToast } = useCrossGame()
   const [showQuiz, setShowQuiz] = useState(false)
   const [hasCharacter, setHasCharacter] = useState(false)
+  const [trailComplete, setTrailComplete] = useState(false)
+  const [exploreOpen, setExploreOpen] = useState(false)
   const [visits, setVisits] = useState<{ visitedTownIds: string[]; lastTownId?: string }>({ visitedTownIds: [] })
 
   const ranchHuntUnlocked = isUnlocked('ranch_treasure_hunt')
@@ -44,6 +49,9 @@ export default function HubPage() {
   useEffect(() => {
     setHasCharacter(hasAnyCharacter())
     setVisits(readExplorerVisits())
+    // Presentation only: retain the existing local progression and QR gates.
+    try { setTrailComplete(readArcadeAccess().trailComplete) } catch { setTrailComplete(false) }
+    setExploreOpen(hasExploreQr())
   }, [])
 
   const visitedTownIds = visits.visitedTownIds
@@ -103,11 +111,9 @@ export default function HubPage() {
               Play this first. The rest of the land waits behind it.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
+              <BookStayButton size="md">Book</BookStayButton>
               <Link href="/oregon-trail" className="west-face-pill west-face-pill-cream" data-testid="hub-play-trail">
                 Play the trail
-              </Link>
-              <Link href="/explore" className="west-face-pill" data-testid="hub-walk-map">
-                Walk the map
               </Link>
             </div>
             {!interest.done && interest.trailWord && !interest.named && (
@@ -123,14 +129,16 @@ export default function HubPage() {
           </div>
         </article>
 
-        <details className="west-face-paper mt-8" data-testid="hub-more">
+        {(trailComplete || exploreOpen) && <details className="west-face-paper mt-8" data-testid="hub-more">
           <summary className="west-face-eyebrow min-h-11 cursor-pointer">More on this land</summary>
           <p className="west-face-body mt-3">
             The depth is still here. It does not all have to be the first door.
           </p>
           <div className="mt-2">
             <MoreRow href="/oregon-trail" title="Golden Frog Trail · 1849" note="The wagon road. One Play button from the door above." />
-            <MoreRow href="/explore" title="Gold Country Explorer" note="West Point, Volcano, Angels Camp — walk the real towns." />
+            <MoreRow href={exploreOpen ? '/explore' : undefined} title="Gold Country Explorer" note="West Point, Volcano, Angels Camp — walk the real towns." locked={!exploreOpen} lockHint="The ranch-house QR opens the full map. Town readings remain along the trail." />
+            {exploreOpen && <Link href="/explore" className="west-face-pill mt-3 inline-flex items-center" style={{ minHeight: 44 }} data-testid="hub-walk-map">Walk the map</Link>}
+            {trailComplete && <>
             <MoreRow
               href={hasCharacter ? '/adventure/play' : '/adventure/character-creation'}
               title="The Diggings · 1852"
@@ -157,6 +165,7 @@ export default function HubPage() {
               lockHint="Find the key during your stay."
             />
             <MoreRow title="Cynthia’s Inn" note="The crossroads tavern. Coming when the trail can carry it." locked lockHint="Coming. Not a first door." />
+            </>}
           </div>
 
           <div className="west-face-footer mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -174,14 +183,13 @@ export default function HubPage() {
               Last on the land: {karma.history[0]?.description}
             </p>
           )}
-        </details>
+        </details>}
       </main>
 
       <footer className="west-face-footer mx-auto max-w-3xl px-6 pb-10">
         <p>West Point, Volcano, and Angels Camp are real Gold Country towns. The ranch sits among them.</p>
         <p className="mt-2">
-          <Link href="/explore" className="hover:text-[#f3ead8]">Walk the map</Link>
-          <span className="mx-2 opacity-50">·</span>
+          {exploreOpen && <><Link href="/explore" className="hover:text-[#f3ead8]">Walk the map</Link><span className="mx-2 opacity-50">·</span></>}
           <Link href="/rentals" className="hover:text-[#f3ead8]">If you stay</Link>
         </p>
       </footer>

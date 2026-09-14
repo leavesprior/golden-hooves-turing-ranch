@@ -10,7 +10,7 @@
  * Answer correctly and you cross for free. Ask about swallows and... well.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import type { CharacterBackground } from '../characterContext'
 import { PlayerPortrait } from './PlayerPortrait'
 import {
@@ -19,6 +19,7 @@ import {
   BRIDGE_KEEPER_SUCCESS,
   BRIDGE_KEEPER_SWALLOW_REVERSAL,
   checkBridgeAnswer,
+  isBridgeSwallowReversal,
   type BridgeQuestion,
 } from '../data/adamsEasterEggs'
 
@@ -41,6 +42,8 @@ interface BridgeKeeperProps {
   introLines?: string[]
   /** Optional approach-button label. */
   approachLabel?: string
+  /** Optional transcript for the local backroom. Ordinary river outcomes are unchanged. */
+  onAnswersComplete?: (answers: readonly string[]) => void
 }
 
 type Phase = 'intro' | 'questioning' | 'success' | 'failure' | 'reversal'
@@ -54,6 +57,7 @@ export function BridgeKeeper({
   questions: questionsOverride,
   introLines,
   approachLabel = 'Approach the Bridge',
+  onAnswersComplete,
 }: BridgeKeeperProps) {
   const introPool = introLines && introLines.length > 0 ? introLines : BRIDGE_KEEPER_INTRO
   const [phase, setPhase] = useState<Phase>('intro')
@@ -63,6 +67,7 @@ export function BridgeKeeper({
     introPool[Math.floor(Math.random() * introPool.length)]
   )
   const [questionsAsked, setQuestionsAsked] = useState<BridgeQuestion[]>([])
+  const submittedAnswers = useRef<string[]>([])
 
   // Select 3 random questions (always include name and quest, then one random).
   // When an override set is supplied (dp-bridge-variant), pose it verbatim.
@@ -82,6 +87,7 @@ export function BridgeKeeper({
   const [questions] = useState(() => getQuestions())
 
   const handleStartQuestions = () => {
+    submittedAnswers.current = []
     setPhase('questioning')
     setDialogue(questions[0].question)
     setQuestionsAsked([questions[0]])
@@ -90,12 +96,10 @@ export function BridgeKeeper({
   const handleSubmitAnswer = () => {
     const currentQuestion = questions[currentQuestionIndex]
     const isCorrect = checkBridgeAnswer(currentQuestion, answer, playerName)
+    submittedAnswers.current[currentQuestionIndex] = answer
 
     // Special case: asking about swallow type reverses the encounter
-    if (currentQuestion.isSwallowQuestion &&
-        (answer.toLowerCase().includes('african') ||
-         answer.toLowerCase().includes('european') ||
-         answer.toLowerCase().includes('what do you mean'))) {
+    if (isBridgeSwallowReversal(currentQuestion, answer)) {
       setPhase('reversal')
       setDialogue(BRIDGE_KEEPER_SWALLOW_REVERSAL[
         Math.floor(Math.random() * BRIDGE_KEEPER_SWALLOW_REVERSAL.length)
@@ -126,6 +130,7 @@ export function BridgeKeeper({
 
   const handleContinue = () => {
     if (phase === 'success' || phase === 'reversal') {
+      onAnswersComplete?.([...submittedAnswers.current])
       onSuccess()
     } else if (phase === 'failure') {
       onFailure()

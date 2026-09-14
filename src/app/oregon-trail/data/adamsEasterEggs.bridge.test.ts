@@ -2,7 +2,7 @@
  * Kansas always keeps the Bridge of Death on L1.
  *   npx tsx src/app/oregon-trail/data/adamsEasterEggs.bridge.test.ts
  */
-import { shouldShowBridgeKeeper, checkBridgeAnswer, BRIDGE_QUESTIONS } from './adamsEasterEggs'
+import { shouldShowBridgeKeeper, checkBridgeAnswer, isBridgeSwallowReversal, BRIDGE_QUESTIONS, BRIDGE_QUESTIONS_OTHER_SERIES } from './adamsEasterEggs'
 
 let passed = 0
 let failed = 0
@@ -35,6 +35,14 @@ ok(nameQ.wrongAnswerEffect !== 'none', 'wrong name throws the player')
 
 const swallow = BRIDGE_QUESTIONS.find((q) => q.isSwallowQuestion)!
 ok(checkBridgeAnswer(swallow, 'African or European?') === true, 'swallow reversal still works')
+for (const questions of [BRIDGE_QUESTIONS, BRIDGE_QUESTIONS_OTHER_SERIES]) {
+  const question = questions.find(q => q.isSwallowQuestion)!
+  for (const answer of ['African?', 'European?', 'African or European?', 'WHAT DO YOU MEAN?']) {
+    ok(isBridgeSwallowReversal(question, answer), 'existing single or combined swallow answer reverses the Keeper')
+  }
+  ok(!isBridgeSwallowReversal(question, '42'), 'unrelated answer does not reverse the Keeper')
+}
+ok(!isBridgeSwallowReversal(nameQ, 'African?'), 'non-swallow question cannot reverse the Keeper')
 
 if (failed) {
   console.error(`${failed} failed, ${passed} passed`)

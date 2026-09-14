@@ -19,8 +19,8 @@ export default function PixelNavigation() {
               href="/oregon-trail"
               className="text-[14px] sm:text-[17px] font-medium text-[var(--pixel-ui-text)] hover:text-[var(--pixel-gold-light)] transition-colors min-h-11 inline-flex items-center px-1"
             >
-              Play
-              <span className="hidden sm:inline">&nbsp;Golden Frog Trail</span>
+              <span className="sm:hidden">Play trail</span>
+              <span className="hidden sm:inline">Play Golden Frog Trail</span>
             </Link>
             <BookStayButton size="md" />
           </div>

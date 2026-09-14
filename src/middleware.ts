@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { allowLocalBackendRequest, localBackendConfig, localBackendRoute, LOCAL_BRIDGE_COOKIE } from './lib/localBackendAccess'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || ''
   // LAN_CANARY=1 marks a plain-HTTP LAN canary (next start on the LAN): HSTS +
   // upgrade-insecure-requests would force subresources onto a nonexistent https
@@ -9,15 +10,17 @@ export function middleware(request: NextRequest) {
   const isLanCanary = process.env.LAN_CANARY === '1'
   const isLocalhost = isLanCanary || host.startsWith('localhost') || host.startsWith('127.0.0.1')
 
-  // Timesheets (Micah/Danna worker hours = financial data) must NOT be readily
-  // available. Gate /worker* and /api/worker* behind an explicit env flag — off by
-  // default returns a bare 404 (does not even reveal the route exists). Whoever needs
-  // it sets WORKER_TIMESHEETS_ENABLED=true in that environment. The CCA Trainer
-  // (public/neoma/cca-trainer.html) is a separate area and is unaffected.
   const path = request.nextUrl.pathname
-  const isTimesheetRoute = path === '/worker' || path.startsWith('/worker/') || path.startsWith('/api/worker')
-  if (isTimesheetRoute && process.env.WORKER_TIMESHEETS_ENABLED !== 'true') {
-    return new NextResponse('Not Found', { status: 404 })
+  // The explicit encoded-path matcher below also observes encoded image names.
+  // Preserve the original asset bypass for those that are not backend aliases.
+  if (path.includes('%') && /\.(?:svg|png|jpg|jpeg|gif|webp)$/.test(path) && !localBackendRoute(path)) return NextResponse.next()
+  // Backend tools stay off public hosts even if flags are accidentally enabled.
+  // Exact loopback + configured flags + a short-lived signed Bridge grant for
+  // worker/slides. This is local progression, not user authentication or LAN access.
+  if (!await allowLocalBackendRequest({ path, url: request.url, host,
+    method: request.method, requestOrigin: request.headers.get('origin'),
+    cookie: request.cookies.get(LOCAL_BRIDGE_COOKIE)?.value, config: localBackendConfig(process.env) })) {
+    return new NextResponse('Not Found', { status: 404, headers: { 'Cache-Control': 'no-store' } })
   }
 
   // Direct-booking preview (wrong-county TOT lived here). Off in production
@@ -35,18 +38,8 @@ export function middleware(request: NextRequest) {
     return new NextResponse('Not Found', { status: 404 })
   }
 
-  // /dm-table is the "secret" local-only Neoma DM entrance. Its own header
-  // declares NEVER-MAIN, yet it reached main. Gate it to a bare 404 in every
-  // environment unless DM_TABLE_ENABLED=true is explicitly set (mirrors the
-  // /worker gate). It is reached only by direct URL (no public links), so the
-  // 404 breaks nothing visible. Note: /api/neoma/chat is deliberately NOT gated
-  // here — the shipped oregon-trail WitnessDialogue and NpcChat depend on it;
-  // 404ing it would break live game dialogue. Its abuse/rate-limit hardening is
-  // tracked separately.
-  const isDmTableRoute = path === '/dm-table' || path.startsWith('/dm-table/')
-  if (isDmTableRoute && process.env.DM_TABLE_ENABLED !== 'true') {
-    return new NextResponse('Not Found', { status: 404 })
-  }
+  // /api/neoma/chat deliberately remains available: ordinary trail witnesses
+  // and NpcChat use it. Unrelated Neoma/trainer assets are also unaffected.
 
   // Note: HTTPS redirect is handled by Railway's edge proxy.
   // Doing it here breaks Railway's internal healthcheck (HTTP with x-forwarded-proto: http).
@@ -59,6 +52,10 @@ export function middleware(request: NextRequest) {
   }
 
   const response = NextResponse.next()
+  if (localBackendRoute(path)) {
+    response.headers.set('Cache-Control', 'private, no-store')
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+  }
 
   // Security headers (applied via middleware since standalone mode
   // does not reliably serve next.config.ts headers())
@@ -77,6 +74,13 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/dm-table/:path*',
+    '/worker/:path*',
+    '/api/worker/:path*',
+    '/api/local-backend/:path*',
+    '/neoma/neoma-slides.pdf',
+    // Encoded protected aliases must not escape via the normal asset exclusions.
+    '/((?!_next/static|_next/image).*%.*)',
     /*
      * Match all request paths except:
      * - _next/static (static files)

@@ -534,6 +534,13 @@ export function shouldShowBridgeKeeper(input: {
   return roll < 0.15
 }
 
+/** Existing Keeper reversal rule, shared with the local Bridge grant validator. */
+export function isBridgeSwallowReversal(question: BridgeQuestion, answer: string): boolean {
+  const lowerAnswer = answer.toLowerCase()
+  return Boolean(question.isSwallowQuestion) &&
+    ['african', 'european', 'what do you mean'].some(phrase => lowerAnswer.includes(phrase))
+}
+
 /**
  * Check if a bridge crossing question answer is correct
  */

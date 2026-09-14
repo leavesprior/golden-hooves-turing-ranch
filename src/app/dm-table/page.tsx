@@ -40,7 +40,9 @@ const DP_SESSION_MS = 260_000
 const SLOT_KEY = 'dp_dmtable_slot' // localStorage: { id, expiresAt } — one invite at a time
 const MYID_KEY = 'dp_dmtable_myid' // sessionStorage: this tab's stable claim id
 
-type Phase = 'checking' | 'denied' | 'bridge' | 'intro' | 'table' | 'expired'
+type Phase = 'checking' | 'denied' | 'bridge' | 'granting' | 'grant_error' | 'intro' | 'table' | 'expired'
+
+type LocalGrant = { expiresAt: number; workerEnabled: boolean; slidesEnabled: boolean }
 
 interface Slot {
   id: string
@@ -78,6 +80,8 @@ export default function DmTablePage() {
   const [phase, setPhase] = useState<Phase>('checking')
   const [remaining, setRemaining] = useState(DP_SESSION_MS)
   const [karma, setKarma] = useState(0)
+  const [grant, setGrant] = useState<LocalGrant | null>(null)
+  const bridgeAnswers = useRef<readonly string[]>([])
   const timersRef = useRef<{ kick?: ReturnType<typeof setTimeout>; tick?: ReturnType<typeof setInterval> }>({})
 
   const toHub = useCallback(() => {
@@ -129,20 +133,43 @@ export default function DmTablePage() {
   const mmss = `${Math.floor(remaining / 60000)}:${String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0')}`
 
   // --- Bridge outcomes ---
-  const onBridgeSuccess = () => setPhase('intro')
+  const onBridgeSuccess = async () => {
+    setPhase('granting')
+    setGrant(null)
+    try {
+      const response = await fetch('/api/local-backend/bridge', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: bridgeAnswers.current }),
+      })
+      if (!response.ok) throw new Error('Local door closed')
+      const result = await response.json() as LocalGrant
+      if (!Number.isFinite(result.expiresAt) || result.expiresAt <= Date.now()) throw new Error('Passage expired')
+      setGrant({ expiresAt: result.expiresAt, workerEnabled: result.workerEnabled === true, slidesEnabled: result.slidesEnabled === true })
+      setPhase('intro')
+    } catch { setPhase('grant_error') }
+  }
   const onBridgeChasm = () => {
     // Wrong answer → "launched into the chasm" → back to /hub.
     toHub()
   }
 
-  if (phase === 'checking' || phase === 'expired') {
+  if (phase === 'checking' || phase === 'expired' || phase === 'granting') {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <p className="font-pixel text-emerald-400 text-sm animate-pulse">
-          {phase === 'expired' ? 'The window closes. Returning to the hub…' : 'Approaching the dark…'}
+          {phase === 'expired' ? 'The window closes. Returning to the hub…' : phase === 'granting' ? 'The Keeper checks your passage…' : 'Approaching the dark…'}
         </p>
       </div>
     )
+  }
+
+  if (phase === 'grant_error') {
+    return <main className="min-h-screen bg-black p-6 flex flex-col items-center justify-center gap-5 text-emerald-200" data-testid="local-bridge-error">
+      <p role="alert">The local door did not open. You can try the Keeper again.</p>
+      <button type="button" className="west-face-pill" style={{ minHeight: 44 }} onClick={() => setPhase('bridge')}>Try the Keeper again</button>
+      <button type="button" className="west-face-pill" style={{ minHeight: 44 }} onClick={toHub}>Back to the hub</button>
+    </main>
   }
 
   if (phase === 'denied') {
@@ -166,7 +193,10 @@ export default function DmTablePage() {
   }
 
   if (phase === 'intro') {
-    return <DontPanicIntro onEnter={() => setPhase('table')} />
+    return <DontPanicIntro onEnter={() => {
+      if (grant && grant.expiresAt > Date.now()) setPhase('table')
+      else toHub()
+    }} />
   }
 
   // phase === 'bridge' → the Keeper (rendered over black), or 'table' → the DM room.
@@ -184,7 +214,8 @@ export default function DmTablePage() {
           questions={BRIDGE_QUESTIONS_OTHER_SERIES}
           introLines={BRIDGE_KEEPER_OTHER_SERIES_INTRO}
           approachLabel="Approach the Secret Bridge"
-          onSuccess={onBridgeSuccess}
+          onAnswersComplete={answers => { bridgeAnswers.current = answers }}
+          onSuccess={() => { void onBridgeSuccess() }}
           onFailure={onBridgeChasm}
           onCancel={toHub}
         />
@@ -200,7 +231,7 @@ export default function DmTablePage() {
               The DM Table
             </h1>
             <p className="text-emerald-200/70 text-xs mt-2 max-w-md mx-auto leading-relaxed">
-              You are on your own secure home ground now, so Neoma greets you under a
+              The local table is open, and Neoma greets you under a
               <span className="text-cyan-300"> spell of communication</span>. The mountain&apos;s
               words arrive as gestures — read them the way you read a friend across a
               crowded, noisy galaxy.
@@ -211,6 +242,16 @@ export default function DmTablePage() {
               {karma}
             </p>
           </header>
+
+          {grant && grant.expiresAt > Date.now() && (grant.workerEnabled || grant.slidesEnabled) && (
+            <nav aria-label="Local tools" className="mb-6 flex flex-wrap gap-3" data-testid="local-backend-links">
+              {grant.slidesEnabled && <a href="/neoma/neoma-slides.pdf" target="_blank" rel="noopener noreferrer" className="west-face-pill inline-flex items-center" style={{ minHeight: 44 }} data-testid="local-backend-slides">Slides</a>}
+              {grant.workerEnabled && <>
+                <a href="/worker" className="west-face-pill inline-flex items-center" style={{ minHeight: 44 }} data-testid="local-backend-worker">Mike Fisher’s tracker</a>
+                <a href="/worker/danna" className="west-face-pill inline-flex items-center" style={{ minHeight: 44 }} data-testid="local-backend-danna">Danna’s tracker</a>
+              </>}
+            </nav>
+          )}
 
           <NpcChat
             characterId="volcano"
