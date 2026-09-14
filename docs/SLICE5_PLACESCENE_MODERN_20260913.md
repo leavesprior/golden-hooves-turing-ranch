@@ -99,3 +99,25 @@ passed (zero lint errors, 471 warnings). An initial production browser run used
 a string-form wait helper blocked by the production CSP. The harness now uses a
 function predicate; the application's CSP was not weakened. The failed run is
 preserved in `artifacts/place-scene/browser-production/`.
+
+### Public-host policy verification
+
+Review found that `src/middleware.ts` applies a separate CSP on public hosts.
+That policy also needs the exact `https://www.google.com/maps/embed` frame
+allowance; the initial localhost browser cases did not exercise it. The public
+middleware now permits that path while retaining its existing self-only default
+and connection policies and `frame-ancestors 'none'`. The asset suite exercises
+the actual middleware with a public-host `NextRequest` to prevent recurrence.
+
+All seven strict browser cases then passed again through a loopback HTTPS proxy
+on port 3366, forwarding to the normal production build on 3353 with
+`Host: bobr.example`. Every document's actual response policy was checked and
+saved alongside the screenshots in `artifacts/place-scene/browser-public-csp/`.
+Google branding, copyright and Terms loaded and remained uncovered on desktop
+and 390px screens. No uncaught page errors occurred. This verifies public-host
+headers against a local production build; it is not a claim about a deployed
+production host.
+
+The harness uses `BOBR_BROWSER_LOCAL_TLS=1` for the disposable local certificate
+and `BOBR_BROWSER_PUBLIC_CSP=1` to require the public middleware policy. Its final
+SHA-256 is `83bc5914896d9c3a0a0ef50286ac89947503f1df3613a2d6c2431acbf115a39e`.

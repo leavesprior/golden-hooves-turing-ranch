@@ -167,7 +167,7 @@ async function run() {
     for (const scenario of scenarios) {
       const id = `${scenario.place}-${scenario.phone ? 'phone390' : 'desktop'}${scenario.blocked ? `-blocked-${scenario.blocked}` : ''}`
       if (process.argv[4] && !new RegExp(process.argv[4]).test(id)) continue
-      const context = await browser.newContext({ viewport: scenario.phone ? { width: 390, height: 844 } : { width: 1365, height: 960 }, isMobile: Boolean(scenario.phone), hasTouch: Boolean(scenario.phone), serviceWorkers: 'block' })
+      const context = await browser.newContext({ viewport: scenario.phone ? { width: 390, height: 844 } : { width: 1365, height: 960 }, isMobile: Boolean(scenario.phone), hasTouch: Boolean(scenario.phone), serviceWorkers: 'block', ignoreHTTPSErrors: process.env.BOBR_BROWSER_LOCAL_TLS === '1' })
       const page = await context.newPage()
       page.setDefaultTimeout(30000)
       const errors: string[] = []
@@ -187,7 +187,13 @@ async function run() {
       await seed(page)
       const evidence: Record<string, unknown> = { id, scenario, base, browser: browser.version() }
       try {
-        await page.goto(`${base}/explore?town=${scenario.place}`, { waitUntil: 'domcontentloaded', timeout: 120000 })
+        const documentResponse = await page.goto(`${base}/explore?town=${scenario.place}`, { waitUntil: 'domcontentloaded', timeout: 120000 })
+        if (process.env.BOBR_BROWSER_PUBLIC_CSP === '1') {
+          const policy = documentResponse?.headers()['content-security-policy'] ?? ''
+          assert.match(policy, /frame-src https:\/\/www\.google\.com\/maps\/embed;/)
+          assert.match(policy, /frame-ancestors 'none'/, 'exercise public middleware, not the localhost exception')
+          await writeFile(`${output}/${id}-response-csp.txt`, policy)
+        }
         const town = page.getByTestId('explore-town-face')
         await town.waitFor({ state: 'visible', timeout: 120000 })
         assert.equal(await town.getAttribute('data-town'), scenario.place)
