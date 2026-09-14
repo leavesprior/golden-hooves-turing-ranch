@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "verified_at_utc": "2026-09-14T05:36:24.273402+00:00",
+  "code_commit": "e2f1b7fe8fa99fd069f763b663aba8e1cd338f69",
+  "integrated_main": "db6b9d264fdae430e13c1e020bdc58ed4f0ac690",
+  "checked_tree": "afb9f5a2db7b3d41211cd5d988282e7d94f998f4",
+  "build_id": "Bcc1nWQcFaTdNHl4L62Sn",
+  "runtime": {
+    "node": "v20.19.0",
+    "npm": "11.12.1",
+    "chrome": "151.0.7922.71"
+  },
+  "checks": {
+    "test": {
+      "command": "npm test",
+      "exit_code": 0,
+      "log_sha256": "ea1e98b38a8613e9f470c68e21774d15196593ad556d2ebd8be266179f2773c2",
+      "local_log": "artifacts/live-saddle-teamster/integrated-test.log"
+    },
+    "lint": {
+      "command": "npm run lint",
+      "exit_code": 0,
+      "log_sha256": "895bb169cffdb446e00d3beb7a39e67479a8292a27d59ec056660d543ee489db",
+      "local_log": "artifacts/live-saddle-teamster/integrated-lint.log",
+      "errors": 0,
+      "warnings": 460
+    },
+    "types": {
+      "command": "npx tsc --noEmit --incremental false",
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "local_log": "artifacts/live-saddle-teamster/integrated-types.log"
+    },
+    "build": {
+      "command": "npm run build",
+      "exit_code": 0,
+      "log_sha256": "d5df27708dd122cc3b54ea3d4f011ffdcb67174e30ba27042c97c751a654e291",
+      "local_log": "artifacts/live-saddle-teamster/integrated-build.log"
+    }
+  },
+  "production_browser": {
+    "passed": 18,
+    "total": 18,
+    "page_errors": 0,
+    "screenshots": 30,
+    "source_hashes_unchanged": true,
+    "local_result": "artifacts/live-saddle-teamster/production-integrated/results.json",
+    "result_sha256": "197be582c4b3a4e31793026cd50eb441fb58fd4684bad511557185be0a70e977",
+    "harness_sha256": "f9e0e4a4570e875b3d6bf677d6fb4e87eebacda68091df1438f98f0ba0e7817d"
+  },
+  "react_provider_slot_loader": {
+    "passed": 8,
+    "total": 8,
+    "page_errors": 0,
+    "source_hashes_unchanged": true,
+    "actual_trail_wallet_and_save_loader": true,
+    "controlled_adapters": [
+      "auth identity",
+      "save callback registration",
+      "mystery",
+      "network"
+    ],
+    "local_result": "artifacts/live-saddle-teamster/provider-integrated/results.json",
+    "result_sha256": "8ae7cee68aa67be1bc806647d7a194a2a51d7dae2763913e6816e52ec79d5830",
+    "harness_sha256": "8c67178e47760aa0251833db9afe5ca90c36945e0a6cdc01e83922aa70d45825"
+  },
+  "source_sha256": {
+    "package.json": "2cd947cf9d63a03a0d916b979146bfb5b0065718f14b1e94d1ce8f983cd090d5",
+    "src/app/oregon-trail/components/CharacterSheet.tsx": "74764f463e04f65880c896844a2426d6703e5a75e9a7fa216c76dc763ca4588d",
+    "src/app/oregon-trail/data/riverCrossings.ts": "337ca84d1d828f1883a2426288e39dd51ec9d77640c3ab6e3cbda38904470a40",
+    "src/app/oregon-trail/data/riverDurability.test.ts": "84b589732f79596f6e0ce35fd58fba30675bec0a065abdf87b8d8b255d0c79b3",
+    "src/app/oregon-trail/karmaWalletContext.tsx": "ae03f8d1945de64eccba5620a4e8bea0da984a5c947604db878bd7842cc13fbc",
+    "src/app/oregon-trail/oregonTrailContext.tsx": "f7bc872ce95ccb8dd31918cc9bd0765dae81b58dd8937a703fe97d29ccfc3839",
+    "src/app/oregon-trail/phases/CharacterCreationScreen.tsx": "5ba9421f44a20921d7222cdcdd91a30c6983bacf44b1d03954fd6e26e9fd6483",
+    "src/app/oregon-trail/phases/EventScreen.tsx": "46b4e3b20092ba31c9ec8aca97372fe0e88a2cde2592d09563afd056a1360201",
+    "src/app/oregon-trail/phases/SaveLoadIntegration.tsx": "bc6d5f5051a936e465b4c49b9b81a6a6aa9e84359642956898bcfdef264ef8a6",
+    "src/app/oregon-trail/state/actions.ts": "dc885e05280f94c2263ab4e0ccccb08e9009320fe047ccc0b01563585f26e82a",
+    "src/app/oregon-trail/state/liveSaddle.test.ts": "425fa5341e7db0570de3919fad1bb3748271839249e41f2ec7e95a7bea45768e",
+    "src/app/oregon-trail/state/oxenSaddleTravel.test.ts": "ce4e69d488191c7da47f2fd7136f8197ffd1505faa8b35edc84c65cf28b0e283",
+    "src/app/oregon-trail/state/reducer.ts": "c2bb3dcb139208c16257dc686960c3f13d509c605a11915c1291f7d704b8445c",
+    "src/app/oregon-trail/state/saddleSnapshot.ts": "640f14580f3c4095400c549a723aca7a47de17b804b772c9cf8feb5d4948963d",
+    "src/app/oregon-trail/state/teamsterHire.test.ts": "c2d36e64e4dc6a8fdbcc9f0d3ab554906689b5868ca66ed65fa61bf7af80ff24",
+    "src/app/oregon-trail/state/teamsterHire.ts": "bb40d97faad20ee7e0b3d882931251e95246623e53200ac78a741ffed1eb9c92",
+    "src/app/oregon-trail/state/travelEngine.ts": "6e566ad2d10df6d0c58dd6365aefeefb65f27389dc78ded4378d954224840cf4",
+    "src/app/oregon-trail/state/types.ts": "276c6a7aa299e9f302df043d36b863e9387c2663dd38964f04c9c9275acc3c37",
+    "src/lib/goldCountryFare.ts": "18d788b0f8fdbe76312e4195872dd62e9efc237805f8962cd1bc062704ea6262",
+    "tools/liveSaddleTeamster.browser.ts": "f9e0e4a4570e875b3d6bf677d6fb4e87eebacda68091df1438f98f0ba0e7817d",
+    "tools/teamsterProvider.browser.ts": "8c67178e47760aa0251833db9afe5ca90c36945e0a6cdc01e83922aa70d45825"
+  },
+  "servers": {
+    "3362": "stopped",
+    "3363": "stopped"
+  },
+  "limits": [
+    "Starting SADDLE snapshot only; later trait/gear/level-up changes are not continuously synchronized.",
+    "Existing towel/Hoopy Frood StrictMode duplication is retained as a separate baseline finding.",
+    "Local wallet receipts retain the latest 64 operations; no cross-tab, arbitrary old-slot rollback, server settlement or blockchain authority claim.",
+    "Farm browser recovery uses a labeled prior-completed-campaign fixture; it does not earn completion.",
+    "Authenticated account APIs and public deployment are not exercised."
+  ]
+}

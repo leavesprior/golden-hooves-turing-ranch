@@ -27,12 +27,11 @@ export const NO_OXEN_EVENT: RandomEvent = {
     },
     {
       id: 'hire_teamster',
-      text: 'Pay a teamster to fetch a yoke (two head)',
+      text: 'Hire a teamster: 20 tacos, two oxen, two days',
       outcome: {
         message: 'A teamster brings two head. The purse is lighter. The wagon rolls.',
         oxenDelta: 2,
         daysLost: 2,
-        foodDelta: -20,
       },
     },
     {

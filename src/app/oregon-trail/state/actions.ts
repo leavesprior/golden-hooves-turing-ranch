@@ -14,6 +14,8 @@ import type { GoldCountryTrip } from './goldCountryTrip'
 import type { QuestReward } from '../data/goldCountryNPCs'
 import type { PosseMember } from '../data/posseSystem'
 import type { DmDirective } from '@/lib/dmDirectives'
+import type { SaddleStats } from '../characterContext'
+import type { TeamsterHire } from './teamsterHire'
 
 // === Core Gameplay ===
 
@@ -21,7 +23,7 @@ export type GameAction =
   // Game lifecycle
   | { type: 'START_GAME'; leaderName: string; partyNames: string[] }
   | { type: 'PURCHASE_SUPPLIES'; supplies: { food: number; ammo: number; parts: number; medicine: number; oxen: number } }
-  | { type: 'BEGIN_JOURNEY' }
+  | { type: 'BEGIN_JOURNEY'; saddle?: SaddleStats }
   | { type: 'TRAVEL' }
   | { type: 'RESET_GAME' }
   | { type: 'LOAD_STATE'; savedState: OregonTrailState }
@@ -32,6 +34,9 @@ export type GameAction =
 
   // Events — handleEventChoice calls karma hooks before dispatching
   | { type: 'HANDLE_EVENT_CHOICE'; choiceId: string; outcomeMessageOverride?: string }
+  | { type: 'BEGIN_TEAMSTER_HIRE'; order: TeamsterHire }
+  | { type: 'COMPLETE_TEAMSTER_HIRE'; orderId: string }
+  | { type: 'CANCEL_TEAMSTER_HIRE'; orderId: string }
   | { type: 'HANDLE_DESPERATION_CHOICE'; choiceId: string }
 
   // Hunting

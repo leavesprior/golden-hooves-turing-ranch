@@ -43,7 +43,7 @@ function traveling(over: Partial<OregonTrailState>): OregonTrailState {
 {
   const stuck = traveling({ oxen: 0, currentEvent: NO_OXEN_EVENT, phase: 'event' })
   const hired = gameReducer(stuck, { type: 'HANDLE_EVENT_CHOICE', choiceId: 'hire_teamster' })
-  ok(hired.oxen === 2, `hire_teamster adds two head, got ${hired.oxen}`)
+  ok(hired.oxen === 0, `generic hire_teamster waits for paid order, got ${hired.oxen}`)
 }
 
 {

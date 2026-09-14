@@ -42,6 +42,8 @@ import { isActiveGoldCountryTrip, type GoldCountryTrip, type GoldCountryTripResu
 import { quoteGoldCountryTransport, type GoldCountryTransportMode } from '@/lib/goldCountryTransport'
 import { getRandomEncounter, TRAVEL_ENCOUNTERS } from './data/goldCountryEncounters'
 import { writeLocalTrailAutosave } from './lib/localTrailSave'
+import type { SaddleStats } from './characterContext'
+import { canHireTeamster, readTeamsterHire, TEAMSTER_COST, type TeamsterHireResult } from './state/teamsterHire'
 
 // Re-export types and constants for backward compatibility (28+ consumers import from this file)
 export type { Pace, Rations, Weather, GamePhase, GraphicsTier }
@@ -55,11 +57,12 @@ interface OregonTrailContextValue {
   getCurrentState: () => OregonTrailState
   startGame: (leaderName: string, partyNames: string[]) => void
   purchaseSupplies: (supplies: { food: number; ammo: number; parts: number; medicine: number; oxen: number }) => void
-  beginJourney: () => void
+  beginJourney: (saddle?: SaddleStats) => void
   travel: () => void
   setPace: (pace: Pace) => void
   setRations: (rations: Rations) => void
   handleEventChoice: (choiceId: string, outcomeMessageOverride?: string) => void
+  hireTeamster: () => Promise<TeamsterHireResult>
   hunt: () => void
   drinkGargleBlaster: () => void
   crossRiver: (method: 'ford' | 'ferry' | 'caulk') => void
@@ -200,6 +203,29 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     earnNeutral, earnGood, addBadKarma, spendNeutral, spendTravelFare, hasTravelFareReceipt, isInitialized: walletInitialized,
     recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction,
   } = useKarmaWallet()
+  const teamsterBusy = useRef(false)
+
+  const hireTeamster = useCallback(async (): Promise<TeamsterHireResult> => {
+    if (teamsterBusy.current) return { ok: false, reason: 'busy' }
+    if (!walletInitialized || !canHireTeamster(stateRef.current)) return { ok: false, reason: 'invalid' }
+    teamsterBusy.current = true
+    try {
+      let order = readTeamsterHire(stateRef.current.teamsterHire)
+      if (!order) {
+        order = { version: 1, cost: TEAMSTER_COST,
+          id: `teamster_${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(36).slice(2)}`}` } // safe-mint: local payment replay identity, not a reward or token.
+        // Reuse the trip's existing save-before-accept writer for this order.
+        const saved = commitTripAction({ type: 'BEGIN_TEAMSTER_HIRE', order })
+        if (!saved.ok) return saved
+      }
+      const payment = await spendTravelFare(order.id, order.cost, 'Teamster: two oxen, two days')
+      if (!payment.ok) return payment
+      // A failed completion save leaves the same order and wallet receipt ready
+      // for retry/reload. No oxen or days are accepted until that save succeeds.
+      if (!hasTravelFareReceipt(order.id, order.cost)) return { ok: false, reason: 'conflict' }
+      return commitTripAction({ type: 'COMPLETE_TEAMSTER_HIRE', orderId: order.id })
+    } finally { teamsterBusy.current = false }
+  }, [walletInitialized, commitTripAction, spendTravelFare, hasTravelFareReceipt])
 
   // === Thin dispatch wrappers ===
 
@@ -211,7 +237,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     dispatch({ type: 'PURCHASE_SUPPLIES', supplies })
   }, [dispatch])
 
-  const beginJourney = useCallback(() => dispatch({ type: 'BEGIN_JOURNEY' }), [dispatch])
+  const beginJourney = useCallback((saddle?: SaddleStats) => dispatch({ type: 'BEGIN_JOURNEY', saddle }), [dispatch])
   const travel = useCallback(() => dispatch({ type: 'TRAVEL' }), [dispatch])
   const setPace = useCallback((pace: Pace) => dispatch({ type: 'SET_PACE', pace }), [dispatch])
   const setRations = useCallback((rations: Rations) => dispatch({ type: 'SET_RATIONS', rations }), [dispatch])
@@ -219,8 +245,18 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   // === Karma side-effect wrappers (call hooks BEFORE dispatching) ===
 
   const handleEventChoice = useCallback((choiceId: string, outcomeMessageOverride?: string) => {
-    const currentEvent = state.currentEvent
+    const currentEvent = stateRef.current.currentEvent
     if (!currentEvent) return
+    if (currentEvent.id === 'no_oxen') {
+      if (choiceId === 'hire_teamster' || teamsterBusy.current) return
+      const order = readTeamsterHire(stateRef.current.teamsterHire)
+      if (order) {
+        // Walking/abandoning can cancel an unpaid attempt. A paid order must
+        // finish first, including the microtask between debit and completion.
+        if (hasTravelFareReceipt(order.id, order.cost)) return
+        if (!commitTripAction({ type: 'CANCEL_TEAMSTER_HIRE', orderId: order.id }).ok) return
+      }
+    }
 
     const choice = currentEvent.choices.find(c => c.id === choiceId)
     if (!choice) return
@@ -236,7 +272,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     }
 
     dispatch({ type: 'HANDLE_EVENT_CHOICE', choiceId, outcomeMessageOverride })
-  }, [state.currentEvent, applyKarma, dispatch])
+  }, [applyKarma, dispatch, hasTravelFareReceipt, commitTripAction])
 
   const hunt = useCallback(() => dispatch({ type: 'HUNT' }), [dispatch])
   const drinkGargleBlaster = useCallback(() => dispatch({ type: 'DRINK_GARGLE_BLASTER' }), [dispatch])
@@ -623,6 +659,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     setPace,
     setRations,
     handleEventChoice,
+    hireTeamster,
     hunt,
     drinkGargleBlaster,
     crossRiver,
