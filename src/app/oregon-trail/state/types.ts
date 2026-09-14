@@ -5,6 +5,7 @@ import { type NPCRelationship } from '../data/npcRelationships'
 import { type MarketEvent } from '../data/seasonalMarket'
 
 import type { GoldCountryTrip } from './goldCountryTrip'
+import type { TeamsterHire } from './teamsterHire'
 
 // Core game types
 export type Pace = 'steady' | 'strenuous' | 'grueling'
@@ -198,6 +199,7 @@ export interface OregonTrailState {
   goldCountryDay: number                     // days spent in Gold Country
   goldCountryMinute?: number                 // remaining minutes within that day (legacy default 0)
   goldCountryTrip?: GoldCountryTrip          // one saved journey, including its paid Luck roll
+  teamsterHire?: TeamsterHire                // pending local order; exact wallet receipt permits completion
   completedQuests: string[]                  // IDs of completed quests
   searchedAreas: string[]                    // IDs of searched areas
   inventory: string[]                        // items found during exploration

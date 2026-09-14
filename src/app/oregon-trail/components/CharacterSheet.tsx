@@ -577,12 +577,12 @@ export function CharacterSheet({
             {coldWarning && (
               <p>
                 {'\u{1F976}'} Cold weather! Not enough clothing for the party ({clothing}/{party.length} sets).
-                Members without clothing will lose health.
+                Snow can cost party health.
               </p>
             )}
             {heatWarning && (
               <p>
-                {'\u{1F975}'} Extreme heat ({temp}F)! Party members need extra water rations.
+                {'\u{1F975}'} Extreme heat ({temp}F)! Desert travel and a grueling pace can cost health.
               </p>
             )}
           </div>
@@ -841,14 +841,16 @@ export function CharacterSheet({
             ))}
             {oxen === 0 && (
               <p className="text-red-400 text-xs">
-                {'\u{26A0}'} No oxen! Your wagon cannot move.
+                {'\u{26A0}'} {trailState.wagonAbandoned
+                  ? 'The wagon was left behind. The party continues on foot.'
+                  : 'No oxen! The wagon cannot move. Walk for help or hire a teamster.'}
               </p>
             )}
           </div>
 
           {oxen > 0 && oxen < 2 && (
             <p className="text-yellow-400 text-xs mt-2">
-              {'\u{26A0}'} Low oxen count. Travel speed is reduced.
+              {'\u{26A0}'} One ox strains the wagon and lowers morale.
             </p>
           )}
         </div>

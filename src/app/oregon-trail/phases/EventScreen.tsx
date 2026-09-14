@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { useCharacter } from '../characterContext'
@@ -9,16 +9,20 @@ import { KarmaToastContainer } from '@/components/karma'
 import { getCriticalDescription } from '../data/criticalDescriptions'
 import { getEventVariant } from '../data/statEventVariants'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
+import { hasPaidPendingTeamster } from '../state/teamsterHire'
 
 export interface EventScreenProps {
   setLastStatVariant: (v: { stat: string; threshold: 'high' | 'low' } | null) => void
 }
 
 export function EventScreen({ setLastStatVariant }: EventScreenProps) {
-  const { state, handleEventChoice } = useOregonTrail()
-  const { earnNeutral, spendNeutral, earnGood, addBadKarma } = useKarmaWallet()
+  const { state, handleEventChoice, hireTeamster } = useOregonTrail()
+  const { earnNeutral, spendNeutral, earnGood, addBadKarma, hasTravelFareReceipt, isInitialized } = useKarmaWallet()
   const { getStat } = useCharacter()
   const { comment } = useNarrator()
+  const teamsterClick = useRef(false)
+  const [teamsterBusy, setTeamsterBusy] = useState(false)
+  const [teamsterError, setTeamsterError] = useState('')
 
   // Panning result state for showing roll results
   const [panningResult, setPanningResult] = useState<{
@@ -35,6 +39,23 @@ export function EventScreen({ setLastStatVariant }: EventScreenProps) {
 
     const choice = state.currentEvent.choices.find(c => c.id === choiceId)
     if (!choice) return
+    if (state.currentEvent.id === 'no_oxen') {
+      if (teamsterClick.current) return
+      if (choiceId === 'hire_teamster') {
+        teamsterClick.current = true
+        setTeamsterBusy(true)
+        setTeamsterError('')
+        try {
+          const result = await hireTeamster()
+          if (!result.ok) setTeamsterError(result.reason === 'funds'
+            ? 'You need 20 tacos. No oxen or days were added. You can still walk or leave the wagon.'
+            : result.reason === 'storage'
+              ? 'The hire could not be saved. No oxen or days were added. Retry here; any recorded payment is reused.'
+              : 'The hire is not ready. No oxen or days were added. Wait for the wallet, then retry.')
+        } finally { teamsterClick.current = false; setTeamsterBusy(false) }
+        return
+      }
+    }
 
     // SPECIAL HANDLING: Panning for gold uses dice roll + Luck
     if (state.currentEvent.id === 'found_gold' && choiceId === 'pan') {
@@ -132,12 +153,14 @@ export function EventScreen({ setLastStatVariant }: EventScreenProps) {
       `${state.currentEvent.title}: ${choice.text}`,
       { karmaDelta, locationId: state.currentLandmark?.toLowerCase().replace(/[^a-z]/g, '_'), detail: outcome.message }
     )
-  }, [state.currentEvent, handleEventChoice, earnNeutral, spendNeutral, earnGood, addBadKarma, getStat, comment, setLastStatVariant])
+  }, [state.currentEvent, state.currentLandmark, handleEventChoice, hireTeamster, earnNeutral, spendNeutral, earnGood, addBadKarma, getStat, comment, setLastStatVariant])
 
   if (!state.currentEvent) return null
 
   // Show panning hint for gold event
   const isPanningEvent = state.currentEvent.id === 'found_gold'
+  const isTeamsterEvent = state.currentEvent.id === 'no_oxen'
+  const paidTeamster = hasPaidPendingTeamster(state, hasTravelFareReceipt)
   const luckStat = getStat('Luck')
   const luckMod = Math.floor((luckStat - 10) / 2)
 
@@ -192,13 +215,22 @@ export function EventScreen({ setLastStatVariant }: EventScreenProps) {
         )}
 
         <div className="space-y-3">
+          {isTeamsterEvent && (teamsterError || paidTeamster) && (
+            <p role="status" data-testid="teamster-feedback" className="text-sm text-amber-200">
+              {teamsterError || 'Your 20-taco payment is recorded. Finish the hire to receive two oxen; you will not be charged again.'}
+            </p>
+          )}
           {state.currentEvent.choices.map(choice => {
-            const choiceText = eventVariant?.choiceOverrides?.[choice.id] ?? choice.text
+            const choiceText = isTeamsterEvent && choice.id === 'hire_teamster'
+              ? (teamsterBusy ? 'Saving teamster hire…' : paidTeamster ? 'Finish paid hire: two oxen, two days' : 'Hire a teamster: 20 tacos, two oxen, two days')
+              : eventVariant?.choiceOverrides?.[choice.id] ?? choice.text
             return (
             <button
               key={choice.id}
+              data-testid={`event-choice-${choice.id}`}
+              disabled={isTeamsterEvent && (teamsterBusy || (!isInitialized && choice.id === 'hire_teamster') || (paidTeamster && choice.id !== 'hire_teamster'))}
               onClick={() => handleEventChoiceWithKarma(choice.id)}
-              className="w-full p-3 bg-amber-800/60 hover:bg-amber-700/60 border-2 border-amber-600 rounded text-amber-200 font-pixel text-xs text-left transition-colors"
+              className="w-full p-3 bg-amber-800/60 hover:bg-amber-700/60 disabled:opacity-50 border-2 border-amber-600 rounded text-amber-200 font-pixel text-xs text-left transition-colors"
             >
               {choiceText}
               {((choice.karmaLawful !== undefined && choice.karmaLawful !== 0) || (choice.karmaGood !== undefined && choice.karmaGood !== 0)) && (

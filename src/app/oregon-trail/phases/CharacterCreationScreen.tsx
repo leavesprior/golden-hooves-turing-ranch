@@ -139,7 +139,10 @@ export function CharacterCreationScreen() {
     // adjustment silently no-oped and only background defaults (base 5 +
     // background bonuses, e.g. Pinkerton 7/5/5/5/5/7) ever landed in the
     // character sheet, bobr_ot_character, and skill-check DCs.
-    createCharacter(leaderName, selectedBackground, withBackgroundBonuses(statPoints, selectedBackground))
+    // One finalized object feeds both the saved character and the trail snapshot.
+    // getStat() here would still see the previous render's character.
+    const finalizedStats = withBackgroundBonuses(statsRef.current, selectedBackground)
+    createCharacter(leaderName, selectedBackground, finalizedStats)
 
     if (hasRolled && getTotalStats() >= 70) {
       comment("The dice favor the bold. Or perhaps just the persistent.", 'observation')
@@ -148,7 +151,7 @@ export function CharacterCreationScreen() {
     } else {
       comment("Another hero setting off to bring justice to the frontier. How... optimistic.", 'observation')
     }
-    beginJourney()
+    beginJourney(finalizedStats)
   }
 
   const statDescriptions: Record<StatName, string> = {
@@ -290,7 +293,7 @@ export function CharacterCreationScreen() {
             {(['Shrewdness', 'Agility', 'Durability', 'Diplomacy', 'Luck', 'Expertise'] as StatName[]).map(stat => {
               const bonus = selectedBackground ? (BACKGROUND_BONUSES[selectedBackground][stat] || 0) : 0
               const value = statPoints[stat]
-              const shown = value + bonus
+              const shown = Math.min(18, value + bonus)
               const baseValue = hasRolled ? baseStats[stat] : BASE_STATS[stat]
 
               return (

@@ -50,6 +50,8 @@ import type { PartyRole } from '../data/posseSystem'
 import { getHuntingMessage } from '../data/eventMessages'
 import { migrateGoldCountryTrip } from './goldCountryTrip'
 import { createPassingRecord, hasNewPartyDeath, readPassingRecord } from './passing'
+import { copySaddleSnapshot } from './saddleSnapshot'
+import { canHireTeamster, canRetainTeamsterHire, readTeamsterHire } from './teamsterHire'
 
 /**
  * Save migration (#8): corrupted/legacy saves can carry duplicate party ids
@@ -119,8 +121,10 @@ function reduceGameState(state: OregonTrailState, action: GameAction): OregonTra
       // G7: first wagon west is an Independence arrival, not a skip to generic traveling.
       // Visit count 0 is the prior (G2: pick the line from prior, not count-after-write).
       const first = getTownArrivalMessage('Independence, Missouri', 0)
+      const saddle = copySaddleSnapshot(action.saddle)
       return {
         ...state,
+        ...(saddle ? { saddle } : {}),
         phase: 'town',
         currentLandmark: 'Independence, Missouri',
         message: first?.text ?? 'The jumping-off point. Everything west of here is either adventure or regret—often both.',
@@ -144,6 +148,7 @@ function reduceGameState(state: OregonTrailState, action: GameAction): OregonTra
       // recorded progress). Same migration choke point as the party fix.
       loaded.livingTrail = migrateLivingTrail(loaded.livingTrail)
       if (loaded.passing !== undefined) loaded.passing = readPassingRecord(loaded.passing)
+      loaded.teamsterHire = canRetainTeamsterHire(loaded) ? readTeamsterHire(loaded.teamsterHire) : undefined
       return migrateGoldCountryTrip(loaded)
     }
 
@@ -157,8 +162,26 @@ function reduceGameState(state: OregonTrailState, action: GameAction): OregonTra
 
     // === Events ===
 
+    case 'BEGIN_TEAMSTER_HIRE': {
+      const order = readTeamsterHire(action.order)
+      if (!order || !canHireTeamster(state) || state.teamsterHire) return state
+      return { ...state, teamsterHire: order }
+    }
+    case 'CANCEL_TEAMSTER_HIRE':
+      if (!canHireTeamster(state) || state.teamsterHire?.id !== action.orderId) return state
+      return { ...state, teamsterHire: undefined }
+    case 'COMPLETE_TEAMSTER_HIRE':
+      // The provider verifies the durable receipt before this pure transition.
+      if (!canHireTeamster(state) || state.teamsterHire?.id !== action.orderId) return state
+      return { ...state, teamsterHire: undefined, oxen: state.oxen + 2, day: state.day + 2,
+        phase: 'traveling', currentEvent: null,
+        message: 'A teamster brings two head after two days. You paid 20 tacos. The wagon rolls.' }
+
     case 'HANDLE_EVENT_CHOICE': {
       if (!state.currentEvent) return state
+      // The paid yoke cannot use the ordinary outcome path, including old saves
+      // whose embedded choice still contains a food price and free oxen.
+      if (state.currentEvent.id === 'no_oxen' && (action.choiceId === 'hire_teamster' || state.teamsterHire)) return state
       const choice = state.currentEvent.choices.find(c => c.id === action.choiceId)
       if (!choice) return state
       const outcome = choice.outcome

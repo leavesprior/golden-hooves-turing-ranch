@@ -310,7 +310,10 @@ export function resolveCrossing(
 
 function resolveFord(river: RiverState, stats: Record<StatName, number>, luck: number): CrossingOutcome {
   const agility = stats.Agility || 5
-  const durability = stats.Durability || 5
+  const durability = Number.isFinite(stats.Durability) ? Math.max(1, Math.min(20, stats.Durability)) : 5
+  // Authored game policy: each four points above the baseline five prevents
+  // one point of ford injury. It changes severity, never the roll/outcome/RNG.
+  const injuryReduction = Math.max(0, Math.floor((durability - 5) / 4))
 
   // Base difficulty scales with depth and current
   const difficulty = 10 + Math.floor(river.depth * 2) + Math.floor(river.currentSpeed)
@@ -345,9 +348,9 @@ function resolveFord(river: RiverState, stats: Record<StatName, number>, luck: n
       effects: {
         foodLost: Math.floor(Math.random() * 50) + 30,
         ammoLost: Math.floor(Math.random() * 20) + 10,
-        healthDelta: -20,
+        healthDelta: -Math.max(0, 20 - injuryReduction),
         specificInjury: {
-          damage: 40,
+          damage: Math.max(0, 40 - injuryReduction),
           injuryType: injury
         },
         wagonDamage: 15,
@@ -384,7 +387,7 @@ function resolveFord(river: RiverState, stats: Record<StatName, number>, luck: n
     effects: {
       foodLost: severeLoss ? Math.floor(Math.random() * 40) + 20 : Math.floor(Math.random() * 20) + 10,
       ammoLost: Math.floor(Math.random() * 15),
-      healthDelta: severeLoss ? -15 : -8,
+      healthDelta: -Math.max(0, (severeLoss ? 15 : 8) - injuryReduction),
       wagonDamage: severeLoss ? 10 : 5,
       moraleChange: -8
     }

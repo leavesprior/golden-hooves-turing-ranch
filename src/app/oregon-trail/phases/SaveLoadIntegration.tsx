@@ -7,6 +7,7 @@ import { useMystery } from '../mysteryContext'
 import { useAuth } from '@/lib/authContext'
 import { useSaveLoad } from '@/lib/saveLoadContext'
 import { readGoldCountryTrip, isActiveGoldCountryTrip } from '../state/goldCountryTrip'
+import { hasPaidPendingTeamster } from '../state/teamsterHire'
 import { applyLevel2Persist, snapshotLevel2Persist } from '@/lib/goldCountryStreet'
 
 export function SaveLoadIntegration() {
@@ -71,7 +72,8 @@ export function SaveLoadIntegration() {
       // A pending trip slot can predate its durable local fare. Keep that newer
       // wallet when its exact receipt exists, rather than refunding it on load.
       const trip = readGoldCountryTrip((data.oregonTrail as Partial<typeof state> | undefined)?.goldCountryTrip)
-      const keepPaidWallet = !!trip && isActiveGoldCountryTrip(trip) && hasTravelFareReceipt(trip.id, trip.quote.fare)
+      const keepPaidWallet = (!!trip && isActiveGoldCountryTrip(trip) && hasTravelFareReceipt(trip.id, trip.quote.fare))
+        || hasPaidPendingTeamster(data.oregonTrail as Partial<typeof state> | undefined, hasTravelFareReceipt)
       if (data.karmaBalance && !keepPaidWallet) {
         loadKarmaState(
           data.karmaBalance as import('@/lib/karmaBlockchain').KarmaBalance,
