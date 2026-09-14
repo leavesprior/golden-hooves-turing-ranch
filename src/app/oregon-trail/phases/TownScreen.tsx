@@ -158,8 +158,8 @@ export function TownScreen({
     : undefined
 
   const availableSpecialtyShops = React.useMemo(
-    () => getAvailableShops(state.currentLandmark, earlyLandmarkType, state.day * 1000 + state.distance),
-    [state.currentLandmark, earlyLandmarkType, state.day, state.distance]
+    () => getAvailableShops(state.currentLandmark, earlyLandmarkType),
+    [state.currentLandmark, earlyLandmarkType]
   )
   const availableGuides = React.useMemo(
     () => getAvailableGuides(state.currentLandmark),
