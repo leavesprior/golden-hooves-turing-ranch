@@ -6,13 +6,14 @@ import { useKarmaWallet } from '../karmaWalletContext'
 import { useMystery } from '../mysteryContext'
 import { useAuth } from '@/lib/authContext'
 import { useSaveLoad } from '@/lib/saveLoadContext'
+import { readGoldCountryTrip, isActiveGoldCountryTrip } from '../state/goldCountryTrip'
 import { applyLevel2Persist, snapshotLevel2Persist } from '@/lib/goldCountryStreet'
 
 export function SaveLoadIntegration() {
   const { state, loadState } = useOregonTrail()
   const { user } = useAuth()
   const { setGameDataCollector, setGameDataLoader, setMetadataCollector, setActiveGameType, enableAutoSave } = useSaveLoad()
-  const { balance, alignment, getAlignmentDisplayName, loadKarmaState } = useKarmaWallet()
+  const { balance, alignment, getAlignmentDisplayName, loadKarmaState, hasTravelFareReceipt } = useKarmaWallet()
   const { state: mysteryState, loadMysteryState } = useMystery()
 
   // Declare ownership: every slot saved while Oregon Trail is mounted is
@@ -67,8 +68,11 @@ export function SaveLoadIntegration() {
       if (data.oregonTrail) {
         loadState(data.oregonTrail as typeof state)
       }
-      // Restore karma balance and alignment
-      if (data.karmaBalance) {
+      // A pending trip slot can predate its durable local fare. Keep that newer
+      // wallet when its exact receipt exists, rather than refunding it on load.
+      const trip = readGoldCountryTrip((data.oregonTrail as Partial<typeof state> | undefined)?.goldCountryTrip)
+      const keepPaidWallet = !!trip && isActiveGoldCountryTrip(trip) && hasTravelFareReceipt(trip.id, trip.quote.fare)
+      if (data.karmaBalance && !keepPaidWallet) {
         loadKarmaState(
           data.karmaBalance as import('@/lib/karmaBlockchain').KarmaBalance,
           data.karmaAlignment as { lawfulChaotic: number; goodEvil: number } | undefined,
@@ -82,7 +86,7 @@ export function SaveLoadIntegration() {
         applyLevel2Persist(data.level2 as import('@/lib/goldCountryStreet').Level2Persist)
       }
     })
-  }, [user, state, balance, alignment, mysteryState, setGameDataCollector, setGameDataLoader, setMetadataCollector, getAlignmentDisplayName, loadState, loadKarmaState, loadMysteryState, enableAutoSave])
+  }, [user, state, balance, alignment, mysteryState, setGameDataCollector, setGameDataLoader, setMetadataCollector, getAlignmentDisplayName, loadState, loadKarmaState, hasTravelFareReceipt, loadMysteryState, enableAutoSave])
 
   return null
 }

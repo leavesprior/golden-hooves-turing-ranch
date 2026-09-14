@@ -27,6 +27,7 @@ import {
 import {
   applyEnterGoldCountryExplore, applyVisitGoldCountryLocation,
   applyStartGoldCountryTravel, applyArriveAtGoldCountryLocation,
+  applyPayGoldCountryTravel, applyCancelGoldCountryTravel, applyChooseGoldCountryRoadEncounter, applyContinueGoldCountryRoadEncounter,
   applyReturnToGoldCountryMap, applyDiscoverLocation,
   applyCompleteQuest, applyCompleteQuestState,
   applyMarkAreaSearched, applyAddInventoryItem, applyAdvanceGoldCountryDay,
@@ -47,6 +48,7 @@ import { getCriticalDescription } from '../data/criticalDescriptions'
 import { createRelationship, applyDispositionChange } from '../data/npcRelationships'
 import type { PartyRole } from '../data/posseSystem'
 import { getHuntingMessage } from '../data/eventMessages'
+import { migrateGoldCountryTrip } from './goldCountryTrip'
 import { createPassingRecord, hasNewPartyDeath, readPassingRecord } from './passing'
 
 /**
@@ -142,7 +144,7 @@ function reduceGameState(state: OregonTrailState, action: GameAction): OregonTra
       // recorded progress). Same migration choke point as the party fix.
       loaded.livingTrail = migrateLivingTrail(loaded.livingTrail)
       if (loaded.passing !== undefined) loaded.passing = readPassingRecord(loaded.passing)
-      return loaded
+      return migrateGoldCountryTrip(loaded)
     }
 
     // === Settings ===
@@ -456,8 +458,12 @@ function reduceGameState(state: OregonTrailState, action: GameAction): OregonTra
     // === Gold Country Free-Roam ===
     case 'ENTER_GOLD_COUNTRY_EXPLORE': return applyEnterGoldCountryExplore(state)
     case 'VISIT_GOLD_COUNTRY_LOCATION': return applyVisitGoldCountryLocation(state, action.locationId)
-    case 'START_GOLD_COUNTRY_TRAVEL': return applyStartGoldCountryTravel(state, action.toLocationId)
-    case 'ARRIVE_AT_GOLD_COUNTRY_LOCATION': return applyArriveAtGoldCountryLocation(state, action.locationId)
+    case 'START_GOLD_COUNTRY_TRAVEL': return applyStartGoldCountryTravel(state, action.trip)
+    case 'PAY_GOLD_COUNTRY_TRAVEL': return applyPayGoldCountryTravel(state, action.tripId)
+    case 'CANCEL_GOLD_COUNTRY_TRAVEL': return applyCancelGoldCountryTravel(state, action.tripId)
+    case 'CHOOSE_GOLD_COUNTRY_ROAD_ENCOUNTER': return applyChooseGoldCountryRoadEncounter(state, action.tripId, action.choiceId)
+    case 'CONTINUE_GOLD_COUNTRY_ROAD_ENCOUNTER': return applyContinueGoldCountryRoadEncounter(state, action.tripId)
+    case 'ARRIVE_AT_GOLD_COUNTRY_LOCATION': return applyArriveAtGoldCountryLocation(state, action.locationId, action.tripId)
     case 'RETURN_TO_GOLD_COUNTRY_MAP': return applyReturnToGoldCountryMap(state)
     case 'DISCOVER_LOCATION': return applyDiscoverLocation(state, action.locationId)
     case 'COMPLETE_QUEST': return applyCompleteQuest(state, action.questId)

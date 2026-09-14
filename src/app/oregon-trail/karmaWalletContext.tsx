@@ -17,6 +17,7 @@ import { CrossGameStorage } from '@/lib/crossGameProgression'
 import { getKarmaSessionId, fetchServerBalance, postKarmaEvent, reconcile } from '@/lib/karmaServerSync'
 import { scaleKarmaGrant } from '@/lib/gftAgeMode'
 import { convertGoodToTacos, withinUnverifiedBound } from '@/lib/karmaUnverifiedBound'
+import { commitGoldCountryFare, hasGoldCountryFareReceipt, GoldCountryFareReceipt, GoldCountryFareResult } from '@/lib/goldCountryFare'
 
 export type WalletMode = 'new' | 'continue'
 
@@ -46,6 +47,7 @@ interface KarmaWalletState {
   pendingTransactions: number
   recentTransactions: KarmaTransaction[]
   alignment: AlignmentAxes
+  travelFareReceipts?: GoldCountryFareReceipt[]
 }
 
 interface KarmaWalletContextValue {
@@ -62,6 +64,8 @@ interface KarmaWalletContextValue {
 
   // Spending (returns true if successful)
   spendNeutral: (amount: number, memo?: string) => Promise<boolean>
+  spendTravelFare: (tripId: string, amount: number, memo?: string) => Promise<GoldCountryFareResult>
+  hasTravelFareReceipt: (tripId: string, amount: number) => boolean
   spendGood: (amount: number, memo?: string) => Promise<boolean>
 
   // Earning
@@ -117,6 +121,7 @@ interface StoredWalletState {
   walletMode: WalletMode
   lastUpdated: number
   alignment?: AlignmentAxes // Optional for backwards compatibility
+  travelFareReceipts?: GoldCountryFareReceipt[]
 }
 
 const DEFAULT_BALANCE: KarmaBalance = { good: 0, neutral: STARTING_NEUTRAL_KARMA, bad: 0 }
@@ -137,6 +142,19 @@ function sanitizeBalance(b: unknown): KarmaBalance {
   }
 }
 
+// Preserve unrelated legacy fields, and do not add receipts until a fare is used.
+function toStoredWallet(state: KarmaWalletState, storedFields: Record<string, unknown>): StoredWalletState | undefined {
+  if (!state.isInitialized || !state.walletMode) return undefined
+  return {
+    ...storedFields,
+    balance: state.balance,
+    walletMode: state.walletMode,
+    lastUpdated: Date.now(),
+    alignment: state.alignment,
+    ...(state.travelFareReceipts === undefined ? {} : { travelFareReceipts: state.travelFareReceipts }),
+  }
+}
+
 interface KarmaWalletProviderProps {
   children: ReactNode
 }
@@ -144,8 +162,13 @@ interface KarmaWalletProviderProps {
 // Default alignment: True Neutral (0, 0)
 const DEFAULT_ALIGNMENT: AlignmentAxes = { lawfulChaotic: 0, goodEvil: 0 }
 
+// Stable, pure helper shared by the existing alignment callbacks.
+function clampAlignment(value: number): number {
+  return Math.max(-100, Math.min(100, value))
+}
+
 export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
-  const [state, setState] = useState<KarmaWalletState>({
+  const [state, setRenderedState] = useState<KarmaWalletState>({
     balance: { good: 0, neutral: STARTING_NEUTRAL_KARMA, bad: 0 },
     isOnline: true,
     isInitialized: false,
@@ -154,9 +177,15 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     recentTransactions: [],
     alignment: DEFAULT_ALIGNMENT,
   })
-  // Ref to always hold current state for use in callbacks (avoids React 18 batch timing issues)
+  // Accept updates synchronously so a fare includes ordinary wallet changes
+  // queued earlier in the same event, before React has rendered them.
   const stateRef = useRef(state)
-  useEffect(() => { stateRef.current = state }, [state])
+  const storedWalletFieldsRef = useRef<Record<string, unknown>>({})
+  const setState = useCallback((update: React.SetStateAction<KarmaWalletState>) => {
+    const next = typeof update === 'function' ? update(stateRef.current) : update
+    stateRef.current = next
+    setRenderedState(next)
+  }, [])
 
   // Modal state
   const [showConvertModal, setShowConvertModal] = useState(false)
@@ -177,18 +206,15 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
           walletMode: parsed.walletMode,
           alignment: parsed.alignment || DEFAULT_ALIGNMENT,
           isInitialized: true,
+          ...(parsed.travelFareReceipts === undefined ? {} : { travelFareReceipts: parsed.travelFareReceipts }),
         }
-        // Seed the ref SYNCHRONOUSLY so callbacks (spendNeutral/spendGood) that read
-        // stateRef.current don't race the post-commit effect that normally syncs it.
-        // Fixes the cold-load bug where landing directly on /karma-market made the
-        // first purchase a silent no-op (ref still held the default starting balance).
-        stateRef.current = loaded
+        storedWalletFieldsRef.current = { ...parsed }
         setState(loaded)
       }
     } catch (e) {
       console.warn('Failed to load karma wallet from storage:', e)
     }
-  }, [])
+  }, [setState])
 
   // Read the SERVER-AUTHORITATIVE karma balance and reconcile (server-wins, never
   // wipes local progress) — the in-game, unverified path (2026-06-19). Fails soft
@@ -205,24 +231,19 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       }
     })()
     return () => { cancelled = true }
-  }, [state.isInitialized, state.walletMode])
+  }, [state.isInitialized, state.walletMode, setState])
 
-  // Save to local storage on state change
+  // Save the latest accepted state: an older render must never overwrite a
+  // fare that was already committed synchronously with its durable receipt.
   useEffect(() => {
-    if (state.isInitialized && state.walletMode) {
-      try {
-        const toStore: StoredWalletState = {
-          balance: state.balance,
-          walletMode: state.walletMode,
-          lastUpdated: Date.now(),
-          alignment: state.alignment,
-        }
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(toStore))
-      } catch (e) {
-        console.warn('Failed to save karma wallet to storage:', e)
-      }
+    const toStore = toStoredWallet(stateRef.current, storedWalletFieldsRef.current)
+    if (!toStore) return
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(toStore))
+    } catch (e) {
+      console.warn('Failed to save karma wallet to storage:', e)
     }
-  }, [state.balance, state.isInitialized, state.walletMode, state.alignment])
+  }, [state.balance, state.isInitialized, state.walletMode, state.alignment, state.travelFareReceipts])
 
   // Sync alignment to unified karma storage for cross-branch carry-forward
   useEffect(() => {
@@ -263,7 +284,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     checkOnline()
     const interval = setInterval(checkOnline, 10000)
     return () => clearInterval(interval)
-  }, [])
+  }, [setState])
 
   // Add a transaction to recent history
   const addTransaction = useCallback((tx: Omit<KarmaTransaction, 'id' | 'timestamp'>) => {
@@ -276,7 +297,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       ...prev,
       recentTransactions: [newTx, ...prev.recentTransactions.slice(0, 19)],
     }))
-  }, [])
+  }, [setState])
 
   // Initialize wallet with mode
   const initializeWallet = useCallback(async (mode: WalletMode) => {
@@ -324,12 +345,14 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
         const stored = localStorage.getItem(LOCAL_STORAGE_KEY)
         if (stored) {
           const parsed: StoredWalletState = JSON.parse(stored)
+          storedWalletFieldsRef.current = { ...parsed }
           setState(prev => ({
             ...prev,
             balance: sanitizeBalance(parsed.balance),
             walletMode: mode,
             isInitialized: true,
             isOnline: false,
+            ...(parsed.travelFareReceipts === undefined ? {} : { travelFareReceipts: parsed.travelFareReceipts }),
           }))
         } else {
           // Fallback to starting balance
@@ -343,7 +366,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
         }
       }
     }
-  }, [])
+  }, [setState])
 
   // Refresh balance from blockchain
   const refreshBalance = useCallback(async () => {
@@ -358,7 +381,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     } catch (e) {
       setState(prev => ({ ...prev, isOnline: false }))
     }
-  }, [])
+  }, [setState])
 
   // Spend neutral karma
   const spendNeutral = useCallback(async (amount: number, memo?: string): Promise<boolean> => {
@@ -384,7 +407,45 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'neutral', delta: -amount, source: 'spend' })
 
     return true
-  }, [addTransaction])
+  }, [addTransaction, setState])
+
+  // Auth-slot recovery can retain a newer paid wallet without touching storage.
+  const hasTravelFareReceipt = useCallback((tripId: string, amount: number): boolean => {
+    const current = stateRef.current
+    return current.isInitialized && Boolean(current.walletMode)
+      && hasGoldCountryFareReceipt(current.travelFareReceipts, tripId, amount)
+  }, [])
+
+  // The trail save must already contain this trip ID before payment is called.
+  // A receipt and debit are committed together before React state or sync events.
+  const spendTravelFare = useCallback(async (tripId: string, amount: number, memo?: string): Promise<GoldCountryFareResult> => {
+    const current = toStoredWallet(stateRef.current, storedWalletFieldsRef.current)
+    if (!current) return { ok: false, reason: 'invalid' }
+
+    let committed
+    try {
+      committed = commitGoldCountryFare(localStorage, LOCAL_STORAGE_KEY, current, tripId, amount)
+    } catch {
+      // Accessing localStorage itself can throw when browser storage is disabled.
+      return { ok: false, reason: 'storage' }
+    }
+    if (!committed.ok) return committed
+
+    storedWalletFieldsRef.current = { ...committed.wallet }
+    setState(prev => ({
+      ...prev,
+      balance: committed.wallet.balance,
+      travelFareReceipts: committed.wallet.travelFareReceipts,
+    }))
+    if (committed.replayed) return { ok: true, replayed: true }
+
+    addTransaction({ type: 'spend', karmaType: 'neutral', amount: -amount, memo })
+    // Existing best-effort sync is submitted only on the first local debit.
+    // The receipt does not claim server settlement or create a new API authority.
+    oregonTrailKarma.spendNeutral(amount, memo).catch(() => {})
+    void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'neutral', delta: -amount, source: 'spend' })
+    return { ok: true, replayed: false }
+  }, [addTransaction, setState])
 
   // Spend good karma
   const spendGood = useCallback(async (amount: number, memo?: string): Promise<boolean> => {
@@ -407,7 +468,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'good', delta: -amount, source: 'spend' })
 
     return true
-  }, [addTransaction])
+  }, [addTransaction, setState])
 
   // Earn neutral karma
   const earnNeutral = useCallback(async (amount: number, memo?: string): Promise<void> => {
@@ -430,7 +491,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     oregonTrailKarma.earnNeutral(granted, memo).catch(() => {})
     // Persist to the server-authoritative ledger (in-game, unverified path).
     void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'neutral', delta: granted, source: 'earn' })
-  }, [addTransaction])
+  }, [addTransaction, setState])
 
   // Earn good karma
   const earnGood = useCallback(async (amount: number, memo?: string): Promise<void> => {
@@ -452,7 +513,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
     oregonTrailKarma.earnGood(granted, memo).catch(() => {})
     void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'good', delta: granted, source: 'earn' })
-  }, [addTransaction])
+  }, [addTransaction, setState])
 
   // Add bad karma
   const addBadKarma = useCallback(async (amount: number, reason: string): Promise<void> => {
@@ -474,7 +535,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
     oregonTrailKarma.addBadKarma(granted, reason).catch(() => {})
     void postKarmaEvent({ sessionId: getKarmaSessionId(), karmaType: 'bad', delta: granted, source: 'contrition' })
-  }, [addTransaction])
+  }, [addTransaction, setState])
 
   // Earn karma from donation (neutral + good in one call)
   const earnFromDonation = useCallback(async (neutralAmount: number, goodAmount: number, memo?: string): Promise<void> => {
@@ -514,7 +575,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     if (grantedGood > 0) {
       oregonTrailKarma.earnGood(grantedGood, `DONATION_BONUS: ${memo}`).catch(() => {})
     }
-  }, [addTransaction])
+  }, [addTransaction, setState])
 
   // Convert good to neutral (2:1 ratio)
   const convertGoodToNeutral = useCallback(async (goodAmount: number): Promise<boolean> => {
@@ -545,7 +606,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     oregonTrailKarma.convertGoodToNeutral(goodAmount).catch(() => {})
 
     return true
-  }, [addTransaction])
+  }, [addTransaction, setState])
 
   // Take debt (1:1 neutral:bad)
   const takeDebt = useCallback(async (amount: number): Promise<boolean> => {
@@ -569,7 +630,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     oregonTrailKarma.takeDebt(amount).catch(() => {})
 
     return true
-  }, [addTransaction])
+  }, [addTransaction, setState])
 
   // Check if player can afford an amount
   const canAfford = useCallback((type: KarmaType, amount: number): boolean => {
@@ -640,11 +701,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     return KARMA_MULTIPLIERS[alignment]
   }, [getKarmaAlignment])
 
-  // Helper to clamp alignment values to -100 to +100
-  const clampAlignment = (value: number): number => {
-    return Math.max(-100, Math.min(100, value))
-  }
-
   // Record a lawful action (following rules, respecting authority)
   const recordLawfulAction = useCallback((magnitude: number = 10): void => {
     setState(prev => ({
@@ -654,7 +710,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
         lawfulChaotic: clampAlignment(prev.alignment.lawfulChaotic + magnitude),
       },
     }))
-  }, [])
+  }, [setState])
 
   // Record a chaotic action (breaking rules, defying authority)
   const recordChaoticAction = useCallback((magnitude: number = 10): void => {
@@ -665,7 +721,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
         lawfulChaotic: clampAlignment(prev.alignment.lawfulChaotic - magnitude),
       },
     }))
-  }, [])
+  }, [setState])
 
   // Record a good action (helping others, selfless)
   const recordGoodAction = useCallback((magnitude: number = 10): void => {
@@ -676,7 +732,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
         goodEvil: clampAlignment(prev.alignment.goodEvil + magnitude),
       },
     }))
-  }, [])
+  }, [setState])
 
   // Load karma state from a saved game
   const loadKarmaState = useCallback((savedBalance: KarmaBalance, savedAlignment?: AlignmentAxes): void => {
@@ -686,7 +742,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       alignment: savedAlignment || prev.alignment,
       isInitialized: true,
     }))
-  }, [])
+  }, [setState])
 
   // Record an evil action (harming others, selfish)
   const recordEvilAction = useCallback((magnitude: number = 10): void => {
@@ -697,7 +753,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
         goodEvil: clampAlignment(prev.alignment.goodEvil - magnitude),
       },
     }))
-  }, [])
+  }, [setState])
 
   // Memoized so context identity only changes when state (or a callback) does —
   // otherwise any provider re-render fans out to every useKarmaWallet consumer.
@@ -715,6 +771,8 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
 
     // Spending
     spendNeutral,
+    spendTravelFare,
+    hasTravelFareReceipt,
     spendGood,
 
     // Earning
@@ -752,7 +810,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     setConvertModalContext,
   }), [
     state,
-    initializeWallet, spendNeutral, spendGood, earnNeutral, earnGood,
+    initializeWallet, spendNeutral, spendTravelFare, hasTravelFareReceipt, spendGood, earnNeutral, earnGood,
     addBadKarma, earnFromDonation, convertGoodToNeutral, takeDebt,
     canAfford, getAffordableAmount, refreshBalance,
     getKarmaAlignment, getAlignmentDisplayName, getDiscountMultiplier,

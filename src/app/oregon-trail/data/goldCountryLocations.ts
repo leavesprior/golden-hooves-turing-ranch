@@ -23,7 +23,7 @@ export interface GoldCountryLocation {
   name: string
   shortName: string
   description: string
-  region: 'west_point' | 'calaveras' | 'amador'
+  region: 'west_point' | 'calaveras' | 'amador' | 'sacramento_valley'
   coordinates: { lat: number; lng: number }
   driveTime: string
   icon: string
@@ -41,9 +41,39 @@ export interface GoldCountryLocation {
   adjacentTo: string[]  // IDs of locations reachable without travel encounter
   travelDistance: number  // relative distance units (1-5), higher = more encounter chance
   specialFeature?: string  // unique mechanic at this location
+  /** Authored regional route board, not a surveyed station or GPS destination. */
+  transportGateway?: { fictional: true; notes: string; availableFromYear: number }
 }
 
 export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
+  {
+    id: 'sacramento_gateway', name: 'Sacramento regional gateway', shortName: 'Sacramento gateway',
+    description: 'An authored route board for Sacramento, beyond the painted Gold Country map. The gateway joins the existing roads to the reviewed Sacramento–Roseville railway segment; it is not a reconstruction of a particular station.',
+    region: 'sacramento_valley', coordinates: { lat: 38.58, lng: -121.49 }, driveTime: 'Regional game route; not a driving estimate',
+    icon: '🚉', externalLink: 'https://www.californiarailroad.museum/visit',
+    sites: [
+      { name: 'California State Railroad Museum — Sacramento', url: 'https://www.californiarailroad.museum/visit' },
+      { name: 'California Historical Landmark 780-1 — Sacramento–Roseville line', url: 'https://ohp.parks.ca.gov/?page_id=21450' },
+    ],
+    linkPrompt: 'Read the railway history', linkHint: 'Compare the local line opening with the later national connection.',
+    fact: 'Daily Central Pacific trains began the Sacramento–Roseville run on April 25, 1864. This game waits until 1869 to offer rail travel, following completion of the transcontinental connection.',
+    atmosphere: 'historic', tags: ['transport_gateway'], shopType: 'none', adjacentTo: ['roseville_gateway'], travelDistance: 5,
+    transportGateway: { fictional: true, availableFromYear: 1869, notes: 'Fictional regional route board and game connections. Coordinates are an approximate city-area reference, excluded from map pins, GPS presence and rewards. No historical fare or timetable is claimed.' },
+  },
+  {
+    id: 'roseville_gateway', name: 'Roseville regional gateway', shortName: 'Roseville gateway',
+    description: 'An authored route board for the railway junction now called Roseville, beyond the painted Gold Country map. A train can return to Sacramento; wagons and hired coaches connect back to the existing Gold Country roads.',
+    region: 'sacramento_valley', coordinates: { lat: 38.75, lng: -121.29 }, driveTime: 'Regional game route; not a driving estimate',
+    icon: '🚉', externalLink: 'https://ohp.parks.ca.gov/?page_id=21450',
+    sites: [
+      { name: 'California Historical Landmark 780-1 — Roseville', url: 'https://ohp.parks.ca.gov/?page_id=21450' },
+      { name: 'City of Roseville — Junction and city history', url: 'https://www.roseville.ca.us/government/departments/police_department/about_roseville_police/history_of_roseville_p_d' },
+    ],
+    linkPrompt: 'Read the history of Junction', linkHint: 'The railway place came later than the 1849 trail camps.',
+    fact: 'Central Pacific track reached Junction on April 25, 1864, starting the daily 18-mile Sacramento run. Junction developed into Roseville. Rail tickets in this simulation open in 1869.',
+    atmosphere: 'historic', tags: ['transport_gateway'], shopType: 'none', adjacentTo: ['sacramento_gateway'], travelDistance: 5,
+    transportGateway: { fictional: true, availableFromYear: 1869, notes: 'Fictional regional route board and game connections. Coordinates are an approximate city-area reference, excluded from map pins, GPS presence and rewards. No railway is placed at Volcano or West Point.' },
+  },
   {
     id: 'bobr_cabin',
     name: 'Back of Beyond Ranch',
