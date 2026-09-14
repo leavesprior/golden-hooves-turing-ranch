@@ -11,7 +11,6 @@ export function GoldCountryExploreScreen() {
   const {
     state,
     visitGoldCountryLocation,
-    startGoldCountryTravel,
     leaveSettlement,
     setPhase,
   } = useOregonTrail()
@@ -22,9 +21,6 @@ export function GoldCountryExploreScreen() {
       <GoldCountryExplore
         onVisitLocation={(locationId) => {
           visitGoldCountryLocation(locationId)
-        }}
-        onTravel={(toLocationId) => {
-          startGoldCountryTravel(toLocationId)
         }}
         onOpenSettlement={() => {
           setPhase('settlement')

@@ -23,7 +23,7 @@ import { ChapterIntro, CHAPTERS } from './components/ChapterIntro'
 // Authentication & Save/Load System
 import { AuthSavePanel } from '@/components/game/AuthSavePanel'
 import { useSaveLoad, getSaveGameType } from '@/lib/saveLoadContext'
-import { applyLevel2Persist, snapshotLevel2Persist, type Level2Persist } from '@/lib/goldCountryStreet'
+import { applyLevel2Persist, type Level2Persist } from '@/lib/goldCountryStreet'
 
 // Golden Hooves Enhancements
 import { GameErrorBoundary } from './components/GameErrorBoundary'
@@ -67,7 +67,7 @@ import { readArcadeAccess } from '@/lib/arcadeFirstLevel'
 // Local auto-save key for unauthenticated users (subsystem contexts persist
 // independently; this captures the core OregonTrail state so "Continue" works
 // without requiring login)
-const LOCAL_AUTOSAVE_KEY = 'golden_frog_local_save'
+import { LOCAL_TRAIL_AUTOSAVE_KEY as LOCAL_AUTOSAVE_KEY, writeLocalTrailAutosave as writeLocalAutosave } from './lib/localTrailSave'
 
 // #13: the local autosave is stored as { savedAt, state } so Continue can
 // compare recency against auth slots. Legacy saves were the bare state object
@@ -92,14 +92,6 @@ function readLocalAutosave(): { savedAt: string | null; state: Record<string, un
   } catch {
     return null
   }
-}
-
-function writeLocalAutosave(state: unknown) {
-  localStorage.setItem(LOCAL_AUTOSAVE_KEY, JSON.stringify({
-    savedAt: new Date().toISOString(),
-    state,
-    level2: snapshotLevel2Persist(),
-  }))
 }
 
 // NOTE: Phase screens extracted to ./phases/ directory.
@@ -194,7 +186,7 @@ function TravelScreen() {
 }
 
 function OregonTrailGame() {
-  const { state, startFromTitle, completeChapterIntro, loadState, openRanchManagement } = useOregonTrail()
+  const { state, getCurrentState, startFromTitle, completeChapterIntro, loadState, openRanchManagement } = useOregonTrail()
   // 2026-06-17: the homestead (Back of Beyond Ranch) was only reachable via a
   // West-Point-gated button — "I still don't see how I get to my farm." This
   // gives a persistent, self-evident way home from anywhere in gameplay.
@@ -239,26 +231,29 @@ function OregonTrailGame() {
     autoSaveTimer.current = setTimeout(() => {
       try {
         // #13: wrapped shape — savedAt lets Continue compare recency vs slots
-        writeLocalAutosave(state)
+        const latest = getCurrentState()
+        if (latest.phase === 'title' || latest.phase === 'chapter_intro') return
+        writeLocalAutosave(latest)
         setHasLocalSave(true)
       } catch { /* storage full or unavailable */ }
     }, 2000)
 
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
-  }, [state])
+  }, [state, getCurrentState])
 
   // Also save on page unload
   useEffect(() => {
     const handleUnload = () => {
-      if (state.phase !== 'title' && state.phase !== 'chapter_intro') {
+      const latest = getCurrentState()
+      if (latest.phase !== 'title' && latest.phase !== 'chapter_intro') {
         try {
-          writeLocalAutosave(state)
+          writeLocalAutosave(latest)
         } catch { /* ignore */ }
       }
     }
     window.addEventListener('beforeunload', handleUnload)
     return () => window.removeEventListener('beforeunload', handleUnload)
-  }, [state])
+  }, [getCurrentState])
 
   // #17: nothing in the trail flow ever called initializeWallet, so the karma
   // wallet provider's persist effect (gated on isInitialized && walletMode)

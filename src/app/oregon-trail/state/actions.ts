@@ -10,6 +10,7 @@
 
 import type { Pace, Rations, GamePhase, OregonTrailState } from './types'
 import type { CrossingOutcome } from '../data/riverCrossings'
+import type { GoldCountryTrip } from './goldCountryTrip'
 import type { QuestReward } from '../data/goldCountryNPCs'
 import type { PosseMember } from '../data/posseSystem'
 import type { DmDirective } from '@/lib/dmDirectives'
@@ -94,8 +95,12 @@ export type GameAction =
   // Gold Country Free-Roam
   | { type: 'ENTER_GOLD_COUNTRY_EXPLORE' }
   | { type: 'VISIT_GOLD_COUNTRY_LOCATION'; locationId: string }
-  | { type: 'START_GOLD_COUNTRY_TRAVEL'; toLocationId: string }
-  | { type: 'ARRIVE_AT_GOLD_COUNTRY_LOCATION'; locationId: string }
+  | { type: 'START_GOLD_COUNTRY_TRAVEL'; trip: GoldCountryTrip }
+  | { type: 'PAY_GOLD_COUNTRY_TRAVEL'; tripId: string }
+  | { type: 'CANCEL_GOLD_COUNTRY_TRAVEL'; tripId: string }
+  | { type: 'CHOOSE_GOLD_COUNTRY_ROAD_ENCOUNTER'; tripId: string; choiceId: string }
+  | { type: 'CONTINUE_GOLD_COUNTRY_ROAD_ENCOUNTER'; tripId: string }
+  | { type: 'ARRIVE_AT_GOLD_COUNTRY_LOCATION'; locationId: string; tripId: string }
   | { type: 'RETURN_TO_GOLD_COUNTRY_MAP' }
   | { type: 'DISCOVER_LOCATION'; locationId: string }
   | { type: 'COMPLETE_QUEST'; questId: string }

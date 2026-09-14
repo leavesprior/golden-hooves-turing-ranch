@@ -1,6 +1,7 @@
 /**
  * node_modules/.bin/tsx src/lib/goldCountryStreet.test.ts
  */
+import { GOLD_COUNTRY_LOCATIONS } from '@/app/oregon-trail/data/goldCountryLocations'
 import { getNPCsAtLocation } from '@/app/oregon-trail/data/goldCountryNPCs'
 import { isStreetSkyLabel, skyLabel, skyWashesStreet, streetSky, trailWeatherForDay } from './goldCountryWeather'
 import {
@@ -67,7 +68,12 @@ ok(
   'carried Jackson paper is not the Murphys door paper',
 )
 ok(!paperOnNpc([], 'ridge_stranger'), 'empty pocket is not paper on kin')
-ok(everyLocationHasAFront(), 'every Gold Country place has at least one front')
+ok(everyLocationHasAFront(), 'every mapped Gold Country street has at least one front')
+const gateways = GOLD_COUNTRY_LOCATIONS.filter(location => location.transportGateway)
+ok(gateways.length === 2 && gateways.every(location => location.transportGateway?.fictional === true
+  && location.transportGateway.availableFromYear === 1869 && location.shopType === 'none'
+  && frontsForLocation(location.id).length === 0 && getNPCsAtLocation(location.id).length === 0),
+  'two later regional route boards have no invented street shops or NPCs')
 ok(TOWN_FRONTS.every((f) => f.name.trim().length > 0 && f.interior.length > 0), 'fronts are named businesses with interiors')
 ok(
   TOWN_FRONTS.every((f) => !getNPCsAtLocation(f.locationId).some((n) => n.name === f.name)),

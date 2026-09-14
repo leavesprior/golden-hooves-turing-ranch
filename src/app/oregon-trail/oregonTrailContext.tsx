@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useRef, useCallback, ReactNode } from 'react'
 import { useKarma } from '@/lib/karmaContext'
 import { useKarmaWallet } from './karmaWalletContext'
 import { type CrossingOutcome } from './data/riverCrossings'
@@ -37,6 +37,11 @@ import {
   hasCynthiasInn,
 } from './state/constants'
 import { gameReducer } from './state/reducer'
+import type { GameAction } from './state/actions'
+import { isActiveGoldCountryTrip, type GoldCountryTrip, type GoldCountryTripResult } from './state/goldCountryTrip'
+import { quoteGoldCountryTransport, type GoldCountryTransportMode } from '@/lib/goldCountryTransport'
+import { getRandomEncounter, TRAVEL_ENCOUNTERS } from './data/goldCountryEncounters'
+import { writeLocalTrailAutosave } from './lib/localTrailSave'
 
 // Re-export types and constants for backward compatibility (28+ consumers import from this file)
 export type { Pace, Rations, Weather, GamePhase, GraphicsTier }
@@ -47,6 +52,7 @@ export { LANDMARKS, RANDOM_EVENTS, DEFAULT_STATE, hasCynthiasInn }
 // Context
 interface OregonTrailContextValue {
   state: OregonTrailState
+  getCurrentState: () => OregonTrailState
   startGame: (leaderName: string, partyNames: string[]) => void
   purchaseSupplies: (supplies: { food: number; ammo: number; parts: number; medicine: number; oxen: number }) => void
   beginJourney: () => void
@@ -108,8 +114,12 @@ interface OregonTrailContextValue {
   // Gold Country Free-Roam
   enterGoldCountryExplore: () => void
   visitGoldCountryLocation: (locationId: string) => void
-  startGoldCountryTravel: (toLocationId: string) => void
-  arriveAtGoldCountryLocation: (locationId: string) => void
+  startGoldCountryTravel: (toLocationId: string, mode?: GoldCountryTransportMode, luck?: number) => Promise<GoldCountryTripResult>
+  resumeGoldCountryTravel: () => Promise<GoldCountryTripResult>
+  cancelGoldCountryTravel: () => GoldCountryTripResult
+  arriveAtGoldCountryLocation: (locationId: string, tripId: string) => GoldCountryTripResult
+  chooseGoldCountryRoadEncounter: (choiceId: string) => GoldCountryTripResult
+  continueGoldCountryRoadEncounter: () => GoldCountryTripResult
   returnToGoldCountryMap: () => void
   discoverLocation: (locationId: string) => void
   completeQuest: (questId: string) => void
@@ -167,10 +177,27 @@ interface OregonTrailProviderProps {
 }
 
 export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
-  const [state, dispatch] = useReducer(gameReducer, DEFAULT_STATE)
+  const [state, setRenderedState] = useState(DEFAULT_STATE)
+  const stateRef = useRef(state)
+  // One reducer evaluation per accepted action. Critical saves and same-event
+  // actions see the latest state before React renders, including arrival guards.
+  const dispatch = useCallback((action: GameAction) => {
+    const next = gameReducer(stateRef.current, action)
+    stateRef.current = next
+    setRenderedState(next)
+  }, [])
+  const getCurrentState = useCallback(() => stateRef.current, [])
+  const commitTripAction = useCallback((action: GameAction): GoldCountryTripResult => {
+    const next = gameReducer(stateRef.current, action)
+    if (next === stateRef.current) return { ok: false, reason: 'invalid' }
+    try { writeLocalTrailAutosave(next) } catch { return { ok: false, reason: 'storage' } }
+    stateRef.current = next
+    setRenderedState(next)
+    return { ok: true }
+  }, [])
   const { applyKarma } = useKarma()
   const {
-    earnNeutral, earnGood, addBadKarma, spendNeutral,
+    earnNeutral, earnGood, addBadKarma, spendNeutral, spendTravelFare, hasTravelFareReceipt, isInitialized: walletInitialized,
     recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction,
   } = useKarmaWallet()
 
@@ -178,16 +205,16 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
 
   const startGame = useCallback((leaderName: string, partyNames: string[]) => {
     dispatch({ type: 'START_GAME', leaderName, partyNames })
-  }, [])
+  }, [dispatch])
 
   const purchaseSupplies = useCallback((supplies: { food: number; ammo: number; parts: number; medicine: number; oxen: number }) => {
     dispatch({ type: 'PURCHASE_SUPPLIES', supplies })
-  }, [])
+  }, [dispatch])
 
-  const beginJourney = useCallback(() => dispatch({ type: 'BEGIN_JOURNEY' }), [])
-  const travel = useCallback(() => dispatch({ type: 'TRAVEL' }), [])
-  const setPace = useCallback((pace: Pace) => dispatch({ type: 'SET_PACE', pace }), [])
-  const setRations = useCallback((rations: Rations) => dispatch({ type: 'SET_RATIONS', rations }), [])
+  const beginJourney = useCallback(() => dispatch({ type: 'BEGIN_JOURNEY' }), [dispatch])
+  const travel = useCallback(() => dispatch({ type: 'TRAVEL' }), [dispatch])
+  const setPace = useCallback((pace: Pace) => dispatch({ type: 'SET_PACE', pace }), [dispatch])
+  const setRations = useCallback((rations: Rations) => dispatch({ type: 'SET_RATIONS', rations }), [dispatch])
 
   // === Karma side-effect wrappers (call hooks BEFORE dispatching) ===
 
@@ -209,10 +236,10 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     }
 
     dispatch({ type: 'HANDLE_EVENT_CHOICE', choiceId, outcomeMessageOverride })
-  }, [state.currentEvent, applyKarma])
+  }, [state.currentEvent, applyKarma, dispatch])
 
-  const hunt = useCallback(() => dispatch({ type: 'HUNT' }), [])
-  const drinkGargleBlaster = useCallback(() => dispatch({ type: 'DRINK_GARGLE_BLASTER' }), [])
+  const hunt = useCallback(() => dispatch({ type: 'HUNT' }), [dispatch])
+  const drinkGargleBlaster = useCallback(() => dispatch({ type: 'DRINK_GARGLE_BLASTER' }), [dispatch])
 
   // Ferry costs 20🌮 - caller must handle payment via KarmaWalletContext
   const crossRiver = useCallback((method: 'ford' | 'ferry' | 'caulk') => {
@@ -220,15 +247,15 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
       applyKarma('oregon_trail', 'Risked fording the river', 10, 0)
     }
     dispatch({ type: 'CROSS_RIVER', method })
-  }, [applyKarma])
+  }, [applyKarma, dispatch])
 
   const applyRiverCrossingEffects = useCallback((effects: CrossingOutcome['effects'], message: string) => {
     dispatch({ type: 'APPLY_RIVER_CROSSING_EFFECTS', effects, message })
-  }, [])
+  }, [dispatch])
 
-  const visitTown = useCallback(() => dispatch({ type: 'VISIT_TOWN' }), [])
-  const leaveTown = useCallback(() => dispatch({ type: 'LEAVE_TOWN' }), [])
-  const resetGame = useCallback(() => dispatch({ type: 'RESET_GAME' }), [])
+  const visitTown = useCallback(() => dispatch({ type: 'VISIT_TOWN' }), [dispatch])
+  const leaveTown = useCallback(() => dispatch({ type: 'LEAVE_TOWN' }), [dispatch])
+  const resetGame = useCallback(() => dispatch({ type: 'RESET_GAME' }), [dispatch])
 
   // === Shop & Inn (cost handled by caller via KarmaWalletContext) ===
 
@@ -238,7 +265,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     cost: number
   ) => {
     dispatch({ type: 'BUY_SUPPLIES', resource, amount, cost })
-  }, [])
+  }, [dispatch])
 
   const sellSupplies = useCallback((
     resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing' | 'oxen',
@@ -246,78 +273,147 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     karmaGained: number
   ) => {
     dispatch({ type: 'SELL_SUPPLIES', resource, amount, karmaGained })
-  }, [])
+  }, [dispatch])
 
-  const repairWagon = useCallback(() => dispatch({ type: 'REPAIR_WAGON' }), [])
+  const repairWagon = useCallback(() => dispatch({ type: 'REPAIR_WAGON' }), [dispatch])
 
   const restAtInn = useCallback((healthBonus: number, moraleBonus: number, cost: number) => {
     dispatch({ type: 'REST_AT_INN', healthBonus, moraleBonus, cost })
-  }, [])
+  }, [dispatch])
 
   const hunker = useCallback(() => {
     dispatch({ type: 'HUNKER' })
-  }, [])
+  }, [dispatch])
 
   const cureSickness = useCallback(() => {
     dispatch({ type: 'CURE_SICKNESS' })
-  }, [])
+  }, [dispatch])
 
   const buyFood = useCallback((healthBonus: number, moraleBonus: number, cost: number, partyWide: boolean) => {
     dispatch({ type: 'BUY_FOOD', healthBonus, moraleBonus, cost, partyWide })
-  }, [])
+  }, [dispatch])
 
   const buyDrink = useCallback((moraleBonus: number, cost: number) => {
     dispatch({ type: 'BUY_DRINK', moraleBonus, cost })
-  }, [])
+  }, [dispatch])
 
   // === Mystery/RPG navigation ===
 
-  const goToCharacterCreation = useCallback(() => dispatch({ type: 'GO_TO_CHARACTER_CREATION' }), [])
-  const openInvestigation = useCallback(() => dispatch({ type: 'OPEN_INVESTIGATION' }), [])
-  const closeInvestigation = useCallback(() => dispatch({ type: 'CLOSE_INVESTIGATION' }), [])
-  const investigateLocation = useCallback((locationId: string) => dispatch({ type: 'INVESTIGATE_LOCATION', locationId }), [])
-  const openWitnessDialogue = useCallback((witnessType: string, npcId?: string | null) => dispatch({ type: 'OPEN_WITNESS_DIALOGUE', witnessType, npcId }), [])
-  const closeWitnessDialogue = useCallback(() => dispatch({ type: 'CLOSE_WITNESS_DIALOGUE' }), [])
-  const openDossier = useCallback(() => dispatch({ type: 'OPEN_DOSSIER' }), [])
-  const closeDossier = useCallback(() => dispatch({ type: 'CLOSE_DOSSIER' }), [])
-  const openTelegraph = useCallback(() => dispatch({ type: 'OPEN_TELEGRAPH' }), [])
-  const closeTelegraph = useCallback(() => dispatch({ type: 'CLOSE_TELEGRAPH' }), [])
-  const openJournal = useCallback(() => dispatch({ type: 'OPEN_JOURNAL' }), [])
-  const closeJournal = useCallback(() => dispatch({ type: 'CLOSE_JOURNAL' }), [])
-  const spendInvestigationTime = useCallback((hours: number) => dispatch({ type: 'SPEND_INVESTIGATION_TIME', hours }), [])
-  const returnToPreviousPhase = useCallback(() => dispatch({ type: 'RETURN_TO_PREVIOUS_PHASE' }), [])
+  const goToCharacterCreation = useCallback(() => dispatch({ type: 'GO_TO_CHARACTER_CREATION' }), [dispatch])
+  const openInvestigation = useCallback(() => dispatch({ type: 'OPEN_INVESTIGATION' }), [dispatch])
+  const closeInvestigation = useCallback(() => dispatch({ type: 'CLOSE_INVESTIGATION' }), [dispatch])
+  const investigateLocation = useCallback((locationId: string) => dispatch({ type: 'INVESTIGATE_LOCATION', locationId }), [dispatch])
+  const openWitnessDialogue = useCallback((witnessType: string, npcId?: string | null) => dispatch({ type: 'OPEN_WITNESS_DIALOGUE', witnessType, npcId }), [dispatch])
+  const closeWitnessDialogue = useCallback(() => dispatch({ type: 'CLOSE_WITNESS_DIALOGUE' }), [dispatch])
+  const openDossier = useCallback(() => dispatch({ type: 'OPEN_DOSSIER' }), [dispatch])
+  const closeDossier = useCallback(() => dispatch({ type: 'CLOSE_DOSSIER' }), [dispatch])
+  const openTelegraph = useCallback(() => dispatch({ type: 'OPEN_TELEGRAPH' }), [dispatch])
+  const closeTelegraph = useCallback(() => dispatch({ type: 'CLOSE_TELEGRAPH' }), [dispatch])
+  const openJournal = useCallback(() => dispatch({ type: 'OPEN_JOURNAL' }), [dispatch])
+  const closeJournal = useCallback(() => dispatch({ type: 'CLOSE_JOURNAL' }), [dispatch])
+  const spendInvestigationTime = useCallback((hours: number) => dispatch({ type: 'SPEND_INVESTIGATION_TIME', hours }), [dispatch])
+  const returnToPreviousPhase = useCallback(() => dispatch({ type: 'RETURN_TO_PREVIOUS_PHASE' }), [dispatch])
 
   // === World map / direct state ===
 
-  const setPhase = useCallback((phase: GamePhase) => dispatch({ type: 'SET_PHASE', phase }), [])
-  const setCurrentLandmark = useCallback((landmark: string) => dispatch({ type: 'SET_CURRENT_LANDMARK', landmark }), [])
-  const openWorldMap = useCallback(() => dispatch({ type: 'OPEN_WORLD_MAP' }), [])
+  const setPhase = useCallback((phase: GamePhase) => dispatch({ type: 'SET_PHASE', phase }), [dispatch])
+  const setCurrentLandmark = useCallback((landmark: string) => dispatch({ type: 'SET_CURRENT_LANDMARK', landmark }), [dispatch])
+  const openWorldMap = useCallback(() => dispatch({ type: 'OPEN_WORLD_MAP' }), [dispatch])
 
   // === Title and Chapter flow ===
 
-  const startFromTitle = useCallback(() => dispatch({ type: 'START_FROM_TITLE' }), [])
-  const completeChapterIntro = useCallback(() => dispatch({ type: 'COMPLETE_CHAPTER_INTRO' }), [])
+  const startFromTitle = useCallback(() => dispatch({ type: 'START_FROM_TITLE' }), [dispatch])
+  const completeChapterIntro = useCallback(() => dispatch({ type: 'COMPLETE_CHAPTER_INTRO' }), [dispatch])
 
   // === Ranch management ===
 
-  const openRanchManagement = useCallback(() => dispatch({ type: 'OPEN_RANCH_MANAGEMENT' }), [])
-  const closeRanchManagement = useCallback(() => dispatch({ type: 'CLOSE_RANCH_MANAGEMENT' }), [])
+  const openRanchManagement = useCallback(() => dispatch({ type: 'OPEN_RANCH_MANAGEMENT' }), [dispatch])
+  const closeRanchManagement = useCallback(() => dispatch({ type: 'CLOSE_RANCH_MANAGEMENT' }), [dispatch])
 
   // === Settlement system ===
 
-  const enterSettlement = useCallback(() => dispatch({ type: 'ENTER_SETTLEMENT' }), [])
-  const leaveSettlement = useCallback(() => dispatch({ type: 'LEAVE_SETTLEMENT' }), [])
-  const completeSettlement = useCallback(() => dispatch({ type: 'COMPLETE_SETTLEMENT' }), [])
+  const enterSettlement = useCallback(() => dispatch({ type: 'ENTER_SETTLEMENT' }), [dispatch])
+  const leaveSettlement = useCallback(() => dispatch({ type: 'LEAVE_SETTLEMENT' }), [dispatch])
+  const completeSettlement = useCallback(() => dispatch({ type: 'COMPLETE_SETTLEMENT' }), [dispatch])
 
   // === Gold Country Free-Roam ===
 
-  const enterGoldCountryExplore = useCallback(() => dispatch({ type: 'ENTER_GOLD_COUNTRY_EXPLORE' }), [])
-  const visitGoldCountryLocation = useCallback((locationId: string) => dispatch({ type: 'VISIT_GOLD_COUNTRY_LOCATION', locationId }), [])
-  const startGoldCountryTravel = useCallback((toLocationId: string) => dispatch({ type: 'START_GOLD_COUNTRY_TRAVEL', toLocationId }), [])
-  const arriveAtGoldCountryLocation = useCallback((locationId: string) => dispatch({ type: 'ARRIVE_AT_GOLD_COUNTRY_LOCATION', locationId }), [])
-  const returnToGoldCountryMap = useCallback(() => dispatch({ type: 'RETURN_TO_GOLD_COUNTRY_MAP' }), [])
-  const discoverLocation = useCallback((locationId: string) => dispatch({ type: 'DISCOVER_LOCATION', locationId }), [])
-  const completeQuest = useCallback((questId: string) => dispatch({ type: 'COMPLETE_QUEST', questId }), [])
+  const enterGoldCountryExplore = useCallback(() => dispatch({ type: 'ENTER_GOLD_COUNTRY_EXPLORE' }), [dispatch])
+  const resumeGoldCountryTravel = useCallback(async (): Promise<GoldCountryTripResult> => {
+    const trip = stateRef.current.goldCountryTrip
+    if (!trip || !isActiveGoldCountryTrip(trip)) return { ok: false, reason: 'invalid' }
+    if (trip.status === 'paid') return { ok: true }
+    if (!walletInitialized) return { ok: false, reason: 'invalid' }
+    const fare = await spendTravelFare(trip.id, trip.quote.fare, `${trip.quote.mode} to ${trip.quote.toId}`)
+    if (!fare.ok) return fare
+    const current = stateRef.current.goldCountryTrip
+    if (current?.id === trip.id && current.status === 'paid') return { ok: true }
+    // A failed paid-state save leaves the plan available. Retrying reuses the
+    // wallet receipt, so a crash here never requires a second local fare.
+    return commitTripAction({ type: 'PAY_GOLD_COUNTRY_TRAVEL', tripId: trip.id })
+  }, [spendTravelFare, walletInitialized, commitTripAction])
+
+  const startGoldCountryTravel = useCallback(async (toLocationId: string, mode: GoldCountryTransportMode = 'wagon', luck?: number): Promise<GoldCountryTripResult> => {
+    const current = stateRef.current
+    if (isActiveGoldCountryTrip(current.goldCountryTrip)) return { ok: false, reason: 'busy' }
+    if (mode !== 'wagon' && !walletInitialized) return { ok: false, reason: 'invalid' }
+    const result = quoteGoldCountryTransport({ fromId: current.currentGoldCountryLocation || 'bobr_cabin', toId: toLocationId,
+      mode, clock: current, luck: luck ?? current.saddle?.Luck, roll: mode === 'wagon' ? undefined : Math.random() }) // safe-mint: Luck changes travel minutes only; no reward is minted.
+    if (!result.ok) return { ok: false, reason: 'invalid' }
+    const trip: GoldCountryTrip = {
+      version: 1,
+      id: `gc_${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(36).slice(2)}`}`, // safe-mint: local journey identity for debit replay; no valuable token or API authority.
+      status: result.quote.fare > 0 ? 'planned' : 'paid',
+      departureClock: { day: current.day, goldCountryDay: current.goldCountryDay ?? 1, goldCountryMinute: current.goldCountryMinute ?? 0 },
+      quote: result.quote,
+      roadEncounterId: mode === 'wagon' && !result.quote.adjacent ? getRandomEncounter(result.quote.distance)?.id ?? null : null,
+    }
+    const saved = commitTripAction({ type: 'START_GOLD_COUNTRY_TRAVEL', trip })
+    if (!saved.ok || trip.status === 'paid') return saved
+    return resumeGoldCountryTravel()
+  }, [walletInitialized, commitTripAction, resumeGoldCountryTravel])
+
+  const visitGoldCountryLocation = useCallback((locationId: string) => {
+    if (locationId === stateRef.current.currentGoldCountryLocation) dispatch({ type: 'VISIT_GOLD_COUNTRY_LOCATION', locationId })
+    else void startGoldCountryTravel(locationId)
+  }, [dispatch, startGoldCountryTravel])
+
+  const arriveAtGoldCountryLocation = useCallback((locationId: string, tripId: string): GoldCountryTripResult =>
+    commitTripAction({ type: 'ARRIVE_AT_GOLD_COUNTRY_LOCATION', locationId, tripId }), [commitTripAction])
+
+  const cancelGoldCountryTravel = useCallback((): GoldCountryTripResult => {
+    const trip = stateRef.current.goldCountryTrip
+    if (!trip || !isActiveGoldCountryTrip(trip)) return { ok: false, reason: 'invalid' }
+    // Payment may have succeeded before the paid trip save did. Resume that
+    // ticket instead of silently cancelling a fare that was actually debited.
+    if (trip.status === 'planned' && hasTravelFareReceipt(trip.id, trip.quote.fare)) return { ok: false, reason: 'conflict' }
+    return commitTripAction({ type: 'CANCEL_GOLD_COUNTRY_TRAVEL', tripId: trip.id })
+  }, [commitTripAction, hasTravelFareReceipt])
+
+  const chooseGoldCountryRoadEncounter = useCallback((choiceId: string): GoldCountryTripResult => {
+    const trip = stateRef.current.goldCountryTrip
+    if (!trip) return { ok: false, reason: 'invalid' }
+    const choice = TRAVEL_ENCOUNTERS.find(encounter => encounter.id === trip.roadEncounterId)?.choices.find(item => item.id === choiceId)
+    if (!choice) return { ok: false, reason: 'invalid' }
+    const saved = commitTripAction({ type: 'CHOOSE_GOLD_COUNTRY_ROAD_ENCOUNTER', tripId: trip.id, choiceId })
+    if (!saved.ok) return saved
+    // Preserve the donor encounter's existing effects. The saved choice prevents
+    // duplicate clicks/reloads awarding it again; these ordinary grants still
+    // use the existing wallet sync, not a new server transaction protocol.
+    const result = choice.outcome
+    if (result.karmaDelta && result.karmaDelta > 0) void earnGood(result.karmaDelta)
+    if (result.goldDelta && result.goldDelta > 0) void earnNeutral(result.goldDelta)
+    if (result.goldDelta && result.goldDelta < 0) void spendNeutral(Math.abs(result.goldDelta))
+    return { ok: true }
+  }, [commitTripAction, earnGood, earnNeutral, spendNeutral])
+
+  const continueGoldCountryRoadEncounter = useCallback((): GoldCountryTripResult => {
+    const trip = stateRef.current.goldCountryTrip
+    return trip ? commitTripAction({ type: 'CONTINUE_GOLD_COUNTRY_ROAD_ENCOUNTER', tripId: trip.id }) : { ok: false, reason: 'invalid' }
+  }, [commitTripAction])
+  const returnToGoldCountryMap = useCallback(() => dispatch({ type: 'RETURN_TO_GOLD_COUNTRY_MAP' }), [dispatch])
+  const discoverLocation = useCallback((locationId: string) => dispatch({ type: 'DISCOVER_LOCATION', locationId }), [dispatch])
+  const completeQuest = useCallback((questId: string) => dispatch({ type: 'COMPLETE_QUEST', questId }), [dispatch])
 
   // completeQuestWithReward — karma side effects wrapper
   const completeQuestWithReward = useCallback((questId: string, reward: QuestReward, choiceId?: string) => {
@@ -358,15 +454,15 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
         recordEvilAction(Math.abs(reward.goodEvilShift))
       }
     }
-  }, [earnNeutral, spendNeutral, earnGood, addBadKarma, recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction])
+  }, [earnNeutral, spendNeutral, earnGood, addBadKarma, recordLawfulAction, recordChaoticAction, recordGoodAction, recordEvilAction, dispatch])
 
-  const markAreaSearched = useCallback((areaId: string) => dispatch({ type: 'MARK_AREA_SEARCHED', areaId }), [])
-  const addInventoryItem = useCallback((itemId: string) => dispatch({ type: 'ADD_INVENTORY_ITEM', itemId }), [])
-  const advanceGoldCountryDay = useCallback((days: number) => dispatch({ type: 'ADVANCE_GOLD_COUNTRY_DAY', days }), [])
+  const markAreaSearched = useCallback((areaId: string) => dispatch({ type: 'MARK_AREA_SEARCHED', areaId }), [dispatch])
+  const addInventoryItem = useCallback((itemId: string) => dispatch({ type: 'ADD_INVENTORY_ITEM', itemId }), [dispatch])
+  const advanceGoldCountryDay = useCallback((days: number) => dispatch({ type: 'ADVANCE_GOLD_COUNTRY_DAY', days }), [dispatch])
 
   // === Living Trail (presence-gated real-world chains) ===
 
-  const enterLivingTrail = useCallback(() => dispatch({ type: 'ENTER_LIVING_TRAIL' }), [])
+  const enterLivingTrail = useCallback(() => dispatch({ type: 'ENTER_LIVING_TRAIL' }), [dispatch])
 
   // completeLivingTrailNode — karma side effects wrapper (same split as
   // completeQuestWithReward: reducer owns state, wrapper owns karma).
@@ -405,7 +501,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
         )
       } catch { /* fire-and-forget */ }
     }
-  }, [state.livingTrail.nodes, earnGood, earnNeutral])
+  }, [state.livingTrail.nodes, earnGood, earnNeutral, dispatch])
 
   // === DM directive channel (DM Layer P1) ===
 
@@ -428,38 +524,38 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
         { detail: JSON.stringify(v.directive) }
       )
     } catch { /* fire-and-forget */ }
-  }, [])
+  }, [dispatch])
 
   // === Save/Load ===
 
   const loadState = useCallback((savedState: OregonTrailState) => {
     dispatch({ type: 'LOAD_STATE', savedState })
-  }, [])
+  }, [dispatch])
 
   // === Posse system ===
 
   const hirePosseMember = useCallback((member: PosseMember) => {
     dispatch({ type: 'HIRE_POSSE_MEMBER', member })
-  }, [])
+  }, [dispatch])
 
   const dismissPosseMember = useCallback((memberId: string) => {
     dispatch({ type: 'DISMISS_POSSE_MEMBER', memberId })
-  }, [])
+  }, [dispatch])
 
   // Trail guide (#11) — karma cost handled by GuideHire before this call
   const hireGuide = useCallback((guideId: string, duration: number) => {
     dispatch({ type: 'HIRE_GUIDE', guideId, duration })
-  }, [])
+  }, [dispatch])
 
   const handleDesperationChoice = useCallback((choiceId: string) => {
     dispatch({ type: 'HANDLE_DESPERATION_CHOICE', choiceId })
-  }, [])
+  }, [dispatch])
 
   // === NPC Relationships ===
 
   const updateNPCRelationship = useCallback((npcId: string, modifierId: string) => {
     dispatch({ type: 'UPDATE_NPC_RELATIONSHIP', npcId, modifierId })
-  }, [])
+  }, [dispatch])
 
   // === Getter functions (derive from state, not dispatched) ===
 
@@ -519,6 +615,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
 
   const value: OregonTrailContextValue = {
     state,
+    getCurrentState,
     startGame,
     purchaseSupplies,
     beginJourney,
@@ -574,6 +671,10 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     enterGoldCountryExplore,
     visitGoldCountryLocation,
     startGoldCountryTravel,
+    resumeGoldCountryTravel,
+    cancelGoldCountryTravel,
+    chooseGoldCountryRoadEncounter,
+    continueGoldCountryRoadEncounter,
     arriveAtGoldCountryLocation,
     returnToGoldCountryMap,
     discoverLocation,

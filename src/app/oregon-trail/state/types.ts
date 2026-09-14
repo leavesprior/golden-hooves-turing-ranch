@@ -4,6 +4,8 @@ import { type DesperationEvent } from '../data/scarcityCascades'
 import { type NPCRelationship } from '../data/npcRelationships'
 import { type MarketEvent } from '../data/seasonalMarket'
 
+import type { GoldCountryTrip } from './goldCountryTrip'
+
 // Core game types
 export type Pace = 'steady' | 'strenuous' | 'grueling'
 export type Rations = 'filling' | 'meager' | 'bare_bones'
@@ -194,6 +196,8 @@ export interface OregonTrailState {
   travelingToLocation: string | null         // destination during travel phase
   discoveredGoldLocations: string[]          // IDs of discovered locations
   goldCountryDay: number                     // days spent in Gold Country
+  goldCountryMinute?: number                 // remaining minutes within that day (legacy default 0)
+  goldCountryTrip?: GoldCountryTrip          // one saved journey, including its paid Luck roll
   completedQuests: string[]                  // IDs of completed quests
   searchedAreas: string[]                    // IDs of searched areas
   inventory: string[]                        // items found during exploration

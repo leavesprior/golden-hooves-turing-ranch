@@ -1,5 +1,6 @@
 'use client'
 
+import { GoldCountryCalendar, GoldCountryRoutePicker, formatTravelMinutes } from './GoldCountryTransportChoices'
 import React, { useState, useCallback, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
@@ -159,6 +160,7 @@ export function GoldCountryLocation({
   const [gpsStatus, setGpsStatus] = useState<'idle'|'requesting'|'granted'|'denied'|'error'>('idle')
   const [currentDist, setCurrentDist] = useState<number | null>(null)
   const requestLocationGPS = useCallback(() => {
+    if (location?.transportGateway) return // Fictional route boards never establish GPS presence.
     if (typeof window === 'undefined' || !navigator.geolocation || !location?.coordinates) {
       setGpsStatus('error')
       return
@@ -427,6 +429,28 @@ export function GoldCountryLocation({
     )
   }
 
+  // A regional route board is intentionally separate from the existing town
+  // street, NPCs and GPS pins: no invented station building or reward IDs.
+  if (view === 'main' && location.transportGateway) {
+    return <div className="west-face-shell min-h-screen p-4" data-testid="transport-gateway">
+      <div className="max-w-2xl mx-auto space-y-4">
+        <header className="flex items-start justify-between gap-3">
+          <div><p className="west-face-eyebrow">Regional route board</p><h1 className="west-face-title text-3xl">{location.name}</h1><GoldCountryCalendar /></div>
+          <button type="button" className="west-face-pill min-h-11" onClick={onReturnToMap}>Map</button>
+        </header>
+        <p className="west-face-body">{location.description}</p>
+        {state.goldCountryTrip?.status === 'arrived' && <p className="west-face-body" data-testid="transport-arrival-summary">{state.goldCountryTrip.quote.message} Travel time: {formatTravelMinutes(state.goldCountryTrip.quote.durationMinutes)}.</p>}
+        <GoldCountryRoutePicker />
+        <section className="west-face-paper space-y-2">
+          <h2 className="west-face-eyebrow">Historical note</h2>
+          <p className="west-face-body">{location.fact}</p>
+          <p className="west-face-body text-xs">{location.transportGateway.notes}</p>
+          {location.sites.map(site => <a key={site.url} href={site.url} target="_blank" rel="noreferrer" className="block underline text-amber-200 text-sm">{site.name}</a>)}
+        </section>
+      </div>
+    </div>
+  }
+
   // Main location view
   if (view === 'main') {
     const art = editorialForExplorePlace(locationId) || editorialForExplorePlace(editorialTownId(locationId))
@@ -443,6 +467,7 @@ export function GoldCountryLocation({
               {!hunting && pins ? ` · ${pins.done}/${pins.total}` : ''}
             </p>
             <h1 className="west-face-title text-3xl">{location.name}</h1>
+            <GoldCountryCalendar />
             <p className="west-face-body mt-1 max-w-xl">{level2Case?.warrant ?? location.fact}</p>
             <p className="west-face-eyebrow mt-2" data-testid="street-sky">{skyLabel(sky)}</p>
           </div>
@@ -571,6 +596,8 @@ export function GoldCountryLocation({
 
         <div className="max-w-4xl mx-auto p-4 space-y-4">
           {!level2Case && <p className="west-face-body">{location.description}</p>}
+          {state.goldCountryTrip?.status === 'arrived' && <p className="west-face-body" data-testid="transport-arrival-summary">{state.goldCountryTrip.quote.message} Travel time: {formatTravelMinutes(state.goldCountryTrip.quote.durationMinutes)}.</p>}
+          <GoldCountryRoutePicker />
           {level2Case && pins && !hunting && (
             <div className="west-face-paper space-y-3">
               <p className="west-face-eyebrow">

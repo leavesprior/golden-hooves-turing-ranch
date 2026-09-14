@@ -1,0 +1,332 @@
+{
+  "slice": 7,
+  "verified_at_utc": "2026-09-14T04:27:02.784001+00:00",
+  "base_commit": "f43a209c9c491fa7423e8f5995873ec5847671eb",
+  "scope": "Local browser durability and playable Gold Country transport; no deployment, authenticated account API or server exactly-once claim.",
+  "gates": {
+    "npm_test": "PASS",
+    "targeted_fare_cases": 14,
+    "targeted_reducer_cases": 8,
+    "luck_grid_cases": 60000,
+    "typecheck": "PASS --noEmit --incremental false",
+    "eslint_errors": 0,
+    "eslint_warnings": 464,
+    "reward_guard": "PASS",
+    "transform_guard": "PASS",
+    "production_build": "PASS Next.js 16.1.6",
+    "diff_check": "PASS"
+  },
+  "browser": {
+    "kind": "Production bundle; actual title Continue and UI; disposable prior-save fixtures; local APIs mocked",
+    "passed": 20,
+    "failed": 0,
+    "page_errors": 0,
+    "raw_path": "artifacts/year-gated-transport/production/results.json",
+    "raw_sha256": "1f0b0dcd66eace185b185795896aebe1f7d862144737091b605563762b9b4655",
+    "cases": [
+      {
+        "viewport": "desktop",
+        "scenario": "stage-boundary-reload",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 720,
+        "location": "volcano",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "desktop",
+        "scenario": "rail-gateways",
+        "ok": true,
+        "neutral": 378,
+        "gold_country_day": 7111,
+        "gold_country_minute": 810,
+        "location": "roseville_gateway",
+        "local_receipts": 2
+      },
+      {
+        "viewport": "desktop",
+        "scenario": "no-funds",
+        "ok": true,
+        "neutral": 0,
+        "gold_country_day": 991,
+        "gold_country_minute": 0,
+        "location": "volcano",
+        "local_receipts": 0
+      },
+      {
+        "viewport": "desktop",
+        "scenario": "plan",
+        "ok": true,
+        "neutral": 400,
+        "gold_country_day": 991,
+        "gold_country_minute": 0,
+        "location": "volcano",
+        "local_receipts": 0
+      },
+      {
+        "viewport": "desktop",
+        "scenario": "fare",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 720,
+        "location": "murphys",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "desktop",
+        "scenario": "paid",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 720,
+        "location": "murphys",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "desktop",
+        "scenario": "arrival",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 720,
+        "location": "murphys",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "desktop",
+        "scenario": "on-foot",
+        "ok": true,
+        "neutral": 400,
+        "gold_country_day": 992,
+        "gold_country_minute": 0,
+        "location": "murphys",
+        "local_receipts": 0
+      },
+      {
+        "viewport": "desktop",
+        "scenario": "absent-wallet",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 720,
+        "location": "murphys",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "desktop",
+        "scenario": "luck-delay",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 840,
+        "location": "murphys",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "phone390",
+        "scenario": "stage-boundary-reload",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 720,
+        "location": "volcano",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "phone390",
+        "scenario": "rail-gateways",
+        "ok": true,
+        "neutral": 378,
+        "gold_country_day": 7111,
+        "gold_country_minute": 810,
+        "location": "roseville_gateway",
+        "local_receipts": 2
+      },
+      {
+        "viewport": "phone390",
+        "scenario": "no-funds",
+        "ok": true,
+        "neutral": 0,
+        "gold_country_day": 991,
+        "gold_country_minute": 0,
+        "location": "volcano",
+        "local_receipts": 0
+      },
+      {
+        "viewport": "phone390",
+        "scenario": "plan",
+        "ok": true,
+        "neutral": 400,
+        "gold_country_day": 991,
+        "gold_country_minute": 0,
+        "location": "volcano",
+        "local_receipts": 0
+      },
+      {
+        "viewport": "phone390",
+        "scenario": "fare",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 720,
+        "location": "murphys",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "phone390",
+        "scenario": "paid",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 720,
+        "location": "murphys",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "phone390",
+        "scenario": "arrival",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 720,
+        "location": "murphys",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "phone390",
+        "scenario": "on-foot",
+        "ok": true,
+        "neutral": 400,
+        "gold_country_day": 992,
+        "gold_country_minute": 0,
+        "location": "murphys",
+        "local_receipts": 0
+      },
+      {
+        "viewport": "phone390",
+        "scenario": "absent-wallet",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 720,
+        "location": "murphys",
+        "local_receipts": 1
+      },
+      {
+        "viewport": "phone390",
+        "scenario": "luck-delay",
+        "ok": true,
+        "neutral": 390,
+        "gold_country_day": 991,
+        "gold_country_minute": 840,
+        "location": "murphys",
+        "local_receipts": 1
+      }
+    ]
+  },
+  "provider": {
+    "kind": "Actual React wallet, Oregon Trail provider, reducer and SaveLoadIntegration; unrelated context/network adapters controlled",
+    "passed": 5,
+    "failed": 0,
+    "raw_path": "artifacts/year-gated-transport/wallet-provider-final/results.json",
+    "raw_sha256": "4005340bf38d148608f41a04cefe6854d2c53751c2601271ff4e624f3b94a48a",
+    "cases": [
+      {
+        "scenario": "queued-and-replay",
+        "ok": true,
+        "balance": {
+          "good": 12,
+          "neutral": 403,
+          "bad": 2
+        },
+        "alignment": {
+          "lawfulChaotic": 0,
+          "goodEvil": 0
+        }
+      },
+      {
+        "scenario": "storage-failure",
+        "ok": true,
+        "balance": {
+          "good": 12,
+          "neutral": 390,
+          "bad": 2
+        },
+        "alignment": {
+          "lawfulChaotic": 0,
+          "goodEvil": 0
+        }
+      },
+      {
+        "scenario": "slot-matching",
+        "ok": true,
+        "balance": {
+          "good": 12,
+          "neutral": 390,
+          "bad": 2
+        },
+        "alignment": {
+          "lawfulChaotic": 0,
+          "goodEvil": 0
+        }
+      },
+      {
+        "scenario": "slot-missing",
+        "ok": true,
+        "balance": {
+          "neutral": 400,
+          "good": 70,
+          "bad": 9
+        },
+        "alignment": {
+          "lawfulChaotic": 22,
+          "goodEvil": 11
+        }
+      },
+      {
+        "scenario": "trip-in-flight-race",
+        "ok": true,
+        "balance": {
+          "good": 12,
+          "neutral": 390,
+          "bad": 2
+        },
+        "alignment": {
+          "lawfulChaotic": 0,
+          "goodEvil": 0
+        }
+      }
+    ]
+  },
+  "changed_source_sha256": {
+    "package.json": "8be51ce380a4542345a6b475796aabef13418d012256ee31133a4dd17a5c04de",
+    "src/app/oregon-trail/components/GoldCountryExplore.tsx": "5ad0c23263a7da71a3ed66e0c3f1a04003b800359da529f5619bb507ee2b4ad0",
+    "src/app/oregon-trail/components/GoldCountryLocation.tsx": "27012d10bd7259ad978502fd9d65bba2e1a865c7850613a8d84cae17e41c171a",
+    "src/app/oregon-trail/components/GoldCountryTransportChoices.tsx": "c4b597b6085d4842341083e9977172aa2e85ff1fb39f4f9b63ff7d8a1e02b10c",
+    "src/app/oregon-trail/components/GoldCountryTravel.tsx": "54b70d05f0d86f92a4c92c72b732ff123f5f717bc3b11d7ed6ab2db2ac82124c",
+    "src/app/oregon-trail/data/goldCountryLocations.ts": "6f3d9b7df8963e9432b94883872160657d69ffe9484dd5887a92a2ba0a0cd93b",
+    "src/app/oregon-trail/karmaWalletContext.tsx": "ae03f8d1945de64eccba5620a4e8bea0da984a5c947604db878bd7842cc13fbc",
+    "src/app/oregon-trail/lib/localTrailSave.ts": "1cd25bc37193f6a4438cac46df808f80e238f5ce56cab9f28308cb2ecbe7ca75",
+    "src/app/oregon-trail/oregonTrailContext.tsx": "4a9afcecbeea3d33f95b9f7d65da9d8ed04406b119f1eb06872c667e29fc8352",
+    "src/app/oregon-trail/page.tsx": "66e5a83d4bb4b6500d4658a9e760075bad2f9035764a9781830a2ff8418b13f0",
+    "src/app/oregon-trail/phases/GoldCountryExploreScreen.tsx": "17761672a3f36f1b676daeb820369c6ef0be90f9b6862dedea14e15dbeae0f2a",
+    "src/app/oregon-trail/phases/GoldCountryTravelScreen.tsx": "167fb9236538f29b96378a1ed08530df0d829701674894391aac77145ef85345",
+    "src/app/oregon-trail/phases/SaveLoadIntegration.tsx": "f24c003787acad57cb147f2fd707947942a3938e4e4b4b01899dc572b190b571",
+    "src/app/oregon-trail/state/actions.ts": "0479a8988c610cf3b87429f4d7e073531ff9aa8dc6a719a21e5c567ee8991832",
+    "src/app/oregon-trail/state/goldCountryActions.ts": "ded36cfc9c2968dae8af9d850b96ec62a86906296e88916054070e7ccf9ec115",
+    "src/app/oregon-trail/state/goldCountryTrip.test.ts": "9f0393f68964e5046e0caf15534a7e4409d29e2a497d89f9a02f79e92b9c90f0",
+    "src/app/oregon-trail/state/goldCountryTrip.ts": "a1e1f2387b79694540853a430037199c837e6dbb1c8c4804944fac14c275be48",
+    "src/app/oregon-trail/state/reducer.ts": "9714ca83a927504244321dfa808f6d1ca32c0ba00ec24ccd4142127f37502098",
+    "src/app/oregon-trail/state/types.ts": "722a62db0b97326797b81e88015e5edae63c54eed385bbeac515949fbb26170f",
+    "src/lib/goldCountryFare.test.ts": "20e5747d9d5f2d531d74519076f1149886a64e76e7a36862b1ae6a65904ab9dc",
+    "src/lib/goldCountryFare.ts": "18d788b0f8fdbe76312e4195872dd62e9efc237805f8962cd1bc062704ea6262",
+    "src/lib/goldCountryStreet.test.ts": "6dd41a2aca7c3f7d4ab23c33e5c3a1a9ab1c786f332f29b909951bfa312aba3a",
+    "src/lib/goldCountryStreet.ts": "c726dd2799c889d06263fcd2a17502c09f3f10d5e8246cdff951518e72e707ca",
+    "src/lib/goldCountryTransport.test.ts": "b704730c0f527251661887e2ffef973abad74a440c90b2c5901458f719166880",
+    "src/lib/goldCountryTransport.ts": "f4689b507a4e13d5d6bd571f4512c2d0e600986f93cbb32c786fc1fbe1702e79",
+    "tools/goldCountryTransport.browser.ts": "533d7abb07823d1b5273af0fbc1f6c8cce356e13dfea2d351b374a9e536458a1",
+    "tools/goldCountryWallet.browser.ts": "50cf91bc26b8e8810716eef66e513dc8c157fc77dbb53d5c07b0885b42edc859"
+  }
+}

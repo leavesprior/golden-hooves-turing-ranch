@@ -705,7 +705,7 @@ export function tickOutstandingWarrants(
 
 /** Every mapped Gold Country place has at least one door you can enter. */
 export function everyLocationHasAFront(): boolean {
-  return GOLD_COUNTRY_LOCATIONS.every((loc) => frontsForLocation(loc.id).length > 0)
+  return GOLD_COUNTRY_LOCATIONS.filter((loc) => !loc.transportGateway).every((loc) => frontsForLocation(loc.id).length > 0)
 }
 
 export function snapshotLevel2Persist(storage?: { getItem(k: string): string | null }): Level2Persist {

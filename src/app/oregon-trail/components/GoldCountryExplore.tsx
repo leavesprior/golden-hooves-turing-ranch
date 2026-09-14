@@ -7,7 +7,6 @@ import { useMystery } from '../mysteryContext'
 import {
   GOLD_COUNTRY_LOCATIONS,
   getGoldCountryLocation,
-  areLocationsAdjacent,
 } from '../data/goldCountryLocations'
 import { readDiscovered, metersBetween } from '@/lib/oneMapDiscovery'
 import { GOLD_COUNTRY_MAP_ART } from '@/lib/goldCountryEditorial'
@@ -35,11 +34,12 @@ import {
   unlockStayGifts,
   writeLevelPostWinChoice,
 } from '@/lib/goldCountryLevelRewards'
+import { GoldCountryCalendar, GoldCountryRoutePicker, GoldCountryTransportChoices } from './GoldCountryTransportChoices'
+import { isActiveGoldCountryTrip } from '../state/goldCountryTrip'
 import type { PostWinChoice } from '@/lib/arcadeFirstLevel'
 
 interface GoldCountryExploreProps {
   onVisitLocation: (locationId: string) => void
-  onTravel: (toLocationId: string) => void
   onOpenSettlement: () => void
   onOpenQuestLog: () => void
   onLeave: () => void
@@ -47,12 +47,11 @@ interface GoldCountryExploreProps {
 
 export function GoldCountryExplore({
   onVisitLocation,
-  onTravel,
   onOpenSettlement,
   onOpenQuestLog,
   onLeave,
 }: GoldCountryExploreProps) {
-  const { state } = useOregonTrail()
+  const { state, setPhase } = useOregonTrail()
   const { balance } = useKarmaWallet()
   const { state: mysteryState } = useMystery()
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
@@ -112,7 +111,7 @@ export function GoldCountryExplore({
 
   const posById = useMemo(() => {
     const out: Record<string, { x: number; y: number }> = {}
-    for (const loc of GOLD_COUNTRY_LOCATIONS) {
+    for (const loc of GOLD_COUNTRY_LOCATIONS.filter(location => !location.transportGateway)) {
       out[loc.id] = level2PinPosition(loc.id, loc.coordinates.lat, loc.coordinates.lng)
     }
     return out
@@ -132,16 +131,6 @@ export function GoldCountryExplore({
       return
     }
     setSelectedLocation(locationId)
-  }
-
-  const handleTravelConfirm = () => {
-    if (!selectedLocation) return
-    if (areLocationsAdjacent(currentLoc, selectedLocation)) {
-      onVisitLocation(selectedLocation)
-    } else {
-      onTravel(selectedLocation)
-    }
-    setSelectedLocation(null)
   }
 
   const selectedLocData = selectedLocation ? getGoldCountryLocation(selectedLocation) : null
@@ -187,6 +176,7 @@ export function GoldCountryExplore({
           <div>
             <p className="west-face-eyebrow">{hunting ? 'Level 3 · the hunt' : 'Level 2'}</p>
             <h1 className="west-face-title text-3xl sm:text-4xl">Explore the Gold Country</h1>
+            <GoldCountryCalendar />
             <p className="west-face-body mt-1 max-w-xl">
               {hunting
                 ? 'The paper is not the man. Show it. Follow the street. 1849 noir — no wire, just the next town.'
@@ -215,7 +205,7 @@ export function GoldCountryExplore({
           <div className="pointer-events-none absolute inset-0 bg-[#1a1610]/30" />
 
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-            {GOLD_COUNTRY_LOCATIONS.filter((loc) => discovered.includes(loc.id)).map((loc) =>
+            {GOLD_COUNTRY_LOCATIONS.filter((loc) => !loc.transportGateway && discovered.includes(loc.id)).map((loc) =>
               loc.adjacentTo.filter((adj) => discovered.includes(adj)).map((adj) => {
                 const a = posById[loc.id]
                 const b = posById[adj]
@@ -234,7 +224,7 @@ export function GoldCountryExplore({
             )}
           </svg>
 
-          {GOLD_COUNTRY_LOCATIONS.map((loc) => {
+          {GOLD_COUNTRY_LOCATIONS.filter(loc => !loc.transportGateway).map((loc) => {
             const pos = posById[loc.id]
             if (!pos) return null
             const known = discovered.includes(loc.id)
@@ -288,9 +278,7 @@ export function GoldCountryExplore({
               )}
               <p className="west-face-body mt-1 text-sm">{selectedLocData.driveTime}</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" className="west-face-pill west-face-pill-cream" onClick={handleTravelConfirm}>
-                  {areLocationsAdjacent(currentLoc, selectedLocation) ? 'Enter' : 'Travel the road'}
-                </button>
+                <GoldCountryTransportChoices toLocationId={selectedLocation} onDepart={() => setSelectedLocation(null)} />
                 <button type="button" className="west-face-pill" onClick={() => setSelectedLocation(null)}>
                   Cancel
                 </button>
@@ -300,6 +288,13 @@ export function GoldCountryExplore({
         </div>
 
         <aside className="flex flex-col gap-3">
+          {isActiveGoldCountryTrip(state.goldCountryTrip) && <div className="west-face-paper" role="status">
+            <p className="west-face-body">Your saved journey is waiting.</p>
+            <button type="button" className="west-face-pill min-h-11 mt-2" onClick={() => setPhase('gold_country_travel')}>Resume journey</button>
+          </div>}
+          {(state.message?.startsWith('This road save') || state.goldCountryTrip?.status === 'cancelled') && <p role="status" className="west-face-body">{state.message}</p>}
+          <GoldCountryRoutePicker />
+          <p className="west-face-body text-xs">Regional railway gateways join this route list in 1869. They sit beyond the painted map.</p>
           {hunting && (
             <GoldCountryHuntDossier
               takenWarrants={takenWarrants}
