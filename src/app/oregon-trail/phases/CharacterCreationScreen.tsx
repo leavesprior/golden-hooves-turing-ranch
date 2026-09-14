@@ -16,6 +16,7 @@ import { KarmaToastContainer } from '@/components/karma'
 import { NarratorOverlay } from '../components/NarratorOverlay'
 import { creationBonusPoints, isKidMode } from '@/lib/gftAgeMode'
 import { applySaddleAdjust } from '@/lib/gftSaddleAdjust'
+import { PlayerPortrait } from '../components/PlayerPortrait'
 
 export function CharacterCreationScreen() {
   const { state: trailState, beginJourney } = useOregonTrail()
@@ -97,13 +98,6 @@ export function CharacterCreationScreen() {
   const backgrounds = Object.entries(BACKGROUND_DESCRIPTIONS).map(([id, data]) => ({
     id: id as CharacterBackground,
     ...data,
-    icon: id === 'pinkerton_veteran' ? '\u{1F575}' :
-          id === 'frontier_scout' ? '\u{1F3AF}' :
-          id === 'army_officer' ? '\u2694\uFE0F' :
-          id === 'gambler' ? '\u{1F0CF}' :
-          id === 'doctor' ? '\u2695\uFE0F' :
-          id === 'preacher' ? '\u271D\uFE0F' :
-          id === 'outlaw_reformed' ? '\u{1F3AD}' : '\u{1F464}'
   }))
 
   const adjustStat = (stat: StatName, delta: number) => {
@@ -189,18 +183,22 @@ export function CharacterCreationScreen() {
                 type="button"
                 data-testid={`saddle-background-${bg.id}`}
                 onClick={() => setSelectedBackground(bg.id)}
-                className={`p-4 md:p-3 rounded border-2 text-left transition-all active:scale-[0.98] ${
+                aria-pressed={selectedBackground === bg.id}
+                className={`flex items-start gap-3 p-4 md:p-3 rounded border-2 text-left transition-all active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-300 ${
                   selectedBackground === bg.id
                     ? 'bg-purple-900/60 border-purple-400 text-purple-200'
                     : 'bg-gray-800/60 border-gray-600 text-gray-400 hover:border-gray-500'
                 }`}
               >
-                <span className="text-2xl md:text-lg mr-2">{bg.icon}</span>
-                <span className="font-pixel text-sm md:text-xs">{bg.name}</span>
-                <p className="text-xs md:text-[10px] mt-1 opacity-70">{bg.description}</p>
+                <PlayerPortrait background={bg.id} name={bg.name} width={48} />
+                <span className="min-w-0">
+                  <span className="font-pixel text-sm md:text-xs">{bg.name}</span>
+                  <span className="block text-xs md:text-[10px] mt-1 opacity-70">{bg.description}</span>
+                </span>
               </button>
             ))}
           </div>
+          <p className="mt-3 text-xs text-purple-300/70">Fictional adult portraits for your 1849 adventure.</p>
         </div>
 
         {/* Dice Roll Section */}

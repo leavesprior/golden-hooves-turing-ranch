@@ -7,6 +7,9 @@ import { successorLegacy } from '@/app/adventure/play/perilEngine'
 import { passingForState } from '../state/passing'
 import { HEALTH_MESSAGES } from '../data/eventMessages'
 import { TrailOutcomePicture } from '../components/TrailOutcomePicture'
+import { useCharacter } from '../characterContext'
+import { PlayerPortrait } from '../components/PlayerPortrait'
+import { getPassingPlayerPortrait } from '../data/passingPlayerPortrait'
 
 /**
  * THE PASSING — canon rule #1: mortality is a WIN condition, never a fail-state.
@@ -21,6 +24,7 @@ import { TrailOutcomePicture } from '../components/TrailOutcomePicture'
  */
 export function GameOverScreen() {
   const { state, resetGame } = useOregonTrail()
+  const { state: characterState } = useCharacter()
   const [stage, setStage] = useState<'passing' | 'legacy'>('passing')
 
   const passing = passingForState(state)
@@ -39,6 +43,16 @@ export function GameOverScreen() {
   const legacyOwner = state.wagonLeader || fallen
   const legacy = successorLegacy(legacyOwner, 0)
   const heirName = `${legacyOwner.split(' ').slice(-1)[0] || 'the fallen'}'s heir`
+  const playerPortrait = getPassingPlayerPortrait(state, characterState.character)
+  const familyPortrait = playerPortrait ? (
+    <div data-testid="passing-family-portrait" className="flex items-center justify-center gap-4 text-left mb-6">
+      <PlayerPortrait background={playerPortrait.background} name={playerPortrait.name} />
+      <div className="min-w-0">
+        <p className="text-amber-200 text-sm break-words">Family portrait · {playerPortrait.name}</p>
+        <p className="text-stone-400 text-xs mt-1">The family whose name continues.</p>
+      </div>
+    </div>
+  ) : null
 
   // Fire once per mount, not once per render (the old code logged on every
   // render, flooding the cross-game event log).
@@ -60,6 +74,9 @@ export function GameOverScreen() {
             <h1 className="font-pixel text-amber-200 text-2xl mb-6">The Trail Claims Its Own</h1>
             <div data-testid="passing-marker" data-kind={passing.kind}>
               <TrailOutcomePicture art={passing.kind === 'town' ? 'grave-town' : 'grave-trail'} caption={markerCaption} />
+              {playerPortrait?.placement === 'memorial' && (
+                <PlayerPortrait background={playerPortrait.background} name={fallen} className="mb-3" data-testid="passing-memorial-portrait" />
+              )}
               <h2 data-testid="passing-name" className="font-pixel text-amber-200 text-xl mb-3">{fallen}</h2>
               <p data-testid="passing-epitaph" className="text-stone-300 italic mb-2">{HEALTH_MESSAGES.death[epitaphIndex]}</p>
               <p className="text-stone-400 text-sm mb-6">Asked for a short rest. Negotiations got out of hand.</p>
@@ -71,6 +88,8 @@ export function GameOverScreen() {
               has ever asked of anyone. The road runs onward. The river does not
               pause. Somewhere ahead, the same country waits for whoever comes next.
             </p>
+
+            {playerPortrait?.placement === 'legacy' && familyPortrait}
 
             <dl className="grid grid-cols-2 gap-3 text-left text-xs text-stone-400 mb-8 mx-auto max-w-sm">
               <div><dt className="text-stone-500">Days on the trail</dt><dd className="text-amber-200 font-pixel">{state.daysOnTrail}</dd></div>
@@ -91,6 +110,7 @@ export function GameOverScreen() {
           <>
             <div className="text-5xl mb-6 opacity-80">🕯️</div>
             <h1 className="font-pixel text-amber-200 text-2xl mb-6">The Name Goes On</h1>
+            {familyPortrait}
 
             <p className="text-stone-300 mb-6 leading-relaxed">
               An heir takes up the reins. They carry the family name, the stories

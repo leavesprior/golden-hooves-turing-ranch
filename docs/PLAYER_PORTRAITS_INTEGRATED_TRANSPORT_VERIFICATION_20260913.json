@@ -1,0 +1,201 @@
+{
+  "verified_at_utc": "2026-09-14T04:47:15.769342+00:00",
+  "head": "5058e28855b6891e3df05532912e07796ca67db5",
+  "base": "755aef1e7c4904f6140c250e0b17293ea6d17337",
+  "branch": "feat/player-background-portraits-20260913",
+  "build_id": "zgUqzdMMstKpfQhKSUdOO",
+  "scope": "Combined F portrait source on reviewed E transport, including B and D. Existing disposable-fixture browser harness; no public deployment, full unseeded campaign, live account API or earned completion claim.",
+  "gates": {
+    "npm_test": "PASS exit0",
+    "normal_npm_build": "PASS exit0",
+    "nonincremental_tsc": "PASS --noEmit --incremental false exit0",
+    "npm_lint": "PASS exit0; 0 errors, 464 warnings",
+    "git_diff_check": "PASS"
+  },
+  "browser": {
+    "label": "integrated-transport",
+    "base": "http://127.0.0.1:3359",
+    "browser": "151.0.7922.71",
+    "scenarios": 14,
+    "passed": 14,
+    "screenshots": 30,
+    "runtime_errors": 0,
+    "hydration_errors": 0,
+    "cases": [
+      {
+        "id": "desktop-create-pinkerton_veteran",
+        "status": "passed",
+        "viewport": {
+          "width": 1280,
+          "height": 960
+        }
+      },
+      {
+        "id": "desktop-create-frontier_scout",
+        "status": "passed",
+        "viewport": {
+          "width": 1280,
+          "height": 960
+        }
+      },
+      {
+        "id": "desktop-create-army_officer",
+        "status": "passed",
+        "viewport": {
+          "width": 1280,
+          "height": 960
+        }
+      },
+      {
+        "id": "desktop-create-gambler",
+        "status": "passed",
+        "viewport": {
+          "width": 1280,
+          "height": 960
+        }
+      },
+      {
+        "id": "desktop-create-doctor",
+        "status": "passed",
+        "viewport": {
+          "width": 1280,
+          "height": 960
+        }
+      },
+      {
+        "id": "desktop-create-preacher",
+        "status": "passed",
+        "viewport": {
+          "width": 1280,
+          "height": 960
+        }
+      },
+      {
+        "id": "desktop-create-outlaw_reformed",
+        "status": "passed",
+        "viewport": {
+          "width": 1280,
+          "height": 960
+        }
+      },
+      {
+        "id": "phone390-create-all-roles",
+        "status": "passed",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        }
+      },
+      {
+        "id": "desktop-bridge-player",
+        "status": "passed",
+        "viewport": {
+          "width": 1280,
+          "height": 960
+        },
+        "scrolled_pixels": 0
+      },
+      {
+        "id": "phone390-bridge-player",
+        "status": "passed",
+        "viewport": {
+          "width": 390,
+          "height": 568
+        },
+        "scrolled_pixels": 110
+      },
+      {
+        "id": "desktop-bridge-companion",
+        "status": "passed",
+        "viewport": {
+          "width": 1280,
+          "height": 960
+        },
+        "scrolled_pixels": 0
+      },
+      {
+        "id": "phone390-old-passing-save",
+        "status": "passed",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        }
+      },
+      {
+        "id": "desktop-duplicate-passing-name",
+        "status": "passed",
+        "viewport": {
+          "width": 1280,
+          "height": 960
+        }
+      },
+      {
+        "id": "phone390-missing-doctor-art",
+        "status": "passed",
+        "viewport": {
+          "width": 390,
+          "height": 844
+        }
+      }
+    ],
+    "raw_results": "artifacts/player-portraits/browser-integrated-transport/results.json",
+    "raw_sha256": "1e2bbbfb193a2e932d96b4a5995af2a527c6e06dd1bdf238bd28cec80a76ed3e"
+  },
+  "source_hashes_unchanged": true,
+  "source_sha256": {
+    "package.json": "96fb7e59b2c4105fe0199080634a3eb353a8cee6d0556ddb30b550357116a8ce",
+    "src/app/oregon-trail/oregonTrailContext.tsx": "4a9afcecbeea3d33f95b9f7d65da9d8ed04406b119f1eb06872c667e29fc8352",
+    "src/app/oregon-trail/karmaWalletContext.tsx": "ae03f8d1945de64eccba5620a4e8bea0da984a5c947604db878bd7842cc13fbc",
+    "src/app/oregon-trail/page.tsx": "66e5a83d4bb4b6500d4658a9e760075bad2f9035764a9781830a2ff8418b13f0",
+    "src/app/oregon-trail/phases/SaveLoadIntegration.tsx": "f24c003787acad57cb147f2fd707947942a3938e4e4b4b01899dc572b190b571",
+    "src/app/oregon-trail/lib/localTrailSave.ts": "1cd25bc37193f6a4438cac46df808f80e238f5ce56cab9f28308cb2ecbe7ca75",
+    "src/app/oregon-trail/state/goldCountryTrip.ts": "a1e1f2387b79694540853a430037199c837e6dbb1c8c4804944fac14c275be48",
+    "src/app/oregon-trail/state/goldCountryActions.ts": "ded36cfc9c2968dae8af9d850b96ec62a86906296e88916054070e7ccf9ec115",
+    "src/app/oregon-trail/state/actions.ts": "0479a8988c610cf3b87429f4d7e073531ff9aa8dc6a719a21e5c567ee8991832",
+    "src/app/oregon-trail/state/types.ts": "722a62db0b97326797b81e88015e5edae63c54eed385bbeac515949fbb26170f",
+    "src/lib/goldCountryFare.ts": "18d788b0f8fdbe76312e4195872dd62e9efc237805f8962cd1bc062704ea6262",
+    "src/lib/goldCountryTransport.ts": "f4689b507a4e13d5d6bd571f4512c2d0e600986f93cbb32c786fc1fbe1702e79",
+    "tools/playerPortraits.browser.ts": "972fb314298d77c5164577f28a54a557fdd6ceb0d777b6287edbf7f11409756d",
+    "src/app/oregon-trail/data/playerPortraits.ts": "fb3b6e7f6ff8873a8b2b9e6f91d38114f6da9554f914f2dc7431617ea5d63ce9",
+    "src/app/oregon-trail/data/passingPlayerPortrait.ts": "a60c9c789e8142f58b68d68cf8b9b6a548996733a01dde0c35a566fe9003c8f2",
+    "src/app/oregon-trail/components/PlayerPortrait.tsx": "3f5c8aafa8363543a3956dfae4eb5eff77dcad318ab157059865f8c7c4fc2467",
+    "src/app/oregon-trail/components/CharacterSheet.tsx": "fea01f0d2a03e970f7bfc2bba33284a948f0eede35423ab9c478391db16eeea2",
+    "src/app/oregon-trail/components/BridgeKeeper.tsx": "72e36582c6145ba0633e85d79166f0a3eb893849057e140e9477ed217518ddd3",
+    "src/app/oregon-trail/components/RiverCrossing.tsx": "bb74c6e5e18c4a428735663b653bd45a5ce18409210ebd0b35ddd6c771029773",
+    "src/app/oregon-trail/phases/CharacterCreationScreen.tsx": "b9ae7086caa8e6af679072f0c5a36f9eaca47344c62b3946b80a89ee347429da",
+    "src/app/oregon-trail/phases/GameOverScreen.tsx": "d598f30c79f007f2b3787aebb878c05e8b681d121d0946da87d2e3d931f7a290",
+    "src/app/oregon-trail/characterContext.tsx": "924c2da79559a154421980287f41fc692b539c9ad7d1b74bb656a6572bac277d",
+    "src/app/oregon-trail/state/passing.ts": "06d326652d9fd8b966b5a7752b27159828a7f547c1855fa22d36bd0573c84df3",
+    "src/app/oregon-trail/state/reducer.ts": "9714ca83a927504244321dfa808f6d1ca32c0ba00ec24ccd4142127f37502098",
+    "src/app/globals.css": "d09793f93553ad808270593a9986ac5bfd00d0ab3ae8432602f95604fce88a70",
+    "public/sprites/player-backgrounds/pinkerton_veteran.png": "5bbfbce2961eb164c91ecaa2e9f818aff09724bda4c23603edb41c3a0fc17c2d",
+    "public/sprites/player-backgrounds/frontier_scout.png": "4c5a23e23d8cff2354137244356bb80ec2812ad4712953050b48a1118f65f6ef",
+    "public/sprites/player-backgrounds/army_officer.png": "d9f9e08bc358ecb2460638b2652cfdef801b4b1b2cbfcc4459fd24504a39312d",
+    "public/sprites/player-backgrounds/gambler.png": "478661cbfbd010cefea92d1e92ffc55c1cb4688fb8427d2e59695e8bfa0c1afe",
+    "public/sprites/player-backgrounds/doctor.png": "bc0392b15026be7ff17dee05aa4d28899822d0ccf4be93c087e5e6fc354c94d8",
+    "public/sprites/player-backgrounds/preacher.png": "2d4c201f8a9578be4e55d9bc038fb51455a5d49fddfcf50bfde370423727e1dd",
+    "public/sprites/player-backgrounds/outlaw_reformed.png": "192077ac4d74c0efe744057297319505e064b4ff6ef88ba9b5ed3873f6f54087"
+  },
+  "logs": {
+    "unit": {
+      "path": "artifacts/player-portraits/integrated-transport-validation/unit.log",
+      "sha256": "6bf02daa6573a1ce6c4ccc3835aaae2b3d27c4f9aa626790dd1d9fecbf7cd6e1"
+    },
+    "lint": {
+      "path": "artifacts/player-portraits/integrated-transport-validation/lint.log",
+      "sha256": "c032c7e5af5d15608b03238091ee2ba1714df3161aeb8e194a949046b4687717"
+    },
+    "build": {
+      "path": "artifacts/player-portraits/integrated-transport-validation/build.log",
+      "sha256": "94dc4d38d89001ceb331496e8812603a98b7d3ad588a5bd0e91fd4afe41de7c0"
+    },
+    "typecheck": {
+      "path": "artifacts/player-portraits/integrated-transport-validation/typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "browser": {
+      "path": "artifacts/player-portraits/integrated-transport-validation/browser.log",
+      "sha256": "f6212653e9b672fadce9749a7631af14bbd34139cec272e99811562d58fa27e3"
+    }
+  }
+}

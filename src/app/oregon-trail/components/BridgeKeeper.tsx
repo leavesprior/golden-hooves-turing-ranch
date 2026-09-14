@@ -11,6 +11,8 @@
  */
 
 import React, { useState, useCallback } from 'react'
+import type { CharacterBackground } from '../characterContext'
+import { PlayerPortrait } from './PlayerPortrait'
 import {
   BRIDGE_KEEPER_INTRO,
   BRIDGE_QUESTIONS,
@@ -22,6 +24,8 @@ import {
 
 interface BridgeKeeperProps {
   playerName: string
+  /** Optional: the standalone DM-table encounter need not have a saved player. */
+  playerBackground?: CharacterBackground
   onSuccess: () => void
   onFailure: () => void
   onCancel: () => void
@@ -43,6 +47,7 @@ type Phase = 'intro' | 'questioning' | 'success' | 'failure' | 'reversal'
 
 export function BridgeKeeper({
   playerName,
+  playerBackground,
   onSuccess,
   onFailure,
   onCancel,
@@ -129,12 +134,22 @@ export function BridgeKeeper({
 
   return (
     <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
-      <div className="max-w-lg w-full bg-gradient-to-b from-slate-800 to-slate-900 border-4 border-slate-600 rounded-lg overflow-hidden">
+      <div className="max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-gradient-to-b from-slate-800 to-slate-900 border-4 border-slate-600 rounded-lg">
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 p-4 text-center border-b-2 border-slate-500">
           <h1 className="text-xl font-bold text-slate-200">The Bridge of Death</h1>
           <p className="text-slate-400 text-sm">A Mysterious Encounter</p>
         </div>
+
+        {playerBackground && (
+          <div data-testid="bridge-player" className="flex items-center justify-center gap-3 px-4 pt-4 text-left">
+            <PlayerPortrait background={playerBackground} name={playerName} width={48} data-testid="bridge-player-portrait" />
+            <div className="min-w-0">
+              <p className="text-slate-400 text-xs">At the bridge</p>
+              <p className="text-amber-100 text-sm break-words">{playerName}</p>
+            </div>
+          </div>
+        )}
 
         {/* Bridge Keeper Image (ASCII art style) */}
         <div className="bg-slate-950 p-4 text-center font-mono text-xs text-slate-500">
