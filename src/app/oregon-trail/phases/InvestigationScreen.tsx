@@ -4,17 +4,19 @@ import React, { useState, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useMystery } from '../mysteryContext'
 import { useNarrator } from '../narratorContext'
-import { useReputation } from '../reputationContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { NarratorOverlay, ReliabilityIndicator } from '../components/NarratorOverlay'
-import { getNPCsAtLocation } from '../data/goldCountryNPCs'
 import { CRIME_DESCRIPTIONS } from '../data/clueTemplates'
+import { useCharacter } from '../characterContext'
+import { useKarmaWallet } from '../karmaWalletContext'
+import { investigationNPCsFor, investigationRoomsFor, investigationTownId } from '../data/investigationTowns'
 
 export function InvestigationScreen() {
-  const { state, closeInvestigation, openWitnessDialogue, openDossier, openTelegraph, openJournal, investigateLocation } = useOregonTrail()
+  const { state, closeInvestigation, openWitnessDialogue, openDossier, openTelegraph, openJournal } = useOregonTrail()
   const { state: mysteryState, generateCrimeAtLocation } = useMystery()
   const { comment, recordPlayerAction } = useNarrator()
-  const { getReputation } = useReputation()
+  const { getStat } = useCharacter()
+  const { balance } = useKarmaWallet()
 
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
 
@@ -28,25 +30,15 @@ export function InvestigationScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Available investigation locations based on landmark type
-  const investigationLocations = [
-    { id: 'saloon', name: 'Saloon', icon: '\uD83C\uDF7A', witnesses: ['bartender', 'drunk', 'traveler'] },
-    { id: 'stable', name: 'Stable', icon: '\uD83D\uDC34', witnesses: ['stable_hand'] },
-    { id: 'general_store', name: 'General Store', icon: '\uD83C\uDFEA', witnesses: ['shopkeeper'] },
-    { id: 'telegraph', name: 'Telegraph Office', icon: '\u26A1', witnesses: ['telegraph_operator'] },
-    { id: 'church', name: 'Church', icon: '\u26EA', witnesses: ['preacher'] },
-    { id: 'street', name: 'Street', icon: '\uD83D\uDEE4\uFE0F', witnesses: ['settler', 'child', 'traveler'] },
-  ]
+  const investigationLocations = investigationRoomsFor(state.currentLandmark, {
+    diplomacy: getStat('Diplomacy'), expertise: getStat('Expertise'), luck: getStat('Luck'),
+    goodKarma: balance.good, badKarma: balance.bad,
+  })
 
   const hoursRemaining = state.investigation.maxInvestigationHours - state.investigation.hoursInvestigated
 
-  // Town Investigations 1849 (insertion 1): resolve the current town's REAL period
-  // townsfolk from goldCountryNPCs. Location id is derived from the landmark name the
-  // same way TownScreen does. When a town has authored NPCs, we render one interview per
-  // real person; otherwise we fall back to the generic saloon/street witness roster so
-  // towns without data (and old saves) still work with no crash.
-  const locationId = (state.currentLandmark || '').toLowerCase().replace(/[^a-z]/g, '_')
-  const townNPCs = getNPCsAtLocation(locationId)
+  const locationId = investigationTownId(state.currentLandmark)
+  const townNPCs = investigationNPCsFor(state.currentLandmark)
   const hasTownNPCs = townNPCs.length > 0
 
   return (
@@ -58,7 +50,9 @@ export function InvestigationScreen() {
         <header className="flex justify-between items-center mb-6">
           <div>
             <h1 className="font-pixel text-amber-200 text-xl">Investigation</h1>
-            <p className="text-amber-400 text-sm">{state.currentLandmark}</p>
+            <p className="text-amber-400 text-sm" data-testid="investigation-place">
+              {locationId === 'west_point' ? 'Sandy Gulch · West Point area · 1849' : state.currentLandmark}
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <div className={`text-xs ${hoursRemaining <= 2 ? 'text-red-400' : 'text-amber-400'}`}>
@@ -67,6 +61,14 @@ export function InvestigationScreen() {
             <ReliabilityIndicator compact />
           </div>
         </header>
+
+        {locationId === 'west_point' && (
+          <p className="text-amber-200/80 text-sm mb-4" data-testid="investigation-history-note">
+            Northern Sierra Miwok homeland. This investigation visits the nearby Sandy Gulch trading camp in 1849.
+            {' '}The prospectors are documented; their conversation is reconstructed.
+            {' '}<a className="underline" href="https://ohp.parks.ca.gov/ListedResources/Detail/253" target="_blank" rel="noreferrer">Historical source</a>
+          </p>
+        )}
 
         {mysteryState.currentCrime && (
           <div className="mb-6 rounded-lg border-2 border-amber-700/70 bg-black/30 p-4">
@@ -105,16 +107,18 @@ export function InvestigationScreen() {
           </button>
         </div>
 
-        {/* Per-town townsfolk roster — REAL period NPCs when the town has authored data */}
+        {/* Authored people retain their IDs, greetings, and existing dialogue paths. */}
         {hasTownNPCs && (
           <div className="mb-6">
             <p className="text-amber-300 text-xs mb-3 font-pixel">Townsfolk to question</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {townNPCs.map(npc => {
                 const interviewed = state.investigation.witnessesInterviewed.includes(npc.id)
+                const room = investigationLocations.find(room => room.npcIds?.includes(npc.id))
                 return (
                   <button
                     key={npc.id}
+                    data-testid={`investigation-npc-${npc.id}`}
                     onClick={() => {
                       if (!interviewed) {
                         // Track by npc.id (unique per person) and carry the id for the
@@ -133,11 +137,13 @@ export function InvestigationScreen() {
                     <div className="flex items-start gap-3">
                       <span className="text-2xl shrink-0">{npc.portrait}</span>
                       <div className="min-w-0">
+                        {room && <p className="text-amber-300 text-xs mb-1">{room.icon} {room.name}</p>}
                         <p className="text-amber-200 text-sm">
                           {npc.name}
                           {interviewed && ' ✓'}
                         </p>
                         <p className="text-amber-500 text-xs">{npc.title}</p>
+                        {npc.portrayalNote && <p className="text-gray-300 text-xs mt-1">{npc.portrayalNote}</p>}
                         <p className="text-gray-400 text-xs mt-1 line-clamp-2 italic">&ldquo;{npc.greeting}&rdquo;</p>
                       </div>
                     </div>
@@ -161,6 +167,7 @@ export function InvestigationScreen() {
             return (
               <button
                 key={loc.id}
+                data-testid={`investigation-room-${loc.id}`}
                 onClick={() => setSelectedLocation(loc.id)}
                 className={`p-4 rounded-lg border-2 text-left transition-all ${
                   allInterviewed
@@ -197,6 +204,7 @@ export function InvestigationScreen() {
                   return (
                     <button
                       key={witness}
+                      data-testid={`investigation-witness-${witness}`}
                       onClick={() => {
                         if (!interviewed) {
                           // Don't mark location as searched - just interview the witness
