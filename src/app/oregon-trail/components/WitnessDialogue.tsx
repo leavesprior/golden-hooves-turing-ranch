@@ -68,7 +68,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
   const [streamingText, setStreamingText] = useState('')
 
   // Scripted dialogue state
-  const [dialogueTree] = useState<DialogueTree>(getDialogueTree(witnessType))
+  const [dialogueTree] = useState<DialogueTree>(() => npc?.investigationDialogue ?? getDialogueTree(witnessType))
   const npcIdForStore = generateNPCId(witnessType, location)
   const isRevisit = ConversationStore.getVisitCount(npcIdForStore) > 0
   const chosenResponses = ConversationStore.getChosenResponses(npcIdForStore)
@@ -408,15 +408,16 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
 
   // Process node effects (scripted mode)
   const processNodeEffects = useCallback((node: DialogueNode, greetingOverride?: { speaker: string; text: string }) => {
+    const witnessLabel = npc?.investigationDialogue ? npc.name : getWitnessLabel(witnessType)
     if (node.effect) {
       if (node.effect.grantClue && clue && !clueObtained) {
         const clueText = node.text.replace('[CLUE_PLACEHOLDER]', clue.text)
-        addToHistory(getWitnessLabel(witnessType), clueText)
+        addToHistory(witnessLabel, clueText)
         addClue(clue)
         setClueObtained(true)
         onClueObtained?.(clue)
       } else {
-        addToHistory(getWitnessLabel(witnessType), node.text)
+        addToHistory(witnessLabel, node.text)
       }
 
       if (node.effect.reputation) {
@@ -442,7 +443,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
       if (node.speaker === 'witness' && greetingOverride) {
         addToHistory(greetingOverride.speaker, greetingOverride.text)
       } else {
-        addToHistory(node.speaker === 'witness' ? getWitnessLabel(witnessType) : 'NARRATOR', text)
+        addToHistory(node.speaker === 'witness' ? witnessLabel : 'NARRATOR', text)
       }
     }
 
@@ -461,7 +462,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
     if (!node.responses && !node.nextNode) {
       setIsEnded(true)
     }
-  }, [clue, clueObtained, witnessType, location, addClue, onClueObtained, modifyReputation, comment, addToHistory])
+  }, [npc, clue, clueObtained, witnessType, location, addClue, onClueObtained, modifyReputation, comment, addToHistory])
 
   // Handle selecting a response (scripted mode)
   const handleSelectResponse = useCallback(async (response: DialogueResponse) => {
@@ -607,6 +608,9 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
               <h2 className="text-amber-300">
                 {npc ? npc.name : (dialogueMode === 'dynamic' ? npcName : getWitnessLabel(witnessType))}
               </h2>
+              {npc?.portrayalNote && (
+                <p className="text-amber-200/80 text-xs" data-testid="witness-portrayal-note">{npc.portrayalNote}</p>
+              )}
               <p className="text-gray-500 text-xs">
                 {location}
                 {dialogueMode === 'dynamic' && npcState.ollamaModel && (

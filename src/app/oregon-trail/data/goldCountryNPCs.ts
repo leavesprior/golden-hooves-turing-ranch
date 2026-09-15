@@ -3,6 +3,9 @@
  * Each location has 2-3 NPCs with dialogue, quests, and Ollama prompt templates
  */
 
+import { TOWN_REGISTRY } from '@/lib/townRegistry'
+import type { DialogueTree } from './dialogueTrees'
+
 // NPC witness types for Gold Country (superset of trail WitnessType)
 export type GoldCountryWitnessType =
   | 'bartender' | 'shopkeeper' | 'stable_hand' | 'traveler' | 'settler'
@@ -22,6 +25,8 @@ export interface GoldCountryNPC {
   personality: string
   ollamaPrompt: string  // system prompt for Ollama dialogue
   dialogueLines: string[]  // fallback scripted lines
+  portrayalNote?: string  // distinguishes reconstructed voices from recorded words
+  investigationDialogue?: DialogueTree  // optional authored floor using the existing dialogue engine
   quest?: GoldCountryQuest           // Primary quest (legacy single-quest)
   additionalQuests?: GoldCountryQuest[]  // Additional quests from this NPC
   shopKeeper?: boolean
@@ -1927,6 +1932,55 @@ export const GOLD_COUNTRY_NPCS: GoldCountryNPC[] = [
     },
   },
 
+  // West Point campaign stop, staged at nearby Sandy Gulch in 1849.
+  // Names/discovery: https://ohp.parks.ca.gov/ListedResources/Detail/253
+  // Discovery year: https://www.calaverashistory.org/mining-in-sandy-gulch
+  // Verified 2026-09-14. Speech/personality below are reconstruction, not quotations.
+  // Keep this separate from the later Living Trail ghost identities below.
+  {
+    id: 'sandy_gulch_carsners_1849',
+    name: 'William & Dan Carsner',
+    title: 'Sandy Gulch prospectors · 1849',
+    location: 'west_point',
+    witnessType: 'miner',
+    portrait: '⛏️',
+    portrayalNote: 'Documented people; reconstructed conversation, not recorded words.',
+    investigationDialogue: {
+      id: 'sandy_gulch_carsners_1849',
+      witnessType: 'settler',
+      startNode: 'greeting',
+      nodes: {
+        greeting: {
+          id: 'greeting', speaker: 'witness', text: 'Set your pan down a moment.',
+          responses: [
+            { id: 'discovery', text: 'What did you find in the sand?', nextNode: 'discovery' },
+            { id: 'camp', text: 'Tell me about the trading camp.', nextNode: 'camp' },
+            { id: 'rumor', text: 'How do you separate what you saw from camp rumor?', nextNode: 'rumor', skillCheck: { stat: 'Diplomacy', difficulty: 7, failNode: 'cautious' } },
+            { id: 'leave', text: 'Thank you. I will let you get back to work.', nextNode: 'farewell' },
+          ],
+        },
+        discovery: { id: 'discovery', speaker: 'witness', text: 'The nuggets were in the coarse sand here at Sandy Gulch. That is what we found, whatever other stories travel with it.', effect: { grantClue: true } },
+        camp: { id: 'camp', speaker: 'witness', text: 'People are gathering to trade here at Sandy Gulch. A camp needs supplies as well as pans.' },
+        rumor: { id: 'rumor', speaker: 'witness', text: 'Ask who was there to see it. We can speak for the sand we worked. Another person must answer for another claim.' },
+        cautious: { id: 'cautious', speaker: 'witness', text: 'Let us keep to what we know: the sand here held gold. We cannot answer for every camp story.' },
+        farewell: { id: 'farewell', speaker: 'witness', text: 'Take care on the trail.' },
+      },
+    },
+    greeting: 'William and Dan Carsner. We found gold in the coarse sand here. If you want to talk, set your pan down a moment.',
+    personality: 'Reconstructed prospectors at Sandy Gulch in 1849. Practical and careful about distinguishing what they found from what others claim.',
+    ollamaPrompt: 'Portray William and Dan Carsner at Sandy Gulch in 1849 as a clearly labeled historical reconstruction, never a transcript. Verified facts only: they found gold nuggets in the coarse sands here in 1849, and Sandy Gulch became a trading center for miners. This is Northern Sierra Miwok homeland; do not speak for Miwok people. Do not invent family details, nugget weights, newspaper reports, future buildings, mills, or a living encounter with John R. Smith. They are living prospectors here, not the separate Living Trail ghosts. Treat colorful claims as rumor. Keep answers to 2-3 sentences.',
+    dialogueLines: [
+      'The gold we found was in the coarse sand. That much we can tell you from our own work.',
+      'People are gathering to trade here at Sandy Gulch. A camp needs supplies as well as pans.',
+      'A story about another person finding gold is a story. Ask what they actually saw before you follow it.',
+    ],
+    clueHint: 'Ask about the sand that gave this camp its name.',
+    investigationClue: {
+      text: 'At Sandy Gulch, William and Dan Carsner found gold nuggets in coarse sand in 1849. The camp became a trading center for miners.',
+      isTrue: true,
+    },
+  },
+
   // === LIVING TRAIL P1 — chain wp_founders ("The Founders of Indian Gulch") ===
   // These NPCs live at Living Trail node ids (lt_* — no collision with gold-country
   // screens; getNPCsAtLocation keys off string match). Ghost stories are fiction
@@ -2025,8 +2079,22 @@ export const GOLD_COUNTRY_NPCS: GoldCountryNPC[] = [
 ]
 
 // Helper functions
+/** Resolve exact names and existing registry aliases without merging nearby places. */
+export function resolveNPCTownId(idOrName: string): string {
+  const normalize = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+  const id = normalize(idOrName)
+  const town = TOWN_REGISTRY.find(town => [
+    town.id, town.name, town.sources.explore, town.sources.oregon, ...(town.sources.chapter ?? []),
+  ].some(alias => alias !== undefined && normalize(alias) === id))
+  return town?.id ?? id
+}
+
 export function getNPCsAtLocation(locationId: string): GoldCountryNPC[] {
-  return GOLD_COUNTRY_NPCS.filter(npc => npc.location === locationId)
+  // Preserve legacy NPC locations such as bobr_cabin before resolving aliases.
+  const exact = GOLD_COUNTRY_NPCS.filter(npc => npc.location === locationId)
+  if (exact.length) return exact
+  const resolvedId = resolveNPCTownId(locationId)
+  return GOLD_COUNTRY_NPCS.filter(npc => resolveNPCTownId(npc.location) === resolvedId)
 }
 
 export function getNPCById(npcId: string): GoldCountryNPC | undefined {
