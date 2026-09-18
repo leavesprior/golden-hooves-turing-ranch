@@ -59,7 +59,9 @@ structural (there is only one stepper) and the test defends that structure.
 The brief says later buildings are *"fog/absence, not brick"* and that you *"cannot walk through"*
 one. Those pull apart, so the module states its reading explicitly (`ABSENCE_BLOCKS_DEFAULT = false`):
 
-- **not enterable** — stepping in is refused and the refusal names the year ("The brick hotel is 1862");
+- **not enterable** — pressing E (or looking) at a later site is refused, and the refusal names the year
+  ("The brick hotel is 1862"). *Walking* onto its ground is allowed — see "not a wall". (Wording
+  corrected 2026-09-18: it first said stepping in was refused, which is only the strict reading.);
 - **not brick** — a later site never renders with a solid glyph, and never as a blank either;
 - **not a wall** — absence does not stop a walking man; you may cross the ground the St. George will
   later stand on, and the walk names it as you cross.
@@ -275,7 +277,8 @@ Every finding below was re-checked against the code or a live run before it was 
 | "The camera owns no geometry" (Grok) | False as worded — ghost placement is an authored overlay. | Wording corrected in §1 and in the module header. |
 
 **Refuted (checked, did not hold):**
-- *`npm test` exits 1* (Codex) — Codex ran `/usr/bin/node` **18.19.1**; the repo needs ≥20.9. On Node 20
+- *`npm test` exits 1* (Codex) — Codex ran `/usr/bin/node` **18.19.1**; the repo needs ≥20.9. Reproduced:
+  on Node 18 `localBackendAccess.test.ts` throws `ReferenceError: crypto is not defined`; on Node 20
   the whole chain exits 0 (21.8s, 2026-09-18). The failing test is main's (#90), not this branch's.
 - *The §6 dump is not "two tiles south" of the St. George* (Grok) — the dump's own compass reads `5,7`
   and the ghost sits at `5,5`: two tiles. Grok compared it to the test fixture at `5,6`.
