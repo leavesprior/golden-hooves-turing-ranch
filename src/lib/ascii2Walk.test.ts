@@ -11,7 +11,9 @@ import {
   renderFrame,
   turnHeading,
   FRAME_COLS,
+  FRAME_COLS_NARROW,
   FRAME_ROWS,
+  MIN_FRAME_COLS,
   type Ascii2Scene,
   type Ascii2Frame,
   type Heading,
@@ -382,6 +384,46 @@ function standSouthOf(scene: Ascii2Scene, id: string): { pos: { x: number; y: nu
   assert.ok(shown.includes(npc.label), 'an allowed target is named in the frame')
   const hidden = frameText(renderFrame(scene, beside, 'up', () => false)).join('\n')
   assert.ok(!hidden.includes(npc.label), 'a target the caller disallows must not be drawn or named')
+}
+
+// ---------------------------------------------------------------------------
+// 4b. NARROW VIEWPORT. The brief allows 40-80 columns, and a phone needs the
+//     narrow one (80 columns on a 390px screen renders as an unreadable smear).
+//     Every rule above must hold at 40 columns too — a second geometry that
+//     forgets the year would be the same fork this whole module exists to avoid.
+// ---------------------------------------------------------------------------
+
+{
+  const { pos, heading } = standSouthOf(scene, 'vol_st_george')
+  const narrow = renderFrame(scene, pos, heading, () => true, { cols: FRAME_COLS_NARROW })
+  assert.equal(narrow.rows.length, FRAME_ROWS, 'narrow frame keeps 24 rows')
+  for (const row of narrow.rows) assert.equal(row.length, FRAME_COLS_NARROW, 'every narrow row is 40 columns')
+
+  const fogColor = volcano.ascii2_palette.fog
+  const text = frameText(narrow)
+  const labelRow = text.findIndex((r) => r.includes('St. George'))
+  let longest = 0
+  const cells: string[] = []
+  narrow.rows.forEach((row, r) => {
+    if (r === labelRow || r >= FRAME_ROWS - 2) return
+    let run = 0
+    row.forEach((cell) => {
+      if (cell.color === fogColor) {
+        cells.push(cell.ch)
+        run += 1
+        longest = Math.max(longest, run)
+      } else run = 0
+    })
+  })
+  assert.ok(cells.length > 0, 'the later site is drawn in the narrow frame too')
+  assert.equal(cells.filter((ch) => SOLID_GLYPHS.includes(ch)).length, 0, 'narrow: absence is still not solid')
+  assert.equal(cells.filter((ch) => ch.trim() === '').length, 0, 'narrow: absence still leaves a mark')
+  assert.ok(longest <= 2, `narrow: absence stays a dither, longest run ${longest}`)
+  assert.ok(narrow.caption.length > 0 && narrow.compass.length > 0, 'narrow frame still carries compass and caption')
+
+  // A width below the floor is clamped, not honoured — no zero-width frames.
+  const tiny = renderFrame(scene, pos, heading, () => true, { cols: 4 })
+  assert.equal(tiny.rows[0].length, MIN_FRAME_COLS, 'a silly width clamps to the floor')
 }
 
 // ---------------------------------------------------------------------------

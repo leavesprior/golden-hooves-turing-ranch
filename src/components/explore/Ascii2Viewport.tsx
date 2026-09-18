@@ -9,7 +9,7 @@
  * this component owns only the keys, the heading, and the drawing.
  */
 
-import { useId, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useState, type KeyboardEvent } from 'react'
 import {
   COMPASS,
   ascii2Forward,
@@ -17,6 +17,8 @@ import {
   buildAscii2Scene,
   renderFrame,
   turnHeading,
+  FRAME_COLS,
+  FRAME_COLS_NARROW,
   type Heading,
 } from '@/lib/ascii2Walk'
 import { ascii2TownFor } from '@/lib/ascii2Towns'
@@ -57,6 +59,16 @@ export function Ascii2Viewport({
     onHeadingChange?.(next)
   }
   const [line, setLine] = useState('')
+  // The brief allows a 40-80 column frame. 80 columns on a phone is a smear —
+  // measured: at 390px wide the text had to shrink to ~4px to fit. Narrow screens
+  // get the 40-column frame instead, which is the same world at a readable size.
+  const [cols, setCols] = useState<number>(FRAME_COLS)
+  useEffect(() => {
+    const pick = () => setCols(window.innerWidth < 900 ? FRAME_COLS_NARROW : FRAME_COLS)
+    pick()
+    window.addEventListener('resize', pick)
+    return () => window.removeEventListener('resize', pick)
+  }, [])
   const town = ascii2TownFor(snapshot.townId)
   const scene = town ? buildAscii2Scene(town, snapshot) : undefined
 
@@ -75,7 +87,7 @@ export function Ascii2Viewport({
     target.kind === 'exit' ||
     (target.kind === 'npc' ? allowedNpcIds.includes(target.npcId) : allowedAttractionIds.includes(target.attractionId))
 
-  const frame = renderFrame(scene, snapshot.position, heading, allowed)
+  const frame = renderFrame(scene, snapshot.position, heading, allowed, { cols })
   const nearby = adjacentTownWalkTargets(scene.map, snapshot.position).filter(allowed)
 
   const walk = (back = false) => {
@@ -173,22 +185,48 @@ export function Ascii2Viewport({
           data-heading={heading}
           data-x={snapshot.position.x}
           data-y={snapshot.position.y}
-          className="w-full overflow-x-auto bg-[#0e0c0a] p-2 outline-none"
+          className="max-h-[28vh] w-full overflow-auto bg-[#0e0c0a] p-2 outline-none sm:max-h-[40vh]"
         >
-          <pre className="m-0 font-mono text-[9px] leading-[1.05] sm:text-[11px] md:text-[13px]" aria-hidden="true">
+          {/*
+            The frame is 80x24 of fixed geometry, so it must SCALE to the screen
+            rather than push the controls off it. Sized from both axes — width so
+            80 columns fit, height so 24 rows do — with a hard cap on the wrapper
+            as a backstop. The first version used fixed pixel sizes and covered
+            three of its four direction buttons on desktop and all four on a
+            phone, which the browser check now measures directly.
+          */}
+          <pre
+            className="m-0 font-mono leading-[1.05]"
+            style={{ fontSize: `clamp(6px, min(${(95 / cols).toFixed(2)}vw, 1.15vh), 15px)` }}
+            data-cols={cols}
+            aria-hidden="true"
+          >
+            {/*
+              Rows are separated by a real newline rather than by `display:block`.
+              Inside a <pre> both look identical, but only the newline survives a
+              copy — with block spans the whole 24-row frame copied out as one
+              run-on line. (Caught by the browser check, which counted 1 row.)
+            */}
             {frame.rows.map((row, r) => (
-              <span key={r} className="block whitespace-pre">
+              <span key={r}>
                 {mergeSpans(row).map((s, i) => (
                   <span key={i} style={{ color: s.color }}>
                     {s.text}
                   </span>
                 ))}
+                {r < frame.rows.length - 1 ? '\n' : ''}
               </span>
             ))}
           </pre>
         </div>
 
-        <p id={instructionsId} className={styles.instructions}>
+        {/*
+          Kept in the DOM for `aria-describedby`, but off the small-screen layout:
+          on a phone this paragraph wrapped to three lines and pushed the lower
+          direction buttons underneath the town panel below. The buttons say the
+          same thing visually.
+        */}
+        <p id={instructionsId} className={`sr-only sm:not-sr-only sm:${styles.instructions}`}>
           Select the view, then W walks, S backs up, A and D turn, E steps in. The buttons do the same.
         </p>
 

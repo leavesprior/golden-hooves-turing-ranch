@@ -98,8 +98,12 @@ export type Ascii2Look =
   | { kind: 'absence'; site: PlacedLaterSite }
   | { kind: 'nothing' }
 
+/** Default viewport. The brief allows a 40-80 column frame; a phone gets the narrow one. */
 export const FRAME_COLS = 80
 export const FRAME_ROWS = 24
+/** Narrow viewport for small screens — 80 columns on a phone renders as a smear. */
+export const FRAME_COLS_NARROW = 40
+export const MIN_FRAME_COLS = 32
 /**
  * Default reading of the brief's "fog/absence, not brick": absence does not stop
  * a walking man. This is a real policy, not a comment — `buildAscii2Scene` puts it
@@ -110,7 +114,12 @@ export const ABSENCE_BLOCKS_DEFAULT = false
 
 const DEPTH = 7
 const WORLD_ROWS = FRAME_ROWS - 2
-const EYE_ROW = 9
+/**
+ * Eye line. Sat at row 9 first, which left nine blank rows of sky above the
+ * horizon — half the frame drawing nothing, and on a phone that pushed the
+ * controls under the town panel. Higher eye = more ground, less dead sky.
+ */
+const EYE_ROW = 6
 
 const DELTA: Record<Heading, { dx: number; dy: number }> = {
   up: { dx: 0, dy: -1 },
@@ -255,11 +264,11 @@ export function ascii2Look(
 // Renderer — depth-banded first person, the way the old crawlers drew a corridor.
 // ---------------------------------------------------------------------------
 
-function bandRect(d: number) {
+function bandRect(d: number, cols: number = FRAME_COLS) {
   const k = 1 / (1 + d * 0.62)
-  const halfW = Math.max(2, Math.round(39 * k))
+  const halfW = Math.max(2, Math.round((cols / 2 - 1) * k))
   const halfH = Math.max(1, Math.round(9 * k))
-  const cx = Math.floor(FRAME_COLS / 2)
+  const cx = Math.floor(cols / 2)
   return {
     left: cx - halfW,
     right: cx + halfW,
@@ -346,7 +355,10 @@ export function renderFrame(
   position: TownWalkPosition,
   heading: Heading,
   allowed: (t: TownWalkTarget) => boolean = () => true,
+  options: { cols?: number } = {},
 ): Ascii2Frame {
+  const cols = Math.max(MIN_FRAME_COLS, Math.round(options.cols ?? FRAME_COLS))
+  const band = (d: number) => bandRect(d, cols)
   const pal = scene.palette
   const sky = pal.sky || '#2b2620'
   const ground = pal.ground || '#3b2a1a'
@@ -358,7 +370,7 @@ export function renderFrame(
   const rows: Ascii2Cell[][] = []
   for (let r = 0; r < FRAME_ROWS; r++) {
     const row: Ascii2Cell[] = []
-    for (let c = 0; c < FRAME_COLS; c++) {
+    for (let c = 0; c < cols; c++) {
       if (r >= WORLD_ROWS) {
         row.push({ ch: ' ', color: '#000000' })
       } else if (r < horizon) {
@@ -379,7 +391,7 @@ export function renderFrame(
   }
 
   const put = (r: number, c: number, ch: string, color: string) => {
-    if (r < 0 || r >= WORLD_ROWS || c < 0 || c >= FRAME_COLS) return
+    if (r < 0 || r >= WORLD_ROWS || c < 0 || c >= cols) return
     rows[r][c] = { ch, color }
   }
 
@@ -388,8 +400,8 @@ export function renderFrame(
   let nearest: { d: number; face: Face; rect: ReturnType<typeof bandRect> } | undefined
 
   for (let d = DEPTH; d >= 1; d--) {
-    const outer = bandRect(d - 1)
-    const inner = bandRect(d)
+    const outer = band(d - 1)
+    const inner = band(d)
 
     for (const side of [-1, 1]) {
       const f = faceAt(scene, tileOffset(position, heading, d, side), allowed)
@@ -410,7 +422,7 @@ export function renderFrame(
 
     const f = faceAt(scene, tileOffset(position, heading, d, 0), allowed)
     if (!f) continue
-    const rect = bandRect(d)
+    const rect = band(d)
     if (f.form === 'figure') {
       drawFigure(put, rect, f)
     } else {
@@ -431,7 +443,7 @@ export function renderFrame(
     const { d, face, rect } = nearest
     const label = ` ${face.label} `
     if (rect.right - rect.left >= label.length - 2) {
-      const lc = Math.max(0, Math.floor((FRAME_COLS - label.length) / 2))
+      const lc = Math.max(0, Math.floor((cols - label.length) / 2))
       const lr = face.form === 'figure' ? Math.max(0, rect.bottom - 6) : rect.top + Math.floor((rect.bottom - rect.top) / 2)
       for (let i = 0; i < label.length; i++) {
         // The plate's padding CLEARS a gap around the name; it must clear to the
@@ -456,7 +468,7 @@ export function renderFrame(
 
   const compass = `${scene.face} · facing ${COMPASS[heading]} · ${position.x},${position.y}`
   const writeRow = (r: number, text: string, color: string) => {
-    for (let i = 0; i < Math.min(text.length, FRAME_COLS); i++) rows[r][i] = { ch: text[i], color }
+    for (let i = 0; i < Math.min(text.length, cols); i++) rows[r][i] = { ch: text[i], color }
   }
   writeRow(FRAME_ROWS - 2, compass, ink)
   writeRow(FRAME_ROWS - 1, caption, captionSet ? ink : fog)

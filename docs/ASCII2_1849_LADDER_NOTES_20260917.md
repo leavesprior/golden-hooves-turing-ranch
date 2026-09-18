@@ -105,10 +105,35 @@ last survivor: the name plate's padding spaces were painted in the fog colour, p
 inside an absence. The renderer now clears the plate to the background, and an assertion holds it
 there.
 
-**Not verified (`_conf=-1`):** nobody has walked this in a browser. No dev server was started — `:3103`
-is Leif's checkout and `:3099` is the visual64 farm; neither is mine to touch. No screenshots in
-`test-reports/`. **The frames in §6 are real renderer output** (captured via `tsx`), not mockups, but a
-terminal is not a browser.
+### It has now been walked in a browser (2026-09-18)
+
+`scripts/ascii2-walk-browser-check.mjs` drives real headless Chrome through the ranch-house QR gate
+into Volcano, starts the pixel walk, steps down to the text walk, walks with the keyboard, and steps
+back up — asserting on what the page actually shows. **41 checks, 0 findings, 0 console errors.**
+Screenshots and `result.json` in `test-reports/ascii2/`. It ran against a dev server on **:3107**, a
+port nobody else was using; `:3103`, `:3099` and `:3338` were not touched.
+
+Measured, not assumed: the 1849 face reads "The canvas camp"; position carries **both ways** across the
+toggle (10,9 → 10,9, then 9,7 → 9,7); the keyboard visits 5 distinct tiles; the frame is 24 row
+elements **and** copies out as 24 real lines; and a later site announces itself —
+*"Cobblestone Theatre: not built in 1849."*
+
+**Three defects the browser found that no unit test could:**
+
+1. **The frame copied out as a single run-on line.** Rows were separated by `display:block`, which
+   looks right and copies wrong. They are newline-separated now, and the check counts both ways.
+2. **The walk covered its own controls.** Three of four direction buttons on desktop and all four on a
+   phone sat underneath the town panel — a walk you cannot steer. The check now measures every control
+   at 1280×900 *and* 390×844, and asks `elementFromPoint` whether the button is the thing actually
+   painted there, because "inside the viewport" was true while it was buried.
+3. **80 columns on a phone is a smear.** Fitting it required shrinking the text to ~4px. The brief
+   allows a **40–80 column** frame (§3), so the renderer is now width-aware and narrow screens get the
+   40-column frame at a legible ~9px. `ascii2Walk.test.ts` holds every era rule at 40 columns too.
+
+The eye line also moved up (row 9 → 6): nine blank rows of sky were half the frame drawing nothing.
+
+**Still not verified (`_conf=-1`):** no human has looked at it — this is a machine walking a machine.
+A person may still find it ugly or unreadable, and that judgement is Leif's.
 
 ## 4. Measurements the brief asked for, including the ones that came back empty
 
@@ -193,8 +218,8 @@ Talk to Josiah Bell — within reach.
 
 ## 7. Still owed
 
-- [ ] Browser walk-through on a dev server **Leif starts** (do not steal `:3103` / `:3099` / `:3338`),
-      plus screenshots in `test-reports/`.
+- [x] ~~Browser walk-through plus screenshots in `test-reports/`~~ — done 2026-09-18 on `:3107`
+      (`npm run test:ascii2-browser`, 41 checks, 0 findings). A **human** look is still owed.
 - [ ] **Device detection (brief §5) — not implemented.** The brief asks Railway to pick rung 0 or 1
       from `navigator.hardwareConcurrency` / WebGL / `deviceMemory`. This branch ships the rung as a
       button only, and pixel stays the default, so nothing auto-selects. Deliberate: changing what a

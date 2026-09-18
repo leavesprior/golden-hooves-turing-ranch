@@ -1,0 +1,16 @@
+{
+  "checked_at": "2026-09-18T05:37:26.901Z",
+  "base_url": "http://127.0.0.1:3107",
+  "findings": [],
+  "ok": true,
+  "_conf": 1,
+  "screenshots": [
+    "02-pixel-walk",
+    "03-ascii2-walk",
+    "04-absence-line",
+    "05-back-to-pixel",
+    "06-phone"
+  ],
+  "absence_line": "Cobblestone Theatre: not built in 1849.",
+  "console_errors": []
+}

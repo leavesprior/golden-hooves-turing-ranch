@@ -23,6 +23,7 @@
     "test:town-walk": "node --import tsx src/lib/townWalk.test.ts",
     "test:ascii2-walk": "node --import tsx src/lib/ascii2Walk.test.ts",
     "test:explore-era": "node --import tsx src/lib/exploreVolcanoEra.test.ts",
+    "test:ascii2-browser": "node scripts/ascii2-walk-browser-check.mjs",
     "test:gold-country-transport": "node --import tsx src/lib/goldCountryTransport.test.ts && node --import tsx src/lib/goldCountryFare.test.ts && node --import tsx src/app/oregon-trail/state/goldCountryTrip.test.ts",
     "test:player-portraits": "node --import tsx src/app/oregon-trail/data/playerPortraits.test.ts",
     "test:local-backend": "tsx src/lib/localBackendAccess.test.ts && tsx src/app/api/local-backend/bridge/route.test.ts",
