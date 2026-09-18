@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-09-18T05:37:26.901Z",
+  "checked_at": "2026-09-18T15:46:31.792Z",
   "base_url": "http://127.0.0.1:3107",
   "findings": [],
   "ok": true,
@@ -9,8 +9,10 @@
     "03-ascii2-walk",
     "04-absence-line",
     "05-back-to-pixel",
-    "06-phone"
+    "06-phone",
+    "07-west-point-absence"
   ],
   "absence_line": "Cobblestone Theatre: not built in 1849.",
+  "west_point_absence_line": "Main Street walk: not built in 1849.",
   "console_errors": []
 }

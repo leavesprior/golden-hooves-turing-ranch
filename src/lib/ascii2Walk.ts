@@ -3,7 +3,10 @@
  * camera on the 1849 camp. Pure module: no React, no DOM, no fetch.
  *
  * ONE WORLD, MANY PRESENTATIONS — this is the whole point of the ladder, and the
- * reason this file owns no geometry of its own. The world is `townWalk.ts`: the
+ * reason this file owns no MOVEMENT geometry of its own. It does own one overlay:
+ * `placeLaterSites` snaps each later site onto a passable tile of the camp, an
+ * authored position the pixel walk never draws (see its comment). Everything a
+ * player can collide with or enter is still `townWalk.ts`: the
  * authored 1849 tile map, its props, its collisions, its targets, its save
  * snapshot. TownWalkScene draws that world from above in pixels. This module
  * draws the SAME world from eye level in ASCII. Every step here goes through

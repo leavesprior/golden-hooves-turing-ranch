@@ -19,11 +19,14 @@ import {
   turnHeading,
   FRAME_COLS,
   FRAME_COLS_NARROW,
+  FRAME_ROWS,
   type Heading,
 } from '@/lib/ascii2Walk'
 import { ascii2TownFor } from '@/lib/ascii2Towns'
 import { adjacentTownWalkTargets, townWalkMap, type TownWalkSnapshot, type TownWalkTarget } from '@/lib/townWalk'
 import styles from './TownWalkScene.module.css'
+
+const LINE_HEIGHT = 1.05
 
 export interface Ascii2ViewportProps {
   snapshot: TownWalkSnapshot
@@ -88,6 +91,11 @@ export function Ascii2Viewport({
     (target.kind === 'npc' ? allowedNpcIds.includes(target.npcId) : allowedAttractionIds.includes(target.attractionId))
 
   const frame = renderFrame(scene, snapshot.position, heading, allowed, { cols })
+  // One height budget for the box AND the glyphs, so 24 rows always fit the box
+  // they are drawn in. Two budgets that merely agreed on desktop hid 16px of frame
+  // there and 103px on a phone — the caption row that names the year among it.
+  const budgetVh = cols === FRAME_COLS_NARROW ? 28 : 40
+  const fontSize = `clamp(6px, min(${(95 / cols).toFixed(2)}vw, calc((${budgetVh}vh - 1rem) / ${(FRAME_ROWS * LINE_HEIGHT).toFixed(2)})), 15px)`
   const nearby = adjacentTownWalkTargets(scene.map, snapshot.position).filter(allowed)
 
   const walk = (back = false) => {
@@ -185,7 +193,8 @@ export function Ascii2Viewport({
           data-heading={heading}
           data-x={snapshot.position.x}
           data-y={snapshot.position.y}
-          className="max-h-[28vh] w-full overflow-auto bg-[#0e0c0a] p-2 outline-none sm:max-h-[40vh]"
+          className="w-full overflow-auto bg-[#0e0c0a] p-2 outline-none"
+          style={{ maxHeight: `${budgetVh}vh` }}
         >
           {/*
             The frame is 80x24 of fixed geometry, so it must SCALE to the screen
@@ -196,8 +205,8 @@ export function Ascii2Viewport({
             phone, which the browser check now measures directly.
           */}
           <pre
-            className="m-0 font-mono leading-[1.05]"
-            style={{ fontSize: `clamp(6px, min(${(95 / cols).toFixed(2)}vw, 1.15vh), 15px)` }}
+            className="m-0 font-mono"
+            style={{ fontSize, lineHeight: LINE_HEIGHT }}
             data-cols={cols}
             aria-hidden="true"
           >
@@ -207,10 +216,15 @@ export function Ascii2Viewport({
               copy — with block spans the whole 24-row frame copied out as one
               run-on line. (Caught by the browser check, which counted 1 row.)
             */}
+            {/*
+              `lineHeight: inherit` on every span, inline so it outranks the global
+              `.visual64-shell span { line-height: 1.45 }` (globals.css), which was
+              silently making each row 1.45x the font instead of the frame's 1.05x.
+            */}
             {frame.rows.map((row, r) => (
-              <span key={r}>
+              <span key={r} style={{ lineHeight: 'inherit' }}>
                 {mergeSpans(row).map((s, i) => (
-                  <span key={i} style={{ color: s.color }}>
+                  <span key={i} style={{ color: s.color, lineHeight: 'inherit' }}>
                     {s.text}
                   </span>
                 ))}

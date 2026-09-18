@@ -98,14 +98,32 @@ for (const [townId, town] of Object.entries(ASCII2_TOWNS)) {
     'up', 'up', 'left', 'left', 'up', 'up', 'right', 'right', 'right',
     'down', 'down', 'left', 'up', 'up', 'up', 'left', 'left', 'down',
   ]
+  const step = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] } as const
   let pixel = { ...snap.position }
   let ascii = { ...snap.position }
+  const refusedBy: string[] = []
   keys.forEach((k, i) => {
+    const before = pixel
     pixel = stepTownWalk(map, pixel, k)
     ascii = ascii2Forward(scene, ascii, k).position
     assert.deepEqual(ascii, pixel, `presentations parted company at key ${i} (${k})`)
+    if (pixel.x === before.x && pixel.y === before.y) {
+      const into = { x: before.x + step[k][0], y: before.y + step[k][1] }
+      const tile = townWalkTileAt(map, into)
+      const npc = map.targets.some((t) => t.kind === 'npc' && t.position.x === into.x && t.position.y === into.y)
+      refusedBy.push(npc ? 'npc' : tile?.prop ?? tile?.terrain ?? 'edge')
+    }
   })
-  assert.notDeepEqual(pixel, snap.position, 'the parity walk must leave the spawn tile')
+  // The notes call this walk "not a stroll". Pin that, or a map edit can quietly
+  // turn it into one: a parity test that never hits an obstacle proves only that
+  // two callers agree on open ground.
+  assert.equal(refusedBy.length, 5, `the parity walk must be refused 5 times, was ${refusedBy.length}: ${refusedBy}`)
+  assert.deepEqual(
+    [...new Set(refusedBy)].sort(),
+    ['canvas', 'fire', 'npc', 'water'],
+    `the refusals must span creek, fire, canvas and a person: ${refusedBy}`,
+  )
+  assert.deepEqual(pixel, { x: 8, y: 4 }, 'the parity walk must end far from spawn, at 8,4')
 }
 
 // ---------------------------------------------------------------------------
@@ -442,9 +460,9 @@ function standSouthOf(scene: Ascii2Scene, id: string): { pos: { x: number; y: nu
   const road = wpScene.map.targets.find((t) => t.kind === 'attraction' && t.attractionId === 'wp_trail_camp')
   assert.ok(road, 'the pack road is a real 1849 target you can reach')
   const beside = { x: road!.position.x, y: road!.position.y + 1 }
-  if (isTownWalkPassable(wpScene.map, beside)) {
-    assert.equal(ascii2Look(wpScene, beside, 'up').kind, 'target', 'the pack road is enterable in 1849')
-  }
+  // An assertion, not an `if`: a guard that is false asserts nothing and still passes.
+  assert.ok(isTownWalkPassable(wpScene.map, beside), 'fixture needs open ground south of the pack road')
+  assert.equal(ascii2Look(wpScene, beside, 'up').kind, 'target', 'the pack road is enterable in 1849')
 }
 
 console.log('ascii2Walk tests passed')

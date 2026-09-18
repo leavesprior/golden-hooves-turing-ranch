@@ -22,8 +22,12 @@ against — already carries an authored, sourced, tested 1849 walk for **exactly
 | `src/components/explore/TownWalkScene.tsx` | Draws that world **top-down in pixels** (SVG) |
 | `InteractiveTown` "Walk the camp" | Already wired, after Look, exactly as the 20260913 brief required |
 
-So this branch does **not** author a second geometry. `ascii2Walk.ts` is a **camera**: it draws the
-SAME `townWalk` map at eye level in colored ASCII, and every step goes through `stepTownWalk`. That
+So this branch does **not** author a second movement geometry. `ascii2Walk.ts` is a **camera**: it
+draws the SAME `townWalk` map at eye level in colored ASCII, and every step goes through
+`stepTownWalk`. **One overlay is its own** (corrected 2026-09-18 after Grok's review — the first
+wording said the camera owns no geometry, which was false): `placeLaterSites` snaps each later site's
+painted-pin percentage to the nearest passable, non-target tile. Those tiles are authored, not
+surveyed, and the pixel walk never draws them. Two land awkwardly — see §8. Camera-not-fork
 is the brief's own law — *"One world model. Four presentations… step down, never fork lore"* (§3) —
 applied to the world that actually exists on main rather than to the one the brief predicted.
 
@@ -71,10 +75,10 @@ in the first commit it was not.
 | Gate | Result |
 |---|---|
 | `tsc --noEmit` | clean |
-| `npm test` (full chain, incl. new `test:ascii2-walk`) | **exit 0** |
+| `npm test` (full chain, incl. new `test:ascii2-walk`) | **exit 0** — re-run 2026-09-18 on Node 20.19 (the repo's `engines` floor is 20.9; on `/usr/bin/node` 18 the chain dies at `test:local-backend` with `crypto is not defined`, which is the environment, not the code) |
 | `npm run lint` | **0 errors**, 460 warnings (all pre-existing; repo policy allows warnings) |
 | `npm run build` | **pass** |
-| Mutation suite, fingerprint-gated | **15 applied, 15 caught** |
+| Mutation suite, fingerprint-gated | **8 scored, 8 caught, 0 no-op** — `node scripts/ascii2-mutants.mjs`, committed 2026-09-18. The 2026-09-17 "15 applied, 15 caught" came from a harness that lived in a session scratch folder and is gone; that number is unreproducible and stands at `_conf=-1` |
 
 ### The mutation record, including the ones that escaped first
 
@@ -109,7 +113,9 @@ there.
 
 `scripts/ascii2-walk-browser-check.mjs` drives real headless Chrome through the ranch-house QR gate
 into Volcano, starts the pixel walk, steps down to the text walk, walks with the keyboard, and steps
-back up — asserting on what the page actually shows. **41 checks, 0 findings, 0 console errors.**
+back up — asserting on what the page actually shows. **41 checks, 0 findings, 0 console errors** on
+2026-09-18 early — and that run was **wrong about the frame**: see §8. After the review the check is
+**58 checks, 0 findings, 0 console errors**, and it now also drives West Point.
 Screenshots and `result.json` in `test-reports/ascii2/`. It ran against a dev server on **:3107**, a
 port nobody else was using; `:3103`, `:3099` and `:3338` were not touched.
 
@@ -156,6 +162,21 @@ Notion save blob.** The walk position *is* persisted — `getTownWalk`/`saveTown
 versioned `TownWalkSnapshot` locally — but nothing carries it to the cloud save, and `heading`/`present`
 are deliberately presentation-local (see §5). No round-trip against live Notion was attempted from
 this branch: `_conf=-1`.
+
+**Traced 2026-09-18 — §6.2 is not a field add, so it was not built here.** `saveToCloud`
+(`src/lib/cloudSave.ts`) has exactly **one** caller: `src/app/adventure/play/page.tsx` (the Oregon
+Trail adventure). Explorer progress — `townWalks` included — lives only in localStorage
+`gold_country_explorer_progress` and reaches **no** cloud save at all. Putting the walk into Notion
+therefore means wiring the whole explorer into cloud saves (a new `SaveType`, or grafting explorer
+state onto `adventure_save`), plus a passphrase flow on `/explore` that does not exist. That is an
+architecture and product decision, not the slice this branch owns. Where §6 actually stands:
+
+| §6 item | State |
+|---|---|
+| 6.1 env names present | yes, in `bobr-website/.env.local` (names only) |
+| 6.2 walk position in the save blob | **no cloud path exists for explorer state** — question put to Grok/Codex |
+| 6.3 localStorage offline rung | **yes** — `townWalks` is versioned, normalized, and survives reload |
+| 6.4 Notion down ⇒ play local, don't fake a cloud save | holds trivially: explorer never claims a cloud save |
 
 ## 5. Findings about the brief itself (it was written against a tree 29 commits behind)
 
@@ -219,17 +240,60 @@ Talk to Josiah Bell — within reach.
 ## 7. Still owed
 
 - [x] ~~Browser walk-through plus screenshots in `test-reports/`~~ — done 2026-09-18 on `:3107`
-      (`npm run test:ascii2-browser`, 41 checks, 0 findings). A **human** look is still owed.
+      (`npm run test:ascii2-browser`, now 58 checks, 0 findings, both towns). A **human** look is still owed.
 - [ ] **Device detection (brief §5) — not implemented.** The brief asks Railway to pick rung 0 or 1
       from `navigator.hardwareConcurrency` / WebGL / `deviceMemory`. This branch ships the rung as a
       button only, and pixel stays the default, so nothing auto-selects. Deliberate: changing what a
       phone gets by default is a product call, not a refactor. (Missed from this list in the first
       commit; the verifier caught the omission.)
-- [ ] Notion save field for walk position (§6.2) + a live round-trip.
+- [ ] Notion save for walk position (§6.2) — **blocked on a decision**: explorer state has no cloud
+      path at all (§4, traced 2026-09-18). Whether it should, and under which `SaveType`, is Leif's call.
 - [ ] Volcano canon entry (§5.2 above) with sources.
 - [ ] Voxel rung — blocked on a 1.0.8 jar Leif provides. Nothing to do until then.
 - [ ] Unreal — blocked on "install Unreal now".
-- [ ] **Grok-before / adversarial review of this branch.** Grok is browser-gated (the chrome-bridge
-      extension is disconnected as of this morning's health check) and Codex is out of tokens, so
-      neither lab reviewed this. A fresh-context verifier subagent read the diff against the brief's
-      §2 non-negotiables instead — that is **not** a substitute for the two labs. `_conf=0`.
+- [x] ~~Grok-before / adversarial review of this branch~~ — done 2026-09-18, both labs, see §8.
+- [ ] **A human look** — the one gate no machine closes. See §8 for what to look at.
+
+## 8. Two-lab review, 2026-09-18 — what held, what broke, what I refuted
+
+Run `neoma-council 20260918_082706_bobr-pr94-review`: Grok (grok-4.6) and Codex (gpt-5.5), read-only,
+same prompt, told to break claims rather than agree. **Both returned CHANGES-NEEDED; both endorsed the
+design** (camera-not-fork; keep `ABSENCE_BLOCKS_DEFAULT = false`; don't graft explorer onto
+`adventure_save`; device auto-detect is not load-bearing while there is only one rung to pick).
+Every finding below was re-checked against the code or a live run before it was acted on.
+
+**Broke, and fixed on this branch:**
+
+| Finding (who) | What was actually true | Fix |
+|---|---|---|
+| The frame's last row — the caption that names the year — was hidden (Grok, from `03-ascii2-walk.png`) | Real, and **worse than the screenshot**: 16px hidden on desktop, **103px on a phone**. Cause: `.visual64-shell span { line-height: 1.45 }` in `globals.css` overrode the frame's 1.05 on every row span, so rows were 1.45× the font. My 41 checks measured the buttons, never the frame. | `lineHeight: inherit` inline on every frame span; glyph size and box height now come from **one** budget. New `frameFits` check asks what is painted at the last row. Before the fix it reported 6 FAILs; after, 0. |
+| "5 refusals, 4 obstacle kinds" was prose; the test only checked parity + left-spawn (Grok) | Real. Removing the fire left the old test green (**measured**: old test rc=0 on that mutant). | Parity test now pins 5 refusals, `{canvas, fire, npc, water}`, end at 8,4. |
+| West Point pack-road assertion sat inside an `if` (Grok) | Real. Blocking that tile left the old test green (**measured**: rc=0). | `assert.ok` on the fixture, then the assertion. |
+| Browser: "5 distinct tiles" claimed, `seen.size > 1` checked; `note(true, …)` could not fail; `04-absence-line.png` shot after the line had gone (Grok) | Real, all three. | `>= 5`; both `note(true)` now test something; the shot is taken while the line shows. |
+| West Point never driven in a browser (Grok) | Real. | Second pass: toggle parity, 24 lines, frame fit, 8 tiles walked, "Main Street walk: not built in 1849." |
+| "15/15 caught" not reproducible (Grok) | Real — the harness was in a deleted session scratch folder. | `scripts/ascii2-mutants.mjs` + behaviour probe, committed: **8 scored, 8 caught, 0 no-op**. Two of the 8 are caught only by today's new assertions. |
+| "The camera owns no geometry" (Grok) | False as worded — ghost placement is an authored overlay. | Wording corrected in §1 and in the module header. |
+
+**Refuted (checked, did not hold):**
+- *`npm test` exits 1* (Codex) — Codex ran `/usr/bin/node` **18.19.1**; the repo needs ≥20.9. On Node 20
+  the whole chain exits 0 (21.8s, 2026-09-18). The failing test is main's (#90), not this branch's.
+- *The §6 dump is not "two tiles south" of the St. George* (Grok) — the dump's own compass reads `5,7`
+  and the ghost sits at `5,5`: two tiles. Grok compared it to the test fixture at `5,6`.
+- *"Facing survives the toggle" is half-true* (Grok) — these notes never claim facing carries, only
+  position. The observation underneath is real, though, and is in Leif's list below.
+
+**Left for Leif — judgement calls, not bugs:**
+1. **Where two ghosts land.** The Cobblestone Theatre snaps to `(10,5)`, the road straight north of
+   spawn, so the text walk's very first line is *"Cobblestone Theatre: not built in 1849."* The St.
+   George snaps to `(5,5)`, the canvas saloon's doorstep, so standing in the hotel's mist and pressing E
+   walks you into the 1849 saloon (true to 1849, and odd to stand in). Grok's advice: don't hand-author
+   a survey to fix it. Moving them is a one-line data change if you want it.
+2. **W means different things in the two walks.** Pixel: W = north (map-relative). Text: W = forward
+   (first-person). Switching carries your tile, not your facing — pixel starts facing south, text
+   north. Deliberate for a first-person view; say if you'd rather it matched.
+3. **Explorer → Notion** (§4): whether the explore game should cloud-save at all, and under a new
+   `SaveType` (both labs: new type, never `adventure_save`).
+4. **Device auto-detect** (brief §5): both labs say it can wait until there is a second rung to pick.
+5. **Is it good to look at?** The frame is mostly sky and ground dots with the town in a band across
+   the middle. That is taste, and it is yours.
+

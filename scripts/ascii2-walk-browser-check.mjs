@@ -75,7 +75,7 @@ try {
   // URL that QR opens; `town=volcano` is the peek route the hub already allows.
   // The check goes through the real gate, it does not bypass it.
   await page.goto(`${baseUrl}/explore?qr=ranch-house&town=volcano`, { waitUntil: 'networkidle0', timeout: 60000 })
-  note(true, `loaded /explore through the ranch-house QR gate`)
+  note(new URL(page.url()).pathname === '/explore', `loaded /explore through the ranch-house QR gate (${new URL(page.url()).pathname})`)
   const locked = await page.$('[data-testid="explore-qr-lock"]')
   note(!locked, 'QR gate is satisfied (no lock screen)')
 
@@ -99,7 +99,7 @@ try {
   await clickText(page, 'Walk the camp', 'town-walk-start')
   await page.waitForSelector('[data-testid="town-walk-scene"]', { timeout: 20000 })
   const pixelPos = await page.$eval('[data-testid="town-walk-player"]', (n) => [n.dataset.x, n.dataset.y].join(','))
-  note(true, `pixel walk mounted, player at ${pixelPos}`)
+  note(/^\d+,\d+$/.test(pixelPos), `pixel walk mounted, player at ${pixelPos}`)
   await shot(page, '02-pixel-walk')
 
   await clickText(page, 'Text walk', 'town-walk-ascii2')
@@ -151,11 +151,42 @@ try {
       note(c.reachable, `${label}: ${c.id} is not covered by another panel`)
     }
   }
+  // THE WHOLE FRAME IS SEEN. The controls fitting says nothing about the frame
+  // itself: on 2026-09-18 Grok read 03-ascii2-walk.png and found the caption row
+  // (the line that names the year) hidden under the instructions, while this
+  // script reported 41/41. Ask what is painted at the LAST row, and whether the
+  // frame's own box is scrolling rows out of sight.
+  const frameFits = async (label) => {
+    const r = await page.evaluate(() => {
+      const view = document.querySelector('[data-testid="ascii2-view"]')
+      const pre = view?.querySelector('pre')
+      const last = pre?.lastElementChild
+      if (!view || !pre || !last) return { missing: true }
+      const range = document.createRange()
+      range.selectNodeContents(last)
+      const rect = [...range.getClientRects()].find((x) => x.width > 0)
+      if (!rect) return { missing: true }
+      const hit = document.elementFromPoint(rect.left + Math.min(rect.width / 2, 40), rect.top + rect.height / 2)
+      return {
+        hiddenPx: Math.max(0, Math.round(view.scrollHeight - view.clientHeight)),
+        lastRowPainted: !!hit && pre.contains(hit),
+        lastRowOnScreen: rect.bottom <= window.innerHeight && rect.top >= 0,
+        lastRowInsideBox: rect.bottom <= view.getBoundingClientRect().bottom + 0.5,
+      }
+    })
+    note(!r.missing, `${label}: frame and its last row exist`)
+    if (r.missing) return
+    note(r.hiddenPx <= 1, `${label}: no frame rows scrolled out of sight (${r.hiddenPx}px hidden)`)
+    note(r.lastRowInsideBox && r.lastRowOnScreen, `${label}: the last frame row sits inside its box and the viewport`)
+    note(r.lastRowPainted, `${label}: the last frame row is what is painted there, not another element`)
+  }
   await controlsFit('desktop 1280x900')
+  await frameFits('desktop 1280x900')
   await page.setViewport({ width: 390, height: 844 })
   await new Promise((r) => setTimeout(r, 300))
   await shot(page, '06-phone')
   await controlsFit('phone 390x844')
+  await frameFits('phone 390x844')
   // Legibility, not just fit: a frame that technically fits at 4px is not a walk
   // anyone can read. On a phone the narrow (40-column) frame must be used, and the
   // glyphs must stay above a floor.
@@ -186,11 +217,16 @@ try {
       line: document.querySelector('[data-testid="ascii2-feedback"]')?.textContent ?? '',
     }))
     seen.add(state.pos)
-    if (/not built in 1849|1862|1860|not from this year|plaque|no gun/i.test(state.line)) absenceLine = state.line
+    if (!absenceLine && /not built in 1849|1862|1860|not from this year|plaque|no gun/i.test(state.line)) {
+      absenceLine = state.line
+      // Shoot WHILE the line is showing. Shooting after the loop captured a later
+      // step that read "Open ground. Walk on." under a file named absence-line.
+      await shot(page, '04-absence-line')
+    }
   }
-  note(seen.size > 1, `the keyboard actually walks (${seen.size} distinct tiles visited)`)
+  // The notes say this walk visits 5 tiles; hold it to that, not to "more than one".
+  note(seen.size >= 5, `the keyboard actually walks (${seen.size} distinct tiles visited, need 5)`)
   note(!!absenceLine, `a later site announces itself as absence — "${absenceLine.slice(0, 70)}"`)
-  if (absenceLine) await shot(page, '04-absence-line')
 
   // Back up the ladder: the pixel walk must resume on the same tile.
   const beforeBack = await page.$eval('[data-testid="ascii2-view"]', (n) => [n.dataset.x, n.dataset.y].join(','))
@@ -199,6 +235,41 @@ try {
   const afterBack = await page.$eval('[data-testid="town-walk-player"]', (n) => [n.dataset.x, n.dataset.y].join(','))
   note(afterBack === beforeBack, `position carried BACK across the toggle (${beforeBack} -> ${afterBack})`)
   await shot(page, '05-back-to-pixel')
+
+  // WEST POINT, driven for real. Until 2026-09-18 the second town was proved only
+  // by unit tests; Grok's review pointed out no browser had ever walked it.
+  await page.goto(`${baseUrl}/explore?qr=ranch-house&town=west_point`, { waitUntil: 'networkidle0', timeout: 60000 })
+  await page.waitForSelector('[data-testid="explore-town-face"]', { timeout: 20000 })
+  const wpTown = await page.$eval('[data-testid="explore-town-face"]', (n) => n.getAttribute('data-town'))
+  note(wpTown === 'west_point', `town face is west_point (got ${wpTown})`)
+  await clickText(page, 'Walk the camp', 'town-walk-start')
+  await page.waitForSelector('[data-testid="town-walk-player"]', { timeout: 20000 })
+  const wpPixel = await page.$eval('[data-testid="town-walk-player"]', (n) => [n.dataset.x, n.dataset.y].join(','))
+  await clickText(page, 'Text walk', 'town-walk-ascii2')
+  await page.waitForSelector('[data-testid="ascii2-view"]', { timeout: 20000 })
+  const wpAscii = await page.$eval('[data-testid="ascii2-view"]', (n) => [n.dataset.x, n.dataset.y].join(','))
+  note(/^\d+,\d+$/.test(wpPixel) && wpAscii === wpPixel, `west_point: position carried across the toggle (${wpPixel} -> ${wpAscii})`)
+  const wpRows = await page.$eval('[data-testid="ascii2-view"] pre', (pre) => pre.textContent?.split('\n').length ?? 0)
+  note(wpRows === 24, `west_point: frame copies out as 24 lines (got ${wpRows})`)
+  await frameFits('west_point desktop 1280x900')
+  const wpSeen = new Set([wpAscii])
+  let wpAbsence = ''
+  for (const key of ['w', 'w', 'w', 'a', 'w', 'd', 'd', 'w', 'w', 'd', 'w', 'w']) {
+    await page.focus('[data-testid="ascii2-view"]')
+    await page.keyboard.press(key)
+    await new Promise((r) => setTimeout(r, 90))
+    const st = await page.evaluate(() => ({
+      pos: ['x', 'y'].map((a) => document.querySelector('[data-testid="ascii2-view"]')?.getAttribute(`data-${a}`)).join(','),
+      line: document.querySelector('[data-testid="ascii2-feedback"]')?.textContent ?? '',
+    }))
+    wpSeen.add(st.pos)
+    if (!wpAbsence && /not built in 1849|not from this year|later/i.test(st.line)) {
+      wpAbsence = st.line
+      await shot(page, '07-west-point-absence')
+    }
+  }
+  note(wpSeen.size >= 3, `west_point: the keyboard walks (${wpSeen.size} distinct tiles)`)
+  note(!!wpAbsence, `west_point: a later site announces itself as absence — "${wpAbsence.slice(0, 70)}"`)
 
   note(consoleErrors.length === 0, `no console errors (${consoleErrors.length}): ${consoleErrors.slice(0, 2).join(' | ')}`)
 
@@ -211,8 +282,9 @@ try {
         findings,
         ok: findings.length === 0,
         _conf: findings.length === 0 ? 1 : 0,
-        screenshots: ['02-pixel-walk', '03-ascii2-walk', '04-absence-line', '05-back-to-pixel', '06-phone'],
+        screenshots: ['02-pixel-walk', '03-ascii2-walk', '04-absence-line', '05-back-to-pixel', '06-phone', '07-west-point-absence'],
         absence_line: absenceLine,
+        west_point_absence_line: wpAbsence,
         console_errors: consoleErrors,
       },
       null,
