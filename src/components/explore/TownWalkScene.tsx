@@ -26,6 +26,8 @@ export interface TownWalkSceneProps {
   onTalk: (npcId: string) => void
   onBackToLook: () => void
   onToday?: () => void
+  /** Step DOWN the graphics ladder: draw this same walk as colored ASCII. */
+  onPresentAscii2?: () => void
 }
 
 const TILE = TOWN_WALK_TILE_SIZE
@@ -179,7 +181,7 @@ function MapArt({ map, snapshot, targets, direction }: {
 
 /** Presentation only: all movement/adjacency comes from townWalk and all
  * progress, dialogue and room snapshots remain owned by the caller. */
-export function TownWalkScene({ snapshot, onChange, allowedAttractionIds, allowedNpcIds, onAttraction, onTalk, onBackToLook, onToday }: TownWalkSceneProps) {
+export function TownWalkScene({ snapshot, onChange, allowedAttractionIds, allowedNpcIds, onAttraction, onTalk, onBackToLook, onToday, onPresentAscii2 }: TownWalkSceneProps) {
   const instructionsId = useId()
   const nearbyId = useId()
   const [direction, setDirection] = useState<TownWalkDirection>('down')
@@ -246,6 +248,7 @@ export function TownWalkScene({ snapshot, onChange, allowedAttractionIds, allowe
       <div className={styles.views}>
         <button type="button" className={styles.button} onClick={onBackToLook} data-testid="town-walk-look">Back to Look</button>
         {onToday && <button type="button" className={styles.button} onClick={onToday} data-testid="town-walk-today">Today</button>}
+        {onPresentAscii2 && <button type="button" className={styles.button} onClick={onPresentAscii2} data-testid="town-walk-ascii2">Text walk</button>}
       </div>
     </header>
     <div className={styles.body}>

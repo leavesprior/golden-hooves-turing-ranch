@@ -1,0 +1,62 @@
+{
+  "id": "volcano",
+  "era": "1849",
+  "face": "The canvas camp",
+  "note": "This file does NOT hold the 1849 camp — src/lib/townWalk.ts does, and both the pixel walk and the ascii2 walk read it. What lives here is the YEAR: the explore attractions whose period is 'later', drawn at eye level as labelled absence so the street can say what is not standing yet. The x/y are the painted-face percentages from TOWN_HOTSPOTS (kept honest by ascii2Walk.test.ts); the tile they land on is an authored overlay on an already-authored map, not a survey.",
+  "must_not": ["vol_st_george", "vol_theatre", "vol_observatory", "vol_cannon"],
+  "may": [
+    "canvas tents and rope on the bowl floor",
+    "placer workings in the limestone bowl",
+    "oak and grass three to five feet high (Cook, 1849)",
+    "named Northern Sierra Miwok presence as diplomacy, not a raid table"
+  ],
+  "sources": [
+    "Volcano, Amador County: placer camp from 1848. The bowl is limestone — the name came from the look of the basin, not from any volcano.",
+    "Soldiers' Gulch: men of Stevenson's New York Volunteers mined here in 1848; the camp's rush year is 1849.",
+    "St. George Hotel: the brick hotel standing today dates from 1862 (explore attraction vol_st_george, period 'later').",
+    "Cobblestone Theatre: Volcano's theatre tradition is an 1850s development (explore attraction vol_theatre, period 'later').",
+    "George Madeira's observatory: 1860 (explore attraction vol_observatory, period 'later').",
+    "Old Abe cannon: Civil War era, 1860s (explore attraction vol_cannon, period 'later')."
+  ],
+  "ascii2_palette": {
+    "sky": "#2b2620",
+    "ground": "#3b2a1a",
+    "canvas": "#c4a574",
+    "timber": "#8a6a44",
+    "brush": "#2e4a3b",
+    "water": "#3b5a6b",
+    "fire": "#c96a2a",
+    "fog": "#4a443c",
+    "ink": "#e8dcc4"
+  },
+  "later_sites": [
+    {
+      "id": "vol_st_george",
+      "label": "St. George Hotel",
+      "x": 28,
+      "y": 42,
+      "notYet": "Washed ground and mist. The brick hotel is 1862."
+    },
+    {
+      "id": "vol_theatre",
+      "label": "Cobblestone Theatre",
+      "x": 52,
+      "y": 48,
+      "notYet": "No theatre yet. The camp's entertainment is a canvas wall and a fiddle."
+    },
+    {
+      "id": "vol_observatory",
+      "label": "Observatory site",
+      "x": 78,
+      "y": 28,
+      "notYet": "Bare rise. Madeira's telescope is 1860."
+    },
+    {
+      "id": "vol_cannon",
+      "label": "Old Abe cannon",
+      "x": 14,
+      "y": 58,
+      "notYet": "No gun on this corner in 1849. Old Abe is a Civil War errand."
+    }
+  ]
+}
