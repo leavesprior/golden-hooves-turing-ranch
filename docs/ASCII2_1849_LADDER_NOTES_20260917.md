@@ -154,7 +154,18 @@ this branch: `_conf=-1`.
 6. **`src/lib/exploreVolcanoEra.test.ts` existed on main but was never in the test chain** — nothing
    ran it. It is the link that ties `VOLCANO_/WEST_POINT_LATER_ATTRACTION_IDS` to the real
    `period: 'later'` tags in `ExploreClient.tsx`, which is precisely the chain this branch's honesty
-   claim hangs from. **Wired in** (`test:explore-era`); it passes, 132 assertions.
+   claim hangs from. **Wired in** (`test:explore-era`); it passes, 132 assertions, and it covers
+   **both** towns (it loops `VOLCANO_` *and* `WEST_POINT_LATER_ATTRACTION_IDS` against the source
+   tags). Note for the next reader: its JSON output field `later_ids: 4` is
+   `VOLCANO_LATER_ATTRACTION_IDS.length` — a reporting artifact, not the extent of coverage. A count
+   wearing a narrower name than the thing it measures is exactly the shape that misleads; it misled a
+   reviewer of this branch already.
+
+7. **Grok/Codex review is a queued obligation, not a skipped one.** Stub at
+   `grok_le_grange_queue/bobr_ascii2_rung_pr94_20260917` (`structured_envelope_v1`, `ternary_conf=-1`,
+   `status=pending_verdict`) carrying the five questions that actually matter — chiefly whether
+   camera-not-fork was the right call and whether the absence reading should be overturned. The
+   project record is `_conf=-1` until a lab answers (friendship bundle rule 4).
 
 ## 6. Real renderer output
 
