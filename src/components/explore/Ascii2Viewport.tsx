@@ -32,6 +32,9 @@ export interface Ascii2ViewportProps {
   onTalk: (npcId: string) => void
   onBackToLook: () => void
   onPresentPixel?: () => void
+  /** Facing is presentation state, but it should survive a toggle like position does. */
+  heading?: Heading
+  onHeadingChange?: (heading: Heading) => void
 }
 
 export function Ascii2Viewport({
@@ -43,9 +46,16 @@ export function Ascii2Viewport({
   onTalk,
   onBackToLook,
   onPresentPixel,
+  heading: headingProp,
+  onHeadingChange,
 }: Ascii2ViewportProps) {
   const instructionsId = useId()
-  const [heading, setHeading] = useState<Heading>('up')
+  const [localHeading, setLocalHeading] = useState<Heading>('up')
+  const heading = headingProp ?? localHeading
+  const setHeading = (next: Heading) => {
+    setLocalHeading(next)
+    onHeadingChange?.(next)
+  }
   const [line, setLine] = useState('')
   const town = ascii2TownFor(snapshot.townId)
   const scene = town ? buildAscii2Scene(town, snapshot) : undefined

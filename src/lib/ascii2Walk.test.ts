@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
-  absenceBlocks,
+  ABSENCE_BLOCKS_DEFAULT,
+  SOLID_GLYPHS,
   ascii2Forward,
   ascii2Look,
   buildAscii2Scene,
@@ -12,11 +13,13 @@ import {
   FRAME_COLS,
   FRAME_ROWS,
   type Ascii2Scene,
+  type Ascii2Frame,
   type Heading,
 } from './ascii2Walk'
 import { ASCII2_TOWNS, ascii2TownFor, hasAscii2Walk } from './ascii2Towns'
 import {
   isTownWalkPassable,
+  townWalkTileAt,
   normalizeTownWalkSnapshot,
   stepTownWalk,
   townWalkMap,
@@ -100,7 +103,6 @@ for (const [townId, town] of Object.entries(ASCII2_TOWNS)) {
     ascii = ascii2Forward(scene, ascii, k).position
     assert.deepEqual(ascii, pixel, `presentations parted company at key ${i} (${k})`)
   })
-  assert.ok(keys.some((_, i) => i >= 0), 'the parity walk must actually move')
   assert.notDeepEqual(pixel, snap.position, 'the parity walk must leave the spawn tile')
 }
 
@@ -148,44 +150,198 @@ function standSouthOf(scene: Ascii2Scene, id: string): { pos: { x: number; y: nu
   )
 }
 
-// 3b. Not brick: a later site never renders with a solid glyph. Positive control —
-//     a real canvas wall in the same frame DOES render solid, so this is a
-//     measurement, not an empty assertion.
+// 3b. NOT BRICK — measured on the glyphs actually drawn, inside the fog's own
+//     bounding box. Three earlier versions of this test were too weak, each
+//     proved by a surviving mutant:
+//       · `!text.includes('█')` — '█' is the shelter wall glyph and cannot occur
+//         in ANY exterior frame, so it passed however fog was drawn;
+//       · excluding cells "whose glyph appears in the label" — the label contains
+//         SPACES, so that silently excused fog drawn as blank;
+//       · a density ratio over whole 80-column rows — a solid fog block only
+//         reaches ~0.44 of a full row, so a filled block slipped under the bar.
+//     What is measured now: inside the box the fog occupies (label row excluded),
+//     no glyph may mean something-stands-here, none may be blank, and the fill
+//     must stay a dither — with a real canvas wall measured the same way as the
+//     positive control.
 {
-  const { pos, heading } = standSouthOf(scene, 'vol_st_george')
-  const text = frameText(renderFrame(scene, pos, heading)).join('\n')
-  assert.ok(!/[█▒▓]/.test(text.split('\n').slice(0, 20).join('\n')) || !text.includes('█'), 'later ground must not be brick')
-  assert.ok(text.includes('St. George'), 'absence is labelled — the walk says what will stand here')
+  const fogColor = volcano.ascii2_palette.fog
+  const canvasColor = volcano.ascii2_palette.canvas
+  const label = 'St. George Hotel'
 
-  // positive control: standing in front of the canvas saloon shows a solid wall
-  const door = scene.map.targets.find((t) => t.kind === 'entrance')!
-  const front = { x: door.position.x, y: door.position.y + 1 }
-  const wall = frameText(renderFrame(scene, front, 'up')).join('\n')
-  assert.ok(/[▒█]/.test(wall), 'a real 1849 canvas wall must render solid — else the fog test proves nothing')
+  /**
+   * Cells of one colour (name-plate row excluded) and the LONGEST HORIZONTAL RUN
+   * of them. Run length is what separates a dither from a fill: the fog stencil
+   * is `(r + c) % 3`, so its runs are 1 cell long, while a standing wall paints
+   * unbroken rows. A bounding-box ratio was tried first and was too blunt — a
+   * scene with walls at several depths scatters one colour across the frame.
+   */
+  const field = (frame: Ascii2Frame, color: string) => {
+    const text = frameText(frame)
+    const labelRow = text.findIndex((r) => r.includes(label))
+    const cells: { ch: string; r: number; c: number }[] = []
+    let longestRun = 0
+    frame.rows.forEach((row, r) => {
+      // Rows 22-23 are the compass and caption — chrome, not the drawn world. The
+      // caption is painted in the fog colour when nothing is named, and its spaces
+      // were being counted as holes in the fog.
+      if (r === labelRow || r >= FRAME_ROWS - 2) return
+      let run = 0
+      row.forEach((cell, c) => {
+        if (cell.color === color) {
+          cells.push({ ch: cell.ch, r, c })
+          run += 1
+          longestRun = Math.max(longestRun, run)
+        } else {
+          run = 0
+        }
+      })
+    })
+    return { cells, longestRun }
+  }
+
+  const { pos, heading } = standSouthOf(scene, 'vol_st_george')
+  const frame = renderFrame(scene, pos, heading)
+  const fog = field(frame, fogColor)
+
+  assert.ok(fog.cells.length > 0, 'the later site must actually be drawn — absence is visible AS absence')
+  const solid = fog.cells.filter((x) => SOLID_GLYPHS.includes(x.ch))
+  assert.equal(solid.length, 0, `a later site must never wear a standing-thing glyph (got ${solid.map((x) => x.ch).join('')})`)
+  const blank = fog.cells.filter((x) => x.ch.trim() === '')
+  assert.equal(blank.length, 0, 'fog must leave a visible mark, not a hole in the world')
+  assert.ok(frameText(frame).join('\n').includes(label), 'absence is labelled — the walk says what will stand here')
+
+  // The name plate pads the label with spaces to clear a gap. Those blanks must
+  // clear to the BACKGROUND — painting them in the face colour puts empty cells
+  // inside the absence, which is the same defect as fog drawn as nothing. The
+  // measurements above deliberately skip the plate row, so without this assertion
+  // nothing would enforce it (a mutant proved exactly that).
+  {
+    const plateRow = frameText(frame).findIndex((r) => r.includes(label))
+    const platedFogBlanks = frame.rows[plateRow].filter((c) => c.color === fogColor && c.ch.trim() === '')
+    assert.equal(platedFogBlanks.length, 0, 'the name plate must clear to the background, not paint blanks in the fog colour')
+  }
+  assert.ok(fog.longestRun <= 2, `fog must stay a dither; longest unbroken run was ${fog.longestRun}`)
+
+  // POSITIVE CONTROL, measured the same way. Stand on open ground with a canvas
+  // wall directly ahead: it must paint an unbroken row. Without this the fog
+  // assertions could pass on a renderer that draws almost nothing at all.
+  let control: { cells: { ch: string }[]; longestRun: number } | undefined
+  const dirs: { d: Heading; dx: number; dy: number }[] = [
+    { d: 'up', dx: 0, dy: -1 }, { d: 'down', dx: 0, dy: 1 },
+    { d: 'left', dx: -1, dy: 0 }, { d: 'right', dx: 1, dy: 0 },
+  ]
+  outer: for (let y = 0; y < scene.map.height; y++) {
+    for (let x = 0; x < scene.map.width; x++) {
+      if (!isTownWalkPassable(scene.map, { x, y }) || ghostAt(scene, { x, y })) continue
+      for (const dir of dirs) {
+        if (townWalkTileAt(scene.map, { x: x + dir.dx, y: y + dir.dy })?.prop !== 'canvas') continue
+        const candidate = field(renderFrame(scene, { x, y }, dir.d), canvasColor)
+        if (candidate.longestRun > (control?.longestRun ?? 0)) control = candidate
+        if ((control?.longestRun ?? 0) >= 20) break outer
+      }
+    }
+  }
+  assert.ok(control, 'the fixture must find open ground facing a canvas wall')
+  if (!control) throw new Error('unreachable — asserted above')
+  assert.ok(
+    control.cells.some((x) => SOLID_GLYPHS.includes(x.ch)),
+    'the control must draw a SOLID canvas glyph — else "never solid" proves nothing',
+  )
+  assert.ok(control.longestRun >= 20, `a standing wall must paint an unbroken row, got ${control.longestRun}`)
+  assert.ok(
+    control.longestRun > fog.longestRun * 5,
+    `a wall must read far denser than absence (wall run ${control.longestRun} vs fog run ${fog.longestRun})`,
+  )
 }
 
-// 3c. Not a wall: absence does not stop a walking man, and crossing it says so.
+// 3b-ii. The same rules where a later site appears OFF TO THE SIDE. The renderer
+//     draws side walls through a separate code path, and a mutant that filled that
+//     path solid was a NO-OP in the head-on frame above — it changed nothing, so it
+//     proved nothing. This frame is what makes that path convictable.
 {
-  const { pos, heading } = standSouthOf(scene, 'vol_st_george')
-  const moved = ascii2Forward(scene, pos, heading)
-  if (absenceBlocks) {
-    assert.ok(moved.blocked, 'with absenceBlocks on, a later site stops you')
-  } else {
-    assert.notDeepEqual(moved.position, pos, 'absence does not block a walking man')
-    assert.equal(moved.crossing?.id, 'vol_st_george', 'crossing names the absent site')
-    assert.ok(ghostAt(scene, moved.position), 'the ghost is where the walker now stands')
+  const fogColor = volcano.ascii2_palette.fog
+  let found = 0
+  for (const g of scene.ghosts) {
+    for (const dx of [-1, 1]) {
+      const stand = { x: g.position.x + dx, y: g.position.y + 2 }
+      if (!isTownWalkPassable(scene.map, stand) || ghostAt(scene, stand)) continue
+      const frame = renderFrame(scene, stand, 'up')
+      const labelRow = frameText(frame).findIndex((r) => r.includes(g.label))
+      let longest = 0
+      const cells: string[] = []
+      frame.rows.forEach((row, r) => {
+        if (r === labelRow || r >= FRAME_ROWS - 2) return // compass + caption are chrome
+        let run = 0
+        row.forEach((cell) => {
+          if (cell.color === fogColor) {
+            cells.push(cell.ch)
+            run += 1
+            longest = Math.max(longest, run)
+          } else run = 0
+        })
+      })
+      if (!cells.length) continue
+      found += 1
+      assert.equal(
+        cells.filter((ch) => SOLID_GLYPHS.includes(ch)).length,
+        0,
+        `${g.id} seen from the side must not wear a standing-thing glyph`,
+      )
+      assert.equal(cells.filter((ch) => ch.trim() === '').length, 0, `${g.id} from the side must still leave a mark`)
+      assert.ok(longest <= 2, `${g.id} from the side must stay a dither, longest run ${longest}`)
+    }
   }
+  assert.ok(found >= 2, `the fixture must actually see later sites from the side (saw ${found})`)
 }
 
-// 3d. Collisions still belong to the tile world — a canvas wall stops you.
+// 3c. NOT A WALL — and the other reading is a real switch, not a comment.
+//     Both policies are exercised here, so the documented "one line to overturn"
+//     is a claim the suite actually stands behind.
 {
-  const door = scene.map.targets.find((t) => t.kind === 'entrance')!
-  const front = { x: door.position.x, y: door.position.y - 1 }
-  if (isTownWalkPassable(scene.map, front)) {
-    const into = ascii2Forward(scene, front, 'up')
-    assert.deepEqual(into.position, front, 'the canvas wall is solid in first person too')
-    assert.ok(into.blocked, 'and it says what stopped you')
+  const { pos, heading } = standSouthOf(scene, 'vol_st_george')
+  assert.equal(scene.absenceBlocks, ABSENCE_BLOCKS_DEFAULT, 'the scene carries the policy')
+
+  const crossing = ascii2Forward(scene, pos, heading)
+  assert.notDeepEqual(crossing.position, pos, 'by default absence does not block a walking man')
+  assert.equal(crossing.crossing?.id, 'vol_st_george', 'crossing names the absent site')
+  assert.ok(ghostAt(scene, crossing.position), 'the ghost is where the walker now stands')
+
+  const strict = buildAscii2Scene(volcano, volcanoSnap, { absenceBlocks: true })!
+  assert.equal(strict.absenceBlocks, true)
+  const stopped = ascii2Forward(strict, pos, heading)
+  assert.deepEqual(stopped.position, pos, 'under the other reading, a later site stops you')
+  assert.ok(stopped.blocked && /1862/.test(stopped.blocked), 'and the refusal still names the year')
+
+  // The policy must not invent a wall anywhere else: ordinary ground is still
+  // walkable under the strict reading.
+  const open = ascii2Forward(strict, volcanoSnap.position, 'up')
+  assert.notDeepEqual(open.position, volcanoSnap.position, 'the policy touches later sites only')
+}
+
+// 3d. Collisions still belong to the tile world. The earlier version of this
+//     stood ON the canvas wall itself, so its `if (isTownWalkPassable(...))` guard
+//     was never true and the test asserted NOTHING. Find the wall from open
+//     ground instead, and fail loudly if no such spot exists.
+{
+  const facings: { d: Heading; dx: number; dy: number }[] = [
+    { d: 'up', dx: 0, dy: -1 }, { d: 'down', dx: 0, dy: 1 },
+    { d: 'left', dx: -1, dy: 0 }, { d: 'right', dx: 1, dy: 0 },
+  ]
+  let checked = 0
+  for (let y = 0; y < scene.map.height; y++) {
+    for (let x = 0; x < scene.map.width; x++) {
+      if (!isTownWalkPassable(scene.map, { x, y })) continue
+      for (const f of facings) {
+        const front = { x: x + f.dx, y: y + f.dy }
+        if (townWalkTileAt(scene.map, front)?.prop !== 'canvas') continue
+        const into = ascii2Forward(scene, { x, y }, f.d)
+        assert.deepEqual(into.position, { x, y }, `the canvas wall at ${front.x},${front.y} must stop the walker`)
+        assert.ok(into.blocked, 'and it must say what stopped you')
+        checked++
+      }
+    }
   }
+  assert.ok(checked >= 3, `the fixture must actually reach canvas walls from open ground (reached ${checked})`)
 }
 
 // 3e. Indoors there is no future street: fog stays outside.
@@ -215,9 +371,17 @@ function standSouthOf(scene: Ascii2Scene, id: string): { pos: { x: number; y: nu
   assert.ok(frame.compass.includes('canvas camp'), 'the compass wears the 1849 face name')
   assert.ok(/north|south|east|west/.test(frame.compass), 'the compass says which way you face')
 
-  // An allowlist the caller supplies is honoured — the same gate the pixel walk uses.
-  const none = renderFrame(scene, volcanoSnap.position, 'up', () => false)
-  assert.equal(none.rows.length, FRAME_ROWS)
+  // An allowlist the caller supplies is honoured — the same gate the pixel walk
+  // uses. Measured on CONTENT: a disallowed target must lose its name plate.
+  // (Asserting only `rows.length === FRAME_ROWS` could not fail — the row loop
+  //  is literally `for r < FRAME_ROWS`.)
+  const npc = scene.map.targets.find((t) => t.kind === 'npc')!
+  const beside = { x: npc.position.x, y: npc.position.y + 1 }
+  assert.ok(isTownWalkPassable(scene.map, beside), 'fixture needs open ground beside the NPC')
+  const shown = frameText(renderFrame(scene, beside, 'up')).join('\n')
+  assert.ok(shown.includes(npc.label), 'an allowed target is named in the frame')
+  const hidden = frameText(renderFrame(scene, beside, 'up', () => false)).join('\n')
+  assert.ok(!hidden.includes(npc.label), 'a target the caller disallows must not be drawn or named')
 }
 
 // ---------------------------------------------------------------------------

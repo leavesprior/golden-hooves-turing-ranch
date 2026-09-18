@@ -15,6 +15,7 @@ import { PlaceScene } from '@/components/PlaceScene'
 import { placeSceneFor, type PlaceSceneEra } from '@/lib/placeSceneAssets'
 import { TownWalkScene } from './TownWalkScene'
 import { Ascii2Viewport } from './Ascii2Viewport'
+import type { Heading as Ascii2Heading } from '@/lib/ascii2Walk'
 import { hasAscii2Walk } from '@/lib/ascii2Towns'
 import { townWalkMap } from '@/lib/townWalk'
 
@@ -46,6 +47,7 @@ export function InteractiveTown({
   // 'pixel' is the painted tile walk, 'ascii2' the colored first-person text walk
   // for weak devices. Pixel stays the default — ascii2 is opt-in.
   const [presentRung, setPresentRung] = useState<'pixel' | 'ascii2'>('pixel')
+  const [walkHeading, setWalkHeading] = useState<Ascii2Heading>('up')
   const walkSnapshot = getTownWalk(town.id)
 
   useLayoutEffect(() => {
@@ -111,6 +113,8 @@ export function InteractiveTown({
         onAttraction={enterBuilding}
         onTalk={id => { const npc = npcs.find(n => n.id === id); if (npc) talkNpc(npc.line, npc.name) }}
         onBackToLook={() => { setWalking(false); setSelectedId(null); setNpcLine(null) }}
+        heading={walkHeading}
+        onHeadingChange={setWalkHeading}
         onPresentPixel={() => setPresentRung('pixel')}
       /> : <TownWalkScene
         snapshot={walkSnapshot} onChange={saveTownWalk}

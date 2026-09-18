@@ -18,7 +18,7 @@
  * So each town's `<id>.1849.json` carries `later_sites` — the explore attractions
  * whose period is 'later' — and this camera draws them as FOG:
  *   - not brick: a later site never renders with a solid glyph;
- *   - not a wall: absence does not stop a walking man (`absenceBlocks = false`),
+ *   - not a wall: absence does not stop a walking man (ABSENCE_BLOCKS_DEFAULT),
  *     so the tile map's collisions stay the only collisions;
  *   - not enterable: stepping in is refused, and the refusal names the year.
  * Fog placement is an authored overlay on an authored map (see each JSON's
@@ -77,6 +77,8 @@ export interface Ascii2Scene {
   map: TownWalkMap
   ghosts: PlacedLaterSite[]
   palette: Record<string, string>
+  /** When true, a later site stops the walker instead of being crossed. */
+  absenceBlocks: boolean
 }
 
 export interface Ascii2Cell {
@@ -98,8 +100,13 @@ export type Ascii2Look =
 
 export const FRAME_COLS = 80
 export const FRAME_ROWS = 24
-/** Later sites are absence, not brick — they do not block a walking man. */
-export const absenceBlocks = false
+/**
+ * Default reading of the brief's "fog/absence, not brick": absence does not stop
+ * a walking man. This is a real policy, not a comment — `buildAscii2Scene` puts it
+ * on the scene and `ascii2Forward` consults it, and the test exercises BOTH
+ * readings. To adopt the other reading, change this line (or pass the option).
+ */
+export const ABSENCE_BLOCKS_DEFAULT = false
 
 const DEPTH = 7
 const WORLD_ROWS = FRAME_ROWS - 2
@@ -125,7 +132,14 @@ const PROP_FILL: Record<TownWalkPropKind, string> = {
   marker: '†',
   fire: '≈',
 }
-const FOG_GLYPHS = ['·', '˙', ' ', '·', ' ', '˚']
+/**
+ * Fog glyphs are thin but never EMPTY. An earlier set contained ' ', and the one
+ * later site the test measured happened to index onto it — so "never drawn solid"
+ * was satisfied by drawing nothing at all. Absence must be visible AS absence.
+ */
+const FOG_GLYPHS = ['·', '˙', '˚', '·', 'ʼ', '˙']
+/** Glyphs that mean SOMETHING STANDS HERE. A later site must never wear one. */
+export const SOLID_GLYPHS: readonly string[] = ['▒', '█', '▓', '♠', '▲', '▄', '†', '≈', '☺', '◇']
 
 export function turnHeading(heading: Heading, delta: number): Heading {
   const i = CLOCKWISE.indexOf(heading)
@@ -171,6 +185,7 @@ export function placeLaterSites(map: TownWalkMap, sites: LaterSite[]): PlacedLat
 export function buildAscii2Scene(
   town: Town1849,
   snapshot: TownWalkSnapshot,
+  options: { absenceBlocks?: boolean } = {},
 ): Ascii2Scene | undefined {
   const map = townWalkMap(snapshot.townId, snapshot.roomId)
   if (!map) return undefined
@@ -183,6 +198,7 @@ export function buildAscii2Scene(
     map,
     ghosts,
     palette: town.ascii2_palette,
+    absenceBlocks: options.absenceBlocks ?? ABSENCE_BLOCKS_DEFAULT,
   }
 }
 
@@ -197,6 +213,10 @@ export function ascii2Forward(
   heading: Heading,
 ): { position: TownWalkPosition; blocked?: string; crossing?: PlacedLaterSite } {
   const next = stepTownWalk(scene.map, position, heading)
+  const crossed = ghostAt(scene, next)
+  if (scene.absenceBlocks && crossed && (next.x !== position.x || next.y !== position.y)) {
+    return { position, blocked: `${crossed.label}: ${crossed.notYet}` }
+  }
   if (next.x === position.x && next.y === position.y) {
     const d = DELTA[heading]
     const tile = townWalkTileAt(scene.map, { x: position.x + d.dx, y: position.y + d.dy })
@@ -209,7 +229,7 @@ export function ascii2Forward(
           : 'Someone is standing there. Walk around them.'
     return { position, blocked }
   }
-  return { position: next, crossing: ghostAt(scene, next) }
+  return { position: next, crossing: crossed }
 }
 
 /** What is straight ahead (or underfoot): a real target, an absence, or nothing. */
@@ -413,7 +433,14 @@ export function renderFrame(
     if (rect.right - rect.left >= label.length - 2) {
       const lc = Math.max(0, Math.floor((FRAME_COLS - label.length) / 2))
       const lr = face.form === 'figure' ? Math.max(0, rect.bottom - 6) : rect.top + Math.floor((rect.bottom - rect.top) / 2)
-      for (let i = 0; i < label.length; i++) put(lr, lc + i, label[i], face.form === 'fog' ? fog : ink)
+      for (let i = 0; i < label.length; i++) {
+        // The plate's padding CLEARS a gap around the name; it must clear to the
+        // background, not to the face colour. Painting a blank in the fog colour
+        // made a later site contain empty cells — absence with holes in it, which
+        // is exactly what the era rule forbids. (Caught by the side-view test.)
+        const blank = label[i] === ' '
+        put(lr, lc + i, label[i], blank ? (lr < horizon ? sky : ground) : face.form === 'fog' ? fog : ink)
+      }
     }
     caption =
       face.form === 'fog'
