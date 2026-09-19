@@ -229,7 +229,7 @@ try {
       line: document.querySelector('[data-testid="ascii2-feedback"]')?.textContent ?? '',
     }))
     seen.add(state.pos)
-    if (!absenceLine && /not built in 1849|1862|1860|not from this year|plaque|no gun/i.test(state.line)) {
+    if (!absenceLine && /not built in 1849|not yet|1856|1860|1863|1867|1949|no gun/i.test(state.line)) {
       absenceLine = state.line
       // Shoot WHILE the line is showing. Shooting after the loop captured a later
       // step that read "Open ground. Walk on." under a file named absence-line.

@@ -3,20 +3,26 @@
   "era": "1849",
   "face": "The canvas camp",
   "note": "This file does NOT hold the 1849 camp — src/lib/townWalk.ts does, and both the pixel walk and the ascii2 walk read it. What lives here is the YEAR: the explore attractions whose period is 'later', drawn at eye level as labelled absence so the street can say what is not standing yet. The x/y are the painted-face percentages from TOWN_HOTSPOTS (kept honest by ascii2Walk.test.ts); the tile they land on is an authored overlay on an already-authored map, not a survey.",
-  "must_not": ["vol_st_george", "vol_theatre", "vol_observatory", "vol_cannon"],
+  "must_not": [
+    "vol_st_george",
+    "vol_theatre",
+    "vol_observatory",
+    "vol_cannon"
+  ],
   "may": [
     "canvas tents and rope on the bowl floor",
     "placer workings in the limestone bowl",
-    "oak and grass three to five feet high (Cook, 1849)",
+    "oak and grass on the hills (lead only: an 1849 account attributed to Cook, not yet sourced)",
     "named Northern Sierra Miwok presence as diplomacy, not a raid table"
   ],
   "sources": [
-    "Volcano, Amador County: placer camp from 1848. The bowl is limestone — the name came from the look of the basin, not from any volcano.",
-    "Soldiers' Gulch: men of Stevenson's New York Volunteers mined here in 1848; the camp's rush year is 1849.",
-    "St. George Hotel: the brick hotel standing today dates from 1862 (explore attraction vol_st_george, period 'later').",
-    "Cobblestone Theatre: Volcano's theatre tradition is an 1850s development (explore attraction vol_theatre, period 'later').",
-    "George Madeira's observatory: 1860 (explore attraction vol_observatory, period 'later').",
-    "Old Abe cannon: Civil War era, 1860s (explore attraction vol_cannon, period 'later')."
+    "Volcano: discovered in 1848 by Colonel Stevenson's men, who mined Soldiers Gulch in 1849; hydraulic operations began in 1855 (California OHP, Historical Landmark No. 29, plaque text): https://ohp.parks.ca.gov/ListedResources/Detail/29",
+    "Name: the camp was called Soldiers Gulch; miners renamed it Volcano in 1850 'because of the volcanic appearance of the location' (NRHP nomination, St. George Hotel, 1984, section 8). Secondary source, not independently verified: https://npgallery.nps.gov/NRHP/GetAsset/NRHP/84000757_text",
+    "St. George Hotel: its predecessor burned in 1862; the NRHP nomination dates the present brick hotel to 1867, while other accounts (e.g. HMDB marker 11785, not read directly) give 1863-64. Both are after 1849: https://npgallery.nps.gov/NRHP/GetAsset/NRHP/84000757_text",
+    "Cobblestone Theatre: built 1856 as Adolph Mayer's Tobacco and Cigar Emporium; leased by the Volcano Theatre Company from 1974 (Volcano Theatre Company, About): https://volcanotheatre.net/about/",
+    "Observatory: George Madeira's observatory, first amateur astronomical observatory of record in California, where he found the Great Comet of 1861 (California OHP, Landmark No. 715). The 1860 build year is from secondary accounts: https://ohp.parks.ca.gov/ListedResources/Detail/715",
+    "Old Abe: Civil War episode, 1860s (California OHP, Landmark No. 29): https://ohp.parks.ca.gov/ListedResources/Detail/29",
+    "UNVERIFIED, retained as a lead: 'oak and grass three to five feet high (Cook, 1849)' has no retrievable citation in this repo."
   ],
   "ascii2_palette": {
     "sky": "#2b2620",
@@ -35,21 +41,21 @@
       "label": "St. George Hotel",
       "x": 28,
       "y": 42,
-      "notYet": "Washed ground and mist. The brick hotel is 1862."
+      "notYet": "Washed ground and mist. The brick hotel is 1860s: 1863 or 1867, the records disagree."
     },
     {
       "id": "vol_theatre",
       "label": "Cobblestone Theatre",
       "x": 52,
       "y": 48,
-      "notYet": "No theatre yet. The camp's entertainment is a canvas wall and a fiddle."
+      "notYet": "No stone building yet. It goes up in 1856 as a cigar shop; the theatre company comes in 1974."
     },
     {
       "id": "vol_observatory",
       "label": "Observatory site",
       "x": 78,
       "y": 28,
-      "notYet": "Bare rise. Madeira's telescope is 1860."
+      "notYet": "Bare rise. Madeira's telescope comes about 1860; his comet is 1861."
     },
     {
       "id": "vol_cannon",

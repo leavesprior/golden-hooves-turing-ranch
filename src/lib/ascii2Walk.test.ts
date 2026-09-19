@@ -159,14 +159,14 @@ function standSouthOf(scene: Ascii2Scene, id: string): { pos: { x: number; y: nu
   return { pos, heading: 'up' }
 }
 
-// 3a. You cannot step into 1862 from 1849 — and the refusal names the year.
+// 3a. You cannot step into the 1860s from 1849 — and the refusal names the year.
 {
   const { pos, heading } = standSouthOf(scene, 'vol_st_george')
   const look = ascii2Look(scene, pos, heading)
   assert.equal(look.kind, 'absence', 'the St. George is not enterable in 1849')
   assert.ok(
-    look.kind === 'absence' && /1862/.test(look.site.notYet),
-    'the refusal must carry the year, not a shrug',
+    look.kind === 'absence' && /1863/.test(look.site.notYet) && /1867/.test(look.site.notYet),
+    'the refusal must carry both recorded years (1863 / 1867), not a shrug',
   )
 }
 
@@ -330,7 +330,7 @@ function standSouthOf(scene: Ascii2Scene, id: string): { pos: { x: number; y: nu
   assert.equal(strict.absenceBlocks, true)
   const stopped = ascii2Forward(strict, pos, heading)
   assert.deepEqual(stopped.position, pos, 'under the other reading, a later site stops you')
-  assert.ok(stopped.blocked && /1862/.test(stopped.blocked), 'and the refusal still names the year')
+  assert.ok(stopped.blocked && /1867/.test(stopped.blocked), 'and the refusal still names the year')
 
   // The policy must not invent a wall anywhere else: ordinary ground is still
   // walkable under the strict reading.
@@ -367,7 +367,7 @@ function standSouthOf(scene: Ascii2Scene, id: string): { pos: { x: number; y: nu
 // 3e. Indoors there is no future street: fog stays outside.
 {
   const inside = buildAscii2Scene(volcano, { ...volcanoSnap, roomId: 'shelter', position: townWalkMap('volcano', 'shelter')!.spawn })!
-  assert.equal(inside.ghosts.length, 0, 'no 1862 hotel inside a canvas saloon')
+  assert.equal(inside.ghosts.length, 0, 'no 1860s hotel inside a canvas saloon')
 }
 
 // ---------------------------------------------------------------------------
@@ -453,6 +453,10 @@ function standSouthOf(scene: Ascii2Scene, id: string): { pos: { x: number; y: nu
   const wpScene = buildAscii2Scene(wp, snapshotFor('west_point'))!
   const marker = wp.later_sites.find((s) => s.id === 'wp_kit_carson')!
   assert.ok(/Hwy 26|Highway 26/i.test(marker.notYet), 'the marker belongs at Hwy 26 & Main')
+  // OHP No. 268 gives registration 9/3/1937; the plaque itself was dedicated 7/3/1949.
+  // Calling it 'a 1937 plaque' was the error this line guards against.
+  assert.ok(/1949/.test(marker.notYet) && !/plaque is 1937/i.test(marker.notYet), 'the plaque is 1949; 1937 is the registration')
+  assert.ok(/tradition/i.test(marker.notYet), 'Carson\'s 1844 is tradition, not a recorded date')
   assert.ok(
     !wp.later_sites.some((s) => /cemetery|campsite/i.test(s.label + s.notYet)),
     'no cemetery-as-campsite for Kit Carson',

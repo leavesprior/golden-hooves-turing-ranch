@@ -17,7 +17,7 @@
  * WHAT THIS ADDS THAT THE TILE MAP DOES NOT HAVE: the year.
  * The tile map is 1849-only, so it says what IS there by saying nothing about the
  * rest. At eye level you can look down the street toward ground where the St.
- * George Hotel will stand in 1862, and the walk should be able to tell you that.
+ * George Hotel will stand in the 1860s, and the walk should be able to tell you that.
  * So each town's `<id>.1849.json` carries `later_sites` — the explore attractions
  * whose period is 'later' — and this camera draws them as FOG:
  *   - not brick: a later site never renders with a solid glyph;
