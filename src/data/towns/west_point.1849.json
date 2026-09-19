@@ -71,7 +71,12 @@
       "y": 56,
       "notYet": "Not here: Sandy Gulch is 2 miles down the road, south-southwest. The gulch is already being worked; the quartz mills are later.",
       "unpinned": true,
-      "unpinnedWhy": "Not a pin on the painted West Point face (TOWN_HOTSPOTS has no wp_sandy_gulch). It is also not in this camp: OHP No. 253 puts the monument 2.1 mi down Hwy 26 toward Glencoe, so it is shown on the horizon by bearing, never on a camp tile."
+      "unpinnedWhy": "Not a pin on the painted West Point face (TOWN_HOTSPOTS has no wp_sandy_gulch). It is also not in this camp: OHP No. 253 puts the monument 2.1 mi down Hwy 26 toward Glencoe, so it is shown on the horizon by bearing, never on a camp tile.",
+      "geo": {
+        "lat": 38.378954,
+        "lon": -120.541156,
+        "source": "OHP No. 253 'On State Hwy 26 (P.M. 32.3), 2.1 mi W of West Point', located by walking 3,380 m along CA 26 in OpenStreetMap toward Glencoe; Google Maps labels Sandy Gulch at the same bend"
+      }
     }
   ]
 }

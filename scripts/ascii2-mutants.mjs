@@ -9,7 +9,7 @@
  *   2. the file actually changed, and
  *   3. the behaviour fingerprint (scripts/ascii2-mutant-probe.ts) changed.
  * A seed failing 1-3 is reported as NO-OP and never counted as caught.
- * Then `src/lib/ascii2Walk.test.ts` runs; a non-zero exit means CAUGHT.
+ * Then ascii2Walk, townGeo and townWalk tests run; a non-zero exit means CAUGHT.
  * Every file is restored in `finally`, whatever happens.
  *
  * Exit 0 = every seed scored and caught, 1 = a scored seed survived,
@@ -34,6 +34,12 @@ const SEEDS = [
     replace: "  const d0 = DELTA[heading]\n  const next = { x: Math.max(0, Math.min(scene.map.width - 1, position.x + d0.dx)), y: Math.max(0, Math.min(scene.map.height - 1, position.y + d0.dy)) }\n" },
   { id: 'parity-walk-loses-the-fire', file: 'src/lib/townWalk.ts',
     find: "    prop('crate', 7, 5), prop('fire', 11, 5),\n", replace: "    prop('crate', 7, 5),\n" },
+  { id: 'ground-evidence-ignored', file: 'src/lib/ascii2Walk.ts',
+    find: '    const fromGround = geoWanted(map, site, geo)\n', replace: '    const fromGround = null as TownWalkPosition | null\n' },
+  { id: 'creek-tile-dropped', file: 'src/lib/townWalk.ts',
+    find: '[13, 5], [13, 6], [14, 5],', replace: '[13, 5], [14, 5],' },
+  { id: 'far-site-pulled-into-camp', file: 'src/lib/ascii2Walk.ts',
+    find: '    if (site.geo && geo && !fromGround) continue\n', replace: '\n' },
   { id: 'west-point-pack-road-fixture-blocked', file: 'src/lib/townWalk.ts',
     find: "    prop('rock', 6, 4), prop('rock', 14, 8),", replace: "    prop('rock', 10, 7), prop('rock', 6, 4), prop('rock', 14, 8)," },
 ]
@@ -46,7 +52,12 @@ const probe = () => {
   const r = run('npx', ['tsx', 'scripts/ascii2-mutant-probe.ts'])
   return r.rc === 0 ? JSON.parse(r.out.trim().split('\n').pop()).fingerprint : `probe-crashed:${r.rc}`
 }
-const test = () => run('npx', ['tsx', 'src/lib/ascii2Walk.test.ts'])
+const test = () => {
+  const a = run('npx', ['tsx', 'src/lib/ascii2Walk.test.ts'])
+  if (a.rc !== 0) return a
+  const b = run('npx', ['tsx', 'src/lib/townGeo.test.ts'])
+  return b.rc !== 0 ? b : run('npx', ['tsx', 'src/lib/townWalk.test.ts'])
+}
 
 const baseTest = test()
 if (baseTest.rc !== 0) { console.error('UNMEASURED: baseline test is not green\n' + baseTest.out.slice(-800)); process.exit(2) }

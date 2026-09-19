@@ -41,6 +41,7 @@ import {
   type TownWalkSnapshot,
   type TownWalkTarget,
 } from '@/lib/townWalk'
+import { bearingDeg, distanceM, geoToTile, townGeo, type TownGeoreference } from '@/lib/townGeo'
 
 export type Heading = TownWalkDirection
 
@@ -55,6 +56,14 @@ export interface LaterSite {
   /** true when this later attraction has no pin on the painted face (authored x/y). */
   unpinned?: boolean
   unpinnedWhy?: string
+  /**
+   * Where the site is on the ground today, with its source. When present it
+   * outranks the painting percentages: the tile comes from the town's
+   * georeference (townGeo.ts). A site that falls outside the camp, or in a town
+   * with no measured scale, is not put on a tile at all — it is shown at its
+   * true bearing on the horizon instead (Ascii2Scene.distant).
+   */
+  geo?: { lat: number; lon: number; source: string }
 }
 
 export interface Town1849 {
@@ -71,6 +80,14 @@ export interface Town1849 {
 
 export interface PlacedLaterSite extends LaterSite {
   position: TownWalkPosition
+  /** 'geo' when the tile follows ground evidence, 'painting' when it follows the painted face. */
+  placedBy: 'geo' | 'painting'
+}
+
+/** A later site too far away to stand in the camp: seen by bearing, never walked to. */
+export interface DistantLaterSite extends LaterSite {
+  bearing: number
+  distanceM: number
 }
 
 export interface Ascii2Scene {
@@ -79,6 +96,8 @@ export interface Ascii2Scene {
   face: string
   map: TownWalkMap
   ghosts: PlacedLaterSite[]
+  /** Later sites outside the camp, by compass bearing from the town's anchor. */
+  distant: DistantLaterSite[]
   palette: Record<string, string>
   /** When true, a later site stops the walker instead of being crossed. */
   absenceBlocks: boolean
@@ -158,16 +177,38 @@ export function turnHeading(heading: Heading, delta: number): Heading {
   return CLOCKWISE[(i + delta + CLOCKWISE.length) % CLOCKWISE.length]
 }
 
+/** The tile a site's ground evidence points to, or null when it cannot be on a tile. */
+function geoWanted(map: TownWalkMap, site: LaterSite, geo?: TownGeoreference): TownWalkPosition | null {
+  if (!site.geo || !geo) return null
+  const t = geoToTile(geo, site.geo)
+  if (!t) return null
+  const p = { x: Math.round(t.x), y: Math.round(t.y) }
+  return p.x >= 0 && p.x < map.width && p.y >= 0 && p.y < map.height ? p : null
+}
+
+/** Sites with ground evidence that cannot stand in the camp: out of bounds, or no scale. */
+export function distantLaterSites(map: TownWalkMap, sites: LaterSite[], geo?: TownGeoreference): DistantLaterSite[] {
+  if (!geo) return []
+  return sites
+    .filter((s) => s.geo && !geoWanted(map, s, geo))
+    .map((s) => ({ ...s, bearing: bearingDeg(geo.anchor.point, s.geo!), distanceM: distanceM(geo.anchor.point, s.geo!) }))
+}
+
 /**
- * Percent-of-painting → tile, then snapped to the nearest passable tile so a
- * ghost never lands inside the creek or a canvas wall. Deterministic: ties break
- * by scanning rows then columns.
+ * Ground evidence → tile when a site has it (see LaterSite.geo), otherwise
+ * percent-of-painting → tile. Then snapped to the nearest passable tile so a
+ * ghost never lands inside the creek, on the bridge planks, in a canvas wall or
+ * on a real 1849 target. Deterministic: ties break by scanning rows then columns.
+ * Sites with ground evidence that puts them outside the camp are left out here
+ * and returned by `distantLaterSites` instead.
  */
-export function placeLaterSites(map: TownWalkMap, sites: LaterSite[]): PlacedLaterSite[] {
+export function placeLaterSites(map: TownWalkMap, sites: LaterSite[], geo?: TownGeoreference): PlacedLaterSite[] {
   const taken = new Set<string>()
   const placed: PlacedLaterSite[] = []
   for (const site of sites) {
-    const wanted = {
+    const fromGround = geoWanted(map, site, geo)
+    if (site.geo && geo && !fromGround) continue
+    const wanted = fromGround ?? {
       x: Math.min(map.width - 1, Math.max(0, Math.round((site.x / 100) * (map.width - 1)))),
       y: Math.min(map.height - 1, Math.max(0, Math.round((site.y / 100) * (map.height - 1)))),
     }
@@ -177,6 +218,8 @@ export function placeLaterSites(map: TownWalkMap, sites: LaterSite[]): PlacedLat
       for (let x = 0; x < map.width; x++) {
         const k = `${x},${y}`
         if (taken.has(k) || !isTownWalkPassable(map, { x, y })) continue
+        // No later building stands on the bridge.
+        if (townWalkTileAt(map, { x, y })?.terrain === 'planks') continue
         // Never sit a ghost on top of a real 1849 target — the year is the claim,
         // and a labelled absence must not hide something that IS there.
         if (map.targets.some((t) => t.position.x === x && t.position.y === y)) continue
@@ -189,7 +232,7 @@ export function placeLaterSites(map: TownWalkMap, sites: LaterSite[]): PlacedLat
     }
     if (!best) continue
     taken.add(`${best.x},${best.y}`)
-    placed.push({ ...site, position: best })
+    placed.push({ ...site, position: best, placedBy: fromGround ? 'geo' : 'painting' })
   }
   return placed
 }
@@ -202,13 +245,17 @@ export function buildAscii2Scene(
   const map = townWalkMap(snapshot.townId, snapshot.roomId)
   if (!map) return undefined
   // Indoors there is no horizon and no future street — fog stays outside.
-  const ghosts = map.roomId === 'exterior' ? placeLaterSites(map, town.later_sites) : []
+  const geo = townGeo(map.townId)
+  const outside = map.roomId === 'exterior'
+  const ghosts = outside ? placeLaterSites(map, town.later_sites, geo) : []
+  const distant = outside ? distantLaterSites(map, town.later_sites, geo) : []
   return {
     townId: map.townId,
     roomId: map.roomId,
     face: town.face,
     map,
     ghosts,
+    distant,
     palette: town.ascii2_palette,
     absenceBlocks: options.absenceBlocks ?? ABSENCE_BLOCKS_DEFAULT,
   }

@@ -41,7 +41,12 @@
       "label": "St. George Hotel",
       "x": 28,
       "y": 42,
-      "notYet": "Washed ground and mist. The brick hotel is 1860s: 1863 or 1867, the records disagree."
+      "notYet": "Washed ground and mist. The brick hotel is 1860s: 1863 or 1867, the records disagree.",
+      "geo": {
+        "lat": 38.44181,
+        "lon": -120.63069,
+        "source": "OpenStreetMap building 'St George Hotel' (ODbL), footprint centroid, read 2026-09-18; matches Google Maps (St George St at Main St)"
+      }
     },
     {
       "id": "vol_theatre",

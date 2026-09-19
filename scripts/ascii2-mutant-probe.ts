@@ -6,7 +6,7 @@
  * ghost placements, and the policy. A mutant that leaves this line unchanged did
  * not change behaviour, so it is not scored — caught or not, it proved nothing.
  */
-import { ABSENCE_BLOCKS_DEFAULT, ascii2Forward, ascii2Look, buildAscii2Scene, renderFrame, type Heading } from '../src/lib/ascii2Walk'
+import { ABSENCE_BLOCKS_DEFAULT, ascii2Forward, ascii2Look, buildAscii2Scene, placeLaterSites, renderFrame, type Heading } from '../src/lib/ascii2Walk'
 import { ascii2TownFor } from '../src/lib/ascii2Towns'
 import { normalizeTownWalkSnapshot, type TownWalkTarget } from '../src/lib/townWalk'
 
@@ -17,6 +17,11 @@ for (const townId of ['volcano', 'west_point']) {
   for (const opts of [{}, { absenceBlocks: true }] as { absenceBlocks?: boolean }[]) {
     const scene = buildAscii2Scene(ascii2TownFor(townId)!, snap, opts)!
     out.push(scene.ghosts.map((g) => [g.id, g.position.x, g.position.y]))
+    // Synthetic sites aimed at every real target, so the target guard is observable.
+    for (const t of scene.map.targets) {
+      const aim = { id: 'aim', label: 'aim', notYet: 'aim', x: (t.position.x / (scene.map.width - 1)) * 100, y: (t.position.y / (scene.map.height - 1)) * 100 }
+      out.push(placeLaterSites(scene.map, [aim]).map((g) => [t.id, g.position.x, g.position.y]))
+    }
     const onlyExits = (t: TownWalkTarget) => t.kind === 'exit'
     for (let y = 0; y < scene.map.height; y++) {
       for (let x = 0; x < scene.map.width; x++) {

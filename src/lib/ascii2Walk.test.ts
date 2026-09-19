@@ -19,6 +19,7 @@ import {
   type Heading,
 } from './ascii2Walk'
 import { ASCII2_TOWNS, ascii2TownFor, hasAscii2Walk } from './ascii2Towns'
+import { townGeo } from './townGeo'
 import {
   isTownWalkPassable,
   townWalkTileAt,
@@ -147,8 +148,19 @@ const scene = buildAscii2Scene(volcano, volcanoSnap)!
   }
   const cells = new Set(scene.ghosts.map((g) => `${g.position.x},${g.position.y}`))
   assert.equal(cells.size, scene.ghosts.length, 'two absences must not share one tile')
+  // The target guard, exercised directly. No real site needs it since the
+  // St. George moved to its measured ground (2026-09-18), so aim a synthetic site
+  // at every real 1849 target and require it to land beside, never on top.
+  for (const t of scene.map.targets) {
+    const aim = {
+      id: `probe_${t.id}`, label: 'probe', notYet: 'probe site for the target guard',
+      x: (t.position.x / (scene.map.width - 1)) * 100, y: (t.position.y / (scene.map.height - 1)) * 100,
+    }
+    const [p] = placeLaterSites(scene.map, [aim])
+    assert.ok(p && !(p.position.x === t.position.x && p.position.y === t.position.y), `a later site must not cover ${t.id}`)
+  }
   // Deterministic placement: same inputs, same tiles, every time.
-  const again = placeLaterSites(scene.map, volcano.later_sites)
+  const again = placeLaterSites(scene.map, volcano.later_sites, townGeo('volcano'))
   assert.deepEqual(again.map((g) => g.position), scene.ghosts.map((g) => g.position))
 }
 
