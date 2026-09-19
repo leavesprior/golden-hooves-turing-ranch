@@ -102,25 +102,35 @@ try {
   note(/^\d+,\d+$/.test(pixelPos), `pixel walk mounted, player at ${pixelPos}`)
   await shot(page, '02-pixel-walk')
 
-  await clickText(page, 'Text walk', 'town-walk-ascii2')
+  await clickText(page, 'Eye-level', 'town-walk-ascii2')
   await page.waitForSelector('[data-testid="ascii2-view"]', { timeout: 20000 })
+  await page.waitForSelector('[data-testid="ascii2-pixel"]', { timeout: 20000 })
   const asciiPos = await page.$eval('[data-testid="ascii2-view"]', (n) => [n.dataset.x, n.dataset.y].join(','))
   note(asciiPos === pixelPos, `position carried across the toggle (pixel ${pixelPos} -> ascii ${asciiPos})`)
   await shot(page, '03-ascii2-walk')
 
-  // The frame must be drawn, coloured, and 24 rows tall.
+  const pixels = await page.$eval('[data-testid="ascii2-pixel"]', (c) => {
+    const canvas = /** @type {HTMLCanvasElement} */ (c)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return { w: canvas.width, h: canvas.height, colors: 0 }
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+    const colors = new Set()
+    for (let i = 0; i < data.length; i += 16) colors.add(`${data[i]},${data[i + 1]},${data[i + 2]}`)
+    return { w: canvas.width, h: canvas.height, colors: colors.size }
+  })
+  note(pixels.w === 320 && pixels.h === 180, `eye-level canvas is 320×180 (got ${pixels.w}×${pixels.h})`)
+  note(pixels.colors >= 12, `32-bit frame is painted (${pixels.colors} sampled colours)`)
+
+  // Glyph camera still exists (DOS details) — same 24-row contract.
   const frame = await page.$eval('[data-testid="ascii2-view"] pre', (pre) => ({
-    // Count BOTH ways: the DOM row elements, and the newlines a copy would carry.
-    // They must agree — a frame that looks right but copies as one line is a frame
-    // whose rows exist only as styling.
     rowEls: pre.children.length,
     rows: pre.textContent?.split('\n').length ?? 0,
     colours: new Set([...pre.querySelectorAll('span[style]')].map((s) => s.style.color)).size,
     text: pre.textContent ?? '',
   }))
-  note(frame.rowEls === 24, `frame is 24 row elements in the DOM (got ${frame.rowEls})`)
-  note(frame.rows === 24, `frame copies out as 24 real lines (got ${frame.rows})`)
-  note(frame.colours >= 3, `frame is drawn in colour (${frame.colours} distinct colours)`)
+  note(frame.rowEls === 24, `DOS frame is 24 row elements in the DOM (got ${frame.rowEls})`)
+  note(frame.rows === 24, `DOS frame copies out as 24 real lines (got ${frame.rows})`)
+  note(frame.colours >= 3, `DOS frame is drawn in colour (${frame.colours} distinct colours)`)
   note(/facing (north|south|east|west)/.test(frame.text), 'compass line is rendered')
 
   // FITS ON THE SCREEN. Rung 0 exists for weak devices, so the frame must not push
@@ -159,26 +169,22 @@ try {
   const frameFits = async (label) => {
     const r = await page.evaluate(() => {
       const view = document.querySelector('[data-testid="ascii2-view"]')
-      const pre = view?.querySelector('pre')
-      const last = pre?.lastElementChild
-      if (!view || !pre || !last) return { missing: true }
-      const range = document.createRange()
-      range.selectNodeContents(last)
-      const rect = [...range.getClientRects()].find((x) => x.width > 0)
-      if (!rect) return { missing: true }
+      const canvas = view?.querySelector('[data-testid="ascii2-pixel"]')
+      if (!view || !canvas) return { missing: true }
+      const rect = canvas.getBoundingClientRect()
       const hit = document.elementFromPoint(rect.left + Math.min(rect.width / 2, 40), rect.top + rect.height / 2)
       return {
         hiddenPx: Math.max(0, Math.round(view.scrollHeight - view.clientHeight)),
-        lastRowPainted: !!hit && pre.contains(hit),
-        lastRowOnScreen: rect.bottom <= window.innerHeight && rect.top >= 0,
-        lastRowInsideBox: rect.bottom <= view.getBoundingClientRect().bottom + 0.5,
+        painted: !!hit && (hit === canvas || canvas.contains(hit) || view.contains(hit)),
+        onScreen: rect.bottom <= window.innerHeight && rect.top >= 0 && rect.height >= 80,
+        insideBox: rect.bottom <= view.getBoundingClientRect().bottom + 1,
       }
     })
-    note(!r.missing, `${label}: frame and its last row exist`)
+    note(!r.missing, `${label}: 32-bit canvas exists`)
     if (r.missing) return
-    note(r.hiddenPx <= 1, `${label}: no frame rows scrolled out of sight (${r.hiddenPx}px hidden)`)
-    note(r.lastRowInsideBox && r.lastRowOnScreen, `${label}: the last frame row sits inside its box and the viewport`)
-    note(r.lastRowPainted, `${label}: the last frame row is what is painted there, not another element`)
+    note(r.hiddenPx <= 8, `${label}: eye-level view is not scrolling its picture away (${r.hiddenPx}px hidden)`)
+    note(r.insideBox && r.onScreen, `${label}: the 32-bit picture sits inside its box and the viewport`)
+    note(r.painted, `${label}: the canvas is what is painted there`)
   }
   await controlsFit('desktop 1280x900')
   await frameFits('desktop 1280x900')
@@ -191,13 +197,19 @@ try {
   // anyone can read. On a phone the narrow (40-column) frame must be used, and the
   // glyphs must stay above a floor.
   const phoneFrame = await page.evaluate(() => {
+    const canvas = document.querySelector('[data-testid="ascii2-pixel"]')
     const pre = document.querySelector('[data-testid="ascii2-view"] pre')
+    const box = canvas?.getBoundingClientRect()
     const first = pre?.textContent?.split('\n')[0] ?? ''
-    return { cols: Number(pre?.getAttribute('data-cols') || 0), width: first.length, px: parseFloat(getComputedStyle(pre).fontSize) }
+    return {
+      cols: Number(pre?.getAttribute('data-cols') || 0),
+      width: first.length,
+      canvasH: box ? Math.round(box.height) : 0,
+    }
   })
-  note(phoneFrame.cols === 40, `phone gets the 40-column frame (got ${phoneFrame.cols})`)
-  note(phoneFrame.width <= 40, `phone rows are at most 40 glyphs (got ${phoneFrame.width})`)
-  note(phoneFrame.px >= 7, `phone glyphs stay legible (${phoneFrame.px}px)`)
+  note(phoneFrame.cols === 40, `phone still keeps the 40-column DOS frame (got ${phoneFrame.cols})`)
+  note(phoneFrame.width <= 40, `phone DOS rows are at most 40 glyphs (got ${phoneFrame.width})`)
+  note(phoneFrame.canvasH >= 80, `phone 32-bit picture is large enough to read (${phoneFrame.canvasH}px tall)`)
   await page.setViewport({ width: 1280, height: 900 })
   await new Promise((r) => setTimeout(r, 300))
 
@@ -245,8 +257,8 @@ try {
   await clickText(page, 'Walk the camp', 'town-walk-start')
   await page.waitForSelector('[data-testid="town-walk-player"]', { timeout: 20000 })
   const wpPixel = await page.$eval('[data-testid="town-walk-player"]', (n) => [n.dataset.x, n.dataset.y].join(','))
-  await clickText(page, 'Text walk', 'town-walk-ascii2')
-  await page.waitForSelector('[data-testid="ascii2-view"]', { timeout: 20000 })
+  await clickText(page, 'Eye-level', 'town-walk-ascii2')
+  await page.waitForSelector('[data-testid="ascii2-pixel"]', { timeout: 20000 })
   const wpAscii = await page.$eval('[data-testid="ascii2-view"]', (n) => [n.dataset.x, n.dataset.y].join(','))
   note(/^\d+,\d+$/.test(wpPixel) && wpAscii === wpPixel, `west_point: position carried across the toggle (${wpPixel} -> ${wpAscii})`)
   const wpRows = await page.$eval('[data-testid="ascii2-view"] pre', (pre) => pre.textContent?.split('\n').length ?? 0)

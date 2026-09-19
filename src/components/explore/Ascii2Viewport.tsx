@@ -1,7 +1,8 @@
 'use client'
 
 /**
- * Ascii2Viewport — rung 0 of the ladder, drawn at eye level in colored ASCII.
+ * Ascii2Viewport — rung 0 fleshed to 32-bit pixels at eye level.
+ * DOS glyphs stay in a details block (same camera, same stepper).
  *
  * It takes the SAME props as TownWalkScene and the SAME snapshot, so switching
  * presentation mid-walk leaves you standing on the tile you were standing on.
@@ -9,7 +10,8 @@
  * this component owns only the keys, the heading, and the drawing.
  */
 
-import { useEffect, useId, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { Ascii2PixelCanvas } from './Ascii2PixelCanvas'
 import {
   COMPASS,
   ascii2Forward,
@@ -55,6 +57,7 @@ export function Ascii2Viewport({
   onHeadingChange,
 }: Ascii2ViewportProps) {
   const instructionsId = useId()
+  const viewRef = useRef<HTMLDivElement>(null)
   const [localHeading, setLocalHeading] = useState<Heading>('up')
   const heading = headingProp ?? localHeading
   const setHeading = (next: Heading) => {
@@ -98,15 +101,19 @@ export function Ascii2Viewport({
   const fontSize = `clamp(6px, min(${(95 / cols).toFixed(2)}vw, calc((${budgetVh}vh - 1rem) / ${(FRAME_ROWS * LINE_HEIGHT).toFixed(2)})), 15px)`
   const nearby = adjacentTownWalkTargets(scene.map, snapshot.position).filter(allowed)
 
+  const focusView = () => viewRef.current?.focus({ preventScroll: true })
+
   const walk = (back = false) => {
     const dir = back ? turnHeading(turnHeading(heading, 1), 1) : heading
     const result = ascii2Forward(scene, snapshot.position, dir)
     if (result.blocked) {
       setLine(result.blocked)
+      focusView()
       return
     }
     onChange({ ...snapshot, position: result.position })
     setLine(result.crossing ? `${result.crossing.label}: ${result.crossing.notYet}` : '')
+    focusView()
   }
 
   const interact = () => {
@@ -166,7 +173,7 @@ export function Ascii2Viewport({
     <section className={styles.scene} data-testid="ascii2-scene" data-town={scene.townId} data-room={scene.roomId}>
       <header className={styles.toolbar}>
         <div>
-          <p className={styles.eyebrow}>1849 · ASCII walk</p>
+          <p className={styles.eyebrow}>1849 · 32-bit · eye-level</p>
           <h2>{scene.face}</h2>
         </div>
         <div className={styles.views}>
@@ -183,9 +190,10 @@ export function Ascii2Viewport({
 
       <div className={styles.body}>
         <div
+          ref={viewRef}
           tabIndex={0}
           role="application"
-          aria-label={`Walk ${scene.face} in text, facing ${COMPASS[heading]}`}
+          aria-label={`Walk ${scene.face} in 32-bit pixels, facing ${COMPASS[heading]}`}
           aria-describedby={instructionsId}
           onKeyDown={onKey}
           onPointerDown={(event) => event.currentTarget.focus({ preventScroll: true })}
@@ -193,17 +201,16 @@ export function Ascii2Viewport({
           data-heading={heading}
           data-x={snapshot.position.x}
           data-y={snapshot.position.y}
-          className="w-full overflow-auto bg-[#0e0c0a] p-2 outline-none"
-          style={{ maxHeight: `${budgetVh}vh` }}
+          className={`${styles.eyeLevel} outline-none`}
         >
-          {/*
-            The frame is 80x24 of fixed geometry, so it must SCALE to the screen
-            rather than push the controls off it. Sized from both axes — width so
-            80 columns fit, height so 24 rows do — with a hard cap on the wrapper
-            as a backstop. The first version used fixed pixel sizes and covered
-            three of its four direction buttons on desktop and all four on a
-            phone, which the browser check now measures directly.
-          */}
+          <Ascii2PixelCanvas
+            scene={scene}
+            position={snapshot.position}
+            heading={heading}
+            allowed={allowed}
+          />
+          <details className={styles.dos}>
+            <summary>DOS glyphs</summary>
           <pre
             className="m-0 font-mono"
             style={{ fontSize, lineHeight: LINE_HEIGHT }}
@@ -232,6 +239,7 @@ export function Ascii2Viewport({
               </span>
             ))}
           </pre>
+          </details>
         </div>
 
         {/*
@@ -246,13 +254,13 @@ export function Ascii2Viewport({
 
         <div className={styles.controls}>
           <div className={styles.directions} role="group" aria-label="Walk">
-            <button type="button" className={`${styles.button} ${styles.left}`} aria-label="Turn left" onClick={() => setHeading(turnHeading(heading, -1))} data-testid="ascii2-turn-left">
+            <button type="button" className={`${styles.button} ${styles.left}`} aria-label="Turn left" onClick={() => { setHeading(turnHeading(heading, -1)); focusView() }} data-testid="ascii2-turn-left">
               <span aria-hidden="true">↰</span>
             </button>
             <button type="button" className={`${styles.button} ${styles.up}`} aria-label="Walk forward" onClick={() => walk()} data-testid="ascii2-forward">
               <span aria-hidden="true">↑</span>
             </button>
-            <button type="button" className={`${styles.button} ${styles.right}`} aria-label="Turn right" onClick={() => setHeading(turnHeading(heading, 1))} data-testid="ascii2-turn-right">
+            <button type="button" className={`${styles.button} ${styles.right}`} aria-label="Turn right" onClick={() => { setHeading(turnHeading(heading, 1)); focusView() }} data-testid="ascii2-turn-right">
               <span aria-hidden="true">↱</span>
             </button>
             <button type="button" className={`${styles.button} ${styles.down}`} aria-label="Step back" onClick={() => walk(true)} data-testid="ascii2-back">

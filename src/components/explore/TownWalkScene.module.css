@@ -52,8 +52,40 @@
   overscroll-behavior: contain;
   padding: .25rem .75rem .65rem;
 }
+.eyeLevel {
+  width: 100%;
+  padding: .35rem .25rem .15rem;
+  background: #0e0c0a;
+}
+.eyeLevel canvas {
+  display: block;
+  margin: 0 auto;
+  width: auto;
+  max-width: min(960px, 100%);
+  height: min(32vh, 300px);
+  aspect-ratio: 320 / 180;
+  image-rendering: pixelated;
+}
+@media (max-width: 600px) {
+  .eyeLevel canvas { height: min(22vh, 180px); }
+}
+.dos {
+  margin: .35rem auto 0;
+  max-width: 960px;
+  font-size: .8rem;
+  color: var(--pixel-gold-light);
+}
+.dos summary {
+  cursor: pointer;
+  min-height: 32px;
+  padding: .25rem 0;
+}
+.dos pre {
+  overflow: auto;
+  max-height: 28vh;
+}
 .mapFrame {
-  height: clamp(144px, 28vh, 320px);
+  height: clamp(220px, 42vh, 520px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,15 +108,15 @@
 .targetKey { border: 1px solid var(--pixel-gold-light); }
 .instructions { margin: .4rem 0 .55rem; font-size: .8rem; line-height: 1.4; }
 .controls { display: flex; align-items: flex-start; gap: .8rem; }
-.directions { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(2, 44px); gap: 4px; }
+.directions { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(2, 44px); gap: 4px; position: relative; z-index: 5; }
 .directions button { padding: 0; font-size: 1.3rem; }
 .up { grid-column: 2; grid-row: 1; }
 .left { grid-column: 1; grid-row: 2; }
 .down { grid-column: 2; grid-row: 2; }
 .right { grid-column: 3; grid-row: 2; }
-.nearby { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: .3rem; }
+.nearby { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: .3rem; }
 .nearby > p:not(.eyebrow) { margin: 0; font-size: .875rem; line-height: 1.4; }
-.nearby button { text-align: left; }
+.nearby button { text-align: left; max-width: 22rem; }
 .feedback { min-height: 1.5em; margin: .5rem 0 .35rem; color: var(--pixel-gold-light); font-size: .875rem; line-height: 1.4; }
 .notes { font-size: .8rem; line-height: 1.4; }
 .notes summary { min-height: 44px; display: list-item; padding: .55rem 0; cursor: pointer; }
