@@ -14,6 +14,9 @@ import { PlacePictureLift } from '@/components/PlacePictureLift'
 import { PlaceScene } from '@/components/PlaceScene'
 import { placeSceneFor, type PlaceSceneEra } from '@/lib/placeSceneAssets'
 import { TownWalkScene } from './TownWalkScene'
+import { Ascii2Viewport } from './Ascii2Viewport'
+import type { Heading as Ascii2Heading } from '@/lib/ascii2Walk'
+import { hasAscii2Walk } from '@/lib/ascii2Towns'
 import { townWalkMap } from '@/lib/townWalk'
 
 export function InteractiveTown({
@@ -40,6 +43,11 @@ export function InteractiveTown({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [npcLine, setNpcLine] = useState<string | null>(null)
   const [walking, setWalking] = useState(false)
+  // Which rung of the graphics ladder draws the walk. Same world, same snapshot:
+  // 'pixel' is the painted tile walk, 'ascii2' the colored first-person text walk
+  // for weak devices. Pixel stays the default — ascii2 is opt-in.
+  const [presentRung, setPresentRung] = useState<'pixel' | 'ascii2'>('pixel')
+  const [walkHeading, setWalkHeading] = useState<Ascii2Heading>('up')
   const walkSnapshot = getTownWalk(town.id)
 
   useLayoutEffect(() => {
@@ -99,14 +107,24 @@ export function InteractiveTown({
         </div>
       </header>
 
-      {walking && sceneEra === '1849' && walkSnapshot ? <TownWalkScene
+      {walking && sceneEra === '1849' && walkSnapshot ? (presentRung === 'ascii2' && hasAscii2Walk(town.id) ? <Ascii2Viewport
+        snapshot={walkSnapshot} onChange={saveTownWalk}
+        allowedAttractionIds={walkAttractions.map(a => a.id)} allowedNpcIds={npcs.map(n => n.id)}
+        onAttraction={enterBuilding}
+        onTalk={id => { const npc = npcs.find(n => n.id === id); if (npc) talkNpc(npc.line, npc.name) }}
+        onBackToLook={() => { setWalking(false); setSelectedId(null); setNpcLine(null) }}
+        heading={walkHeading}
+        onHeadingChange={setWalkHeading}
+        onPresentPixel={() => setPresentRung('pixel')}
+      /> : <TownWalkScene
         snapshot={walkSnapshot} onChange={saveTownWalk}
         allowedAttractionIds={walkAttractions.map(a => a.id)} allowedNpcIds={npcs.map(n => n.id)}
         onAttraction={enterBuilding}
         onTalk={id => { const npc = npcs.find(n => n.id === id); if (npc) talkNpc(npc.line, npc.name) }}
         onBackToLook={() => { setWalking(false); setSelectedId(null); setNpcLine(null) }}
         onToday={scene ? () => setSceneEra('today') : undefined}
-      /> : <PlaceScene placeId={town.id} era={sceneEra} onEraChange={setSceneEra}>
+        onPresentAscii2={hasAscii2Walk(town.id) ? () => setPresentRung('ascii2') : undefined}
+      />) : <PlaceScene placeId={town.id} era={sceneEra} onEraChange={setSceneEra}>
         {interior ? (
           <pre
             data-testid={interior.testid}

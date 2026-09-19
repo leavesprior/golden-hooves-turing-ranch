@@ -117,8 +117,9 @@ const westPoint = townWalkMap('west_point')!
 assert.notDeepEqual(volcano.terrainRows, westPoint.terrainRows, 'the bowl creek and pack road have distinct terrain')
 assert.notDeepEqual(volcano.props, westPoint.props)
 assert.equal(volcano.label, 'The canvas camp'); assert.equal(westPoint.label, 'The trail camp')
-assert.equal(townWalkTileAt(volcano, { x: 3, y: 7 })?.terrain, 'water')
-assert.deepEqual(stepTownWalk(volcano, { x: 3, y: 8 }, 'up'), { x: 3, y: 8 }, 'the creek blocks walking')
+// The creek follows Sutter Creek's measured course (townGeo.ts); (1,8) is on it.
+assert.equal(townWalkTileAt(volcano, { x: 1, y: 8 })?.terrain, 'water')
+assert.deepEqual(stepTownWalk(volcano, { x: 1, y: 7 }, 'down'), { x: 1, y: 7 }, 'the creek blocks walking')
 assert.deepEqual(stepTownWalk(volcano, { x: 10, y: 8 }, 'up'), { x: 10, y: 7 }, 'the authored plank crossing carries the walker')
 assert.deepEqual(stepTownWalk(volcano, { x: 8, y: 6 }, 'up'), { x: 8, y: 6 }, 'Bell occupies his own cell')
 assert.deepEqual(stepTownWalk(volcano, { x: 0, y: 5 }, 'left'), { x: 0, y: 5 }, 'walking beyond the edge is blocked')
@@ -126,13 +127,18 @@ assert.equal(adjacentTownWalkTargets(volcano, { x: 7, y: 6 }).some(target => tar
 assert.equal(adjacentTownWalkTargets(volcano, { x: 8, y: 6 }).some(target => target.id === 'v_bell'), true)
 assert.deepEqual(stepTownWalk(volcano, volcano.spawn, 'diagonal' as TownWalkDirection), volcano.spawn)
 
-for (const badPosition of [null, [], {}, { x: 1.5, y: 2 }, { x: NaN, y: 2 }, { x: 2, y: Infinity }, { x: '2', y: 2 }, { x: -1, y: 3 }, { x: 20, y: 10 }, { x: 8, y: 5 }, { x: 3, y: 7 }]) {
+for (const badPosition of [null, [], {}, { x: 1.5, y: 2 }, { x: NaN, y: 2 }, { x: 2, y: Infinity }, { x: '2', y: 2 }, { x: -1, y: 3 }, { x: 20, y: 10 }, { x: 8, y: 5 }, { x: 1, y: 8 }]) {
   assert.equal(townWalkTileAt(volcano, badPosition as TownWalkPosition)?.blocked === false, false)
   assert.deepEqual(adjacentTownWalkTargets(volcano, badPosition as TownWalkPosition), [], 'malformed/blocked positions expose no actions')
   const normalized = normalizeTownWalkSnapshot('volcano', { version: 1, townId: 'volcano', roomId: 'exterior', position: badPosition })!
   assert.deepEqual(normalized.position, volcano.spawn)
   assert.deepEqual(stepTownWalk(volcano, badPosition as TownWalkPosition, 'right'), volcano.spawn, 'invalid input recovers to spawn without a bonus step')
 }
+// Migration: the 2026-09-18 creek correction turned the street's old east end
+// (13,5) into creek. A save standing there must fall back to spawn, not strand
+// the walker in water; a save on the old straight creek (3,7), now bank, stays put.
+assert.deepEqual(normalizeTownWalkSnapshot('volcano', { version: 1, townId: 'volcano', roomId: 'exterior', position: { x: 13, y: 5 } })!.position, volcano.spawn)
+assert.deepEqual(normalizeTownWalkSnapshot('volcano', { version: 1, townId: 'volcano', roomId: 'exterior', position: { x: 3, y: 7 } })!.position, { x: 3, y: 7 })
 for (const invalid of [null, [], 'bad-json', {}, { version: 0, townId: 'volcano', roomId: 'shelter', position: { x: 4, y: 4 } }, { version: 1, townId: 'west_point', roomId: 'shelter', position: { x: 4, y: 4 } }, { version: 1, townId: 'volcano', roomId: 'castle', position: { x: 4, y: 4 } }]) {
   assert.deepEqual(normalizeTownWalkSnapshot('volcano', invalid), { version: 1, townId: 'volcano', roomId: 'exterior', position: volcano.spawn })
 }

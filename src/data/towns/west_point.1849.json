@@ -1,0 +1,82 @@
+{
+  "id": "west_point",
+  "era": "1849",
+  "face": "The trail camp",
+  "note": "The 1849 camp itself lives in src/lib/townWalk.ts (shared with the pixel walk). This file holds the YEAR: the 'later' explore attractions, drawn at eye level as labelled absence. The Kit Carson marker stands at Hwy 26 & Main: the landmark was registered in 1937 and the plaque dedicated on July 3, 1949 — a later site here, and never a campsite or a cemetery. x/y are the painted-face percentages from TOWN_HOTSPOTS; the tile is an authored overlay, not a survey.",
+  "must_not": [
+    "wp_main_street",
+    "wp_willows",
+    "wp_kit_carson",
+    "wp_general_store",
+    "wp_sandy_gulch"
+  ],
+  "may": [
+    "flour and rope on a pack road the native camps already knew",
+    "canvas and brush shelters at the crossing",
+    "placer work at Sandy Gulch, 2 miles down the road",
+    "named Northern Sierra Miwok presence as diplomacy, not a raid table"
+  ],
+  "sources": [
+    "West Point, Calaveras County: California Historical Landmark No. 268, registered 9/3/1937, at the intersection of State Hwy 26 (P.M. 34.4) and Main St. Plaque text: named by Kit Carson while searching for a pass over the Sierra; a thriving trading post before the gold discovery; one emigrant road forked at Big Meadows and its north branch came directly to West Point. No year is given for Carson: https://ohp.parks.ca.gov/ListedResources/Detail/268",
+    "The plaque was placed by the California Centennials Commission, base by the Mokelumne Lions Club, dedicated July 3, 1949 (plaque transcription, noehill.com): https://noehill.com/calaveras/cal0268.asp",
+    "Carson's search for a pass is commonly dated to the 1844 Fremont expedition. That year is TRADITION, not stated on the plaque or the OHP record.",
+    "West Point was established as a mining supply camp by 1854; early emigration came from Volcano across the Mokelumne River (Calaveras Heritage Council): https://www.calaverashistory.org/west-point",
+    "Sandy Gulch: an 1849 trading center for miners, named for the gulch where William and Dan Carsner found nuggets in coarse sand; quartz mining began in the early 1850s. The monument is on State Hwy 26 (P.M. 32.3), 2.1 mi from West Point toward Glencoe, which is about 2.3 km SSW in a straight line, not in this camp (California OHP, Landmark No. 253): https://ohp.parks.ca.gov/ListedResources/Detail/253",
+    "Willows on Main, the general store front and the Main Street boardwalk are later explore attractions (period 'later'). The dates of those buildings are not sourced here."
+  ],
+  "ascii2_palette": {
+    "sky": "#272420",
+    "ground": "#3a3022",
+    "canvas": "#c9b183",
+    "timber": "#7d6240",
+    "brush": "#33482f",
+    "water": "#3b5a6b",
+    "fire": "#c96a2a",
+    "fog": "#474139",
+    "ink": "#e8dcc4"
+  },
+  "later_sites": [
+    {
+      "id": "wp_main_street",
+      "label": "Main Street walk",
+      "x": 40,
+      "y": 58,
+      "notYet": "No boardwalk yet. Mud, and a track worn through it."
+    },
+    {
+      "id": "wp_willows",
+      "label": "Willows on Main",
+      "x": 28,
+      "y": 48,
+      "notYet": "Not built. Willows by the creek, and nothing with a door."
+    },
+    {
+      "id": "wp_general_store",
+      "label": "General store",
+      "x": 55,
+      "y": 50,
+      "notYet": "No store front yet. The plaque records a trading post here before the gold; what it looked like is not known."
+    },
+    {
+      "id": "wp_kit_carson",
+      "label": "Kit Carson marker",
+      "x": 70,
+      "y": 42,
+      "notYet": "Hwy 26 & Main. Registered in 1937, the plaque dedicated in 1949. Carson's search for a pass is by tradition 1844."
+    },
+    {
+      "id": "wp_sandy_gulch",
+      "label": "Sandy Gulch Mine",
+      "x": 82,
+      "y": 56,
+      "notYet": "Not here: Sandy Gulch is 2 miles down the road, south-southwest. The gulch is already being worked; the quartz mills are later.",
+      "unpinned": true,
+      "unpinnedWhy": "Not a pin on the painted West Point face (TOWN_HOTSPOTS has no wp_sandy_gulch). It is also not in this camp: OHP No. 253 puts the monument 2.1 mi down Hwy 26 toward Glencoe, so it is shown on the horizon by bearing, never on a camp tile.",
+      "geo": {
+        "lat": 38.378954,
+        "lon": -120.541156,
+        "source": "OHP No. 253 'On State Hwy 26 (P.M. 32.3), 2.1 mi W of West Point', located by walking 3,380 m along CA 26 in OpenStreetMap toward Glencoe; Google Maps labels Sandy Gulch at the same bend"
+      }
+    }
+  ]
+}
