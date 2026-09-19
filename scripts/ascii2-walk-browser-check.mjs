@@ -248,6 +248,44 @@ try {
   note(afterBack === beforeBack, `position carried BACK across the toggle (${beforeBack} -> ${afterBack})`)
   await shot(page, '05-back-to-pixel')
 
+  // STABLE WORLD, measured on the eye-level canvas itself. Four headings must
+  // give four different pictures; a full turn, and a step forward and back, must
+  // give back the SAME picture. (The first 32-bit painter seeded its texture by
+  // position, so the scenery reshuffled on every step.)
+  await page.goto(`${baseUrl}/explore?qr=ranch-house&town=volcano`, { waitUntil: 'networkidle0', timeout: 60000 })
+  await clickText(page, 'Walk the camp', 'town-walk-start')
+  await clickText(page, 'Eye-level', 'town-walk-ascii2')
+  await page.waitForSelector('[data-testid="ascii2-pixel"]', { timeout: 20000 })
+  const canvasHash = () => page.$eval('[data-testid="ascii2-pixel"]', (c) => {
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+    let h = 2166136261
+    for (let i = 0; i < d.length; i += 4) h = Math.imul(h ^ (d[i] + 3 * d[i + 1] + 7 * d[i + 2]), 16777619)
+    return (h >>> 0).toString(16)
+  })
+  const press = async (k) => { await page.focus('[data-testid="ascii2-view"]'); await page.keyboard.press(k); await new Promise((r) => setTimeout(r, 150)) }
+  const turns = []
+  for (let i = 0; i < 4; i++) { turns.push(await canvasHash()); await press('d') }
+  note(new Set(turns).size === 4, `four headings, four different skylines (${new Set(turns).size} distinct)`)
+  note((await canvasHash()) === turns[0], 'a full turn gives back the identical picture')
+  // The sky band (rows 0-23: above every object top and nameplate-free when
+  // nothing is named) must not change when you step: clouds and skyline hang on
+  // compass bearings, not on your tile. This is the check that would have caught
+  // the position-seeded painter; the whole-frame return check alone would not.
+  await press('d') // face east from spawn: open ground, nothing named
+  const skyHash = () => page.$eval('[data-testid="ascii2-pixel"]', (c) => {
+    const d = c.getContext('2d').getImageData(0, 0, c.width, 24).data
+    let h = 2166136261
+    for (let i = 0; i < d.length; i += 4) h = Math.imul(h ^ (d[i] + 3 * d[i + 1] + 7 * d[i + 2]), 16777619)
+    return (h >>> 0).toString(16)
+  })
+  const skyBefore = await skyHash()
+  const before = await canvasHash()
+  await press('w'); const moved = await canvasHash()
+  note((await skyHash()) === skyBefore, 'a step leaves the sky and skyline where they were (they hang on compass bearings)')
+  await press('s')
+  note(moved !== before, 'a step forward changes the view')
+  note((await canvasHash()) === before, 'a step forward and back gives back the identical picture (no reshuffled scenery)')
+
   // WEST POINT, driven for real. Until 2026-09-18 the second town was proved only
   // by unit tests; Grok's review pointed out no browser had ever walked it.
   await page.goto(`${baseUrl}/explore?qr=ranch-house&town=west_point`, { waitUntil: 'networkidle0', timeout: 60000 })

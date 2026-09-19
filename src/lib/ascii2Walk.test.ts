@@ -481,4 +481,16 @@ function standSouthOf(scene: Ascii2Scene, id: string): { pos: { x: number; y: nu
   assert.equal(ascii2Look(wpScene, beside, 'up').kind, 'target', 'the pack road is enterable in 1849')
 }
 
+// The year line reaches the status line at any distance, not only adjacent.
+{
+  const far = buildAscii2Scene(volcano, volcanoSnap)!
+  const hotel = far.ghosts.find((g) => g.id === 'vol_st_george')!
+  // Stand three tiles south of the hotel's fog, on open ground, facing it.
+  const from = { x: hotel.position.x, y: hotel.position.y + 3 }
+  assert.ok(isTownWalkPassable(far.map, from), 'fixture: open ground three tiles south of the hotel fog')
+  const fr = renderFrame(far, from, 'up')
+  assert.ok(/3 paces on/.test(fr.status) && fr.status.includes(hotel.notYet), `status must carry the authored year line at distance: "${fr.status}"`)
+  assert.ok(fr.caption.length <= FRAME_COLS || fr.caption === fr.status, 'the DOS caption may stay short')
+}
+
 console.log('ascii2Walk tests passed')

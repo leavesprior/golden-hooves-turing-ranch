@@ -2,10 +2,21 @@
  * Paint the ascii2 camera as a 320×180 32/64-bit frame.
  * Client-only (needs CanvasRenderingContext2D). Classifier stays in ascii2PixelWalk.ts.
  */
-import { pixelFacesAhead, pixelSkyline, type PixelFace, type PixelKind } from '@/lib/ascii2PixelWalk'
-import { BIT, PIXEL_IH, PIXEL_IW, PIXEL_HORIZON } from '@/lib/walkBitPalette'
+import {
+  bearingOffset,
+  distantSitesInView,
+  horizonAt,
+  offset,
+  pixelFacesAhead,
+  pixelSkyline,
+  PIXEL_FOV_DEG,
+  type PixelFace,
+  type PixelKind,
+} from '@/lib/ascii2PixelWalk'
+import { BIT, PIXEL_DEPTH, PIXEL_IH, PIXEL_IW, PIXEL_HORIZON } from '@/lib/walkBitPalette'
 import type { Ascii2Scene, Heading } from '@/lib/ascii2Walk'
-import type { TownWalkPosition, TownWalkTarget } from '@/lib/townWalk'
+import { compassPoint, HEADING_BEARING } from '@/lib/townGeo'
+import { townWalkTileAt, type TownWalkPosition, type TownWalkTarget } from '@/lib/townWalk'
 
 function rng(seed: number) {
   let t = (seed >>> 0) || 1
@@ -88,104 +99,219 @@ function shade(kind: PixelKind, depth: number): { fill: string; light: string; d
   }
 }
 
-function drawSky(b: CanvasRenderingContext2D, townId: string, seed: number) {
-  const r = rng(seed + 11)
+// ---------------------------------------------------------------------------
+// Projection. One model for ground and objects: a thing `d` tiles ahead touches
+// the ground at contactY(d), and a tile `side` steps across is centred at
+// cellX(d, side). Continuous, so ground cells tile without gaps.
+// (Replaces a ground model whose perspective was inverted: near water was drawn
+// at the horizon and far water at the bottom of the frame.)
+// ---------------------------------------------------------------------------
+const kAt = (d: number) => 1 / (1 + Math.max(-0.45, d) * 0.55)
+const sliceAt = (k: number) => Math.max(8, Math.max(10, (PIXEL_IW / 2 - 8) * k) / 2.4)
+const contactY = (d: number) => Math.min(PIXEL_IH, PIXEL_HORIZON + 78 * kAt(d))
+const cellX = (d: number, side: number) => PIXEL_IW / 2 + side * 1.15 * sliceAt(kAt(d))
+const cellHalf = (d: number) => 0.575 * sliceAt(kAt(d))
+
+/** Stable per-world-cell noise: the same tile always looks the same. */
+const cellRng = (townId: string, x: number, y: number, salt = 0) =>
+  rng(townId.length * 7919 + (x + 64) * 104729 + (y + 64) * 1299709 + salt * 31)
+
+function drawSky(b: CanvasRenderingContext2D, scene: Ascii2Scene, heading: Heading) {
   for (let y = 0; y < PIXEL_HORIZON; y++) {
     const t = y / PIXEL_HORIZON
     rect(b, 0, y, PIXEL_IW, 1, lerpHex(BIT.navy, BIT.sky, t * 0.55 + 0.15))
   }
-  // late-day cloud bars
-  b.globalAlpha = 0.35
-  for (let i = 0; i < 6; i++) {
-    rect(b, 20 + r() * 260, 8 + r() * 28, 40 + r() * 70, 4 + r() * 6, BIT.ice)
+  // Clouds live at fixed compass bearings per town, so turning moves them across
+  // the sky and walking does not reshuffle them.
+  const r = rng(scene.townId.length * 131 + 7)
+  b.globalAlpha = 0.3
+  for (let i = 0; i < 9; i++) {
+    const bearing = r() * 360, y = 6 + r() * 24, w = 30 + r() * 60, h = 3 + r() * 5
+    const off = bearingOffset(heading, bearing)
+    if (Math.abs(off) > PIXEL_FOV_DEG / 2 + 20) continue
+    rect(b, PIXEL_IW / 2 + (off / PIXEL_FOV_DEG) * PIXEL_IW - w / 2, y, w, h, BIT.ice)
   }
   b.globalAlpha = 1
-  const line = pixelSkyline(townId)
-  if (line === 'limestone-bowl') {
-    // The name is the look of the basin, not a volcano.
-    const ridges = [
-      { x: -20, w: 160, h: 38, c: BIT.limestoneDark },
-      { x: 80, w: 180, h: 52, c: BIT.olive },
-      { x: 200, w: 150, h: 34, c: BIT.limestoneDark },
-      { x: 40, w: 110, h: 22, c: BIT.limestone },
-    ]
-    for (const ridge of ridges) {
-      b.fillStyle = ridge.c
-      b.beginPath()
-      b.moveTo(ridge.x, PIXEL_HORIZON)
-      b.lineTo(ridge.x + ridge.w * 0.35, PIXEL_HORIZON - ridge.h)
-      b.lineTo(ridge.x + ridge.w * 0.7, PIXEL_HORIZON - ridge.h * 0.55)
-      b.lineTo(ridge.x + ridge.w, PIXEL_HORIZON)
-      b.closePath()
-      b.fill()
+}
+
+/**
+ * The skyline for the bearing you face, from USGS 3DEP (horizons.json), drawn at
+ * true angular scale: PIXEL_FOV_DEG across the frame, no vertical exaggeration.
+ * Far ridges (beyond 1.2 km) behind, in haze; the near rim in front.
+ */
+function drawHorizon(b: CanvasRenderingContext2D, scene: Ascii2Scene, heading: Heading) {
+  const ppd = PIXEL_IW / PIXEL_FOV_DEG
+  const center = HEADING_BEARING[heading]
+  const wooded = pixelSkyline(scene.townId) === 'pine-road'
+  const near: number[] = []
+  for (let x = 0; x < PIXEL_IW; x++) {
+    const bearing = center + ((x + 0.5) / PIXEL_IW - 0.5) * PIXEL_FOV_DEG
+    const h = horizonAt(scene.townId, bearing)
+    if (!h) return
+    const yFar = PIXEL_HORIZON - h.far * ppd
+    const yNear = PIXEL_HORIZON - h.near * ppd
+    // Whole pixels down to the horizon row: truncating both the top and the
+    // height left the last row unpainted, a bright sky line under every ridge.
+    const fill = (top: number, c: string) => {
+      const y0 = Math.floor(top)
+      if (y0 < PIXEL_HORIZON) { b.fillStyle = c; b.fillRect(x, y0, 1, PIXEL_HORIZON - y0) }
     }
-    dith(b, 0, PIXEL_HORIZON - 40, PIXEL_IW, 40, BIT.tan, 0.08, r)
-  } else {
-    for (let i = 0; i < 18; i++) {
-      const x = i * 22 - 8
-      const h = 18 + ((r() * 28) | 0)
-      b.fillStyle = BIT.olive
-      b.beginPath()
-      b.moveTo(x, PIXEL_HORIZON)
-      b.lineTo(x + 14, PIXEL_HORIZON - h)
-      b.lineTo(x + 28, PIXEL_HORIZON)
-      b.fill()
-      rect(b, x + 12, PIXEL_HORIZON - 8, 3, 8, BIT.bark)
+    if (h.far > h.near + 0.3) fill(yFar, lerpHex(BIT.slate, BIT.steel, 0.35))
+    fill(yNear, wooded ? BIT.slate : lerpHex(BIT.olive, BIT.limestoneDark, 0.35))
+    near.push(yNear)
+  }
+  // Slope texture, pinned to whole compass degrees so it turns with the view.
+  for (let x = 0; x < PIXEL_IW; x++) {
+    const bearing = Math.round(center + ((x + 0.5) / PIXEL_IW - 0.5) * PIXEL_FOV_DEG)
+    const r = rng(scene.townId.length * 977 + ((bearing % 360) + 360) % 360 * 13)
+    const top = near[x]
+    if (top >= PIXEL_HORIZON - 1) continue
+    if (wooded) {
+      // A timbered ridge: small conifer tops along the skyline.
+      if (bearing % 2 === 0 && r() < 0.8) {
+        const h = 4 + ((r() * 5) | 0)
+        b.fillStyle = BIT.moss
+        b.beginPath(); b.moveTo(x - 2, top + 2); b.lineTo(x, top - h); b.lineTo(x + 2, top + 2); b.fill()
+      }
+    } else if (r() < 0.12) {
+      // Open grassy slopes with scattered trees on the bowl's walls.
+      const y = top + 2 + r() * (PIXEL_HORIZON - top - 3)
+      rect(b, x, y, 2, 2, BIT.olive)
     }
   }
 }
 
-function drawGround(b: CanvasRenderingContext2D, seed: number) {
-  const r = rng(seed + 29)
+/** Far later sites (e.g. Sandy Gulch, 2.3 km SSW) marked on the skyline at their true bearing. */
+function drawDistantSites(b: CanvasRenderingContext2D, scene: Ascii2Scene, heading: Heading) {
+  const ppd = PIXEL_IW / PIXEL_FOV_DEG
+  for (const { site, x } of distantSitesInView(scene, heading, PIXEL_IW)) {
+    const h = horizonAt(scene.townId, site.bearing)
+    const top = PIXEL_HORIZON - Math.max(0, h ? Math.max(h.near, h.far) : 0) * ppd
+    rect(b, x, top - 10, 1, 10, BIT.cream)
+    const text = `${site.label} · ${(site.distanceM / 1000).toFixed(1)} km ${compassPoint(site.bearing)}`
+    b.font = '7px monospace'
+    const tw = b.measureText(text).width + 6
+    const lx = Math.max(2, Math.min(PIXEL_IW - tw - 2, x - tw / 2))
+    rect(b, lx, top - 20, tw, 10, BIT.ink)
+    b.fillStyle = BIT.cream
+    b.fillText(text, lx + 3, top - 12)
+  }
+}
+
+/** The camp's own tiles laid out in perspective: grass, dirt, creek, planks, brush. */
+function drawGround(b: CanvasRenderingContext2D, scene: Ascii2Scene, position: TownWalkPosition, heading: Heading) {
   for (let y = PIXEL_HORIZON; y < PIXEL_IH; y++) {
     const t = (y - PIXEL_HORIZON) / (PIXEL_IH - PIXEL_HORIZON)
-    rect(b, 0, y, PIXEL_IW, 1, lerpHex(BIT.dirt, BIT.dirtDark, t * 0.45))
+    rect(b, 0, y, PIXEL_IW, 1, lerpHex(BIT.olive, BIT.grass, 0.4 + t * 0.6))
   }
-  // wagon-rut perspective
-  b.strokeStyle = BIT.bark
-  b.lineWidth = 1
-  b.beginPath()
-  b.moveTo(PIXEL_IW * 0.42, PIXEL_HORIZON + 2)
-  b.lineTo(PIXEL_IW * 0.18, PIXEL_IH)
-  b.moveTo(PIXEL_IW * 0.58, PIXEL_HORIZON + 2)
-  b.lineTo(PIXEL_IW * 0.82, PIXEL_IH)
-  b.stroke()
-  dith(b, 0, PIXEL_HORIZON, PIXEL_IW, PIXEL_IH - PIXEL_HORIZON, BIT.grass, 0.07, r)
-  // grass tufts near the camera
-  b.fillStyle = BIT.grassLite
-  for (let i = 0; i < 40; i++) {
-    const x = (r() * PIXEL_IW) | 0
-    const y = PIXEL_HORIZON + 40 + ((r() * 70) | 0)
-    b.fillRect(x, y, 1, 3)
+  for (let d = PIXEL_DEPTH + 2; d >= 0; d--) {
+    const yFar = contactY(d + 0.5), yNear = contactY(d - 0.5)
+    if (yNear - yFar < 0.5) continue
+    const reach = Math.min(14, Math.ceil(PIXEL_IW / 2 / (1.15 * sliceAt(kAt(d + 0.5)))) + 1)
+    for (let side = -reach; side <= reach; side++) {
+      const at = offset(position, heading, d, side)
+      const tile = townWalkTileAt(scene.map, at)
+      const fx0 = cellX(d + 0.5, side) - cellHalf(d + 0.5), fx1 = cellX(d + 0.5, side) + cellHalf(d + 0.5)
+      const nx0 = cellX(d - 0.5, side) - cellHalf(d - 0.5), nx1 = cellX(d - 0.5, side) + cellHalf(d - 0.5)
+      const quad = (c: string) => {
+        b.fillStyle = c
+        b.beginPath(); b.moveTo(fx0, yFar); b.lineTo(fx1, yFar); b.lineTo(nx1, yNear); b.lineTo(nx0, yNear); b.closePath(); b.fill()
+      }
+      const haze = Math.min(0.5, d * 0.06)
+      const r = cellRng(scene.townId, at.x, at.y)
+      // Beyond the camp: unmodelled country, drawn as dim scrub, not a void.
+      if (!tile) { quad(lerpHex(BIT.olive, BIT.dusk, 0.25 + haze)); continue }
+      if (tile.terrain === 'water') {
+        quad(lerpHex(BIT.water, BIT.dusk, haze))
+        // Ripples across the current, fixed to the tile.
+        b.strokeStyle = lerpHex(BIT.waterLite, BIT.dusk, haze)
+        for (let i = 0; i < 2; i++) {
+          const ty = yFar + (yNear - yFar) * (0.3 + 0.4 * i + r() * 0.1)
+          const tx = fx0 + (nx0 - fx0) * 0.5 + r() * (fx1 - fx0) * 0.6
+          b.beginPath(); b.moveTo(tx, ty); b.lineTo(tx + Math.max(3, (nx1 - nx0) * 0.25), ty); b.stroke()
+        }
+        // A bank where the water meets land on the near edge.
+        const nearer = townWalkTileAt(scene.map, offset(position, heading, d - 1, side))
+        if (nearer && nearer.terrain !== 'water' && nearer.terrain !== 'planks') rect(b, nx0, yNear - 1, nx1 - nx0, 1, BIT.bark)
+        continue
+      }
+      if (tile.terrain === 'planks') {
+        quad(lerpHex(BIT.wood, BIT.dusk, haze))
+        b.strokeStyle = lerpHex(BIT.bark, BIT.dusk, haze)
+        const boards = Math.max(2, Math.round((yNear - yFar) / 3))
+        for (let i = 1; i < boards; i++) {
+          const ty = yFar + ((yNear - yFar) * i) / boards
+          b.beginPath(); b.moveTo(fx0 + (nx0 - fx0) * (i / boards), ty); b.lineTo(fx1 + (nx1 - fx1) * (i / boards), ty); b.stroke()
+        }
+        // Water shows beside the bridge, so the crossing reads as a crossing.
+        continue
+      }
+      if (tile.terrain === 'dirt') {
+        quad(lerpHex(BIT.dirt, BIT.dusk, haze))
+        if (d <= 3) { b.fillStyle = BIT.bark; b.fillRect((nx0 + (fx0 - nx0) * r()) | 0, (yFar + (yNear - yFar) * r()) | 0, 2, 1) }
+        continue
+      }
+      // Grass: a few tufts, placed by the tile, so they do not jump as you move.
+      if (d <= 4) {
+        b.fillStyle = lerpHex(BIT.grassLite, BIT.dusk, haze)
+        const n = d <= 1 ? 4 : 2
+        for (let i = 0; i < n; i++) {
+          const ty = yFar + (yNear - yFar) * (0.2 + r() * 0.7)
+          const w = (ty - yFar) / Math.max(1, yNear - yFar)
+          const x0 = fx0 + (nx0 - fx0) * w, x1 = fx1 + (nx1 - fx1) * w
+          b.fillRect((x0 + (x1 - x0) * r()) | 0, (ty - 2) | 0, 1, d <= 1 ? 3 : 2)
+        }
+      }
+    }
   }
 }
 
-function drawCanvasTent(b: CanvasRenderingContext2D, x: number, top: number, w: number, bot: number, pal: ReturnType<typeof shade>) {
+/**
+ * One wall tent across a run of canvas tiles: pitched roof on a ridge pole,
+ * canvas wall in panels, guy-lines to stakes, and the flap if the doorway is in
+ * the run. The collision tiles do not change; only the picture joins them up.
+ */
+function drawWallTent(b: CanvasRenderingContext2D, d: number, s0: number, s1: number, doorSide: number | null) {
+  const pal = shade('canvas', d)
+  const k = kAt(d)
+  const left = cellX(d, s0) - cellHalf(d), right = cellX(d, s1) + cellHalf(d)
+  const bot = contactY(d)
+  const top = Math.max(6, PIXEL_HORIZON - 44 * k)
   const h = bot - top
-  const mid = x + w / 2
+  const wallTop = top + h * 0.42
+  const eave = Math.max(2, h * 0.08)
+  // Guy-lines first, so the tent stands in front of them.
+  b.strokeStyle = lerpHex(BIT.bark, BIT.dusk, Math.min(0.5, d * 0.08))
+  for (const [ex, sx] of [[left - eave, left - h * 0.38], [right + eave, right + h * 0.38]]) {
+    b.beginPath(); b.moveTo(ex, wallTop); b.lineTo(sx, bot); b.stroke()
+    rect(b, sx - 1, bot - 3, 2, 3, BIT.bark)
+  }
+  // Canvas wall in vertical panels.
+  rect(b, left, wallTop, right - left, bot - wallTop, pal.fill)
+  const panel = Math.max(4, cellHalf(d))
+  for (let x = left + panel; x < right - 1; x += panel) rect(b, x, wallTop, 1, bot - wallTop, pal.dark)
+  rect(b, left, bot - Math.max(2, h * 0.06), right - left, Math.max(2, h * 0.06), pal.dark)
+  // Pitched roof, lit on the upper plane.
+  b.fillStyle = pal.light
+  b.beginPath()
+  b.moveTo(left - eave, wallTop); b.lineTo(left + eave, top); b.lineTo(right - eave, top); b.lineTo(right + eave, wallTop)
+  b.closePath(); b.fill()
   b.fillStyle = pal.dark
   b.beginPath()
-  b.moveTo(x, bot - 2)
-  b.lineTo(mid, top)
-  b.lineTo(x + w, bot - 2)
-  b.closePath()
-  b.fill()
-  b.fillStyle = pal.fill
-  b.beginPath()
-  b.moveTo(x + 2, bot - 2)
-  b.lineTo(mid, top + 2)
-  b.lineTo(x + w - 2, bot - 2)
-  b.closePath()
-  b.fill()
-  b.strokeStyle = pal.light
-  b.beginPath()
-  b.moveTo(mid, top)
-  b.lineTo(mid, bot - 2)
-  b.stroke()
-  // flap
-  const flap = Math.max(4, w * 0.28)
-  rect(b, mid - flap / 2, bot - h * 0.45, flap, h * 0.45, BIT.bark)
-  rect(b, mid - flap / 2 + 1, bot - h * 0.45 + 1, flap - 2, h * 0.2, pal.dark)
+  b.moveTo(left - eave, wallTop); b.lineTo(right + eave, wallTop); b.lineTo(right + eave * 0.5, wallTop - Math.max(2, h * 0.06)); b.lineTo(left - eave * 0.5, wallTop - Math.max(2, h * 0.06))
+  b.closePath(); b.fill()
+  // Ridge pole, its ends standing proud of the canvas.
+  rect(b, left, top - 1, right - left, 2, BIT.wood)
+  rect(b, left - 2, top - 2, 3, 3, BIT.bark)
+  rect(b, right - 1, top - 2, 3, 3, BIT.bark)
+  if (doorSide !== null) {
+    // The doorway: flaps tied back, dark inside.
+    const cx = cellX(d, doorSide), w = Math.max(4, cellHalf(d) * 1.1)
+    b.fillStyle = BIT.ink
+    b.beginPath(); b.moveTo(cx - w / 2, bot); b.lineTo(cx, wallTop + (bot - wallTop) * 0.1); b.lineTo(cx + w / 2, bot); b.closePath(); b.fill()
+    b.strokeStyle = pal.dark
+    b.beginPath(); b.moveTo(cx - w / 2 - 1, bot); b.lineTo(cx, wallTop + (bot - wallTop) * 0.1); b.lineTo(cx + w / 2 + 1, bot); b.stroke()
+  }
 }
 
 function drawTree(b: CanvasRenderingContext2D, x: number, top: number, w: number, bot: number, pal: ReturnType<typeof shade>) {
@@ -206,24 +332,6 @@ function drawTree(b: CanvasRenderingContext2D, x: number, top: number, w: number
   b.lineTo(mid, bot - (bot - top) * 0.35)
   b.closePath()
   b.fill()
-}
-
-function groundY(depth: number) {
-  const k = 1 / (1 + depth * 0.55)
-  return Math.round(PIXEL_HORIZON + 8 + (1 - k) * 88)
-}
-
-function drawWaterRibbon(b: CanvasRenderingContext2D, depth: number, pal: ReturnType<typeof shade>) {
-  const y = groundY(depth)
-  const h = Math.max(5, Math.round(18 / (1 + depth * 0.35)))
-  rect(b, 0, y, PIXEL_IW, h, pal.fill)
-  b.strokeStyle = pal.light
-  for (let x = 4; x < PIXEL_IW; x += 14) {
-    b.beginPath()
-    b.moveTo(x, y + 3)
-    b.lineTo(x + 8, y + 3 + (depth % 2 ? 1 : -1))
-    b.stroke()
-  }
 }
 
 function drawFire(b: CanvasRenderingContext2D, x: number, top: number, w: number, bot: number, pal: ReturnType<typeof shade>) {
@@ -283,6 +391,29 @@ function drawMarker(b: CanvasRenderingContext2D, x: number, top: number, w: numb
   rect(b, mid - w * 0.28, top + (bot - top) * 0.22, w * 0.56, 3, pal.light)
 }
 
+/** A waymark on a post — not a cross, so a road sign never reads as a grave. */
+function drawSignpost(b: CanvasRenderingContext2D, x: number, top: number, w: number, bot: number) {
+  const mid = x + w / 2
+  rect(b, mid - 1, top + (bot - top) * 0.2, 2, (bot - top) * 0.8, BIT.bark)
+  rect(b, mid - w * 0.32, top + (bot - top) * 0.2, w * 0.64, Math.max(3, (bot - top) * 0.16), BIT.wood)
+  rect(b, mid - w * 0.32, top + (bot - top) * 0.2, w * 0.64, 1, BIT.tan)
+}
+
+/**
+ * The camp's edge: knee-high scrub, not a wall. The map ends here and you cannot
+ * walk on, but the country does not stop — the skyline beyond stays visible.
+ */
+function drawScrub(b: CanvasRenderingContext2D, x: number, w: number, bot: number, h: number, pal: ReturnType<typeof shade>, r: () => number) {
+  const bushH = Math.max(3, h * 0.28)
+  for (let i = 0; i < 3; i++) {
+    const bx = x + (w * (i + 0.2 + r() * 0.3)) / 3
+    const bw = Math.max(3, w / 3 + r() * 3)
+    const bh = bushH * (0.7 + r() * 0.5)
+    b.fillStyle = i % 2 ? pal.fill : pal.light
+    b.beginPath(); b.ellipse(bx + bw / 2, bot - bh / 2, bw / 2, bh / 2, 0, 0, Math.PI * 2); b.fill()
+  }
+}
+
 function drawCrate(b: CanvasRenderingContext2D, x: number, top: number, w: number, bot: number, pal: ReturnType<typeof shade>) {
   rect(b, x + 2, top + 4, w - 4, bot - top - 4, pal.fill)
   b.strokeStyle = pal.dark
@@ -298,8 +429,8 @@ function drawFace(b: CanvasRenderingContext2D, face: PixelFace, r: () => number)
   const pal = shade(face.kind, face.depth)
   switch (face.kind) {
     case 'canvas':
-      drawCanvasTent(b, box.x, box.top, box.w, box.bot, pal)
-      break
+    case 'entrance':
+      break // drawn as whole tents (drawWallTent)
     case 'tree':
       drawTree(b, box.x, box.top, box.w, box.bot, pal)
       break
@@ -325,14 +456,13 @@ function drawFace(b: CanvasRenderingContext2D, face: PixelFace, r: () => number)
     case 'table':
       drawCrate(b, box.x, box.top + 12, box.w, box.bot, pal)
       break
-    case 'entrance':
-      drawCanvasTent(b, box.x, box.top, box.w, box.bot, pal)
-      break
     case 'attraction':
-      drawMarker(b, box.x, box.top + 8, box.w, box.bot, pal)
+      drawSignpost(b, box.x, box.top + 8, box.w, box.bot)
+      break
+    case 'brush':
+      drawScrub(b, box.x, box.w, box.bot, box.bot - box.top, pal, r)
       break
     case 'wall':
-    case 'brush':
       rect(b, box.x, box.top, box.w, box.bot - box.top, pal.fill)
       dith(b, box.x, box.top, box.w, box.bot - box.top, pal.dark, 0.2, r)
       break
@@ -354,27 +484,39 @@ export function paintAscii2Pixels(
     buf.height = PIXEL_IH
   }
   ctx.imageSmoothingEnabled = false
-  const seed = scene.townId.length * 97 + position.x * 13 + position.y * 29 + heading.charCodeAt(0)
-  const r = rng(seed)
-  drawSky(ctx, scene.townId, seed)
-  drawGround(ctx, seed)
+  drawSky(ctx, scene, heading)
+  drawHorizon(ctx, scene, heading)
+  drawGround(ctx, scene, position, heading)
   const faces = pixelFacesAhead(scene, position, heading, allowed)
-  const waterDepths = new Set(faces.filter((f) => f.kind === 'water').map((f) => f.depth))
-  for (const depth of [...waterDepths].sort((a, b) => b - a)) {
-    drawWaterRibbon(ctx, depth, shade('water', depth))
-  }
+  // Runs of canvas (and its doorway) at each depth become one tent.
+  const tentDone = new Set<number>()
   for (const face of faces) {
     if (face.kind === 'water') continue
-    drawFace(ctx, face, r)
+    if (face.kind === 'canvas' || face.kind === 'entrance') {
+      if (tentDone.has(face.depth)) continue
+      tentDone.add(face.depth)
+      const row = faces.filter((f) => f.depth === face.depth && (f.kind === 'canvas' || f.kind === 'entrance')).map((f) => f.side).sort((a, b) => a - b)
+      let s0 = row[0]
+      for (let i = 1; i <= row.length; i++) {
+        if (i === row.length || row[i] !== row[i - 1] + 1) {
+          const door = faces.find((f) => f.depth === face.depth && f.kind === 'entrance' && f.side >= s0 && f.side <= row[i - 1])
+          drawWallTent(ctx, face.depth, s0, row[i - 1], door ? door.side : null)
+          if (i < row.length) s0 = row[i]
+        }
+      }
+      continue
+    }
+    drawFace(ctx, face, cellRng(scene.townId, face.at.x, face.at.y, 1))
   }
-  // name the nearest labelled thing
+  // Far sites last, so nothing near is drawn over their bearing and name.
+  drawDistantSites(ctx, scene, heading)
+  // Name the nearest labelled thing.
   const named = [...faces].reverse().find((f) => f.label && f.depth <= 3 && Math.abs(f.side) <= 1)
   if (named?.label) {
-    const text = named.kind === 'fog' ? named.label : named.label
     ctx.font = '8px monospace'
-    const tw = Math.min(PIXEL_IW - 16, ctx.measureText(text).width + 8)
+    const tw = Math.min(PIXEL_IW - 16, ctx.measureText(named.label).width + 8)
     rect(ctx, (PIXEL_IW - tw) / 2, 8, tw, 12, BIT.ink)
     ctx.fillStyle = BIT.cream
-    ctx.fillText(text, (PIXEL_IW - tw) / 2 + 4, 17)
+    ctx.fillText(named.label, (PIXEL_IW - tw) / 2 + 4, 17)
   }
 }

@@ -12,6 +12,8 @@ import {
 } from '@/lib/ascii2Walk'
 import { PIXEL_DEPTH, PIXEL_SIDES } from '@/lib/walkBitPalette'
 import { townWalkTileAt, type TownWalkPosition, type TownWalkTarget } from '@/lib/townWalk'
+import { HEADING_BEARING } from '@/lib/townGeo'
+import horizons from '@/data/towns/horizons.json'
 
 export type PixelKind =
   | 'empty'
@@ -36,6 +38,8 @@ export interface PixelFace {
   label?: string
   depth: number
   side: number
+  /** The camp tile this face stands on, so textures stay attached to the world. */
+  at: TownWalkPosition
 }
 
 const DELTA: Record<Heading, { dx: number; dy: number }> = {
@@ -45,7 +49,7 @@ const DELTA: Record<Heading, { dx: number; dy: number }> = {
   right: { dx: 1, dy: 0 },
 }
 
-function offset(position: TownWalkPosition, heading: Heading, forward: number, side: number): TownWalkPosition {
+export function offset(position: TownWalkPosition, heading: Heading, forward: number, side: number): TownWalkPosition {
   const f = DELTA[heading]
   return {
     x: position.x + f.dx * forward + -f.dy * side,
@@ -88,7 +92,7 @@ export function pixelFacesAhead(
       const p = offset(position, heading, depth, side)
       const hit = pixelKindAt(scene, p, allowed)
       if (hit.kind === 'empty') continue
-      out.push({ ...hit, depth, side })
+      out.push({ ...hit, depth, side, at: p })
     }
   }
   return out
@@ -98,4 +102,45 @@ export function pixelSkyline(townId: string): 'limestone-bowl' | 'pine-road' | '
   if (townId === 'volcano') return 'limestone-bowl'
   if (townId === 'west_point') return 'pine-road'
   return 'camp'
+}
+
+// ---------------------------------------------------------------------------
+// The horizon and the distant sites: pure, so they can be tested without a canvas.
+// ---------------------------------------------------------------------------
+
+/** Horizontal field of view of the eye-level frame, in degrees. */
+export const PIXEL_FOV_DEG = 90
+
+type HorizonRow = readonly [bearing: number, nearDeg: number, nearM: number | null, farDeg: number, farM: number | null]
+const HORIZONS = horizons as unknown as Record<string, { profile: readonly HorizonRow[] }>
+
+/**
+ * Skyline elevation angles at a compass bearing, from USGS 3DEP (horizons.json),
+ * interpolated between the 10-degree samples. `near` is the highest ground within
+ * 1.2 km, `far` the highest beyond it. Depends on bearing only — the skyline is
+ * seen from the town's anchor, so it does not shift as you walk (no parallax) and
+ * the same bearing always shows the same ridge.
+ */
+export function horizonAt(townId: string, bearing: number): { near: number; far: number } | null {
+  const h = Object.hasOwn(HORIZONS, townId) ? HORIZONS[townId].profile : null
+  if (!h || h.length === 0) return null
+  const b = ((bearing % 360) + 360) % 360
+  const step = 360 / h.length
+  const i = Math.floor(b / step)
+  const t = (b - i * step) / step
+  const a = h[i % h.length], z = h[(i + 1) % h.length]
+  return { near: a[1] + (z[1] - a[1]) * t, far: a[3] + (z[3] - a[3]) * t }
+}
+
+/** Signed degrees from the view centre to `bearing` (negative = left of centre). */
+export function bearingOffset(heading: Heading, bearing: number): number {
+  return ((bearing - HEADING_BEARING[heading] + 540) % 360) - 180
+}
+
+/** Distant later sites inside the field of view, with their screen x in a `width`-pixel frame. */
+export function distantSitesInView(scene: Ascii2Scene, heading: Heading, width: number) {
+  return scene.distant
+    .map((site) => ({ site, off: bearingOffset(heading, site.bearing) }))
+    .filter(({ off }) => Math.abs(off) <= PIXEL_FOV_DEG / 2)
+    .map(({ site, off }) => ({ site, x: width / 2 + (off / PIXEL_FOV_DEG) * width }))
 }

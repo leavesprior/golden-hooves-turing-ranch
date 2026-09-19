@@ -289,7 +289,7 @@ export function Ascii2Viewport({
         </div>
 
         <p className={styles.feedback} role="status" aria-live="polite" aria-atomic="true" data-testid="ascii2-feedback">
-          {line || frame.caption}
+          {line || frame.status}
         </p>
 
         <details className={styles.notes}>

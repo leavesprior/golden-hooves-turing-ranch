@@ -300,3 +300,14 @@ Every finding below was re-checked against the code or a live run before it was 
 5. **Is it good to look at?** The frame is mostly sky and ground dots with the town in a band across
    the middle. That is taste, and it is yours.
 
+
+## 9. Recognition pass: ground truth first (2026-09-18, after Grok's 32-bit flesh)
+
+Leif asked for spatial accuracy against Google Maps and historical accuracy before more pixels.
+Everything measured, cited or still unknown is in **`docs/ASCII2_1849_SPATIAL_LEDGER_20260918.md`**,
+which keeps where-things-are, when-things-were and what-the-game-draws in separate sections. In short:
+Volcano's camp is now georeferenced (about 120 m per tile, anchored on the OHP No. 29 marker). The
+creek and the graves follow today's ground, and the St. George fog stands on its real footprint.
+Sandy Gulch is 2.3 km SSW on the horizon, not in the camp. Eight dates or claims were corrected
+against primary records. Eye-level draws the USGS horizon by heading, the camp's own ground in
+perspective (an inverted perspective is fixed), and one wall tent. Leif's look is still owed.

@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict'
 import horizons from '../data/towns/horizons.json'
-import { buildAscii2Scene } from './ascii2Walk'
+import { buildAscii2Scene, renderFrame } from './ascii2Walk'
 import { ascii2TownFor } from './ascii2Towns'
 import { TOWN_GEO, bearingDeg, compassPoint, distanceM, geoToTile, HEADING_BEARING } from './townGeo'
 import { normalizeTownWalkSnapshot, townWalkMap, townWalkTileAt, VOLCANO_CREEK_TILES } from './townWalk'
@@ -88,6 +88,11 @@ assert.deepEqual(geoToTile(vol, vol.anchor.point), vol.anchor.tile)
   assert.ok(Math.abs(gulch.distanceM - 2348) < 50, `Sandy Gulch distance ${gulch.distanceM.toFixed(0)} m`)
   assert.ok(/south-southwest/.test(gulch.notYet), 'its line gives the real direction')
   assert.equal(TOWN_GEO.west_point.metersPerTile, null, 'West Point has no measured scale; do not pretend one')
+  // Facing south from spawn, Sandy Gulch (bearing 210) is in view and says where it is.
+  const southFrom = renderFrame(wp, wp.map.spawn, 'down')
+  assert.ok(/Toward the SSW, 2\.3 km off: Sandy Gulch/.test(southFrom.status), `status: "${southFrom.status}"`)
+  const northFrom = renderFrame(wp, wp.map.spawn, 'up')
+  assert.ok(!/Sandy Gulch/.test(northFrom.status), 'facing north you cannot see a site to the SSW')
 }
 
 // 5. Bearing helpers agree with a known pair (the two landmark markers).

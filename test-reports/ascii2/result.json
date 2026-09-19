@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-09-19T00:20:02.231Z",
+  "checked_at": "2026-09-19T02:47:29.801Z",
   "base_url": "http://127.0.0.1:3107",
   "findings": [],
   "ok": true,
@@ -12,7 +12,7 @@
     "06-phone",
     "07-west-point-absence"
   ],
-  "absence_line": "Cobblestone Theatre: not built in 1849.",
-  "west_point_absence_line": "Main Street walk: not built in 1849.",
+  "absence_line": "St. George Hotel, 2 paces on: Washed ground and mist. The brick hotel is 1860s: 1863 or 1867, the records disagree.",
+  "west_point_absence_line": "Toward the SSW, 2.3 km off: Sandy Gulch Mine. Not here: Sandy Gulch is 2 miles down the road, south-southwest. The gulch is already being worked; the quartz mills are later.",
   "console_errors": []
 }

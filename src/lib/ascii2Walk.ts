@@ -41,7 +41,7 @@ import {
   type TownWalkSnapshot,
   type TownWalkTarget,
 } from '@/lib/townWalk'
-import { bearingDeg, distanceM, geoToTile, townGeo, type TownGeoreference } from '@/lib/townGeo'
+import { bearingDeg, compassPoint, distanceM, geoToTile, HEADING_BEARING, townGeo, type TownGeoreference } from '@/lib/townGeo'
 
 export type Heading = TownWalkDirection
 
@@ -112,7 +112,14 @@ export interface Ascii2Frame {
   /** 24 rows x 80 columns of colored cells. */
   rows: Ascii2Cell[][]
   compass: string
+  /** The DOS caption row: short, because the 80-column row truncates. */
   caption: string
+  /**
+   * The line under the walk. Same as the caption, except that a later site ahead
+   * says its own authored year line at ANY distance ("...The brick hotel is
+   * 1860s"), not only when you are standing next to it.
+   */
+  status: string
 }
 
 export type Ascii2Look =
@@ -347,6 +354,8 @@ interface Face {
   color: string
   form: FaceForm
   label?: string
+  /** Fog only: the site's authored line about what is not there yet. */
+  notYet?: string
 }
 
 function faceAt(scene: Ascii2Scene, p: TownWalkPosition, allowed: (t: TownWalkTarget) => boolean): Face | undefined {
@@ -355,7 +364,7 @@ function faceAt(scene: Ascii2Scene, p: TownWalkPosition, allowed: (t: TownWalkTa
   if (!tile) return { ch: '▓', color: pal.timber || '#8a6a44', form: 'wall' } // off-map: the brush wall
   const site = ghostAt(scene, p)
   if (site) {
-    return { ch: FOG_GLYPHS[(p.x + p.y) % FOG_GLYPHS.length], color: pal.fog || '#4a443c', form: 'fog', label: site.label }
+    return { ch: FOG_GLYPHS[(p.x + p.y) % FOG_GLYPHS.length], color: pal.fog || '#4a443c', form: 'fog', label: site.label, notYet: site.notYet }
   }
   const target = scene.map.targets.find((t) => t.position.x === p.x && t.position.y === p.y && allowed(t))
   if (tile.prop) {
@@ -446,6 +455,7 @@ export function renderFrame(
   }
 
   let caption = 'Open ground. Walk on.'
+  let status = ''
   let captionSet = false
   let nearest: { d: number; face: Face; rect: ReturnType<typeof bandRect> } | undefined
 
@@ -510,11 +520,12 @@ export function renderFrame(
         : d === 1
           ? `${face.label} — within reach.`
           : `${face.label}, ${d} paces on.`
+    if (face.form === 'fog' && face.notYet) status = `${face.label}, ${d === 1 ? 'just ahead' : `${d} paces on`}: ${face.notYet}`
     captionSet = true
   }
 
   const look = ascii2Look(scene, position, heading, allowed)
-  if (look.kind === 'absence') caption = `${look.site.label}: ${look.site.notYet}`
+  if (look.kind === 'absence') caption = status = `${look.site.label}: ${look.site.notYet}`
 
   const compass = `${scene.face} · facing ${COMPASS[heading]} · ${position.x},${position.y}`
   const writeRow = (r: number, text: string, color: string) => {
@@ -523,7 +534,14 @@ export function renderFrame(
   writeRow(FRAME_ROWS - 2, compass, ink)
   writeRow(FRAME_ROWS - 1, caption, captionSet ? ink : fog)
 
-  return { rows, compass, caption }
+  // Nothing named close by: a far site in front of you says where it really is.
+  if (!captionSet && !status) {
+    const ahead = scene.distant.find((d) => Math.abs(((d.bearing - HEADING_BEARING[heading] + 540) % 360) - 180) <= 45)
+    if (ahead) {
+      status = `Toward the ${compassPoint(ahead.bearing)}, ${(ahead.distanceM / 1000).toFixed(1)} km off: ${ahead.label}. ${ahead.notYet}`
+    }
+  }
+  return { rows, compass, caption, status: status || caption }
 }
 
 /** Rows as plain strings — for tests, snapshots and copy/paste into a note. */
