@@ -5,7 +5,7 @@ import { DEFAULT_STATE } from '../src/app/oregon-trail/state/constants'
 import { DEFAULT_CROSS_GAME_STATE } from '../src/lib/crossGameProgression'
 import { DEFAULT_KARMA_STATE } from '../src/lib/karmaStorage'
 import { TOWN_NPCS, VOLCANO_LATER_ATTRACTION_IDS, WEST_POINT_LATER_ATTRACTION_IDS } from '../src/lib/goldCountryEditorial'
-import { isTownWalkPassable, townWalkMap, townWalkTileAt, type TownWalkDirection, type TownWalkMap, type TownWalkPosition, type TownWalkSnapshot, type TownWalkTownId } from '../src/lib/townWalk'
+import { isTownWalkPassable, TOWN_WALK_ART_TILE, townWalkMap, townWalkTileAt, type TownWalkDirection, type TownWalkMap, type TownWalkPosition, type TownWalkSnapshot, type TownWalkTownId } from '../src/lib/townWalk'
 
 // Usage: node --import tsx tools/townWalk.browser.ts [base URL] [label] [case regex]
 // Fixtures contain prior campaign data only, never townWalks or earned trail
@@ -127,6 +127,39 @@ async function step(page: Page, direction: TownWalkDirection, input: Input, step
   steps.push({ townId: before.townId, roomId: before.roomId, input, direction, key, from: before.position, to: expected.position, blocked })
 }
 
+/**
+ * A tile you can stand on and be refused by: a blocked tile of the kind this
+ * town is supposed to refuse you with, whose southern neighbour you can
+ * actually walk to from where you are standing.
+ *
+ * This was a hardcoded pair — volcano {8,7}/{8,8}. It went stale when the camps
+ * were put on measured ground (4194dbe) and the creek moved: {8,8} became water,
+ * so the route planner had no authored path to it and the whole volcano case
+ * died before it could test anything. Same defect as the literal viewBox, one
+ * layer down, and it was hidden behind that failure until it was fixed. Derive
+ * the pair from the authored map instead, so redrawing the creek moves the test
+ * with it.
+ */
+function blockedPair(map: TownWalkMap, kind: 'water' | 'fire', from: TownWalkPosition) {
+  for (let y = 0; y < map.height; y += 1) {
+    for (let x = 0; x < map.width; x += 1) {
+      const obstacle = { x, y }
+      const tile = townWalkTileAt(map, obstacle)
+      const isKind = kind === 'water' ? tile?.terrain === 'water' : tile?.prop === 'fire'
+      if (!isKind || isTownWalkPassable(map, obstacle)) continue
+      const approach = { x, y: y + 1 }
+      if (!isTownWalkPassable(map, approach)) continue
+      try {
+        route(map, from, position => samePosition(position, approach))
+        return { obstacle, approach }
+      } catch {
+        // not reachable from here — keep looking
+      }
+    }
+  }
+  throw new Error(`no reachable ${kind} obstacle in ${map.townId}/${map.roomId}`)
+}
+
 async function walkTo(page: Page, goal: (position: TownWalkPosition) => boolean, input: Input, steps: Step[]) {
   const current = await ui(page)
   const map = townWalkMap(current.townId, current.roomId)!
@@ -170,7 +203,17 @@ async function layout(page: Page) {
   if (await map.isVisible()) {
     const box = await map.boundingBox()
     assert.ok(box && box.width >= 300 && box.height >= 140, 'walk map remains a useful size')
-    assert.equal(await page.getByTestId('town-walk-art').getAttribute('viewBox'), '0 0 320 176')
+    // Derived, not typed twice. This was the literal '0 0 320 176' and went
+    // stale the day the draw scale doubled (ca96dff, TILE 16 -> 32): the walk
+    // was right and the tool failed every town. The size the art SHOULD have is
+    // the authored map times the draw tile, both read from src/lib/townWalk.ts.
+    const walkTown = await page.getByTestId('explore-town-face').getAttribute('data-town')
+    const walkMap = townWalkMap(walkTown as TownWalkTownId)
+    assert.ok(walkMap, `the walk is open on a town with an authored map (got ${walkTown})`)
+    assert.equal(
+      await page.getByTestId('town-walk-art').getAttribute('viewBox'),
+      `0 0 ${walkMap.width * TOWN_WALK_ART_TILE} ${walkMap.height * TOWN_WALK_ART_TILE}`,
+    )
     assert.equal(await page.getByTestId('town-walk-art').getAttribute('shape-rendering'), 'crispEdges')
     const controls = []
     for (const direction of directions) {
@@ -278,8 +321,8 @@ async function run() {
         // Exercise the second input path too: real buttons on desktop, a real
         // keyboard event on the touch context. The remaining route uses input.
         await step(page, 'up', phone ? 'keyboard' : 'button', steps)
-        const obstacle = town === 'volcano' ? { x: 8, y: 7 } : { x: 6, y: 7 }
-        const approach = { x: obstacle.x, y: obstacle.y + 1 }
+        const standing = (await ui(page)).position
+        const { obstacle, approach } = blockedPair(exterior, town === 'volcano' ? 'water' : 'fire', standing)
         await walkTo(page, position => samePosition(position, approach), input, steps)
         assert.equal(townWalkTileAt(exterior, obstacle)?.terrain === 'water', town === 'volcano')
         await step(page, 'up', input, steps, true)

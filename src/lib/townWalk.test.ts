@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
-  TOWN_WALK_VERSION, TOWN_WALK_TILE_SIZE, townWalkMap, townWalkTileAt,
+  TOWN_WALK_VERSION, TOWN_WALK_TILE_SIZE, TOWN_WALK_ART_TILE, townWalkMap, townWalkTileAt,
   isTownWalkPassable, stepTownWalk, adjacentTownWalkTargets, normalizeTownWalkSnapshot,
   type TownWalkMap, type TownWalkPosition, type TownWalkDirection,
 } from './townWalk'
@@ -158,4 +161,22 @@ for (const unsupported of ['bobr_cabin', 'bobr_ranch', 'unknown', '__proto__', '
   assert.equal(normalizeTownWalkSnapshot(unsupported, null), undefined)
 }
 assert.equal(townWalkMap('volcano', '__proto__'), undefined)
+
+// The draw scale is one constant, read by the renderer and by anything that
+// measures the renderer. A literal in either place is how the browser tool came
+// to assert '0 0 320 176' against a walk that had drawn at 32px since ca96dff.
+{
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const sceneSrc = readFileSync(path.join(here, '../components/explore/TownWalkScene.tsx'), 'utf8')
+  const toolSrc = readFileSync(path.join(here, '../../tools/townWalk.browser.ts'), 'utf8')
+  assert.equal(TOWN_WALK_ART_TILE % TOWN_WALK_TILE_SIZE, 0, 'the drawn tile is a whole multiple of the collision tile')
+  assert.match(sceneSrc, /const TILE = TOWN_WALK_ART_TILE/, 'the walk scene draws at the shared tile, not a literal')
+  assert.match(toolSrc, /TOWN_WALK_ART_TILE/, 'the browser tool derives the viewBox from the shared tile')
+  assert.equal(/viewBox'\), '0 0 \d+ \d+'/.test(toolSrc), false, 'no hardcoded viewBox string in the browser tool')
+  for (const townId of ['volcano', 'west_point'] as const) {
+    const map = townWalkMap(townId)!
+    assert.ok(map.width * TOWN_WALK_ART_TILE >= 320 && map.height * TOWN_WALK_ART_TILE >= 176, `${townId} art box stays at least the old size`)
+  }
+}
+
 console.log('Town walk: four authored scenes, all targets/doors reachable, orthogonal collisions, 1849 identities and safe versioned position recovery PASS')

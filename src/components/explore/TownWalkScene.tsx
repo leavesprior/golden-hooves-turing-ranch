@@ -4,6 +4,7 @@ import { useId, useState, type KeyboardEvent } from 'react'
 import {
   adjacentTownWalkTargets,
   stepTownWalk,
+  TOWN_WALK_ART_TILE,
   townWalkMap,
   townWalkTileAt,
   type TownWalkDirection,
@@ -30,7 +31,7 @@ export interface TownWalkSceneProps {
 }
 
 /** Draw at 32px (32/64-bit). Collision still uses TOWN_WALK_TILE_SIZE = 16. */
-const TILE = 32
+const TILE = TOWN_WALK_ART_TILE
 const KEY_DIRECTION: Readonly<Record<string, TownWalkDirection>> = {
   arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down',
   arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right',

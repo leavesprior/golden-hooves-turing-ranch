@@ -2,6 +2,16 @@
  * or GPS destinations. Movement never awards visits, clues, items, or karma. */
 export const TOWN_WALK_VERSION = 1
 export const TOWN_WALK_TILE_SIZE = 16
+/**
+ * How big one tile is DRAWN, as opposed to how big it is for collisions
+ * (TOWN_WALK_TILE_SIZE). The pixel walk went to 32 for the 32/64-bit pass
+ * (ca96dff), which doubled the walk SVG's viewBox — and the browser tool was
+ * still asserting the old string, so it failed on every town while the walk
+ * itself was correct. The renderer and anything that checks the renderer read
+ * this one constant, so the next change to the draw scale cannot silently
+ * disagree with the thing measuring it.
+ */
+export const TOWN_WALK_ART_TILE = 32
 export type TownWalkTownId = 'volcano' | 'west_point'
 export type TownWalkRoomId = 'exterior' | 'shelter'
 export type TownWalkDirection = 'up' | 'down' | 'left' | 'right'
