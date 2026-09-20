@@ -186,10 +186,15 @@ export function InteractiveTown({
             title={`${chip.label} — not yet`}
             onClick={() => lookAbsence(chip.id)}
             data-testid={`explore-later-${chip.id}`}
+            // Dashed and cool-grey against the present pins' solid amber, so a
+            // chip never reads as a building you can enter. It still has to be
+            // findable: on a phone the label is hidden and the marker is all
+            // there is, and at 45% black a fog-grey dot vanished into the
+            // painting entirely.
             className={`absolute z-10 flex h-9 min-w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-dashed px-2 font-serif text-[11px] ${
               selectedId === chip.id
-                ? 'border-[#cbdbfc]/80 bg-black/70 text-[#cbdbfc]'
-                : 'border-[#9a9488]/70 bg-black/45 text-[#9a9488]'
+                ? 'border-[#cbdbfc] bg-black/80 text-[#cbdbfc]'
+                : 'border-[#cbdbfc]/60 bg-black/70 text-[#cbdbfc]/85'
             }`}
             style={{ left: `${chip.x}%`, top: `${chip.y}%` }}
           >
