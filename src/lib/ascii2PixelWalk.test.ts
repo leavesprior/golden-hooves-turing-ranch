@@ -13,15 +13,27 @@ const allow = () => true
 assert.equal(pixelSkyline('volcano'), 'limestone-bowl')
 assert.equal(pixelSkyline('west_point'), 'pine-road')
 
-// Spawn (10,9) facing north is the Theatre ghost — same camera as ascii2.
+// Spawn (10,9) facing north looks up the column the later town will stand in.
+// It used to be the Theatre ghost; on 2026-09-19 the Theatre pin moved off the
+// canvas tent (both files, 52,48 → 38,50), which walks its fog west to (6,5),
+// so the ghost straight north of spawn is now St. George at (10,6). The claim
+// that matters is unchanged: a later building shows as fog, never as brick.
 const spawnNorth = pixelFacesAhead(scene, snap.position, 'up', allow)
-const theatre = spawnNorth.find((f) => f.kind === 'fog' && /theatre/i.test(f.label || ''))
-assert.ok(theatre, 'spawn looking north must show the Theatre as fog, not brick')
-assert.ok(theatre.depth >= 0)
+const northGhost = spawnNorth.find((f) => f.kind === 'fog')
+assert.ok(northGhost, 'spawn looking north must show a later site as fog, not brick')
+assert.match(northGhost.label || '', /george/i, 'the ghost north of spawn is the hotel')
+assert.ok(northGhost.depth >= 0)
 
-const onGhost = pixelKindAt(scene, { x: 10, y: 5 }, allow)
+// The Theatre is still fog, at the tile its moved painting percent lands on.
+const onGhost = pixelKindAt(scene, { x: 6, y: 5 }, allow)
 assert.equal(onGhost.kind, 'fog')
 assert.match(onGhost.label || '', /theatre/i)
+const theatre = { label: onGhost.label }
+assert.notEqual(
+  pixelKindAt(scene, { x: 10, y: 5 }, allow).label,
+  onGhost.label,
+  'the Theatre no longer stands on the tent column at 10,5',
+)
 
 const josiah = pixelKindAt(scene, { x: 8, y: 5 }, allow)
 assert.equal(josiah.kind, 'npc')

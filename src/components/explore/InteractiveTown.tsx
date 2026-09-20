@@ -10,6 +10,7 @@ import {
   TOWN_NPCS,
 } from '@/lib/goldCountryEditorial'
 import { townAsciiInterior } from '@/lib/overlay/townAsciiInterior'
+import { lookAbsenceChips, lookAbsenceVisible } from '@/lib/lookAbsence'
 import { PlacePictureLift } from '@/components/PlacePictureLift'
 import { PlaceScene } from '@/components/PlaceScene'
 import { placeSceneFor, type PlaceSceneEra } from '@/lib/placeSceneAssets'
@@ -71,6 +72,13 @@ export function InteractiveTown({
 
   const selected = selectedId ? byId.get(selectedId) : undefined
   const interior = townAsciiInterior(selected?.id)
+  // Later sites, drawn as absence. They are NOT added to `present`, `presentIds`,
+  // or `walkAttractions` — the arcade's idea of what exists in 1849 is unchanged.
+  const absence = lookAbsenceChips(town.id)
+  const showAbsence = lookAbsenceVisible(sceneEra, walking, !!interior)
+  // Gated on the same condition as the chips: a reading left selected when the
+  // guest walks off or switches to today must not outlive the face it belongs to.
+  const selectedAbsence = showAbsence && selectedId ? absence.find((c) => c.id === selectedId) : undefined
 
   const enterBuilding = (attractionId: string) => {
     const a = byId.get(attractionId)
@@ -82,6 +90,15 @@ export function InteractiveTown({
       applyKarma('gold_country_explore', `Looked at ${a.name} in ${town.name}`, -2, -1)
     }
     setSelectedId(a.id)
+    setNpcLine(null)
+  }
+
+  /**
+   * Clicking absence reads the year-line. It does not enter, does not visit,
+   * does not pay karma — nothing is there to walk into in 1849.
+   */
+  const lookAbsence = (attractionId: string) => {
+    setSelectedId(attractionId)
     setNpcLine(null)
   }
 
@@ -166,6 +183,25 @@ export function InteractiveTown({
           )
         })}
 
+        {showAbsence && absence.map((chip) => (
+          <button
+            key={chip.id}
+            type="button"
+            title={`${chip.label} — not yet`}
+            onClick={() => lookAbsence(chip.id)}
+            data-testid={`explore-later-${chip.id}`}
+            className={`absolute z-10 flex h-9 min-w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-dashed px-2 font-serif text-[11px] ${
+              selectedId === chip.id
+                ? 'border-[#cbdbfc]/80 bg-black/70 text-[#cbdbfc]'
+                : 'border-[#9a9488]/70 bg-black/45 text-[#9a9488]'
+            }`}
+            style={{ left: `${chip.x}%`, top: `${chip.y}%` }}
+          >
+            <span aria-hidden>◌</span>
+            <span className="ml-1 hidden sm:inline">{chip.label}</span>
+          </button>
+        ))}
+
         {!interior && npcs.map((npc) => (
           <button
             key={npc.id}
@@ -183,7 +219,18 @@ export function InteractiveTown({
 
       <aside className={`${walking && sceneEra === '1849' ? 'max-h-[24vh] md:max-h-[38vh]' : 'max-h-[38vh]'} overflow-y-auto border-t border-[rgba(232,220,196,0.12)] bg-[#0e0c0a] px-4 py-3`}>
         {npcLine && <p className="mb-3 font-serif text-sm italic text-[#e8dcc4]">{npcLine}</p>}
-        {selected ? (
+        {selectedAbsence ? (
+          // The year-line, not the attraction's present-day copy. The weekend box
+          // office belongs to the standing theatre, so it stays off the 1849 face.
+          <article className="west-face-paper" data-testid="explore-later-reading">
+            <p className="west-face-eyebrow">Not yet</p>
+            <h2 className="west-face-title text-xl">{selectedAbsence.label}</h2>
+            <p className="west-face-body mt-2">{selectedAbsence.notYet}</p>
+            <p className="mt-2 font-serif text-xs text-[#b8a88a]">
+              Nothing stands here in 1849. The pin is painted, not surveyed.
+            </p>
+          </article>
+        ) : selected ? (
           <article className="west-face-paper">
             <p className="west-face-eyebrow">{selected.category}</p>
             <h2 className="west-face-title text-xl">{selected.name}</h2>
@@ -193,7 +240,7 @@ export function InteractiveTown({
             <p className="mt-2 font-serif text-xs text-[#b8a88a]">
               {interior ? interior.trailWord : selected.funFact}
             </p>
-            {selected.id === 'vol_theatre' && <VolcanoStayShow />}
+            {selected.id === 'vol_theatre' && sceneEra !== '1849' && <VolcanoStayShow />}
           </article>
         ) : (
           <p className="font-serif text-sm text-[#b8a88a]">

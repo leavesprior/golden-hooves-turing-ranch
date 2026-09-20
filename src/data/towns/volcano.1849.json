@@ -51,8 +51,9 @@
     {
       "id": "vol_theatre",
       "label": "Cobblestone Theatre",
-      "x": 52,
-      "y": 48,
+      "x": 38,
+      "y": 50,
+      "placement": "Authored painting percent, moved off the canvas tent (was 52,48 — the tent's own pin) on 2026-09-19 so the Look face can draw it as absence. The building stands next to the post office on Main, with the amphitheatre across the street (Volcano Theatre Company, Map & Directions), but OpenStreetMap has no footprint for it and the published street numbers disagree (16121 / 16124 / 16138 / 16142), so no geo and no street number here.",
       "notYet": "No stone building yet. It goes up in 1856 as a cigar shop; the theatre company comes in 1974."
     },
     {
