@@ -2,9 +2,9 @@
 
 import { useId, useState, type KeyboardEvent } from 'react'
 import {
-  TOWN_WALK_TILE_SIZE,
   adjacentTownWalkTargets,
   stepTownWalk,
+  TOWN_WALK_ART_TILE,
   townWalkMap,
   townWalkTileAt,
   type TownWalkDirection,
@@ -26,9 +26,12 @@ export interface TownWalkSceneProps {
   onTalk: (npcId: string) => void
   onBackToLook: () => void
   onToday?: () => void
+  /** Step DOWN the graphics ladder: draw this same walk as colored ASCII. */
+  onPresentAscii2?: () => void
 }
 
-const TILE = TOWN_WALK_TILE_SIZE
+/** Draw at 32px (32/64-bit). Collision still uses TOWN_WALK_TILE_SIZE = 16. */
+const TILE = TOWN_WALK_ART_TILE
 const KEY_DIRECTION: Readonly<Record<string, TownWalkDirection>> = {
   arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down',
   arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right',
@@ -40,59 +43,64 @@ const DIRECTIONS: readonly { id: TownWalkDirection; arrow: string; label: string
   { id: 'right', arrow: '→', label: 'east', dx: 1, dy: 0 },
 ]
 const TERRAIN_FILL: Record<TownWalkTerrain, string> = {
-  grass: 'var(--walk-grass)', dirt: 'var(--pixel-earth-light)',
-  water: 'var(--walk-water)', planks: 'var(--pixel-earth-mid)', floor: 'var(--walk-floor)',
+  grass: '#4b692f', dirt: '#8f563b',
+  water: '#306082', planks: '#8f563b', floor: '#663931',
 }
 const PROP_NAME: Record<TownWalkPropKind, string> = {
   tree: 'tree', rock: 'rock', canvas: 'canvas wall', wall: 'wall', crate: 'crate',
   bench: 'bench', table: 'table', marker: 'wooden marker', fire: 'fire',
 }
 
-/** Small painted shapes are projections of the shared collision data. */
+/** 32×32 painted shapes — 32/64-bit, still projections of the shared collision data. */
 function PropSprite({ kind }: { kind: TownWalkPropKind }) {
   switch (kind) {
     case 'tree': return <>
-      <rect x="7" y="9" width="3" height="7" fill="var(--pixel-earth-dark)" />
-      <path d="M5 0h6v2h3v3h2v5h-3v3H3v-3H0V5h2V2h3Z" fill="var(--pixel-forest-dark)" />
-      <path d="M5 1h5v2h3v4h-3v3H3V7H1V4h4Z" fill="var(--walk-leaf)" />
-      <path d="M5 2h4v2H5v3H3V4h2Z" fill="var(--pixel-forest-light)" opacity=".55" />
+      <rect x="14" y="18" width="5" height="13" fill="#663931" />
+      <rect x="13" y="18" width="1" height="10" fill="#45283c" />
+      <path d="M6 20 L16 2 L26 20 Z" fill="#4b692f" />
+      <path d="M8 22 L16 8 L24 22 Z" fill="#6abe30" />
+      <path d="M11 22 L16 12 L21 22 Z" fill="#37946e" />
     </>
     case 'rock': return <>
-      <path d="M3 5h8v2h3v6H1V8h2Z" fill="var(--pixel-earth-dark)" />
-      <path d="M4 4h6v2h3v5H3V7h1Z" fill="var(--walk-stone)" />
-      <path d="M4 5h6v2H4Z" fill="var(--pixel-ui-text)" />
+      <path d="M4 24 L10 12 L22 10 L28 24 Z" fill="#595652" />
+      <path d="M8 22 L12 14 L20 13 L24 22 Z" fill="#9badb7" />
+      <path d="M10 16 h8 v2 H10 Z" fill="#cbdbfc" />
     </>
     case 'crate': return <>
-      <rect x="2" y="3" width="12" height="11" fill="var(--pixel-earth-dark)" />
-      <rect x="3" y="3" width="10" height="9" fill="var(--pixel-earth-light)" />
-      <path d="M4 4h8M4 11h8M4 4l8 7M12 4l-8 7" stroke="var(--pixel-gold-dark)" strokeWidth="1" />
+      <rect x="4" y="8" width="24" height="20" fill="#663931" />
+      <rect x="6" y="8" width="20" height="16" fill="#8f563b" />
+      <path d="M6 8 L26 24 M26 8 L6 24" stroke="#8a6f30" strokeWidth="1" />
+      <rect x="6" y="8" width="20" height="2" fill="#d9a066" />
     </>
     case 'bench': return <>
-      <path d="M3 8h2v6H3Zm8 0h2v6h-2Z" fill="var(--pixel-earth-dark)" />
-      <rect x="1" y="6" width="14" height="4" fill="var(--pixel-earth-light)" />
-      <rect x="2" y="6" width="12" height="1" fill="var(--pixel-gold-mid)" />
+      <rect x="5" y="18" width="4" height="10" fill="#663931" />
+      <rect x="23" y="18" width="4" height="10" fill="#663931" />
+      <rect x="2" y="14" width="28" height="6" fill="#8f563b" />
+      <rect x="2" y="14" width="28" height="2" fill="#d9a066" />
     </>
     case 'table': return <>
-      <path d="M2 8h3v7H2Zm9 0h3v7h-3Z" fill="var(--pixel-earth-dark)" />
-      <rect x="0" y="3" width="16" height="8" fill="var(--pixel-earth-mid)" />
-      <rect x="0" y="3" width="16" height="2" fill="var(--pixel-earth-light)" />
-      <rect x="5" y="5" width="5" height="3" fill="var(--read-ink)" />
+      <rect x="4" y="18" width="5" height="12" fill="#663931" />
+      <rect x="23" y="18" width="5" height="12" fill="#663931" />
+      <rect x="2" y="8" width="28" height="12" fill="#8f563b" />
+      <rect x="2" y="8" width="28" height="3" fill="#d9a066" />
+      <rect x="12" y="12" width="8" height="4" fill="#eec39a" />
     </>
     case 'marker': return <>
-      <rect x="6" y="2" width="4" height="13" fill="var(--pixel-earth-dark)" />
-      <path d="M6 2h3v10H6ZM3 5h9v3H3Z" fill="var(--pixel-earth-light)" />
+      <rect x="14" y="4" width="4" height="26" fill="#8f563b" />
+      <rect x="6" y="10" width="20" height="4" fill="#d9a066" />
     </>
     case 'fire': return <>
-      <path d="M3 10h10v3H3ZM1 11h2v2H1Zm12 0h2v2h-2Z" fill="var(--walk-stone)" />
-      <path d="M5 7h2V3h2v3h2v3h2v3H4V9h1Z" fill="var(--pixel-fire-orange)" />
-      <path d="M7 8h2V6h1v5H6V9h1Z" fill="var(--pixel-gold-light)" />
+      <rect x="6" y="24" width="20" height="5" fill="#595652" />
+      <path d="M10 24 L16 6 L22 24 Z" fill="#df7126" />
+      <path d="M13 24 L16 12 L19 24 Z" fill="#fbf236" />
+      <rect x="8" y="22" width="16" height="3" fill="#663931" />
     </>
     case 'wall': return <>
-      <rect width="16" height="16" fill="var(--pixel-earth-dark)" />
-      <rect x="1" y="1" width="14" height="12" fill="var(--pixel-earth-mid)" />
-      <path d="M1 4h14M1 9h14" stroke="var(--pixel-earth-light)" strokeWidth="1" />
+      <rect width="32" height="32" fill="#663931" />
+      <rect x="2" y="2" width="28" height="24" fill="#8f563b" />
+      <path d="M2 10h28M2 18h28" stroke="#d9a066" strokeWidth="1" />
     </>
-    case 'canvas': return null // The connected shelter footprint is drawn together.
+    case 'canvas': return null
   }
 }
 
@@ -105,30 +113,35 @@ function CanvasShelter({ props, door }: { props: readonly TownWalkProp[]; door?:
   const height = (Math.max(...cells.map(cell => cell.position.y)) + 1) * TILE - top
   const doorX = door ? door.position.x * TILE - left : Math.floor(width / 2)
   return <g transform={`translate(${left} ${top})`}>
-    <rect width={width} height={height} fill="var(--pixel-earth-dark)" />
-    <path d={`M0 8L${width / 2} 0L${width} 8V${height - 4}H0Z`} fill="var(--walk-canvas)" />
-    <path d={`M0 8L${width / 2} 0V${height - 4}H0Z`} fill="var(--read-ink)" />
-    <path d={`M${width / 2} 1V${height - 5}M1 8H${width - 1}`} stroke="var(--pixel-earth-light)" strokeWidth="1" />
-    <path d={`M1 ${height - 13}H${width - 1}M8 6V${height - 4}M${width - 8} 6V${height - 4}`} stroke="var(--pixel-earth-light)" strokeWidth="1" opacity=".7" />
+    <rect width={width} height={height} fill="#663931" />
+    <path d={`M0 16L${width / 2} 0L${width} 16V${height - 6}H0Z`} fill="#e8d4a8" />
+    <path d={`M0 16L${width / 2} 0V${height - 6}H0Z`} fill="#c4a574" />
+    <path d={`M${width / 2} 0V${height - 6}M1 16H${width - 1}`} stroke="#8f563b" strokeWidth="2" />
+    <path d={`M8 18V${height - 6}M${width - 8} 18V${height - 6}`} stroke="#d9a066" strokeWidth="1" opacity=".8" />
     {door && <>
-      <rect x={doorX} y={height - TILE} width={TILE} height={TILE} fill="var(--pixel-earth-dark)" />
-      <path d={`M${doorX} ${height - TILE}v${TILE - 2}l4 -8v-6ZM${doorX + TILE} ${height - TILE}v${TILE - 2}l-4 -8v-6Z`} fill="var(--pixel-gold-light)" />
-      <rect x={doorX + 2} y={height - 3} width={TILE - 4} height="3" fill="var(--pixel-earth-light)" />
+      <rect x={doorX} y={height - TILE} width={TILE} height={TILE} fill="#45283c" />
+      <path d={`M${doorX + 6} ${height - 4} V${height - TILE + 6} L${doorX + TILE / 2} ${height - TILE} L${doorX + TILE - 6} ${height - TILE + 6} V${height - 4}Z`} fill="#8f563b" />
+      <rect x={doorX + 10} y={height - TILE + 10} width={TILE - 20} height={TILE - 16} fill="#222034" />
     </>}
   </g>
 }
 
 function PersonSprite({ player, direction = 'down' }: { player?: boolean; direction?: TownWalkDirection }) {
+  const coat = player ? '#df7126' : '#3f3f74'
+  const hat = player ? '#fbf236' : '#8f563b'
   return <>
-    <rect x="3" y="13" width="11" height="3" fill="var(--pixel-earth-dark)" opacity=".7" />
-    <path d="M5 11h3v4H5Zm5 0h3v4h-3Z" fill="var(--pixel-bg-dark)" />
-    <path d="M5 6h7v6H5ZM3 7h2v4H3Zm9 0h2v4h-2Z" fill={player ? 'var(--pixel-gold-mid)' : 'var(--pixel-sky-mid)'} />
-    <rect x="6" y="3" width="5" height="4" fill="var(--read-ink)" />
-    <rect x={direction === 'left' ? 6 : 10} y="4" width="1" height="1" fill="var(--pixel-earth-dark)" />
-    <rect x="5" y="1" width="7" height="3" fill={player ? 'var(--pixel-gold-light)' : 'var(--pixel-earth-light)'} />
-    <rect x="3" y="3" width="11" height="1" fill="var(--pixel-earth-dark)" />
-    {direction === 'up' && <rect x="6" y="4" width="5" height="2" fill="var(--pixel-earth-mid)" />}
-    {player && <path d="M1 15h3M13 15h3M1 12v3M16 12v3" stroke="var(--pixel-gold-light)" strokeWidth="1" />}
+    <ellipse cx="16" cy="30" rx="8" ry="2" fill="#222034" opacity=".55" />
+    <rect x="11" y="22" width="4" height="8" fill="#663931" />
+    <rect x="17" y="22" width="4" height="8" fill="#663931" />
+    <rect x="10" y="12" width="12" height="12" fill={coat} />
+    <rect x="8" y="14" width="3" height="8" fill={coat} />
+    <rect x="21" y="14" width="3" height="8" fill={coat} />
+    <rect x="12" y="6" width="8" height="8" fill="#d9a066" />
+    <rect x={direction === 'left' ? 13 : 17} y="9" width="2" height="2" fill="#222034" />
+    <rect x="11" y="3" width="10" height="5" fill={hat} />
+    <rect x="10" y="7" width="12" height="2" fill="#663931" />
+    {direction === 'up' && <rect x="12" y="8" width="8" height="4" fill="#8f563b" />}
+    {player && <rect x="14" y="1" width="4" height="2" fill="#fbf236" />}
   </>
 }
 
@@ -142,11 +155,11 @@ function MapArt({ map, snapshot, targets, direction }: {
       const terrain = townWalkTileAt(map, { x, y })!.terrain
       return <g key={`${x},${y}`} transform={`translate(${x * TILE} ${y * TILE})`}>
         <rect width={TILE} height={TILE} fill={TERRAIN_FILL[terrain]} />
-        {terrain === 'grass' && <path d="M3 11v-2m1 3v-2m7-5V3m1 3V4" stroke={(x + y) % 3 ? 'var(--walk-leaf)' : 'var(--pixel-earth-light)'} strokeWidth="1" />}
-        {terrain === 'dirt' && <path d={`M${(x * 3 + y) % 12 + 1} 5h2M9 12h3`} stroke="var(--pixel-earth-mid)" strokeWidth="1" opacity=".55" />}
-        {terrain === 'water' && <path d={`M1 ${y % 2 + 3}h6M9 11h5`} stroke="var(--pixel-ui-border)" strokeWidth="1" opacity=".65" />}
-        {(terrain === 'floor' || terrain === 'planks') && <path d="M0 3h16M0 8h16M0 13h16M4 3v5m8 0v5" stroke="var(--pixel-earth-dark)" strokeWidth="1" opacity=".7" />}
-        <path d="M0 16V0h16" fill="none" stroke="var(--pixel-earth-dark)" strokeWidth=".5" opacity=".12" />
+        {terrain === 'grass' && <path d="M6 22v-4m4 6v-5m8-8V6m5 5V8m12 14v-3" stroke={(x + y) % 3 ? '#6abe30' : '#8a6f30'} strokeWidth="1" />}
+        {terrain === 'dirt' && <path d={`M${(x * 5 + y) % 20 + 2} 10h4M18 24h6`} stroke="#663931" strokeWidth="2" opacity=".55" />}
+        {terrain === 'water' && <path d={`M2 ${6 + (y % 2) * 4}h12M16 20h12`} stroke="#5b6ee1" strokeWidth="2" opacity=".7" />}
+        {(terrain === 'floor' || terrain === 'planks') && <path d="M0 8h32M0 16h32M0 24h32M8 8v8m16 0v8" stroke="#45283c" strokeWidth="1" opacity=".8" />}
+        <path d="M0 32V0h32" fill="none" stroke="#222034" strokeWidth="1" opacity=".12" />
       </g>
     }))}
     <CanvasShelter props={map.props} door={map.targets.find(target => target.kind === 'entrance')} />
@@ -157,17 +170,17 @@ function MapArt({ map, snapshot, targets, direction }: {
     {targets.map(target => <g key={target.id} transform={`translate(${target.position.x * TILE} ${target.position.y * TILE})`}
       data-target-id={target.id} data-target-kind={target.kind}>
       <title>{target.label}</title>
-      {nearby.has(target.id) && <rect x=".5" y=".5" width="15" height="15" fill="none" stroke="var(--pixel-gold-light)" strokeWidth="1" />}
+      {nearby.has(target.id) && <rect x="1" y="1" width="30" height="30" fill="none" stroke="#fbf236" strokeWidth="2" />}
       {target.kind === 'npc' ? <>
         <PersonSprite />
-        <path d="M9 0h7v5h-4l-2 2V5H9Z" fill="var(--read-ink)" />
-        <path d="M11 2h1m2 0h1" stroke="var(--pixel-earth-dark)" strokeWidth="1" />
+        <path d="M18 0h12v8h-6l-3 3V8H18Z" fill="#222034" />
+        <path d="M22 3h2m3 0h2" stroke="#d9a066" strokeWidth="1" />
       </> : target.kind === 'exit' ? <>
-        <rect x="3" y="4" width="10" height="10" fill="var(--pixel-earth-dark)" />
-        <path d="M8 5v7m-3-3 3 3 3-3" fill="none" stroke="var(--pixel-gold-light)" strokeWidth="1" />
+        <rect x="6" y="8" width="20" height="18" fill="#222034" />
+        <path d="M16 10v14m-6-6 6 6 6-6" fill="none" stroke="#fbf236" strokeWidth="2" />
       </> : <>
-        <rect x="10" y="1" width="5" height="5" fill="var(--pixel-earth-dark)" />
-        <path d={target.kind === 'entrance' ? 'M11 2h3v3h-1V3h-2Z' : 'M12 2h1v1h-1Zm0 2h1v1h-1Z'} fill="var(--pixel-gold-light)" />
+        <rect x="20" y="2" width="10" height="10" fill="#222034" />
+        <path d={target.kind === 'entrance' ? 'M22 4h6v6h-2V6h-4Z' : 'M24 4h2v2h-2Zm0 4h2v2h-2Z'} fill="#fbf236" />
       </>}
     </g>)}
     <g transform={`translate(${snapshot.position.x * TILE} ${snapshot.position.y * TILE})`} data-testid="town-walk-player"
@@ -179,7 +192,7 @@ function MapArt({ map, snapshot, targets, direction }: {
 
 /** Presentation only: all movement/adjacency comes from townWalk and all
  * progress, dialogue and room snapshots remain owned by the caller. */
-export function TownWalkScene({ snapshot, onChange, allowedAttractionIds, allowedNpcIds, onAttraction, onTalk, onBackToLook, onToday }: TownWalkSceneProps) {
+export function TownWalkScene({ snapshot, onChange, allowedAttractionIds, allowedNpcIds, onAttraction, onTalk, onBackToLook, onToday, onPresentAscii2 }: TownWalkSceneProps) {
   const instructionsId = useId()
   const nearbyId = useId()
   const [direction, setDirection] = useState<TownWalkDirection>('down')
@@ -242,10 +255,11 @@ export function TownWalkScene({ snapshot, onChange, allowedAttractionIds, allowe
 
   return <section className={styles.scene} data-testid="town-walk-scene" data-town={map.townId} data-room={map.roomId}>
     <header className={styles.toolbar}>
-      <div><p className={styles.eyebrow}>1849 · Walk</p><h2>{map.label}</h2></div>
+      <div><p className={styles.eyebrow}>1849 · 32-bit · map</p><h2>{map.label}</h2></div>
       <div className={styles.views}>
         <button type="button" className={styles.button} onClick={onBackToLook} data-testid="town-walk-look">Back to Look</button>
         {onToday && <button type="button" className={styles.button} onClick={onToday} data-testid="town-walk-today">Today</button>}
+        {onPresentAscii2 && <button type="button" className={styles.button} onClick={onPresentAscii2} data-testid="town-walk-ascii2">Eye-level</button>}
       </div>
     </header>
     <div className={styles.body}>

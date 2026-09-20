@@ -262,7 +262,12 @@ const LATER_STREET_PIN_IDS = new Set<string>([
 export const TOWN_HOTSPOTS: Record<string, TownHotspot[]> = {
   volcano: [
     { attractionId: 'vol_st_george', x: 28, y: 42 },
-    { attractionId: 'vol_theatre', x: 52, y: 48 },
+    // 38,50 is authored painting, not a survey. It sat at 52,48 — the same percent
+    // as the canvas tent — which was invisible only because the Look face never drew
+    // later pins. Drawing them (absence chips) would have stacked the theatre chip on
+    // the tent. Left wooden street: 12.8 from St. George (28,42), 14.1 from the tent.
+    // OSM has no building for the Cobblestone, so this stays placedBy 'painting'.
+    { attractionId: 'vol_theatre', x: 38, y: 50 },
     { attractionId: 'vol_cannon', x: 14, y: 58 },
     { attractionId: 'vol_observatory', x: 78, y: 28 },
     { attractionId: 'vol_cemetery', x: 88, y: 62 },

@@ -6,6 +6,7 @@ import type { ShopGood, StreetPoster, TakenWarrant, TownFront, WarrantCapture } 
 import { goodsForAge } from '@/lib/goldCountryStreet'
 import { alleyConfrontHint } from '@/lib/goldCountryAlley'
 import { asciiForStreetFront } from '@/lib/overlay/townAsciiInterior'
+import { BitRoom } from '@/components/explore/BitRoom'
 
 export function GoldCountryShopInterior({
   front,
@@ -91,12 +92,7 @@ export function GoldCountryShopInterior({
 
       <div className="relative min-h-[42vh] sm:min-h-[52vh] bg-[#120e0a]">
         {ascii ? (
-          <pre
-            data-testid={ascii.testid}
-            className="absolute inset-0 overflow-auto bg-[#0e0c0a] p-3 font-mono text-[11px] leading-[1.15] text-[#c4b896]"
-          >
-            {ascii.rows.join('\n')}
-          </pre>
+          <BitRoom testid={ascii.testid} rows={ascii.rows} label={`${front.name} in 1849, in 32-bit colour`} />
         ) : (
           <>
             {art ? (

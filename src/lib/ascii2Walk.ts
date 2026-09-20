@@ -1,0 +1,550 @@
+/**
+ * ascii2Walk.ts — rung 0 of the graphics ladder: a colored ASCII FIRST-PERSON
+ * camera on the 1849 camp. Pure module: no React, no DOM, no fetch.
+ *
+ * ONE WORLD, MANY PRESENTATIONS — this is the whole point of the ladder, and the
+ * reason this file owns no MOVEMENT geometry of its own. It does own one overlay:
+ * `placeLaterSites` snaps each later site onto a passable tile of the camp, an
+ * authored position the pixel walk never draws (see its comment). Everything a
+ * player can collide with or enter is still `townWalk.ts`: the
+ * authored 1849 tile map, its props, its collisions, its targets, its save
+ * snapshot. TownWalkScene draws that world from above in pixels. This module
+ * draws the SAME world from eye level in ASCII. Every step here goes through
+ * `stepTownWalk`, so a weak device gets a different picture of the camp, never a
+ * different camp. `ascii2Walk.test.ts` walks both presentations down the same key
+ * sequence and fails if they ever part company.
+ *
+ * WHAT THIS ADDS THAT THE TILE MAP DOES NOT HAVE: the year.
+ * The tile map is 1849-only, so it says what IS there by saying nothing about the
+ * rest. At eye level you can look down the street toward ground where the St.
+ * George Hotel will stand in the 1860s, and the walk should be able to tell you that.
+ * So each town's `<id>.1849.json` carries `later_sites` — the explore attractions
+ * whose period is 'later' — and this camera draws them as FOG:
+ *   - not brick: a later site never renders with a solid glyph;
+ *   - not a wall: absence does not stop a walking man (ABSENCE_BLOCKS_DEFAULT),
+ *     so the tile map's collisions stay the only collisions;
+ *   - not enterable: stepping in is refused, and the refusal names the year.
+ * Fog placement is an authored overlay on an authored map (see each JSON's
+ * `note`) — the honest claim is the YEAR, not a surveyed position.
+ */
+
+import {
+  adjacentTownWalkTargets,
+  isTownWalkPassable,
+  stepTownWalk,
+  townWalkMap,
+  townWalkTileAt,
+  type TownWalkDirection,
+  type TownWalkMap,
+  type TownWalkPosition,
+  type TownWalkPropKind,
+  type TownWalkSnapshot,
+  type TownWalkTarget,
+} from '@/lib/townWalk'
+import { bearingDeg, compassPoint, distanceM, geoToTile, HEADING_BEARING, townGeo, type TownGeoreference } from '@/lib/townGeo'
+
+export type Heading = TownWalkDirection
+
+/** An explore attraction whose period is 'later' — absence on the 1849 ground. */
+export interface LaterSite {
+  id: string
+  label: string
+  /** Percent across the painted town face (mirrors TOWN_HOTSPOTS). */
+  x: number
+  y: number
+  notYet: string
+  /** true when this later attraction has no pin on the painted face (authored x/y). */
+  unpinned?: boolean
+  unpinnedWhy?: string
+  /**
+   * Where the site is on the ground today, with its source. When present it
+   * outranks the painting percentages: the tile comes from the town's
+   * georeference (townGeo.ts). A site that falls outside the camp, or in a town
+   * with no measured scale, is not put on a tile at all — it is shown at its
+   * true bearing on the horizon instead (Ascii2Scene.distant).
+   */
+  geo?: { lat: number; lon: number; source: string }
+}
+
+export interface Town1849 {
+  id: string
+  era: '1849'
+  face: string
+  note: string
+  must_not: string[]
+  may: string[]
+  sources: string[]
+  ascii2_palette: Record<string, string>
+  later_sites: LaterSite[]
+}
+
+export interface PlacedLaterSite extends LaterSite {
+  position: TownWalkPosition
+  /** 'geo' when the tile follows ground evidence, 'painting' when it follows the painted face. */
+  placedBy: 'geo' | 'painting'
+}
+
+/** A later site too far away to stand in the camp: seen by bearing, never walked to. */
+export interface DistantLaterSite extends LaterSite {
+  bearing: number
+  distanceM: number
+}
+
+export interface Ascii2Scene {
+  townId: string
+  roomId: string
+  face: string
+  map: TownWalkMap
+  ghosts: PlacedLaterSite[]
+  /** Later sites outside the camp, by compass bearing from the town's anchor. */
+  distant: DistantLaterSite[]
+  palette: Record<string, string>
+  /** When true, a later site stops the walker instead of being crossed. */
+  absenceBlocks: boolean
+}
+
+export interface Ascii2Cell {
+  ch: string
+  color: string
+}
+
+export interface Ascii2Frame {
+  /** 24 rows x 80 columns of colored cells. */
+  rows: Ascii2Cell[][]
+  compass: string
+  /** The DOS caption row: short, because the 80-column row truncates. */
+  caption: string
+  /**
+   * The line under the walk. Same as the caption, except that a later site ahead
+   * says its own authored year line at ANY distance ("...The brick hotel is
+   * 1860s"), not only when you are standing next to it.
+   */
+  status: string
+}
+
+export type Ascii2Look =
+  | { kind: 'target'; target: TownWalkTarget }
+  | { kind: 'absence'; site: PlacedLaterSite }
+  | { kind: 'nothing' }
+
+/** Default viewport. The brief allows a 40-80 column frame; a phone gets the narrow one. */
+export const FRAME_COLS = 80
+export const FRAME_ROWS = 24
+/** Narrow viewport for small screens — 80 columns on a phone renders as a smear. */
+export const FRAME_COLS_NARROW = 40
+export const MIN_FRAME_COLS = 32
+/**
+ * Default reading of the brief's "fog/absence, not brick": absence does not stop
+ * a walking man. This is a real policy, not a comment — `buildAscii2Scene` puts it
+ * on the scene and `ascii2Forward` consults it, and the test exercises BOTH
+ * readings. To adopt the other reading, change this line (or pass the option).
+ */
+export const ABSENCE_BLOCKS_DEFAULT = false
+
+const DEPTH = 7
+const WORLD_ROWS = FRAME_ROWS - 2
+/**
+ * Eye line. Sat at row 9 first, which left nine blank rows of sky above the
+ * horizon — half the frame drawing nothing, and on a phone that pushed the
+ * controls under the town panel. Higher eye = more ground, less dead sky.
+ */
+const EYE_ROW = 6
+
+const DELTA: Record<Heading, { dx: number; dy: number }> = {
+  up: { dx: 0, dy: -1 },
+  down: { dx: 0, dy: 1 },
+  left: { dx: -1, dy: 0 },
+  right: { dx: 1, dy: 0 },
+}
+const CLOCKWISE: Heading[] = ['up', 'right', 'down', 'left']
+export const COMPASS: Record<Heading, string> = { up: 'north', down: 'south', left: 'west', right: 'east' }
+
+const PROP_FILL: Record<TownWalkPropKind, string> = {
+  canvas: '▒',
+  wall: '█',
+  tree: '♠',
+  rock: '▲',
+  crate: '▓',
+  bench: '▄',
+  table: '▄',
+  marker: '†',
+  fire: '≈',
+}
+/**
+ * Fog glyphs are thin but never EMPTY. An earlier set contained ' ', and the one
+ * later site the test measured happened to index onto it — so "never drawn solid"
+ * was satisfied by drawing nothing at all. Absence must be visible AS absence.
+ */
+const FOG_GLYPHS = ['·', '˙', '˚', '·', 'ʼ', '˙']
+/** Glyphs that mean SOMETHING STANDS HERE. A later site must never wear one. */
+export const SOLID_GLYPHS: readonly string[] = ['▒', '█', '▓', '♠', '▲', '▄', '†', '≈', '☺', '◇']
+
+export function turnHeading(heading: Heading, delta: number): Heading {
+  const i = CLOCKWISE.indexOf(heading)
+  return CLOCKWISE[(i + delta + CLOCKWISE.length) % CLOCKWISE.length]
+}
+
+/** The tile a site's ground evidence points to, or null when it cannot be on a tile. */
+function geoWanted(map: TownWalkMap, site: LaterSite, geo?: TownGeoreference): TownWalkPosition | null {
+  if (!site.geo || !geo) return null
+  const t = geoToTile(geo, site.geo)
+  if (!t) return null
+  const p = { x: Math.round(t.x), y: Math.round(t.y) }
+  return p.x >= 0 && p.x < map.width && p.y >= 0 && p.y < map.height ? p : null
+}
+
+/** Sites with ground evidence that cannot stand in the camp: out of bounds, or no scale. */
+export function distantLaterSites(map: TownWalkMap, sites: LaterSite[], geo?: TownGeoreference): DistantLaterSite[] {
+  if (!geo) return []
+  return sites
+    .filter((s) => s.geo && !geoWanted(map, s, geo))
+    .map((s) => ({ ...s, bearing: bearingDeg(geo.anchor.point, s.geo!), distanceM: distanceM(geo.anchor.point, s.geo!) }))
+}
+
+/**
+ * Ground evidence → tile when a site has it (see LaterSite.geo), otherwise
+ * percent-of-painting → tile. Then snapped to the nearest passable tile so a
+ * ghost never lands inside the creek, on the bridge planks, in a canvas wall or
+ * on a real 1849 target. Deterministic: ties break by scanning rows then columns.
+ * Sites with ground evidence that puts them outside the camp are left out here
+ * and returned by `distantLaterSites` instead.
+ */
+export function placeLaterSites(map: TownWalkMap, sites: LaterSite[], geo?: TownGeoreference): PlacedLaterSite[] {
+  const taken = new Set<string>()
+  const placed: PlacedLaterSite[] = []
+  for (const site of sites) {
+    const fromGround = geoWanted(map, site, geo)
+    if (site.geo && geo && !fromGround) continue
+    const wanted = fromGround ?? {
+      x: Math.min(map.width - 1, Math.max(0, Math.round((site.x / 100) * (map.width - 1)))),
+      y: Math.min(map.height - 1, Math.max(0, Math.round((site.y / 100) * (map.height - 1)))),
+    }
+    let best: TownWalkPosition | undefined
+    let bestScore = Number.POSITIVE_INFINITY
+    for (let y = 0; y < map.height; y++) {
+      for (let x = 0; x < map.width; x++) {
+        const k = `${x},${y}`
+        if (taken.has(k) || !isTownWalkPassable(map, { x, y })) continue
+        // No later building stands on the bridge.
+        if (townWalkTileAt(map, { x, y })?.terrain === 'planks') continue
+        // Never sit a ghost on top of a real 1849 target — the year is the claim,
+        // and a labelled absence must not hide something that IS there.
+        if (map.targets.some((t) => t.position.x === x && t.position.y === y)) continue
+        const score = Math.abs(x - wanted.x) + Math.abs(y - wanted.y)
+        if (score < bestScore) {
+          bestScore = score
+          best = { x, y }
+        }
+      }
+    }
+    if (!best) continue
+    taken.add(`${best.x},${best.y}`)
+    placed.push({ ...site, position: best, placedBy: fromGround ? 'geo' : 'painting' })
+  }
+  return placed
+}
+
+export function buildAscii2Scene(
+  town: Town1849,
+  snapshot: TownWalkSnapshot,
+  options: { absenceBlocks?: boolean } = {},
+): Ascii2Scene | undefined {
+  const map = townWalkMap(snapshot.townId, snapshot.roomId)
+  if (!map) return undefined
+  // Indoors there is no horizon and no future street — fog stays outside.
+  const geo = townGeo(map.townId)
+  const outside = map.roomId === 'exterior'
+  const ghosts = outside ? placeLaterSites(map, town.later_sites, geo) : []
+  const distant = outside ? distantLaterSites(map, town.later_sites, geo) : []
+  return {
+    townId: map.townId,
+    roomId: map.roomId,
+    face: town.face,
+    map,
+    ghosts,
+    distant,
+    palette: town.ascii2_palette,
+    absenceBlocks: options.absenceBlocks ?? ABSENCE_BLOCKS_DEFAULT,
+  }
+}
+
+export function ghostAt(scene: Ascii2Scene, position: TownWalkPosition): PlacedLaterSite | undefined {
+  return scene.ghosts.find((g) => g.position.x === position.x && g.position.y === position.y)
+}
+
+/** Movement is the tile world's, unchanged — this only names what stopped you. */
+export function ascii2Forward(
+  scene: Ascii2Scene,
+  position: TownWalkPosition,
+  heading: Heading,
+): { position: TownWalkPosition; blocked?: string; crossing?: PlacedLaterSite } {
+  const next = stepTownWalk(scene.map, position, heading)
+  const crossed = ghostAt(scene, next)
+  if (scene.absenceBlocks && crossed && (next.x !== position.x || next.y !== position.y)) {
+    return { position, blocked: `${crossed.label}: ${crossed.notYet}` }
+  }
+  if (next.x === position.x && next.y === position.y) {
+    const d = DELTA[heading]
+    const tile = townWalkTileAt(scene.map, { x: position.x + d.dx, y: position.y + d.dy })
+    const blocked = !tile
+      ? 'The camp ends here.'
+      : tile.terrain === 'water'
+        ? 'The creek blocks the way. Look for the plank crossing.'
+        : tile.prop
+          ? `The ${tile.prop} blocks the way.`
+          : 'Someone is standing there. Walk around them.'
+    return { position, blocked }
+  }
+  return { position: next, crossing: crossed }
+}
+
+/** What is straight ahead (or underfoot): a real target, an absence, or nothing. */
+export function ascii2Look(
+  scene: Ascii2Scene,
+  position: TownWalkPosition,
+  heading: Heading,
+  allowed: (t: TownWalkTarget) => boolean = () => true,
+): Ascii2Look {
+  const d = DELTA[heading]
+  const front = { x: position.x + d.dx, y: position.y + d.dy }
+  const reachable = adjacentTownWalkTargets(scene.map, position).filter(allowed)
+  const facing = reachable.find((t) => t.position.x === front.x && t.position.y === front.y)
+  if (facing) return { kind: 'target', target: facing }
+  const underfoot = reachable.find((t) => t.position.x === position.x && t.position.y === position.y)
+  if (underfoot) return { kind: 'target', target: underfoot }
+  const site = ghostAt(scene, front) || ghostAt(scene, position)
+  if (site) return { kind: 'absence', site }
+  return { kind: 'nothing' }
+}
+
+// ---------------------------------------------------------------------------
+// Renderer — depth-banded first person, the way the old crawlers drew a corridor.
+// ---------------------------------------------------------------------------
+
+function bandRect(d: number, cols: number = FRAME_COLS) {
+  const k = 1 / (1 + d * 0.62)
+  const halfW = Math.max(2, Math.round((cols / 2 - 1) * k))
+  const halfH = Math.max(1, Math.round(9 * k))
+  const cx = Math.floor(cols / 2)
+  return {
+    left: cx - halfW,
+    right: cx + halfW,
+    top: Math.max(0, EYE_ROW - halfH),
+    bottom: Math.min(WORLD_ROWS - 1, EYE_ROW + halfH),
+  }
+}
+
+function tileOffset(position: TownWalkPosition, heading: Heading, forward: number, side: number) {
+  const f = DELTA[heading]
+  const rx = -f.dy
+  const ry = f.dx
+  return { x: position.x + f.dx * forward + rx * side, y: position.y + f.dy * forward + ry * side }
+}
+
+/**
+ * How a tile presents at eye level:
+ *  wall   — fills its depth band (canvas, timber, rock, the creek, off-map brush)
+ *  figure — a person or a marked place: a small shape standing ON the ground,
+ *           never a wall of repeated glyphs filling the view
+ *  fog    — a later site: thin dither, never solid (see the era note at the top)
+ */
+type FaceForm = 'wall' | 'figure' | 'fog'
+interface Face {
+  ch: string
+  color: string
+  form: FaceForm
+  label?: string
+  /** Fog only: the site's authored line about what is not there yet. */
+  notYet?: string
+}
+
+function faceAt(scene: Ascii2Scene, p: TownWalkPosition, allowed: (t: TownWalkTarget) => boolean): Face | undefined {
+  const pal = scene.palette
+  const tile = townWalkTileAt(scene.map, p)
+  if (!tile) return { ch: '▓', color: pal.timber || '#8a6a44', form: 'wall' } // off-map: the brush wall
+  const site = ghostAt(scene, p)
+  if (site) {
+    return { ch: FOG_GLYPHS[(p.x + p.y) % FOG_GLYPHS.length], color: pal.fog || '#4a443c', form: 'fog', label: site.label, notYet: site.notYet }
+  }
+  const target = scene.map.targets.find((t) => t.position.x === p.x && t.position.y === p.y && allowed(t))
+  if (tile.prop) {
+    const color =
+      tile.prop === 'canvas'
+        ? pal.canvas || '#c4a574'
+        : tile.prop === 'tree'
+          ? pal.brush || '#2e4a3b'
+          : tile.prop === 'fire'
+            ? pal.fire || '#c96a2a'
+            : pal.timber || '#8a6a44'
+    return { ch: PROP_FILL[tile.prop], color, form: 'wall', label: target?.label }
+  }
+  if (target) {
+    return {
+      ch: target.kind === 'npc' ? '☺' : '◇',
+      color: pal.ink || '#e8dcc4',
+      form: 'figure',
+      label: target.label,
+    }
+  }
+  if (tile.terrain === 'water') return { ch: '≈', color: pal.water || '#3b5a6b', form: 'wall' }
+  return undefined
+}
+
+/** A person or a signpost: a small shape on the ground inside its depth band. */
+function drawFigure(
+  put: (r: number, c: number, ch: string, color: string) => void,
+  rect: { left: number; right: number; top: number; bottom: number },
+  face: Face,
+) {
+  const cx = Math.floor((rect.left + rect.right) / 2)
+  const height = Math.max(2, Math.min(5, Math.round((rect.bottom - rect.top) / 2)))
+  const halfW = Math.max(0, Math.round(height / 3))
+  const base = rect.bottom
+  for (let r = base - height + 1; r <= base; r++) {
+    const head = r === base - height + 1
+    for (let c = cx - halfW; c <= cx + halfW; c++) {
+      if (head && c !== cx) continue
+      put(r, c, head ? face.ch : c === cx ? '║' : '▖', face.color)
+    }
+  }
+}
+
+export function renderFrame(
+  scene: Ascii2Scene,
+  position: TownWalkPosition,
+  heading: Heading,
+  allowed: (t: TownWalkTarget) => boolean = () => true,
+  options: { cols?: number } = {},
+): Ascii2Frame {
+  const cols = Math.max(MIN_FRAME_COLS, Math.round(options.cols ?? FRAME_COLS))
+  const band = (d: number) => bandRect(d, cols)
+  const pal = scene.palette
+  const sky = pal.sky || '#2b2620'
+  const ground = pal.ground || '#3b2a1a'
+  const ink = pal.ink || '#e8dcc4'
+  const fog = pal.fog || '#4a443c'
+  const indoors = scene.roomId !== 'exterior'
+  const horizon = EYE_ROW
+
+  const rows: Ascii2Cell[][] = []
+  for (let r = 0; r < FRAME_ROWS; r++) {
+    const row: Ascii2Cell[] = []
+    for (let c = 0; c < cols; c++) {
+      if (r >= WORLD_ROWS) {
+        row.push({ ch: ' ', color: '#000000' })
+      } else if (r < horizon) {
+        // Indoors the sky is a canvas roof; outdoors it is the limestone bowl.
+        row.push(indoors ? { ch: (c + r) % 5 === 0 ? '-' : ' ', color: pal.canvas || '#c4a574' } : { ch: ' ', color: sky })
+      } else if (r === horizon) {
+        row.push(
+          indoors
+            ? { ch: '=', color: pal.timber || '#8a6a44' }
+            : { ch: c % 7 === 3 ? '^' : '~', color: pal.brush || '#2e4a3b' },
+        )
+      } else {
+        const near = r - horizon
+        row.push({ ch: (c + r * 3) % Math.min(9, 1 + near * 2) === 0 ? '.' : ' ', color: ground })
+      }
+    }
+    rows.push(row)
+  }
+
+  const put = (r: number, c: number, ch: string, color: string) => {
+    if (r < 0 || r >= WORLD_ROWS || c < 0 || c >= cols) return
+    rows[r][c] = { ch, color }
+  }
+
+  let caption = 'Open ground. Walk on.'
+  let status = ''
+  let captionSet = false
+  let nearest: { d: number; face: Face; rect: ReturnType<typeof bandRect> } | undefined
+
+  for (let d = DEPTH; d >= 1; d--) {
+    const outer = band(d - 1)
+    const inner = band(d)
+
+    for (const side of [-1, 1]) {
+      const f = faceAt(scene, tileOffset(position, heading, d, side), allowed)
+      if (!f || f.form === 'figure') continue // a person beside you is not a wall
+      const cFrom = side < 0 ? outer.left : inner.right
+      const cTo = side < 0 ? inner.left : outer.right
+      const span = Math.max(1, Math.abs(cTo - cFrom))
+      for (let c = Math.min(cFrom, cTo); c <= Math.max(cFrom, cTo); c++) {
+        const t = Math.abs(c - (side < 0 ? outer.left : outer.right)) / span
+        const top = Math.round(outer.top + (inner.top - outer.top) * t)
+        const bot = Math.round(outer.bottom + (inner.bottom - outer.bottom) * t)
+        for (let r = top; r <= bot; r++) {
+          if (f.form === 'fog' && (r + c) % 3 !== 0) continue // fog is thin, timber is not
+          put(r, c, f.ch, f.color)
+        }
+      }
+    }
+
+    const f = faceAt(scene, tileOffset(position, heading, d, 0), allowed)
+    if (!f) continue
+    const rect = band(d)
+    if (f.form === 'figure') {
+      drawFigure(put, rect, f)
+    } else {
+      for (let r = rect.top; r <= rect.bottom; r++) {
+        for (let c = rect.left; c <= rect.right; c++) {
+          if (f.form === 'fog' && (r + c) % 3 !== 0) continue
+          put(r, c, f.ch, f.color)
+        }
+      }
+    }
+    // The NEAREST thing ahead owns both the name plate and the caption — the loop
+    // runs far-to-near, so the last one to set these wins. Two plates on one row
+    // would overwrite each other into nonsense ("En  St. George Hotel on").
+    nearest = { d, face: f, rect }
+  }
+
+  if (nearest?.face.label) {
+    const { d, face, rect } = nearest
+    const label = ` ${face.label} `
+    if (rect.right - rect.left >= label.length - 2) {
+      const lc = Math.max(0, Math.floor((cols - label.length) / 2))
+      const lr = face.form === 'figure' ? Math.max(0, rect.bottom - 6) : rect.top + Math.floor((rect.bottom - rect.top) / 2)
+      for (let i = 0; i < label.length; i++) {
+        // The plate's padding CLEARS a gap around the name; it must clear to the
+        // background, not to the face colour. Painting a blank in the fog colour
+        // made a later site contain empty cells — absence with holes in it, which
+        // is exactly what the era rule forbids. (Caught by the side-view test.)
+        const blank = label[i] === ' '
+        put(lr, lc + i, label[i], blank ? (lr < horizon ? sky : ground) : face.form === 'fog' ? fog : ink)
+      }
+    }
+    caption =
+      face.form === 'fog'
+        ? `${face.label}: not built in 1849.`
+        : d === 1
+          ? `${face.label} — within reach.`
+          : `${face.label}, ${d} paces on.`
+    if (face.form === 'fog' && face.notYet) status = `${face.label}, ${d === 1 ? 'just ahead' : `${d} paces on`}: ${face.notYet}`
+    captionSet = true
+  }
+
+  const look = ascii2Look(scene, position, heading, allowed)
+  if (look.kind === 'absence') caption = status = `${look.site.label}: ${look.site.notYet}`
+
+  const compass = `${scene.face} · facing ${COMPASS[heading]} · ${position.x},${position.y}`
+  const writeRow = (r: number, text: string, color: string) => {
+    for (let i = 0; i < Math.min(text.length, cols); i++) rows[r][i] = { ch: text[i], color }
+  }
+  writeRow(FRAME_ROWS - 2, compass, ink)
+  writeRow(FRAME_ROWS - 1, caption, captionSet ? ink : fog)
+
+  // Nothing named close by: a far site in front of you says where it really is.
+  if (!captionSet && !status) {
+    const ahead = scene.distant.find((d) => Math.abs(((d.bearing - HEADING_BEARING[heading] + 540) % 360) - 180) <= 45)
+    if (ahead) {
+      status = `Toward the ${compassPoint(ahead.bearing)}, ${(ahead.distanceM / 1000).toFixed(1)} km off: ${ahead.label}. ${ahead.notYet}`
+    }
+  }
+  return { rows, compass, caption, status: status || caption }
+}
+
+/** Rows as plain strings — for tests, snapshots and copy/paste into a note. */
+export function frameText(frame: Ascii2Frame): string[] {
+  return frame.rows.map((r) => r.map((c) => c.ch).join('').replace(/\s+$/, ''))
+}

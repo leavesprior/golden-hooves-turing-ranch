@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
-  TOWN_WALK_VERSION, TOWN_WALK_TILE_SIZE, townWalkMap, townWalkTileAt,
+  TOWN_WALK_VERSION, TOWN_WALK_TILE_SIZE, TOWN_WALK_ART_TILE, townWalkMap, townWalkTileAt,
   isTownWalkPassable, stepTownWalk, adjacentTownWalkTargets, normalizeTownWalkSnapshot,
   type TownWalkMap, type TownWalkPosition, type TownWalkDirection,
 } from './townWalk'
@@ -117,8 +120,9 @@ const westPoint = townWalkMap('west_point')!
 assert.notDeepEqual(volcano.terrainRows, westPoint.terrainRows, 'the bowl creek and pack road have distinct terrain')
 assert.notDeepEqual(volcano.props, westPoint.props)
 assert.equal(volcano.label, 'The canvas camp'); assert.equal(westPoint.label, 'The trail camp')
-assert.equal(townWalkTileAt(volcano, { x: 3, y: 7 })?.terrain, 'water')
-assert.deepEqual(stepTownWalk(volcano, { x: 3, y: 8 }, 'up'), { x: 3, y: 8 }, 'the creek blocks walking')
+// The creek follows Sutter Creek's measured course (townGeo.ts); (1,8) is on it.
+assert.equal(townWalkTileAt(volcano, { x: 1, y: 8 })?.terrain, 'water')
+assert.deepEqual(stepTownWalk(volcano, { x: 1, y: 7 }, 'down'), { x: 1, y: 7 }, 'the creek blocks walking')
 assert.deepEqual(stepTownWalk(volcano, { x: 10, y: 8 }, 'up'), { x: 10, y: 7 }, 'the authored plank crossing carries the walker')
 assert.deepEqual(stepTownWalk(volcano, { x: 8, y: 6 }, 'up'), { x: 8, y: 6 }, 'Bell occupies his own cell')
 assert.deepEqual(stepTownWalk(volcano, { x: 0, y: 5 }, 'left'), { x: 0, y: 5 }, 'walking beyond the edge is blocked')
@@ -126,13 +130,18 @@ assert.equal(adjacentTownWalkTargets(volcano, { x: 7, y: 6 }).some(target => tar
 assert.equal(adjacentTownWalkTargets(volcano, { x: 8, y: 6 }).some(target => target.id === 'v_bell'), true)
 assert.deepEqual(stepTownWalk(volcano, volcano.spawn, 'diagonal' as TownWalkDirection), volcano.spawn)
 
-for (const badPosition of [null, [], {}, { x: 1.5, y: 2 }, { x: NaN, y: 2 }, { x: 2, y: Infinity }, { x: '2', y: 2 }, { x: -1, y: 3 }, { x: 20, y: 10 }, { x: 8, y: 5 }, { x: 3, y: 7 }]) {
+for (const badPosition of [null, [], {}, { x: 1.5, y: 2 }, { x: NaN, y: 2 }, { x: 2, y: Infinity }, { x: '2', y: 2 }, { x: -1, y: 3 }, { x: 20, y: 10 }, { x: 8, y: 5 }, { x: 1, y: 8 }]) {
   assert.equal(townWalkTileAt(volcano, badPosition as TownWalkPosition)?.blocked === false, false)
   assert.deepEqual(adjacentTownWalkTargets(volcano, badPosition as TownWalkPosition), [], 'malformed/blocked positions expose no actions')
   const normalized = normalizeTownWalkSnapshot('volcano', { version: 1, townId: 'volcano', roomId: 'exterior', position: badPosition })!
   assert.deepEqual(normalized.position, volcano.spawn)
   assert.deepEqual(stepTownWalk(volcano, badPosition as TownWalkPosition, 'right'), volcano.spawn, 'invalid input recovers to spawn without a bonus step')
 }
+// Migration: the 2026-09-18 creek correction turned the street's old east end
+// (13,5) into creek. A save standing there must fall back to spawn, not strand
+// the walker in water; a save on the old straight creek (3,7), now bank, stays put.
+assert.deepEqual(normalizeTownWalkSnapshot('volcano', { version: 1, townId: 'volcano', roomId: 'exterior', position: { x: 13, y: 5 } })!.position, volcano.spawn)
+assert.deepEqual(normalizeTownWalkSnapshot('volcano', { version: 1, townId: 'volcano', roomId: 'exterior', position: { x: 3, y: 7 } })!.position, { x: 3, y: 7 })
 for (const invalid of [null, [], 'bad-json', {}, { version: 0, townId: 'volcano', roomId: 'shelter', position: { x: 4, y: 4 } }, { version: 1, townId: 'west_point', roomId: 'shelter', position: { x: 4, y: 4 } }, { version: 1, townId: 'volcano', roomId: 'castle', position: { x: 4, y: 4 } }]) {
   assert.deepEqual(normalizeTownWalkSnapshot('volcano', invalid), { version: 1, townId: 'volcano', roomId: 'exterior', position: volcano.spawn })
 }
@@ -152,4 +161,22 @@ for (const unsupported of ['bobr_cabin', 'bobr_ranch', 'unknown', '__proto__', '
   assert.equal(normalizeTownWalkSnapshot(unsupported, null), undefined)
 }
 assert.equal(townWalkMap('volcano', '__proto__'), undefined)
+
+// The draw scale is one constant, read by the renderer and by anything that
+// measures the renderer. A literal in either place is how the browser tool came
+// to assert '0 0 320 176' against a walk that had drawn at 32px since ca96dff.
+{
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const sceneSrc = readFileSync(path.join(here, '../components/explore/TownWalkScene.tsx'), 'utf8')
+  const toolSrc = readFileSync(path.join(here, '../../tools/townWalk.browser.ts'), 'utf8')
+  assert.equal(TOWN_WALK_ART_TILE % TOWN_WALK_TILE_SIZE, 0, 'the drawn tile is a whole multiple of the collision tile')
+  assert.match(sceneSrc, /const TILE = TOWN_WALK_ART_TILE/, 'the walk scene draws at the shared tile, not a literal')
+  assert.match(toolSrc, /TOWN_WALK_ART_TILE/, 'the browser tool derives the viewBox from the shared tile')
+  assert.equal(/viewBox'\), '0 0 \d+ \d+'/.test(toolSrc), false, 'no hardcoded viewBox string in the browser tool')
+  for (const townId of ['volcano', 'west_point'] as const) {
+    const map = townWalkMap(townId)!
+    assert.ok(map.width * TOWN_WALK_ART_TILE >= 320 && map.height * TOWN_WALK_ART_TILE >= 176, `${townId} art box stays at least the old size`)
+  }
+}
+
 console.log('Town walk: four authored scenes, all targets/doors reachable, orthogonal collisions, 1849 identities and safe versioned position recovery PASS')
