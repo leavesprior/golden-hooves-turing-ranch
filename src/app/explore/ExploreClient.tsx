@@ -102,7 +102,7 @@ const TOWNS: Town[] = [
         name: "Soldiers' Gulch",
         icon: '⛏️',
         category: 'adventure',
-        description: "Stevenson's New York regiment men mined here in 1848. The rush year is 1849, not the first flake.",
+        description: "Colonel Stevenson's men found gold here in 1848 and mined the gulch in 1849. The rush year is 1849, not the first flake.",
         funFact: 'Morning mist in the limestone basin is why they called it Volcano.',
         insiderTip: 'Walk the gravel, not the future brick. St. George sits later on washed ground.',
         duration: '30 min',

@@ -11,6 +11,7 @@ import {
 } from '@/lib/goldCountryEditorial'
 import { townAsciiInterior } from '@/lib/overlay/townAsciiInterior'
 import { lookAbsenceChips, lookAbsenceVisible } from '@/lib/lookAbsence'
+import { BitRoom } from './BitRoom'
 import { PlacePictureLift } from '@/components/PlacePictureLift'
 import { PlaceScene } from '@/components/PlaceScene'
 import { placeSceneFor, type PlaceSceneEra } from '@/lib/placeSceneAssets'
@@ -143,12 +144,7 @@ export function InteractiveTown({
         onPresentAscii2={hasAscii2Walk(town.id) ? () => setPresentRung('ascii2') : undefined}
       />) : <PlaceScene placeId={town.id} era={sceneEra} onEraChange={setSceneEra}>
         {interior ? (
-          <pre
-            data-testid={interior.testid}
-            className="absolute inset-0 overflow-auto bg-[#0e0c0a] p-3 font-mono text-[11px] leading-[1.15] text-[#c4b896]"
-          >
-            {interior.rows.join('\n')}
-          </pre>
+          <BitRoom testid={interior.testid} rows={interior.rows} label={`${selected?.name ?? 'Room'} in 1849, in 32-bit colour`} />
         ) : art ? (
           <PlacePictureLift src={art} className="absolute inset-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}

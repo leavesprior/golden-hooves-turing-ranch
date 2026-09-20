@@ -1,0 +1,70 @@
+{
+  "baseUrl": "http://127.0.0.1:3107",
+  "findings": [],
+  "evidence": {
+    "chips": [
+      {
+        "id": "vol_st_george",
+        "present": true,
+        "x": 358,
+        "y": 363,
+        "text": "◌St. George Hotel"
+      },
+      {
+        "id": "vol_theatre",
+        "present": true,
+        "x": 486,
+        "y": 412,
+        "text": "◌Cobblestone Theatre"
+      },
+      {
+        "id": "vol_observatory",
+        "present": true,
+        "x": 998,
+        "y": 276,
+        "text": "◌Observatory site"
+      },
+      {
+        "id": "vol_cannon",
+        "present": true,
+        "x": 179,
+        "y": 462,
+        "text": "◌Old Abe cannon"
+      }
+    ],
+    "tent": {
+      "x": 666,
+      "y": 400
+    },
+    "theatre_tent_px": 180,
+    "overlaps": [],
+    "reading": "Not yetCobblestone TheatreNo stone building yet. It goes up in 1856 as a cigar shop; the theatre company comes in 1974.Nothing stands here in 1849. The pin is painted, not surveyed.",
+    "room": {
+      "rows": 22,
+      "cols": 40,
+      "box": {
+        "w": 1280,
+        "h": 477
+      },
+      "cells": 880,
+      "colors": [
+        "rgb(69, 40, 60)",
+        "rgb(102, 57, 49)",
+        "rgb(232, 212, 168)",
+        "rgb(196, 165, 116)",
+        "rgb(138, 122, 98)",
+        "rgb(201, 184, 154)",
+        "rgb(143, 86, 59)",
+        "rgb(50, 60, 57)",
+        "rgb(34, 32, 52)",
+        "rgb(217, 160, 102)"
+      ],
+      "ink": "rgba(0, 0, 0, 0)"
+    },
+    "walk": {
+      "pixel": true,
+      "ascii": false
+    },
+    "consoleErrors": []
+  }
+}

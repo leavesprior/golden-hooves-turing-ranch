@@ -38,5 +38,5 @@ export const SOLDIERS_GULCH_INSPECT = {
     witness: 'the gravel',
   },
   finding:
-    "Stevenson's New York regiment men washed here in 1848. The rush year is 1849. Walk the gravel. Brick sits later on washed ground.",
+    "Colonel Stevenson's men found gold here in 1848, and the gulch was mined in 1849 (California OHP Landmark 29). Walk the gravel. Brick sits later on washed ground.",
 }
