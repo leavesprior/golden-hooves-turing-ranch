@@ -155,22 +155,17 @@ async function continueAsHeir(page: Page, before: Awaited<ReturnType<typeof dono
   await page.getByRole('heading', { name: 'The Name Goes On' }).waitFor()
   assert.equal(await page.getByTestId('passing-heir').innerText(), "Continue as Cedar's heir", 'the existing wagon-leader family owns the heir')
   if (heirScreenshot) await page.screenshot({ path: heirScreenshot, fullPage: true })
+  const ended = await saved(page)
   await page.getByTestId('passing-heir').click()
-  await page.getByTestId('title-play').waitFor()
+  // 2026-09-23: the heir CONTINUES this run (CONTINUE_AS_HEIR); it no longer resets.
+  const continued = await waitSaved(page, 'traveling')
   assert.equal(await page.getByTestId('passing-screen').count(), 0)
-  assert.deepEqual(await donors(page), before)
-  // Advance the existing title/intro controls until normal autosave can record
-  // the reset wagon (title and intro intentionally are not autosaved).
-  await page.getByTestId('title-play').click()
-  await page.getByRole('button', { name: 'Skip', exact: true }).click()
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
-  const reset = await waitSaved(page, 'menu')
-  for (const key of ['party', 'food', 'ammunition', 'distance', 'day', 'wagonLeader'] as const) assert.deepEqual(reset[key], DEFAULT_STATE[key], `${key} resets with the wagon`)
-  assert.equal(reset.passing, undefined)
+  for (const key of ['distance', 'day', 'currentLandmark', 'ammunition', 'passing'] as const) assert.deepEqual(continued[key], ended[key], `${key} carries forward to the heir`)
+  assert.equal(continued.wagonLeader, "Cedar's heir")
   assert.deepEqual(await donors(page), before)
   await resume(page)
-  assert.equal((await saved(page)).phase, 'menu')
-  assert.deepEqual(await donors(page), before, 'donor saves survive a fresh page after heir reset')
+  assert.equal((await saved(page)).phase, 'traveling')
+  assert.deepEqual(await donors(page), before, 'donor saves survive a fresh page after the heir continues')
 }
 
 async function crossing(page: Page, scenario: Scenario) {

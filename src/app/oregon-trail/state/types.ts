@@ -58,6 +58,8 @@ export interface PartyMember {
   posseMemberId?: string     // Links back to PosseMember definition
   specialAbilityCooldown?: number  // Days until ability available
   emoji?: string
+  /** Recorded on an heir (CONTINUE_AS_HEIR). Display-only: no trait->effect mapping exists yet. */
+  heirloomTrait?: string
 }
 
 export interface RandomEvent {
