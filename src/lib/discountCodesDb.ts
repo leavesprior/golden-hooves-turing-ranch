@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { karmaRowHash, verifyKarmaChain, KARMA_GENESIS_HASH, type KarmaLedgerRow, type KarmaChainVerdict } from './karmaLedgerVerify';
 
 export interface DiscountCode {
   id: string;
@@ -313,16 +314,25 @@ export function dbAppendKarmaEvent(params: {
   const prev = db.prepare(
     'SELECT row_hash FROM bobr_karma_ledger ORDER BY seq DESC LIMIT 1'
   ).get() as { row_hash: string } | undefined;
-  const prevHash = prev?.row_hash ?? 'genesis';
-  const rowHash = crypto.createHash('sha256')
-    .update(`${prevHash}|${params.eventId}|${params.sessionId}|${params.karmaType}|${params.delta}|${createdAt}`)
-    .digest('hex');
+  const prevHash = prev?.row_hash ?? KARMA_GENESIS_HASH;
+  const rowHash = karmaRowHash({
+    prevHash, eventId: params.eventId, sessionId: params.sessionId,
+    karmaType: params.karmaType, delta: Math.trunc(params.delta), createdAt,
+  });
   db.prepare(`
     INSERT OR IGNORE INTO bobr_karma_ledger
       (event_id, session_id, karma_type, delta, source, created_at, prev_hash, row_hash)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(params.eventId, params.sessionId, params.karmaType, Math.trunc(params.delta), params.source, createdAt, prevHash, rowHash);
   return dbGetKarmaBalance(params.sessionId);
+}
+
+/** Re-walk the whole hash chain (see karmaLedgerVerify.ts for the verdict's limits). */
+export function dbVerifyKarmaLedger(): KarmaChainVerdict {
+  const rows = getDb().prepare(
+    'SELECT seq, event_id, session_id, karma_type, delta, source, created_at, prev_hash, row_hash FROM bobr_karma_ledger ORDER BY seq ASC'
+  ).all() as KarmaLedgerRow[];
+  return verifyKarmaChain(rows);
 }
 
 /** Server fold of the ledger for a session into a {good,neutral,bad} balance. */
