@@ -9,7 +9,7 @@ import { useCharacter } from '../characterContext'
 import { useReputation } from '../reputationContext'
 import { useOregonTrail } from '../oregonTrailContext'
 import type { GoldCountryLocation } from '../data/goldCountryLocations'
-import { getNextTierProgress, getQualifyingTier, DISCOUNT_TIERS } from '../data/discountEngine'
+import { getNextTierProgress, getQualifyingTier, tierProgressPercent } from '../data/discountEngine'
 import { DOSMessage } from '@/components/ui/DOSMessage'
 
 /** Minimal location info for trail landmarks (not Gold Country locations) */
@@ -391,7 +391,7 @@ export function ResearchStation({
                       <div
                         className="h-full bg-amber-500 transition-all duration-500"
                         style={{
-                          width: `${((correctCount + 1) / DISCOUNT_TIERS[tierProgress.nextTier].minClues) * 100}%`,
+                          width: `${tierProgressPercent(correctCount + 1, tierProgress.nextTier)}%`,
                         }}
                       />
                     </div>
