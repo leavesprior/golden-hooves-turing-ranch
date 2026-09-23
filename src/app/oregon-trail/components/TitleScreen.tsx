@@ -126,7 +126,7 @@ export function TitleScreen({ onStart, hasSaves, onContinue, continueError, from
           </div>
       </div>
 
-      <div className="absolute inset-x-0 bottom-4 text-center z-10">
+      <div className="pointer-events-none absolute inset-x-0 bottom-4 text-center z-10">
         <p className="text-amber-200/70 text-sm font-serif">
           A Golden Frog Production • Oregon Trail × Python × Adams
         </p>
