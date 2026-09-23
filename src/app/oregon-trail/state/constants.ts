@@ -587,6 +587,7 @@ export const DEFAULT_STATE: OregonTrailState = {
   // Scarcity cascades (#8)
   scarcityDays: {},
   firedDesperationEvents: [],
+  recentEventIds: [],
   activeDesperationEvent: null,
   lastDesperationEventDay: 0,
   // Posse system (#6)

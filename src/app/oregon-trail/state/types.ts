@@ -209,6 +209,7 @@ export interface OregonTrailState {
   // Scarcity cascades (#8)
   scarcityDays: Record<string, number>       // Consecutive days per resource in each scarcity state
   firedDesperationEvents: string[]           // One-time desperation events already fired
+  recentEventIds?: string[]                  // Last EVENT_COOLDOWN random event ids (old saves: [])
   activeDesperationEvent: DesperationEvent | null  // Currently showing desperation event
   lastDesperationEventDay: number            // Day the last desperation event fired (3-day cooldown)
 
