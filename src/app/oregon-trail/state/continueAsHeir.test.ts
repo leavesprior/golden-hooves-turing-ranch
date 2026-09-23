@@ -60,6 +60,16 @@ try {
   // Second generation keeps the family name, not "heir's heir".
   assert.equal(heirFor({ ...heir, phase: 'game_over' }).name, "Reed's heir")
 
+  // A Gargle Blaster Passing leaves companions alive: they ride on with the heir.
+  let bender: OregonTrailState = { ...alive, phase: 'town', party: [
+    { id: 'leader', name: 'Mae Reed', health: 90, isSick: false, role: 'leader' },
+    { id: 'member_0', name: 'Tom', health: 80, isSick: false, role: 'companion' },
+  ] }
+  for (let shot = 0; shot < 3; shot++) bender = gameReducer(bender, { type: 'DRINK_GARGLE_BLASTER' })
+  assert.equal(bender.phase, 'game_over')
+  const benderHeir = gameReducer(bender, { type: 'CONTINUE_AS_HEIR' })
+  assert.deepEqual(benderHeir.party.map(m => [m.name, m.role]), [["Reed's heir", 'leader'], ['Tom', 'companion']], 'living companions are not dropped')
+
   // Only valid from a Passing; RESET_GAME still starts over.
   assert.equal(gameReducer(alive, { type: 'CONTINUE_AS_HEIR' }), alive)
   assert.equal(gameReducer(ended, { type: 'RESET_GAME' }), DEFAULT_STATE)

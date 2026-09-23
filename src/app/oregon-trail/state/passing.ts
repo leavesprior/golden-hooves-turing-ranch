@@ -96,8 +96,9 @@ export function continueAsHeir(state: OregonTrailState): OregonTrailState {
   const relief = [food !== state.food && `${HEIR_RELIEF_FOOD} lb of food`, oxen !== state.oxen && `${HEIR_RELIEF_OXEN} oxen`].filter(Boolean)
   return {
     ...state,
-    // Every member is dead at a Passing; the heir travels on alone.
-    party: [leader],
+    // The heir replaces the fallen leader. Travel/event/river Passings leave no
+    // survivors, but the Gargle Blaster ends the chapter with companions alive.
+    party: [leader, ...state.party.filter(member => member.health > 0 && member.role !== 'leader')],
     wagonLeader: heir.name,
     food,
     oxen,
