@@ -156,7 +156,7 @@ ok(snap.deducedCases?.includes('angels_camp') === true && snap.foundClues?.inclu
 ok(caseAwaitsDeduction(angels, all.s, all.t, persistTo) === false && readFoundClues(persistTo).includes('angels_saloon'), 'import restores them')
 
 // ---- 4. 1849 era discipline on ALL rendered Angels Camp 1849 text ----
-const LATER = /\b(Twain|Clemens|Jubilee|1855|1865|1928|stone hotel|Moaning Cavern|Jim Smiley)\b/i
+const LATER = /\b(Twain|Clemens|Jubilee|1855|1865|1928|stone hotel|Moaning Cavern|Jim Smiley|Pinkerton)\b/i
 const stripLater = (t: string) => t.replace(/\(Later:[^)]*\)/g, '')
 const ben = goldCountryNPCs.find((n) => n.id === 'bartender_ben')!
 const questText = (q: GoldCountryQuest | undefined): string[] => q

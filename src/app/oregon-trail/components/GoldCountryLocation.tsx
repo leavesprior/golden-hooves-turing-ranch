@@ -734,7 +734,9 @@ export function GoldCountryLocation({
                       ? 'Doors, a hole, a name — the street still has work.'
                       : pins.done === 1
                         ? 'One pin down. Two still wait on this street.'
-                        : 'Two pins. One more and the case stamps.'}
+                        : level2Case?.deduction
+                          ? 'Two pins. One more, then make the call.'
+                          : 'Two pins. One more and the case stamps.'}
                 </span>
               </p>
               {pins.done >= 1 && (

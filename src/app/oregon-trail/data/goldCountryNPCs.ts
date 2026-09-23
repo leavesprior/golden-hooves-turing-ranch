@@ -346,7 +346,7 @@ export const GOLD_COUNTRY_NPCS: GoldCountryNPC[] = [
     location: 'angels_camp',
     witnessType: 'miner',
     portrait: '⛏️',
-    greeting: '*squints* You ain\'t from the Pinkerton agency, are ya?',
+    greeting: '*squints* You ain\'t a claim agent from Sacramento, are ya?',
     personality: 'Paranoid old prospector, suspicious of strangers but softens with trust. Knows secret mining spots.',
     ollamaPrompt: 'You are Old Pete, a grizzled Gold Rush prospector in Angels Camp. You are suspicious of strangers, paranoid about claim jumpers, and protective of your mining secrets. You speak in short, gruff sentences. If someone earns your trust, you might share the location of a hidden gold vein. Keep responses to 2-3 sentences.',
     dialogueLines: [
