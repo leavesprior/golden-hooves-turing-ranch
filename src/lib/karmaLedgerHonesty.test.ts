@@ -3,7 +3,7 @@
  * Prints JSON for wheelwright; exits 1 on any failure.
  *   npx tsx src/lib/karmaLedgerHonesty.test.ts
  */
-import { karmaRowHash, verifyKarmaChain, KARMA_GENESIS_HASH, type KarmaLedgerRow } from './karmaLedgerVerify'
+import { karmaRowHash, verifyKarmaChain, verdictCacheFresh, KARMA_GENESIS_HASH, type KarmaLedgerRow } from './karmaLedgerVerify'
 
 // ---- fake browser: clock, storage, timers, fetch (installed BEFORE the sync module loads) ----
 let fakeNow = 1_800_000_000_000
@@ -79,10 +79,22 @@ check('empty ledger is EMPTY, not intact', verifyKarmaChain([]).status === 'empt
     r.status === 'intact' && r.head !== good[4].row_hash, r)
 }
 
+// ---- 1b. verify-route cache: never serve a verdict for a head that moved ----
+{
+  const H = { seq: 6, row_hash: 'aaa' }
+  const c = { at: 1000, head: H }
+  check('cache: same head, fresh => reuse', verdictCacheFresh(c, { ...H }, 2000, 30_000) === true)
+  check('cache: new max seq => recompute', verdictCacheFresh(c, { seq: 7, row_hash: 'bbb' }, 2000, 30_000) === false)
+  check('cache: same seq, rewritten head hash => recompute', verdictCacheFresh(c, { seq: 6, row_hash: 'zzz' }, 2000, 30_000) === false)
+  check('cache: stale => recompute', verdictCacheFresh(c, { ...H }, 1000 + 30_001, 30_000) === false)
+  check('cache: none yet => compute', verdictCacheFresh(null, H, 2000, 30_000) === false)
+  check('cache: ledger emptied => recompute', verdictCacheFresh(c, null, 2000, 30_000) === false)
+}
+
 // ---- 2. reconcile + 3. outbox (dynamic import so the fakes above are in place) ----
 async function main() {
-  const { reconcile, postKarmaEvent, flushKarmaOutbox, readKarmaOutbox, pendingKarmaDeltas, getKarmaOutboxStats } =
-    await import('./karmaServerSync')
+  const { reconcile, postKarmaEvent, flushKarmaOutbox, readKarmaOutbox, pendingKarmaDeltas, getKarmaOutboxStats,
+    karmaSyncStatus, KARMA_REFUSED_TTL_MS, KARMA_REFUSED_MAX } = await import('./karmaServerSync')
 
   const Z = { good: 0, neutral: 0, bad: 0 }
   // The refund bug: earned 50 (on server), spent 120 locally, spend not yet on server.
@@ -110,6 +122,7 @@ async function main() {
   replies = ['throw']
   await postKarmaEvent({ sessionId: 's1', karmaType: 'good', delta: -40, source: 'spend' })
   check('offline spend stays queued', readKarmaOutbox().length === 1)
+  check('wallet status: offline after a failed send, 1 pending', karmaSyncStatus().online === false && karmaSyncStatus().pending === 1, karmaSyncStatus())
   const queuedId = readKarmaOutbox()[0]?.eventId
   // A second event inside the backoff window: old code DROPPED it.
   fakeNow += 100
@@ -124,6 +137,7 @@ async function main() {
   await flushKarmaOutbox()
   check('drains in order with original eventIds', sent.length === 2 && sent[0].eventId === queuedId && sent[0].delta === -40 && sent[1].delta === 15, sent)
   check('outbox empty after drain', readKarmaOutbox().length === 0)
+  check('wallet status: online after an acknowledged send, 0 pending', karmaSyncStatus().online === true && karmaSyncStatus().pending === 0, karmaSyncStatus())
 
   // ledger_unavailable (served 200, ok:false): keep it.
   fakeNow += 10_000
@@ -150,26 +164,95 @@ async function main() {
   fakeNow += 10_000; sent.length = 0
   await flushKarmaOutbox()
   check('nothing is sent for a refused spend on the next flush', sent.length === 0, sent)
+  check('wallet status: a refused spend is not "pending", but is surfaced', karmaSyncStatus().pending === 0 && karmaSyncStatus().refusedSpends === 1, karmaSyncStatus())
 
-  // Codex #1: two tabs enqueue at the same moment — neither event may be lost.
+  // Only KNOWN app refusals are permanent. Anything else is transient: keep + back off.
+  fakeNow += 10_000
+  replies = [{ status: 401, body: { ok: false } }]
+  await postKarmaEvent({ sessionId: 's6', karmaType: 'good', delta: -5, source: 'spend' })
+  const transientOk = () => readKarmaOutbox().some((e) => e.sessionId === 's6') && pendingKarmaDeltas('s6').good === -5 &&
+    getKarmaOutboxStats().refusedSpends === 1
+  check('401 is transient: spend stays queued, not refused', transientOk(), readKarmaOutbox())
+  check('wallet status: 401 reads as not online', karmaSyncStatus().online === false)
+  for (const r of [
+    { status: 403, body: { ok: false, reason: 'blocked_by_proxy' } },
+    { status: 404, body: 'not json' },
+    { status: 400, body: { ok: false } },
+  ]) {
+    fakeNow += 10_000; sent.length = 0
+    replies = [r.body === 'not json' ? { status: 404, body: undefined } : r]
+    await flushKarmaOutbox()
+    check(`${r.status} ${JSON.stringify(r.body)} is transient: sent, still queued`, sent.length === 1 && transientOk(), readKarmaOutbox())
+  }
+  fakeNow += 10_000; replies = []
+  await flushKarmaOutbox()
+  check('transient spend is acknowledged once the server accepts it', !readKarmaOutbox().some((e) => e.sessionId === 's6'))
+
+  // A known refusal on a spend: kept, stamped refusedAt.
+  fakeNow += 10_000
+  replies = [{ status: 400, body: { ok: false, reason: 'invalid_delta' } }]
+  await postKarmaEvent({ sessionId: 's7', karmaType: 'good', delta: -9, source: 'spend' })
+  const s7At = fakeNow
+  const s7Key = [...store.keys()].find((k) => k.startsWith('bobr_karma_ob1:') && JSON.parse(store.get(k)!).sessionId === 's7')
+  const s7Rec = s7Key ? JSON.parse(store.get(s7Key)!) : null
+  check('400 invalid_delta on a spend: kept as refused with refusedAt', s7Rec?.refused === true && s7Rec?.refusedAt === s7At && pendingKarmaDeltas('s7').good === -9, s7Rec)
+
+  // Refused spends EXPIRE after 7 days: they stop counting and their key is deleted.
+  const expiredBefore = getKarmaOutboxStats().refusedExpired
+  fakeNow = s7At + KARMA_REFUSED_TTL_MS - 1
+  check('refused spend still pending just before 7 days', pendingKarmaDeltas('s7').good === -9)
+  check('the older refused spend (s2) has already expired', pendingKarmaDeltas('s2').good === 0, pendingKarmaDeltas('s2'))
+  fakeNow = s7At + KARMA_REFUSED_TTL_MS
+  check('refused spend no longer pending at 7 days', pendingKarmaDeltas('s7').good === 0, pendingKarmaDeltas('s7'))
+  check('expired refused spend key is deleted', !!s7Key && !store.has(s7Key))
+  check('expiries are counted', getKarmaOutboxStats().refusedExpired === expiredBefore + 2, getKarmaOutboxStats())
+  check('no refused spends left', getKarmaOutboxStats().refusedSpends === 0)
+
+  // Refused spends are CAPPED: oldest dropped (and counted) past KARMA_REFUSED_MAX.
+  const expiredBeforeCap = getKarmaOutboxStats().refusedExpired
+  let firstCapKey: string | undefined
+  for (let i = 0; i < KARMA_REFUSED_MAX + 1; i++) {
+    fakeNow += 10_000
+    replies = [{ status: 403, body: { ok: false, reason: 'qsd_envelope_required' } }]
+    await postKarmaEvent({ sessionId: 's8', karmaType: 'good', delta: -1, source: 'spend' })
+    if (i === 0) firstCapKey = [...store.keys()].find((k) => k.startsWith('bobr_karma_ob1:') && JSON.parse(store.get(k)!).sessionId === 's8')
+  }
+  const capStats = getKarmaOutboxStats()
+  check(`refused spends capped at ${KARMA_REFUSED_MAX}`, capStats.refusedSpends === KARMA_REFUSED_MAX && pendingKarmaDeltas('s8').good === -KARMA_REFUSED_MAX, capStats)
+  check('the OLDEST refused spend is the one dropped', !!firstCapKey && !store.has(firstCapKey))
+  check('cap drop is counted', capStats.refusedExpired === expiredBeforeCap + 1, capStats)
+
+  // Counts come from per-occurrence keys, never a shared read-modify-write counter.
+  check('no shared stats counter key exists', !store.has('bobr_karma_outbox_stats_v1') &&
+    ![...store.keys()].some((k) => k.includes('stats')), [...store.keys()].filter((k) => !k.startsWith('bobr_karma_ob1:')))
+  const refusedKeys = [...store.keys()].filter((k) => k.startsWith('bobr_karma_obx1:refused:'))
+  check('refusal count = number of per-event refusal keys', refusedKeys.length === capStats.refused && capStats.refused >= KARMA_REFUSED_MAX + 1, { keys: refusedKeys.length, capStats })
+  // Another tab records its own refusal: its key adds to our count, nothing is overwritten.
+  store.set('bobr_karma_obx1:refused:evt_other_tab', String(fakeNow))
+  check('another tab\'s refusal adds, never clobbers', getKarmaOutboxStats().refused === capStats.refused + 1)
+
+  // Codex #1: concurrent enqueues in ONE realm (two in-flight posts) — neither may be lost.
+  // Cross-tab safety rests on one storage key per event (checked below), not on this.
   fakeNow += 10_000
   replies = ['throw', 'throw']
   await Promise.all([
     postKarmaEvent({ sessionId: 's3', karmaType: 'good', delta: -7, source: 'spend' }),
     postKarmaEvent({ sessionId: 's3', karmaType: 'neutral', delta: 9, source: 'earn' }),
   ])
-  check('concurrent enqueues both survive (one key per event)', readKarmaOutbox().filter((e) => e.sessionId === 's3').length === 2)
+  check('concurrent enqueue in one realm: both events survive', readKarmaOutbox().filter((e) => e.sessionId === 's3').length === 2)
   const obKeys = [...store.keys()].filter((k) => k.startsWith('bobr_karma_ob1:'))
   check('each queued event has its own storage key', obKeys.length === readKarmaOutbox().length + getKarmaOutboxStats().refusedSpends, obKeys)
 
-  // Codex #3: storage full — the event is held in memory and the outbox says so.
+  // Codex #3: storage full — the event is held in memory for THIS session only (lost
+  // on reload, not durable), and the outbox reports degraded so the wallet says so.
   fakeNow += 10_000
   quotaFull = true
   replies = ['throw']
   await postKarmaEvent({ sessionId: 's4', karmaType: 'good', delta: -3, source: 'spend' })
-  check('quota-full spend held in memory, not lost', readKarmaOutbox().some((e) => e.sessionId === 's4'))
+  check('quota-full spend held in memory this session (not durable across reload)', readKarmaOutbox().some((e) => e.sessionId === 's4'))
   check('quota-full spend counts as pending', pendingKarmaDeltas('s4').good === -3)
   check('outbox reports degraded durability', getKarmaOutboxStats().degraded === true)
+  check('wallet status surfaces degraded', karmaSyncStatus().degraded === true)
   quotaFull = false
 
   // Out-of-bound deltas are never queued (unchanged behaviour).

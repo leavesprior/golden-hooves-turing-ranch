@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import { karmaRowHash, verifyKarmaChain, KARMA_GENESIS_HASH, type KarmaLedgerRow, type KarmaChainVerdict } from './karmaLedgerVerify';
+import { karmaRowHash, verifyKarmaChain, KARMA_GENESIS_HASH, type KarmaLedgerRow, type KarmaChainVerdict, type KarmaLedgerHead } from './karmaLedgerVerify';
 
 export interface DiscountCode {
   id: string;
@@ -48,12 +48,21 @@ export interface RedeemResult {
 
 let _warnedTmpDb = false
 
+/**
+ * Test-only DB override: lets the ledger tests run against a throwaway file
+ * instead of the shared dev DB in /tmp. Honored only when the process opts in
+ * (NODE_ENV=test or BOBR_ALLOW_TEST_DB=1) and NEVER on Railway (RAILWAY_ENVIRONMENT
+ * set), whatever NODE_ENV says there.
+ */
+export function testDbPathOverride(env: NodeJS.ProcessEnv): string | null {
+  if (env.RAILWAY_ENVIRONMENT) return null;
+  if (env.NODE_ENV !== 'test' && env.BOBR_ALLOW_TEST_DB !== '1') return null;
+  return env.BOBR_DB_PATH_FOR_TESTS || null;
+}
+
 function getDbPath(): string {
-  // Test-only override (never honored in production): lets the ledger tests run
-  // against a throwaway file instead of the shared dev DB in /tmp.
-  if (process.env.NODE_ENV !== 'production' && process.env.BOBR_DB_PATH_FOR_TESTS) {
-    return process.env.BOBR_DB_PATH_FOR_TESTS;
-  }
+  const override = testDbPathOverride(process.env);
+  if (override) return override;
   const volumePath = '/data';
   try {
     if (fs.existsSync(volumePath) && fs.statSync(volumePath).isDirectory()) {
@@ -343,6 +352,14 @@ export function dbVerifyKarmaLedger(): KarmaChainVerdict {
     'SELECT seq, event_id, session_id, karma_type, delta, source, created_at, prev_hash, row_hash FROM bobr_karma_ledger ORDER BY seq ASC'
   ).all() as KarmaLedgerRow[];
   return verifyKarmaChain(rows);
+}
+
+/** The ledger head (max seq + its row_hash), or null when empty. One indexed row read. */
+export function dbKarmaLedgerHead(): KarmaLedgerHead | null {
+  const row = getDb().prepare(
+    'SELECT seq, row_hash FROM bobr_karma_ledger ORDER BY seq DESC LIMIT 1'
+  ).get() as KarmaLedgerHead | undefined;
+  return row ?? null;
 }
 
 /** Server fold of the ledger for a session into a {good,neutral,bad} balance. */

@@ -39,11 +39,13 @@ export async function fetchServerBalance(sessionId: string): Promise<ServerBalan
     const res = await fetch(`/api/karma/balance?sessionId=${encodeURIComponent(sessionId)}`, {
       cache: 'no-store',
     })
-    if (!res.ok) return { ok: false }
+    if (!res.ok) { lastServerContactOk = false; return { ok: false } }
     const data = await res.json()
-    if (!data?.ok || !data?.balance) return { ok: false }
+    if (!data?.ok || !data?.balance) { lastServerContactOk = false; return { ok: false } }
+    lastServerContactOk = true
     return { ok: true, balance: data.balance, markerCount: data.markerCount, asOf: data.asOf }
   } catch {
+    lastServerContactOk = false
     return { ok: false }
   }
 }
@@ -56,21 +58,39 @@ let karmaLastPostAt = 0
 const KARMA_MIN_GAP_MS = 400
 const KARMA_BACKOFF_MS = 8000
 
-// DURABLE OUTBOX (2026-09-23). The throttle above used to DROP any event that
-// arrived inside the gap/backoff window, and the eventId was minted per attempt,
-// so nothing could ever be replayed. Silent drops made the ledger undercount, and
-// a dropped SPEND was refunded by reconcile's max().
+// OUTBOX (2026-09-23). The throttle above used to DROP any event that arrived
+// inside the gap/backoff window, and the eventId was minted per attempt, so
+// nothing could ever be replayed. Silent drops made the ledger undercount, and a
+// dropped SPEND was refunded by reconcile's max().
 //
-// Each queued event lives under ITS OWN localStorage key (prefix + eventId), so
-// two tabs never read-modify-write a shared list and cannot erase each other's
-// events; removal deletes only the acknowledged key. A double send from two tabs
-// is harmless — the server is idempotent on eventId. If storage refuses a write
-// (quota / private mode) the event is held in memory for this tab and the outbox
-// reports itself degraded. A REFUSED spend is kept (marked refused) so reconcile
-// keeps honouring it instead of refunding it; refusals are warned and counted.
+// Durable only while localStorage accepts writes. Each queued event lives under
+// ITS OWN key (prefix + eventId), so tabs never read-modify-write a shared list
+// and cannot erase each other's events; removal deletes only the acknowledged
+// key. A double send from two tabs is harmless — the server is idempotent on
+// eventId. If storage refuses a write (quota / private mode) the event is held in
+// MEMORY ONLY for this tab — it is lost on reload — and the outbox reports
+// `degraded` (sticky for the session) so the wallet can say so.
+//
+// Only a known app refusal (400/403 + a reason in KARMA_PERMANENT_REFUSALS) is
+// permanent; any other 4xx is treated as transient: kept queued, backed off. A
+// REFUSED spend is kept (marked refused, stamped refusedAt) so reconcile keeps
+// honouring it instead of refunding it — for KARMA_REFUSED_TTL_MS, and at most
+// KARMA_REFUSED_MAX of them; past either limit it is deleted, warned and counted.
+//
+// Counters are per-occurrence tombstone keys (prefix + kind + eventId), counted
+// by scan — no shared read-modify-write counter that two tabs could clobber.
+// Tombstones older than KARMA_REFUSED_TTL_MS are pruned, so counts cover ~7 days.
 const KARMA_OUTBOX_PREFIX = 'bobr_karma_ob1:'
-const KARMA_OUTBOX_STATS_KEY = 'bobr_karma_outbox_stats_v1'
+const KARMA_TOMBSTONE_PREFIX = 'bobr_karma_obx1:'
 export const KARMA_OUTBOX_MAX = 500
+export const KARMA_REFUSED_TTL_MS = 7 * 24 * 60 * 60 * 1000
+export const KARMA_REFUSED_MAX = 50
+const KARMA_PERMANENT_REFUSALS = new Set([
+  'qsd_envelope_required', 'invalid_delta', 'invalid_event_id', 'invalid_session', 'invalid_karma_type',
+])
+
+/** null until the first server contact; then whether the last contact succeeded. */
+let lastServerContactOk: boolean | null = null
 
 export interface PendingKarmaEvent {
   eventId: string
@@ -80,9 +100,13 @@ export interface PendingKarmaEvent {
   source: string
   /** Server refused it for good. Kept only for spends, so the deduction stands. */
   refused?: true
+  /** When it was refused (ms). Refused spends expire KARMA_REFUSED_TTL_MS later. */
+  refusedAt?: number
 }
 
-export interface KarmaOutboxStats { refused: number; overflowDropped: number; refusedSpends: number; degraded: boolean }
+export interface KarmaOutboxStats {
+  refused: number; overflowDropped: number; refusedExpired: number; refusedSpends: number; degraded: boolean
+}
 
 const memoryOutbox = new Map<string, PendingKarmaEvent>()
 let storageDegraded = false
@@ -134,12 +158,25 @@ function allOutbox(): PendingKarmaEvent[] {
         try {
           const e = JSON.parse(s.getItem(k) ?? 'null')
           if (isPendingEvent(e)) byId.set(e.eventId, e)
-        } catch { /* skip a corrupt entry */ }
+        } catch { console.warn('[karma] skipping a corrupt outbox entry', k) }
       }
     } catch { /* storage unreadable: memory only */ }
   }
   for (const e of memoryOutbox.values()) byId.set(e.eventId, e)
-  return [...byId.values()].sort(eventOrder)
+  const all = [...byId.values()].sort(eventOrder)
+  // Refused spends stop counting after the TTL, and only the newest
+  // KARMA_REFUSED_MAX are kept. Each one dropped is deleted, warned and counted.
+  const now = Date.now()
+  const refused = all.filter((e) => e.refused).sort((a, b) => (a.refusedAt ?? 0) - (b.refusedAt ?? 0))
+  const drop = new Set<string>()
+  for (const e of refused) if (now - (e.refusedAt ?? 0) >= KARMA_REFUSED_TTL_MS) drop.add(e.eventId)
+  const live = refused.filter((e) => !drop.has(e.eventId))
+  for (let i = 0; i < live.length - KARMA_REFUSED_MAX; i++) drop.add(live[i].eventId)
+  for (const id of drop) {
+    deleteEvent(id); addTombstone('expired', id)
+    console.warn('[karma] refused spend expired or over the cap; it no longer counts as pending', id)
+  }
+  return drop.size ? all.filter((e) => !drop.has(e.eventId)) : all
 }
 
 /** Events still waiting to be sent, oldest first. */
@@ -147,31 +184,73 @@ export function readKarmaOutbox(): PendingKarmaEvent[] {
   return allOutbox().filter((e) => !e.refused)
 }
 
-function readStats(): { refused: number; overflowDropped: number } {
+type TombstoneKind = 'refused' | 'overflowDropped' | 'refusedExpired'
+const memoryTombstones = new Map<string, number>()
+
+/** One key per occurrence (idempotent per event), never a shared counter. */
+function addTombstone(kind: 'refused' | 'overflow' | 'expired', eventId: string): void {
+  const k = `${KARMA_TOMBSTONE_PREFIX}${kind}:${eventId}`
   try {
-    const v = JSON.parse(storage()?.getItem(KARMA_OUTBOX_STATS_KEY) ?? '{}')
-    return { refused: Number(v.refused) || 0, overflowDropped: Number(v.overflowDropped) || 0 }
+    const s = storage()
+    if (!s) throw new Error('no storage')
+    s.setItem(k, String(Date.now()))
   } catch {
-    return { refused: 0, overflowDropped: 0 }
+    memoryTombstones.set(k, Date.now())
   }
-}
-function bumpStat(k: 'refused' | 'overflowDropped'): void {
-  const st = readStats(); st[k] += 1
-  try { storage()?.setItem(KARMA_OUTBOX_STATS_KEY, JSON.stringify(st)) } catch { storageDegraded = true }
 }
 
+function readStats(): Record<TombstoneKind, number> {
+  const out: Record<TombstoneKind, number> = { refused: 0, overflowDropped: 0, refusedExpired: 0 }
+  const kindOf: Record<string, TombstoneKind> = { refused: 'refused', overflow: 'overflowDropped', expired: 'refusedExpired' }
+  const seen = new Map<string, number>(memoryTombstones)
+  const s = storage()
+  if (s) {
+    try {
+      for (let i = 0; i < s.length; i++) {
+        const k = s.key(i)
+        if (k && k.startsWith(KARMA_TOMBSTONE_PREFIX)) seen.set(k, Number(s.getItem(k)) || 0)
+      }
+    } catch { /* storage unreadable: memory only */ }
+  }
+  const now = Date.now()
+  for (const [k, at] of seen) {
+    if (now - at >= KARMA_REFUSED_TTL_MS) {
+      memoryTombstones.delete(k)
+      try { s?.removeItem(k) } catch { /* nothing else to do */ }
+      continue
+    }
+    const kind = kindOf[k.slice(KARMA_TOMBSTONE_PREFIX.length).split(':')[0]]
+    if (kind) out[kind] += 1
+  }
+  return out
+}
+
+/** Counts cover the last KARMA_REFUSED_TTL_MS (older tombstones are pruned). */
 export function getKarmaOutboxStats(): KarmaOutboxStats {
+  const refusedSpends = allOutbox().filter((e) => e.refused).length
   return {
     ...readStats(),
-    refusedSpends: allOutbox().filter((e) => e.refused).length,
+    refusedSpends,
     degraded: storageDegraded || memoryOutbox.size > 0,
   }
+}
+
+export interface KarmaSyncStatus { online: boolean; pending: number; refusedSpends: number; degraded: boolean }
+
+/**
+ * What the wallet should show, from the REAL sync layer. `online` is the result of
+ * the last server contact (unknown before the first one => not reported offline).
+ */
+export function karmaSyncStatus(): KarmaSyncStatus {
+  const { refusedSpends, degraded } = getKarmaOutboxStats()
+  return { online: lastServerContactOk !== false, pending: readKarmaOutbox().length, refusedSpends, degraded }
 }
 
 /**
  * Not-yet-acknowledged deltas for a session, per karma type (may be negative).
  * Includes refused spends: the player spent that karma locally, and a server
- * refusal must not turn into a refund.
+ * refusal must not turn into a refund — until the refused spend expires
+ * (KARMA_REFUSED_TTL_MS) or is pushed out by the KARMA_REFUSED_MAX cap.
  */
 export function pendingKarmaDeltas(sessionId: string): KarmaBalance {
   const out: KarmaBalance = { good: 0, neutral: 0, bad: 0 }
@@ -188,7 +267,13 @@ function scheduleFlush(ms: number): void {
   flushTimer = setTimeout(() => { flushTimer = null; void flushKarmaOutbox() }, ms)
 }
 
-/** Queue an in-game earn/spend for the server ledger, then try to send. Never drops an allowed event silently. */
+/**
+ * Queue an in-game earn/spend for the server ledger, then try to send.
+ * Never drops an allowed event silently: every removal short of an acknowledged
+ * send (overflow, permanent refusal, refused-spend expiry) is warned and counted,
+ * and an event held only in memory (storage full) is surfaced as `degraded` —
+ * such an event does not survive a reload.
+ */
 export async function postKarmaEvent(params: {
   sessionId: string
   karmaType: KarmaType
@@ -200,7 +285,7 @@ export async function postKarmaEvent(params: {
   putEvent({ ...params, eventId: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}` })
   const queued = readKarmaOutbox()
   for (let i = 0; i < queued.length - KARMA_OUTBOX_MAX; i++) {
-    deleteEvent(queued[i].eventId); bumpStat('overflowDropped')
+    deleteEvent(queued[i].eventId); addTombstone('overflow', queued[i].eventId)
     console.warn('[karma] outbox full — oldest queued event dropped', queued[i].eventId)
   }
   return flushKarmaOutbox()
@@ -221,38 +306,58 @@ export async function flushKarmaOutbox(): Promise<ServerBalanceResult> {
   karmaLastPostAt = now
   flushInFlight = true
   try {
-    const { refused: _r, ...body } = head
-    void _r
+    const { eventId, sessionId, karmaType, delta, source } = head
     const res = await fetch('/api/karma/event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ eventId, sessionId, karmaType, delta, source }),
     })
-    if (res.status === 429 || res.status >= 500) {
+    if (res.status === 429) {
+      lastServerContactOk = true // reachable, just busy
+      karmaBackoffUntil = Date.now() + KARMA_BACKOFF_MS
+      return { ok: false }
+    }
+    if (res.status >= 500) {
+      lastServerContactOk = false
       karmaBackoffUntil = Date.now() + KARMA_BACKOFF_MS
       return { ok: false }
     }
     if (!res.ok) {
-      // 400/403: the server will refuse this event forever. Never silent.
-      bumpStat('refused')
+      let reason: unknown
+      try { reason = (await res.json())?.reason } catch { /* no JSON body: not a known refusal */ }
+      const permanent = (res.status === 400 || res.status === 403) &&
+        typeof reason === 'string' && KARMA_PERMANENT_REFUSALS.has(reason)
+      if (!permanent) {
+        // 401/404/other 4xx, or no known reason: could be a proxy or a deploy in
+        // progress, not the ledger's answer. Keep it queued and back off.
+        lastServerContactOk = false
+        karmaBackoffUntil = Date.now() + KARMA_BACKOFF_MS
+        return { ok: false }
+      }
+      // A known app refusal: the server will refuse this event forever. Never silent.
+      lastServerContactOk = true
+      addTombstone('refused', head.eventId)
       if (head.delta < 0) {
-        putEvent({ ...head, refused: true }) // the spend stands; reconcile keeps honouring it
-        console.warn('[karma] server refused a spend; keeping it so it is not refunded', head.eventId, res.status)
+        putEvent({ ...head, refused: true, refusedAt: Date.now() }) // the spend stands; reconcile keeps honouring it
+        console.warn('[karma] server refused a spend; keeping it so it is not refunded', head.eventId, res.status, reason)
       } else {
         deleteEvent(head.eventId)
-        console.warn('[karma] server refused an earn; not recorded on the ledger', head.eventId, res.status)
+        console.warn('[karma] server refused an earn; not recorded on the ledger', head.eventId, res.status, reason)
       }
       return { ok: false }
     }
     const data = await res.json()
     if (!data?.ok || !data?.balance) {
       // e.g. ledger_unavailable (served as 200): keep it queued and back off.
+      lastServerContactOk = false
       karmaBackoffUntil = Date.now() + KARMA_BACKOFF_MS
       return { ok: false }
     }
+    lastServerContactOk = true
     deleteEvent(head.eventId)
     return { ok: true, balance: data.balance, asOf: data.asOf }
   } catch {
+    lastServerContactOk = false
     karmaBackoffUntil = Date.now() + KARMA_BACKOFF_MS
     return { ok: false }
   } finally {

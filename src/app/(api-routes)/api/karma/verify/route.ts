@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
-import { dbVerifyKarmaLedger } from '@/lib/discountCodesDb';
-import type { KarmaChainVerdict } from '@/lib/karmaLedgerVerify';
+import { NextRequest, NextResponse } from 'next/server';
+import { dbVerifyKarmaLedger, dbKarmaLedgerHead } from '@/lib/discountCodesDb';
+import { rateLimitOk, clientIpFrom } from '@/lib/markerSession';
+import { verdictCacheFresh, type KarmaChainVerdict, type KarmaLedgerHead } from '@/lib/karmaLedgerVerify';
 
 export const runtime = 'nodejs';
 
@@ -9,18 +10,25 @@ export const runtime = 'nodejs';
 // `head`, which is what makes a truncated tail detectable at all.
 // `ok` is true ONLY for `intact` — an empty ledger verified nothing.
 // A ledger that cannot be opened reports `unmeasured`, never `intact`.
-// The walk is a full-table scan, so the verdict is cached per process instead of
-// spending the gameplay rate limiter or DB time on every poll.
+// The walk is a full-table scan, so the verdict is cached per process for 30s —
+// but only while the ledger head (max seq + head row_hash, one cheap row read) is
+// unchanged, so a new or rewritten head row is never hidden behind the cache.
+// Rate-limited per client IP (shared bucket with the gameplay routes).
 const CACHE_MS = 30_000;
-let cached: { at: number; verdict: KarmaChainVerdict; checkedAt: string } | null = null;
+let cached: { at: number; head: KarmaLedgerHead | null; verdict: KarmaChainVerdict; checkedAt: string } | null = null;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!rateLimitOk(clientIpFrom(req.headers))) {
+    return NextResponse.json({ ok: false, reason: 'rate_limited' }, { status: 429 });
+  }
   try {
-    if (!cached || Date.now() - cached.at > CACHE_MS) {
-      cached = { at: Date.now(), verdict: dbVerifyKarmaLedger(), checkedAt: new Date().toISOString() };
+    const head = dbKarmaLedgerHead();
+    if (!verdictCacheFresh(cached, head, Date.now(), CACHE_MS)) {
+      cached = { at: Date.now(), head, verdict: dbVerifyKarmaLedger(), checkedAt: new Date().toISOString() };
     }
+    const c = cached!;
     return NextResponse.json(
-      { ok: cached.verdict.status === 'intact', ...cached.verdict, checkedAt: cached.checkedAt },
+      { ok: c.verdict.status === 'intact', ...c.verdict, checkedAt: c.checkedAt },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (err) {

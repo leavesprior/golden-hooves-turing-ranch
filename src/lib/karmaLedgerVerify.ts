@@ -46,6 +46,25 @@ export interface KarmaChainVerdict {
   reason?: 'prev_link' | 'row_hash'
 }
 
+export interface KarmaLedgerHead { seq: number; row_hash: string }
+
+/**
+ * May a cached verdict be served? Only while it is younger than ttlMs AND the
+ * ledger head (max seq + its row_hash) is exactly what it was when computed — a
+ * new row or a rewritten head row forces a fresh walk. A rewrite of an OLDER row
+ * with the same head is not seen until the TTL lapses (declared limit).
+ */
+export function verdictCacheFresh(
+  cached: { at: number; head: KarmaLedgerHead | null } | null,
+  head: KarmaLedgerHead | null,
+  now: number,
+  ttlMs: number,
+): boolean {
+  if (!cached || now - cached.at > ttlMs) return false
+  return (cached.head?.seq ?? null) === (head?.seq ?? null) &&
+    (cached.head?.row_hash ?? null) === (head?.row_hash ?? null)
+}
+
 /** rows must be ordered by seq ascending. */
 export function verifyKarmaChain(rows: readonly KarmaLedgerRow[]): KarmaChainVerdict {
   if (rows.length === 0) return { status: 'empty', rows: 0, head: null }

@@ -14,7 +14,7 @@ import {
 } from './data/discountEngine'
 import { KarmaStorage } from '@/lib/karmaStorage'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
-import { getKarmaSessionId, fetchServerBalance, postKarmaEvent, reconcile, flushKarmaOutbox, pendingKarmaDeltas } from '@/lib/karmaServerSync'
+import { getKarmaSessionId, fetchServerBalance, postKarmaEvent, reconcile, flushKarmaOutbox, pendingKarmaDeltas, karmaSyncStatus } from '@/lib/karmaServerSync'
 import { scaleKarmaGrant } from '@/lib/gftAgeMode'
 import { convertGoodToTacos, withinUnverifiedBound } from '@/lib/karmaUnverifiedBound'
 import { commitGoldCountryFare, hasGoldCountryFareReceipt, GoldCountryFareReceipt, GoldCountryFareResult } from '@/lib/goldCountryFare'
@@ -45,6 +45,8 @@ interface KarmaWalletState {
   isInitialized: boolean
   walletMode: WalletMode | null
   pendingTransactions: number
+  refusedSpends: number
+  storageDegraded: boolean
   recentTransactions: KarmaTransaction[]
   alignment: AlignmentAxes
   travelFareReceipts?: GoldCountryFareReceipt[]
@@ -57,6 +59,10 @@ interface KarmaWalletContextValue {
   isInitialized: boolean
   walletMode: WalletMode | null
   pendingCount: number
+  /** Spends the server ledger refused for good (kept locally so they are not refunded). */
+  refusedSpends: number
+  /** Storage refused a write: queued karma is held in memory only and lost on reload. */
+  storageDegraded: boolean
   recentTransactions: KarmaTransaction[]
 
   // Initialization
@@ -174,6 +180,8 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     isInitialized: false,
     walletMode: null,
     pendingTransactions: 0,
+    refusedSpends: 0,
+    storageDegraded: false,
     recentTransactions: [],
     alignment: DEFAULT_ALIGNMENT,
   })
@@ -229,7 +237,7 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
       if (cancelled) return
       if (res.ok && res.balance) {
         const pending = pendingKarmaDeltas(sessionId)
-        setState(prev => ({ ...prev, balance: reconcile(prev.balance, res.balance!, pending), isOnline: true }))
+        setState(prev => ({ ...prev, balance: reconcile(prev.balance, res.balance!, pending) }))
       }
     })()
     return () => { cancelled = true }
@@ -270,21 +278,23 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     }
   }, [state.alignment, state.isInitialized])
 
-  // Check online status periodically
+  // Sync status from the REAL server-ledger sync layer (karmaServerSync): online =
+  // the last server contact succeeded; pending = queued outbox events. This used to
+  // poll the dead chain client, so every player saw "offline" and a stuck "↻1".
+  // The sync layer is the only writer of these fields. Reads localStorage only.
   useEffect(() => {
-    const checkOnline = async () => {
-      const online = await oregonTrailKarma.checkConnection()
+    const readStatus = () => {
+      const st = karmaSyncStatus()
       setState(prev => {
-        const pending = oregonTrailKarma.pendingCount
-        // Bail out when nothing changed — returning prev skips the re-render
-        // (this poll was re-rendering every karma consumer every 10s).
-        if (prev.isOnline === online && prev.pendingTransactions === pending) return prev
-        return { ...prev, isOnline: online, pendingTransactions: pending }
+        // Bail out when nothing changed — returning prev skips the re-render.
+        if (prev.isOnline === st.online && prev.pendingTransactions === st.pending &&
+          prev.refusedSpends === st.refusedSpends && prev.storageDegraded === st.degraded) return prev
+        return { ...prev, isOnline: st.online, pendingTransactions: st.pending, refusedSpends: st.refusedSpends, storageDegraded: st.degraded }
       })
     }
 
-    checkOnline()
-    const interval = setInterval(checkOnline, 10000)
+    readStatus()
+    const interval = setInterval(readStatus, 3000)
     return () => clearInterval(interval)
   }, [setState])
 
@@ -340,7 +350,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
           balance,
           walletMode: mode,
           isInitialized: true,
-          isOnline: oregonTrailKarma.online,
         }))
       } catch (e) {
         // Use local storage balance if available
@@ -353,7 +362,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
             balance: sanitizeBalance(parsed.balance),
             walletMode: mode,
             isInitialized: true,
-            isOnline: false,
             ...(parsed.travelFareReceipts === undefined ? {} : { travelFareReceipts: parsed.travelFareReceipts }),
           }))
         } else {
@@ -363,7 +371,6 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
             balance: { good: 0, neutral: STARTING_NEUTRAL_KARMA, bad: 0 },
             walletMode: mode,
             isInitialized: true,
-            isOnline: false,
           }))
         }
       }
@@ -374,14 +381,9 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
   const refreshBalance = useCallback(async () => {
     try {
       const balance = await oregonTrailKarma.getBalance()
-      setState(prev => ({
-        ...prev,
-        balance,
-        isOnline: oregonTrailKarma.online,
-        pendingTransactions: oregonTrailKarma.pendingCount,
-      }))
-    } catch (e) {
-      setState(prev => ({ ...prev, isOnline: false }))
+      setState(prev => ({ ...prev, balance }))
+    } catch {
+      // Chain client unavailable; sync status is owned by the server-ledger poll above.
     }
   }, [setState])
 
@@ -766,6 +768,8 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     isInitialized: state.isInitialized,
     walletMode: state.walletMode,
     pendingCount: state.pendingTransactions,
+    refusedSpends: state.refusedSpends,
+    storageDegraded: state.storageDegraded,
     recentTransactions: state.recentTransactions,
 
     // Initialization
