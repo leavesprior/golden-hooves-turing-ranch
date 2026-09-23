@@ -64,6 +64,15 @@ export const TOWN_EDITORIAL: Record<string, string> = {
   mariposa: `${E}/mariposa.jpg${V}`,
 }
 
+/**
+ * Honest captions for stills that paint a later era than the 1849 street they sit
+ * behind. angels_camp.jpg shows a built-up frog-contest Main Street; in 1849 Angels
+ * was tents and a canvas hotel. No era-true Angels still exists yet, so say so.
+ */
+export const EDITORIAL_ERA_CAPTION: Record<string, string> = {
+  angels_camp: 'Painting shows the later town (1850s–1920s); in 1849 this was tents and a canvas hotel.',
+}
+
 /** Diggings chapter locations that have a painted still (trail + Gold Country). */
 const ADVENTURE_EDITORIAL: Record<string, string> = {
   ch1_independence: `${E}/independence.jpg${V}`,

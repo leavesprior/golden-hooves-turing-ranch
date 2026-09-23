@@ -54,6 +54,8 @@ export function level2PinPosition(id: string, lat: number, lng: number): { x: nu
 export const LEVEL2_STAMP_KEY = 'bobr_l2_stamps'
 export const LEVEL2_TALKED_KEY = 'bobr_l2_talked_npcs'
 export const LEVEL2_DEDUCED_KEY = 'bobr_l2_deduced_cases'
+/** Search-clue AREA ids whose clue finding was actually shown (not just searched). */
+export const LEVEL2_FOUND_CLUES_KEY = 'bobr_l2_found_clues'
 export const LEVEL2_VISIT_GOAL = 5
 
 export type Level2ClueKind = 'search' | 'talk'
@@ -343,6 +345,47 @@ export function writeDeducedCase(caseId: string, storage?: StorageLike | null): 
   return next
 }
 
+export function replaceDeducedCases(ids: string[], storage?: StorageLike | null): string[] {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  const next = Array.from(new Set(ids.filter((x) => typeof x === 'string')))
+  try { s?.setItem?.(LEVEL2_DEDUCED_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+  return next
+}
+
+export function readFoundClues(storage?: StorageLike | null): string[] {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  return parseStamps(s?.getItem(LEVEL2_FOUND_CLUES_KEY) ?? null)
+}
+
+export function writeFoundClue(areaId: string, storage?: StorageLike | null): string[] {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  const next = Array.from(new Set([...readFoundClues(s), areaId]))
+  try { s?.setItem?.(LEVEL2_FOUND_CLUES_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+  return next
+}
+
+export function replaceFoundClues(ids: string[], storage?: StorageLike | null): string[] {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  const next = Array.from(new Set(ids.filter((x) => typeof x === 'string')))
+  try { s?.setItem?.(LEVEL2_FOUND_CLUES_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+  return next
+}
+
+/**
+ * True while an area holds a required search clue for this case whose clue has not
+ * been FOUND yet. Keys off the found clue, not "searched": a save from before the
+ * guarantee may have searched the area and drawn a non-clue finding.
+ */
+export function guaranteeCaseClue(
+  caze: Level2Case | null | undefined,
+  area: { id: string; findings: readonly { isClue?: boolean }[] },
+  foundClueAreaIds: readonly string[],
+): boolean {
+  if (!caze?.clues.some((c) => c.kind === 'search' && c.id === area.id)) return false
+  if (!area.findings.some((f) => f.isClue)) return false // nothing to guarantee (e.g. the guest book)
+  return !foundClueAreaIds.includes(area.id)
+}
+
 /** True when all three pins are worked but the case still waits on the player's call. */
 export function caseAwaitsDeduction(
   caze: Level2Case,
@@ -353,6 +396,25 @@ export function caseAwaitsDeduction(
   if (!caze.deduction) return false
   if (!caze.clues.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds))) return false
   return !readDeducedCases(storage).includes(caze.id)
+}
+
+/**
+ * Whether the "make the call" button shows. `hunting` is accepted and deliberately
+ * ignored: an active Level-3 hunt must not hide the call for this case.
+ */
+export function deductionCtaVisible(
+  caze: Level2Case | null | undefined,
+  searchedAreaIds: readonly string[],
+  talkedNpcIds: readonly string[],
+  opts: { hunting?: boolean; storage?: StorageLike | null } = {},
+): boolean {
+  return !!caze && caseAwaitsDeduction(caze, searchedAreaIds, talkedNpcIds, opts.storage)
+}
+
+/** Search-result line when a search closes the third pin. */
+export function pinsCompleteLine(caze: Level2Case, deducedCaseIds: readonly string[]): string {
+  if (caze.deduction && !deducedCaseIds.includes(caze.id)) return 'All three clues are in — make the call.'
+  return 'The three pins close. The case stamps.'
 }
 
 /**
@@ -408,6 +470,8 @@ export function level2Progress(input: {
   stamps?: readonly string[]
   searchedAreaIds?: readonly string[]
   talkedNpcIds?: readonly string[]
+  /** Cases where the player made the right call (bobr_l2_deduced_cases). */
+  deducedCaseIds?: readonly string[]
 }): {
   visited: string[]
   remaining: string[]
@@ -418,9 +482,12 @@ export function level2Progress(input: {
   const stamps = new Set(input.stamps ?? [])
   const searched = input.searchedAreaIds ?? []
   const talked = input.talkedNpcIds ?? []
+  const deduced = input.deducedCaseIds ?? []
   const visited = LEVEL2_CASES.filter((c) => {
     if (stamps.has(c.id)) return true
-    return c.clues.every((clue) => clueWorked(clue, searched, talked))
+    const pins = c.clues.every((clue) => clueWorked(clue, searched, talked))
+    // A case with a deduction is not visited on pins alone — the call must be made.
+    return c.deduction ? pins && deduced.includes(c.id) : pins
   }).map((c) => c.id)
   const remaining = LEVEL2_CASE_IDS.filter((id) => !visited.includes(id))
   return {

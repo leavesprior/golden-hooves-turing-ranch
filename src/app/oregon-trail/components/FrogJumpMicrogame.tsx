@@ -13,10 +13,15 @@ export default function FrogJumpMicrogame({ onDone }: { onDone: (outcome: FrogJu
   const startRef = useRef<number>(0)
   const frameRef = useRef<number>(0)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const backRef = useRef<HTMLButtonElement>(null)
+  const finishingRef = useRef(false)
+  const [finishing, setFinishing] = useState(false)
 
   useEffect(() => {
+    // The quest view it replaces is often scrolled down; start the game at the top.
+    window.scrollTo(0, 0)
     startRef.current = performance.now()
-    buttonRef.current?.focus()
+    buttonRef.current?.focus({ preventScroll: true })
     const tick = () => {
       setPower(frogPowerAt(performance.now() - startRef.current))
       frameRef.current = requestAnimationFrame(tick)
@@ -31,6 +36,17 @@ export default function FrogJumpMicrogame({ onDone }: { onDone: (outcome: FrogJu
     const p = frogPowerAt(performance.now() - startRef.current)
     setPower(p)
     setResult(frogJumpOutcome(p))
+  }
+
+  useEffect(() => {
+    if (result) backRef.current?.focus()
+  }, [result])
+
+  const finish = () => {
+    if (!result || finishingRef.current) return // one payout per jump, however fast the clicks
+    finishingRef.current = true
+    setFinishing(true)
+    onDone(result)
   }
 
   return (
@@ -66,9 +82,12 @@ export default function FrogJumpMicrogame({ onDone }: { onDone: (outcome: FrogJu
             <>
               <p className="west-face-body mb-4" data-testid="frog-jump-result">{result.line}</p>
               <button
+                ref={backRef}
                 type="button"
-                onClick={() => onDone(result)}
+                onClick={finish}
+                disabled={finishing}
                 className="west-face-pill west-face-pill-cream w-full justify-center"
+                data-testid="frog-jump-back"
               >
                 Back to the bar
               </button>

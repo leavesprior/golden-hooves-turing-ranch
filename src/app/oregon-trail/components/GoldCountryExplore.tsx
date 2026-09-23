@@ -17,6 +17,7 @@ import {
   casePinsDone,
   level2PinPosition,
   level2Progress,
+  readDeducedCases,
   readLevel2Stamps,
   readTalkedNpcs,
 } from '@/lib/goldCountryLevel2'
@@ -105,6 +106,7 @@ export function GoldCountryExplore({
       stamps: typeof window !== 'undefined' ? readLevel2Stamps() : [],
       searchedAreaIds: state.searchedAreas,
       talkedNpcIds: talked,
+      deducedCaseIds: typeof window !== 'undefined' ? readDeducedCases() : [],
     }),
     [state.searchedAreas, state.discoveredGoldLocations, talked],
   )

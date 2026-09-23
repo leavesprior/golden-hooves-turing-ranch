@@ -50,3 +50,12 @@ export function frogJumpOutcome(power: number): FrogJumpOutcome {
   }
   return { power: p, feet, won, kind: 'short', line: `Your frog considers the matter and hops ${feet} feet, which is honest if not much. The pot goes elsewhere; the bar respects a fair loser.` }
 }
+
+/**
+ * The quest-outcome text after a played jump. A WIN tells only the jump; the
+ * choice's "win or lose" consolation line belongs to a loss or a flop.
+ */
+export function frogOutcomeConsequence(outcome: FrogJumpOutcome, choiceConsequence?: string): string {
+  if (outcome.won) return outcome.line
+  return `${outcome.line} ${choiceConsequence ?? ''}`.trim()
+}

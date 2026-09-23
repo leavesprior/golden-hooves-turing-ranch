@@ -3,20 +3,28 @@
  * deduction-gated stamp, one-button frog jump, 1849 era discipline.
  *   node_modules/.bin/tsx src/lib/angelsCampSlice.test.ts
  */
+import { readFileSync } from 'node:fs'
 import {
   LEVEL2_CASES,
   caseAwaitsDeduction,
   caseForLocation,
+  deductionCtaVisible,
   frontClueState,
+  guaranteeCaseClue,
+  level2Progress,
   maybeStampCase,
-  readLevel2Stamps,
+  pinsCompleteLine,
+  readFoundClues,
   writeDeducedCase,
+  writeFoundClue,
 } from './goldCountryLevel2'
 import { LOCATION_SEARCH_AREAS as SEARCH_AREAS, resolveCaseSearch } from '../app/oregon-trail/data/goldCountryEncounters'
-import { frontsForLocation } from './goldCountryStreet'
-import { GOLD_COUNTRY_NPCS as goldCountryNPCs } from '../app/oregon-trail/data/goldCountryNPCs'
+import { applyLevel2Persist, frontsForLocation, snapshotLevel2Persist } from './goldCountryStreet'
+import { GOLD_COUNTRY_NPCS as goldCountryNPCs, type GoldCountryQuest } from '../app/oregon-trail/data/goldCountryNPCs'
+import { getGoldCountryLocation } from '../app/oregon-trail/data/goldCountryLocations'
+import { EDITORIAL_ERA_CAPTION, editorialForExplorePlace } from './goldCountryEditorial'
 import {
-  FROG_CYCLE_MS, FROG_SWEET_MAX, FROG_SWEET_MIN, FROG_WIN_FEET, frogFeetFor, frogJumpOutcome, frogPowerAt,
+  FROG_CYCLE_MS, FROG_SWEET_MAX, FROG_SWEET_MIN, FROG_WIN_FEET, frogFeetFor, frogJumpOutcome, frogOutcomeConsequence, frogPowerAt,
 } from './frogJump'
 
 class MockStorage {
@@ -80,27 +88,107 @@ ok(!caseAwaitsDeduction(angels, all.s, all.t, store), 'after the call, nothing l
 const store2 = new MockStorage()
 writeDeducedCase('angels_camp', store2)
 ok(!maybeStampCase('angels_camp', ['angels_saloon'], [], store2).includes('angels_camp'), 'a call without the evidence does not stamp')
-const other = LEVEL2_CASES.find((c) => !c.deduction && c.clues.every((c) => c.kind !== 'talk' || true))!
+const other = LEVEL2_CASES.find((c) => !c.deduction)!
 const s3 = new MockStorage()
 const otherSearched = other.clues.filter((c) => c.kind === 'search').map((c) => c.id)
 const otherTalked = other.clues.filter((c) => c.kind === 'talk').map((c) => c.id)
 ok(maybeStampCase(other.id, otherSearched, otherTalked, s3).includes(other.id), `cases without a deduction stamp as before (${other.id})`)
-ok(readLevel2Stamps(new MockStorage()).length === 0, 'fresh storage has no stamps')
 ok(angels.deduction!.choices.filter((c) => c.correct).length === 1, 'exactly one right call')
 ok(angels.deduction!.choices.find((c) => c.correct)!.id === 'follow_moaning_hole', 'the right call follows the note')
 
-// ---- 4. 1849 era discipline on everything the slice puts in the 1849 mouth ----
-const LATER = /\b(Twain|Clemens|Jubilee|1855|1865|1928|stone hotel|Moaning Cavern)\b/i
+// ---- 3b. Level-2 progress: a deduction case is not visited on pins alone ----
+const pinsOnly = level2Progress({ searchedAreaIds: all.s, talkedNpcIds: all.t })
+ok(!pinsOnly.visited.includes('angels_camp'), 'level2Progress does NOT count Angels on three pins alone (voucher cannot jump the call)')
+ok(level2Progress({ searchedAreaIds: all.s, talkedNpcIds: all.t, deducedCaseIds: ['angels_camp'] }).visited.includes('angels_camp'), 'pins + the right call counts Angels')
+ok(!level2Progress({ searchedAreaIds: ['angels_saloon'], deducedCaseIds: ['angels_camp'] }).visited.includes('angels_camp'), 'the call without the pins does not count')
+ok(level2Progress({ stamps: ['angels_camp'] }).visited.includes('angels_camp'), 'a stamp still counts')
+const exploreSrc = readFileSync(new URL('../app/oregon-trail/components/GoldCountryExplore.tsx', import.meta.url), 'utf8')
+ok(/deducedCaseIds: typeof window !== 'undefined' \? readDeducedCases\(\) : \[\]/.test(exploreSrc), 'the map/voucher reader passes the deduced-cases key (wiring presence)')
+ok(level2Progress({ searchedAreaIds: otherSearched, talkedNpcIds: otherTalked }).visited.includes(other.id), `cases without a deduction still count on pins (${other.id})`)
+
+// ---- 3c. the guarantee keys off the FOUND clue, not "searched" (legacy saves) ----
+ok(guaranteeCaseClue(angels, register, []), 'register owes its clue until found — even if a legacy save marked it searched')
+ok(!guaranteeCaseClue(angels, register, ['angels_hotel_register']), 'guarantee is false once the clue id is in found-clues')
+const nonCaseArea = SEARCH_AREAS.find((a) => a.location === 'angels_camp' && !angels.clues.some((c) => c.id === a.id))
+  ?? SEARCH_AREAS.find((a) => !LEVEL2_CASES.some((c) => c.clues.some((cl) => cl.id === a.id)))!
+ok(!guaranteeCaseClue(angels, nonCaseArea, []), `non-case areas keep the old odds (${nonCaseArea.id})`)
+ok(!guaranteeCaseClue(angels, { id: 'angels_saloon', findings: [{ isClue: false }] }, []), 'no clue finding => nothing to guarantee (never locks an area open)')
+ok(!guaranteeCaseClue(null, register, []), 'no case => no guarantee')
+const foundStore = new MockStorage()
+writeFoundClue('angels_hotel_register', foundStore)
+ok(!guaranteeCaseClue(angels, register, readFoundClues(foundStore)), 'found-clues write/read round-trips into the guarantee')
+
+// ---- 3d. badge honesty holds on Murphys (same shape: one front holds all three) ----
+const murphys = caseForLocation('murphys')!
+const barrels = frontsForLocation('murphys').find((f) => f.id === 'murphys_barrels')!
+const mHeld = [barrels.keeperNpcId!, ...barrels.patronNpcIds, ...barrels.searchAreaIds]
+ok(murphys.clues.every((c) => mHeld.includes(c.id)), 'murphys_barrels holds all three Murphys clues (the shape under test)')
+ok(frontClueState(mHeld, murphys, ['murphys_hotel_register'], []) === 'waiting', 'Murphys: one of three is still waiting')
+ok(frontClueState(mHeld, murphys, ['murphys_hotel_register', 'murphys_wine_cellar'], []) === 'waiting', 'Murphys: Pierre untalked is still waiting')
+ok(frontClueState(mHeld, murphys, ['murphys_hotel_register', 'murphys_wine_cellar'], ['vintner_pierre']) === 'done', 'Murphys: all three worked is done')
+
+// ---- 3e. the call is not hidden by a Level-3 hunt; copy says make the call ----
+const ctaStore = new MockStorage()
+ok(deductionCtaVisible(angels, all.s, all.t, { hunting: true, storage: ctaStore }), 'make-the-call shows even while a Level-3 hunt is active')
+ok(deductionCtaVisible(angels, all.s, all.t, { hunting: false, storage: ctaStore }), 'make-the-call shows with no hunt')
+ok(!deductionCtaVisible(angels, ['angels_saloon'], [], { hunting: false, storage: ctaStore }), 'no call before the pins')
+const locSrc = readFileSync(new URL('../app/oregon-trail/components/GoldCountryLocation.tsx', import.meta.url), 'utf8')
+const ctaAt = locSrc.indexOf('data-testid="case-deduce-open"')
+const ctaCond = locSrc.slice(locSrc.lastIndexOf('\n        {', ctaAt), ctaAt).split('\n')[1] ?? ''
+ok(ctaAt > 0 && ctaCond.includes('deductionCtaVisible(') && !/!hunting/.test(ctaCond), `the CTA condition is the ungated helper (${ctaCond.trim()})`)
+// Wiring presence (not behaviour): the component calls the tested helpers, so reverting the wiring fails here.
+ok(locSrc.includes('pinsCompleteLine(level2Case, readDeducedCases())'), 'search-result copy is wired to pinsCompleteLine')
+ok(locSrc.includes('guaranteeCaseClue(caseForLocation(locationId), area, readFoundClues())'), 'handleSearch guarantee keys off found clues')
+ok(locSrc.includes('if (finding.isClue) setFoundClues(writeFoundClue(area.id))'), 'a shown clue finding is recorded as found')
+ok((locSrc.match(/searchedAreaIds=\{closedAreaIds\}/g) ?? []).length === 1 && locSrc.includes('const searched = closedAreaIds.includes(area.id)'), 'indoor + outdoor searches stay open until the clue is found')
+ok(pinsCompleteLine(angels, []) === 'All three clues are in — make the call.', 'third pin on a deduction case says make the call, not "stamps"')
+ok(pinsCompleteLine(angels, ['angels_camp']) === 'The three pins close. The case stamps.', 'after the call, the stamp line is true')
+ok(pinsCompleteLine(other, []) === 'The three pins close. The case stamps.', 'cases without a deduction keep the stamp line')
+
+// ---- 3f. save/load carries the call and the found clues ----
+const persistFrom = new MockStorage()
+writeDeducedCase('angels_camp', persistFrom)
+writeFoundClue('angels_saloon', persistFrom)
+const snap = snapshotLevel2Persist(persistFrom)
+const persistTo = new MockStorage()
+applyLevel2Persist(snap, persistTo)
+ok(snap.deducedCases?.includes('angels_camp') === true && snap.foundClues?.includes('angels_saloon') === true, 'export carries deduced cases + found clues')
+ok(caseAwaitsDeduction(angels, all.s, all.t, persistTo) === false && readFoundClues(persistTo).includes('angels_saloon'), 'import restores them')
+
+// ---- 4. 1849 era discipline on ALL rendered Angels Camp 1849 text ----
+const LATER = /\b(Twain|Clemens|Jubilee|1855|1865|1928|stone hotel|Moaning Cavern|Jim Smiley)\b/i
 const stripLater = (t: string) => t.replace(/\(Later:[^)]*\)/g, '')
 const ben = goldCountryNPCs.find((n) => n.id === 'bartender_ben')!
-const saloonArea = SEARCH_AREAS.find((a) => a.id === 'angels_saloon')!
+const questText = (q: GoldCountryQuest | undefined): string[] => q
+  ? [q.title, q.description, q.objective, ...(q.moralChoices ?? []).flatMap((c) => [c.text, c.consequence ?? ''])]
+  : []
+const angelsNpcs = goldCountryNPCs.filter((n) => n.location === 'angels_camp')
+ok(angelsNpcs.length >= 4, `scanning every Angels NPC (${angelsNpcs.length})`)
+// Owner ruling: Ben Coon stays in 1849 and tells his Jim Smiley yarn — the ONLY whitelist.
+const isBenYarn = (npcId: string, t: string) => npcId === 'bartender_ben' && /Jim Smiley/.test(t)
+const npcText = angelsNpcs.flatMap((n) =>
+  [n.greeting, ...n.dialogueLines, n.clueHint ?? '', ...questText(n.quest), ...(n.additionalQuests ?? []).flatMap(questText)]
+    .filter((t) => !isBenYarn(n.id, t)),
+)
+ok(ben.dialogueLines.some((t) => /Jim Smiley/.test(t)), 'Ben still tells the Jim Smiley yarn (owner ruling)')
+const angelsAreas = SEARCH_AREAS.filter((a) => a.location === 'angels_camp')
+const travelLabels = getGoldCountryLocation('angels_camp')!.adjacentTo.map((id) => getGoldCountryLocation(id)!.shortName)
 const mouth1849 = [
-  ...ben.dialogueLines, ben.greeting,
-  ...register.findings.map((f) => f.description), ...saloonArea.findings.map((f) => f.description),
+  ...npcText,
+  ...angelsAreas.flatMap((a) => [a.name, a.description, ...a.findings.map((f) => f.description)]),
+  angels.warrant, angels.then, angels.verb,
   angels.deduction!.question, ...angels.deduction!.choices.map((c) => c.label), ...angels.deduction!.choices.map((c) => stripLater(c.response)),
-]
+  ...travelLabels,
+].map(stripLater)
 const leaks = mouth1849.filter((t) => LATER.test(t))
 ok(leaks.length === 0, `no later-era names in the 1849 mouth (${leaks.join(' | ')})`)
+ok(travelLabels.includes('The moaning hole'), `Angels travel list says "The moaning hole" (${travelLabels.join(', ')})`)
+ok(getGoldCountryLocation('moaning_cavern')!.id === 'moaning_cavern', 'moaning_cavern id/route unchanged')
+
+// ---- 4b. street art: the later-town painting carries an honest era caption ----
+ok(editorialForExplorePlace('angels_camp')!.includes('angels_camp.jpg'), 'Angels street still uses angels_camp.jpg (no era-true still exists)')
+ok(/later town/.test(EDITORIAL_ERA_CAPTION.angels_camp ?? '') && /1849/.test(EDITORIAL_ERA_CAPTION.angels_camp ?? '') && /tents/.test(EDITORIAL_ERA_CAPTION.angels_camp ?? ''), 'Angels art is captioned as the later town')
+ok(locSrc.includes('EDITORIAL_ERA_CAPTION[locationId]'), 'the street view renders the era caption')
 ok(/\(Later:/.test(angels.deduction!.choices.find((c) => c.correct)!.response), 'later history is dated and labelled, not claimed as 1849')
 
 // ---- 5. frog jump ----
@@ -123,6 +211,11 @@ for (let p = 0; p <= 100; p++) {
   if ((o.kind === 'sweet') !== o.won || !o.line.includes(`${o.feet} feet`)) consistent = false
 }
 ok(consistent, 'the story told matches the score: sweet <=> won, and the line quotes the real feet')
+const consolation = 'Your frog puts up a respectable fight. Win or lose, you earned every inch honestly.'
+const winText = frogOutcomeConsequence(frogJumpOutcome(FROG_SWEET_MIN), consolation)
+ok(!winText.includes('Win or lose') && winText === frogJumpOutcome(FROG_SWEET_MIN).line, 'a WIN does not append the win-or-lose line')
+ok(frogOutcomeConsequence(frogJumpOutcome(0), consolation).endsWith(consolation), 'a short jump gets the consolation line')
+ok(frogOutcomeConsequence(frogJumpOutcome(100), consolation).endsWith(consolation), 'a belly-flop gets the consolation line')
 
 console.log(JSON.stringify({ test: 'angelsCampSlice', passed, total: passed + failures.length, failed: failures }, null, 2))
 process.exit(failures.length ? 1 : 0)
