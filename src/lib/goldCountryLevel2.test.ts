@@ -1,6 +1,8 @@
 /**
  * node_modules/.bin/tsx src/lib/goldCountryLevel2.test.ts
  */
+import { LOCATION_SEARCH_AREAS } from '../app/oregon-trail/data/goldCountryEncounters'
+const FOUND = LOCATION_SEARCH_AREAS.map((a) => a.id)
 import {
   LEVEL2_CASES,
   LEVEL2_VISIT_GOAL,
@@ -61,24 +63,26 @@ ok(
   'a single search does not complete a case',
 )
 
-ok(clueWorked(LEVEL2_CASES[1].clues[0], ['angels_hotel_register'], []), 'search clue counts')
+ok(clueWorked(LEVEL2_CASES[1].clues[0], ['angels_hotel_register'], [], FOUND), 'search clue counts')
+ok(!clueWorked(LEVEL2_CASES[1].clues[0], ['angels_hotel_register'], [], []), 'searched without finding the clue does not count (old save)')
 ok(!clueWorked(LEVEL2_CASES[1].clues[2], ['angels_hotel_register'], []), 'talk clue needs npc')
 ok(clueWorked(LEVEL2_CASES[1].clues[2], [], ['bartender_ben']), 'talk clue counts')
 ok(
-  casePinsDone(LEVEL2_CASES[1], ['angels_hotel_register', 'angels_saloon'], ['bartender_ben']).complete,
+  casePinsDone(LEVEL2_CASES[1], ['angels_hotel_register', 'angels_saloon'], ['bartender_ben'], FOUND).complete,
   'Angels Camp 3/3 is register + barroom + Ben Coon',
 )
 
 const jackson = caseForLocation('jackson')!
 ok(jackson.clues.length === 3, 'jackson has three pins')
 ok(casePinsDone(jackson, [], []).done === 0, 'zero pins at arrival')
-ok(casePinsDone(jackson, ['jackson_tunnels'], []).done === 1, 'one search pin')
+ok(casePinsDone(jackson, ['jackson_tunnels'], [], FOUND).done === 1, 'one search pin')
 ok(
-  casePinsDone(jackson, ['jackson_tunnels', 'jackson_telegraph_office'], ['sheriff_thorn']).complete,
+  casePinsDone(jackson, ['jackson_tunnels', 'jackson_telegraph_office'], ['sheriff_thorn'], FOUND).complete,
   'three pins complete the case',
 )
 
 const pinStore = new MockStorage()
+pinStore.setItem('bobr_l2_found_clues', JSON.stringify(FOUND))
 ok(
   !maybeStampCase('jackson', ['jackson_tunnels'], [], pinStore).includes('jackson'),
   'one pin does not stamp the case',

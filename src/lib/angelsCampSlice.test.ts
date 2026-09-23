@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 import {
   LEVEL2_CASES,
   caseAwaitsDeduction,
+  casePinsDone,
   caseForLocation,
   deductionCtaVisible,
   frontClueState,
@@ -31,6 +32,13 @@ class MockStorage {
   private m = new Map<string, string>()
   getItem(k: string): string | null { return this.m.has(k) ? this.m.get(k)! : null }
   setItem(k: string, v: string): void { this.m.set(k, v) }
+}
+// Every clue area FOUND — what a real search that turns up the clue records.
+const FOUND = SEARCH_AREAS.map((a) => a.id)
+function foundStorage(): MockStorage {
+  const m = new MockStorage()
+  m.setItem('bobr_l2_found_clues', JSON.stringify(FOUND))
+  return m
 }
 
 let passed = 0
@@ -73,11 +81,11 @@ const held = [saloon.keeperNpcId!, ...saloon.patronNpcIds, ...saloon.searchAreaI
 ok(frontClueState(held, angels, [], []) === 'waiting', 'saloon waits before anything is worked')
 ok(frontClueState(held, angels, ['angels_saloon'], []) === 'waiting', 'ONE of three worked is still waiting (was green before)')
 ok(frontClueState(held, angels, ['angels_saloon', 'angels_hotel_register'], []) === 'waiting', 'searches done, Ben untalked: still waiting')
-ok(frontClueState(held, angels, ['angels_saloon', 'angels_hotel_register'], ['bartender_ben']) === 'done', 'all three worked: done')
+ok(frontClueState(held, angels, ['angels_saloon', 'angels_hotel_register'], ['bartender_ben'], FOUND) === 'done', 'all three worked: done')
 ok(frontClueState(['some_shop'], angels, [], []) === 'none', 'a front with no clues is plain')
 
 // ---- 3. deduction gates the stamp ----
-const store = new MockStorage()
+const store = foundStorage()
 const all = { s: ['angels_hotel_register', 'angels_saloon'], t: ['bartender_ben'] }
 ok(caseAwaitsDeduction(angels, all.s, all.t, store), 'three pins worked => awaits the call')
 ok(!caseAwaitsDeduction(angels, ['angels_saloon'], [], store), 'not all pins => no call offered yet')
@@ -85,11 +93,11 @@ ok(!maybeStampCase('angels_camp', all.s, all.t, store).includes('angels_camp'), 
 writeDeducedCase('angels_camp', store)
 ok(maybeStampCase('angels_camp', all.s, all.t, store).includes('angels_camp'), 'right call + pins => stamped')
 ok(!caseAwaitsDeduction(angels, all.s, all.t, store), 'after the call, nothing left to decide')
-const store2 = new MockStorage()
+const store2 = foundStorage()
 writeDeducedCase('angels_camp', store2)
 ok(!maybeStampCase('angels_camp', ['angels_saloon'], [], store2).includes('angels_camp'), 'a call without the evidence does not stamp')
 const other = LEVEL2_CASES.find((c) => !c.deduction)!
-const s3 = new MockStorage()
+const s3 = foundStorage()
 const otherSearched = other.clues.filter((c) => c.kind === 'search').map((c) => c.id)
 const otherTalked = other.clues.filter((c) => c.kind === 'talk').map((c) => c.id)
 ok(maybeStampCase(other.id, otherSearched, otherTalked, s3).includes(other.id), `cases without a deduction stamp as before (${other.id})`)
@@ -97,14 +105,14 @@ ok(angels.deduction!.choices.filter((c) => c.correct).length === 1, 'exactly one
 ok(angels.deduction!.choices.find((c) => c.correct)!.id === 'follow_moaning_hole', 'the right call follows the note')
 
 // ---- 3b. Level-2 progress: a deduction case is not visited on pins alone ----
-const pinsOnly = level2Progress({ searchedAreaIds: all.s, talkedNpcIds: all.t })
+const pinsOnly = level2Progress({ searchedAreaIds: all.s, talkedNpcIds: all.t, foundClueAreaIds: FOUND })
 ok(!pinsOnly.visited.includes('angels_camp'), 'level2Progress does NOT count Angels on three pins alone (voucher cannot jump the call)')
-ok(level2Progress({ searchedAreaIds: all.s, talkedNpcIds: all.t, deducedCaseIds: ['angels_camp'] }).visited.includes('angels_camp'), 'pins + the right call counts Angels')
+ok(level2Progress({ searchedAreaIds: all.s, talkedNpcIds: all.t, deducedCaseIds: ['angels_camp'], foundClueAreaIds: FOUND }).visited.includes('angels_camp'), 'pins + the right call counts Angels')
 ok(!level2Progress({ searchedAreaIds: ['angels_saloon'], deducedCaseIds: ['angels_camp'] }).visited.includes('angels_camp'), 'the call without the pins does not count')
 ok(level2Progress({ stamps: ['angels_camp'] }).visited.includes('angels_camp'), 'a stamp still counts')
 const exploreSrc = readFileSync(new URL('../app/oregon-trail/components/GoldCountryExplore.tsx', import.meta.url), 'utf8')
 ok(/deducedCaseIds: typeof window !== 'undefined' \? readDeducedCases\(\) : \[\]/.test(exploreSrc), 'the map/voucher reader passes the deduced-cases key (wiring presence)')
-ok(level2Progress({ searchedAreaIds: otherSearched, talkedNpcIds: otherTalked }).visited.includes(other.id), `cases without a deduction still count on pins (${other.id})`)
+ok(level2Progress({ searchedAreaIds: otherSearched, talkedNpcIds: otherTalked, foundClueAreaIds: FOUND }).visited.includes(other.id), `cases without a deduction still count on pins (${other.id})`)
 
 // ---- 3c. the guarantee keys off the FOUND clue, not "searched" (legacy saves) ----
 ok(guaranteeCaseClue(angels, register, []), 'register owes its clue until found — even if a legacy save marked it searched')
@@ -125,10 +133,24 @@ const mHeld = [barrels.keeperNpcId!, ...barrels.patronNpcIds, ...barrels.searchA
 ok(murphys.clues.every((c) => mHeld.includes(c.id)), 'murphys_barrels holds all three Murphys clues (the shape under test)')
 ok(frontClueState(mHeld, murphys, ['murphys_hotel_register'], []) === 'waiting', 'Murphys: one of three is still waiting')
 ok(frontClueState(mHeld, murphys, ['murphys_hotel_register', 'murphys_wine_cellar'], []) === 'waiting', 'Murphys: Pierre untalked is still waiting')
-ok(frontClueState(mHeld, murphys, ['murphys_hotel_register', 'murphys_wine_cellar'], ['vintner_pierre']) === 'done', 'Murphys: all three worked is done')
+ok(frontClueState(mHeld, murphys, ['murphys_hotel_register', 'murphys_wine_cellar'], ['vintner_pierre'], FOUND) === 'done', 'Murphys: all three worked is done')
+
+// ---- 3f. legacy save: areas SEARCHED before the guarantee, clue never FOUND (Codex round-3) ----
+{
+  const legacy = new MockStorage() // bobr_l2_found_clues absent
+  ok(!deductionCtaVisible(angels, all.s, all.t, { storage: legacy }), 'legacy save: searched-not-found hides the call')
+  ok(frontClueState(held, angels, all.s, all.t, []) === 'waiting', 'legacy save: saloon badge stays amber')
+  ok(casePinsDone(angels, all.s, all.t, []).done === 1, 'legacy save: only Ben counts as a pin')
+  writeDeducedCase('angels_camp', legacy)
+  ok(!maybeStampCase('angels_camp', all.s, all.t, legacy).includes('angels_camp'), 'legacy save: a call does not stamp without the found clues')
+  ok(!level2Progress({ searchedAreaIds: all.s, talkedNpcIds: all.t, deducedCaseIds: ['angels_camp'], foundClueAreaIds: [] }).visited.includes('angels_camp'), 'legacy save: voucher progress does not count Angels')
+  writeFoundClue('angels_hotel_register', legacy)
+  writeFoundClue('angels_saloon', legacy)
+  ok(maybeStampCase('angels_camp', all.s, all.t, legacy).includes('angels_camp'), 'legacy save: after re-finding both clues the call stamps')
+}
 
 // ---- 3e. the call is not hidden by a Level-3 hunt; copy says make the call ----
-const ctaStore = new MockStorage()
+const ctaStore = foundStorage()
 ok(deductionCtaVisible(angels, all.s, all.t, { hunting: true, storage: ctaStore }), 'make-the-call shows even while a Level-3 hunt is active')
 ok(deductionCtaVisible(angels, all.s, all.t, { hunting: false, storage: ctaStore }), 'make-the-call shows with no hunt')
 ok(!deductionCtaVisible(angels, ['angels_saloon'], [], { hunting: false, storage: ctaStore }), 'no call before the pins')

@@ -1,3 +1,4 @@
+import { LOCATION_SEARCH_AREAS } from '../app/oregon-trail/data/goldCountryEncounters'
 /**
  * Level 2 — Explore the Gold Country.
  *
@@ -394,7 +395,8 @@ export function caseAwaitsDeduction(
   storage?: StorageLike | null,
 ): boolean {
   if (!caze.deduction) return false
-  if (!caze.clues.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds))) return false
+  const found = readFoundClues(storage)
+  if (!caze.clues.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds, found))) return false
   return !readDeducedCases(storage).includes(caze.id)
 }
 
@@ -427,14 +429,30 @@ export function frontClueState(
   caze: Level2Case | null | undefined,
   searchedAreaIds: readonly string[],
   talkedNpcIds: readonly string[],
+  foundClueAreaIds: readonly string[] = readFoundClues(),
 ): 'none' | 'waiting' | 'done' {
   const held = caze ? caze.clues.filter((c) => heldIds.includes(c.id)) : []
   if (held.length === 0) return 'none'
-  return held.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds)) ? 'done' : 'waiting'
+  return held.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds, foundClueAreaIds)) ? 'done' : 'waiting'
 }
 
-export function clueWorked(clue: Level2Clue, searchedAreaIds: readonly string[], talkedNpcIds: readonly string[]): boolean {
-  if (clue.kind === 'search') return searchedAreaIds.includes(clue.id)
+const CLUE_AREA_IDS = new Set(LOCATION_SEARCH_AREAS.filter((a) => a.findings.some((f) => f.isClue)).map((a) => a.id))
+
+/**
+ * A search pin on an area that holds a clue is worked only once that clue was FOUND
+ * (bobr_l2_found_clues). "Searched" is not enough: a save from before the guarantee
+ * may have searched the area and drawn a non-clue finding, and must not make the call.
+ */
+export function clueWorked(
+  clue: Level2Clue,
+  searchedAreaIds: readonly string[],
+  talkedNpcIds: readonly string[],
+  foundClueAreaIds: readonly string[] = readFoundClues(),
+): boolean {
+  if (clue.kind === 'search') {
+    if (!searchedAreaIds.includes(clue.id)) return false
+    return !CLUE_AREA_IDS.has(clue.id) || foundClueAreaIds.includes(clue.id)
+  }
   return talkedNpcIds.includes(clue.id)
 }
 
@@ -442,8 +460,9 @@ export function casePinsDone(
   caze: Level2Case,
   searchedAreaIds: readonly string[],
   talkedNpcIds: readonly string[],
+  foundClueAreaIds: readonly string[] = readFoundClues(),
 ): { done: number; total: 3; complete: boolean } {
-  const done = caze.clues.filter((c) => clueWorked(c, searchedAreaIds, talkedNpcIds)).length
+  const done = caze.clues.filter((c) => clueWorked(c, searchedAreaIds, talkedNpcIds, foundClueAreaIds)).length
   return { done, total: 3, complete: done >= 3 }
 }
 
@@ -456,7 +475,8 @@ export function maybeStampCase(
 ): string[] {
   const caze = caseForLocation(locationId)
   if (!caze) return readLevel2Stamps(storage)
-  if (!caze.clues.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds))) {
+  const found = readFoundClues(storage)
+  if (!caze.clues.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds, found))) {
     return readLevel2Stamps(storage)
   }
   // A case with a deduction stamps only once the player has made the right call.
@@ -472,6 +492,8 @@ export function level2Progress(input: {
   talkedNpcIds?: readonly string[]
   /** Cases where the player made the right call (bobr_l2_deduced_cases). */
   deducedCaseIds?: readonly string[]
+  /** Areas whose clue was actually found (bobr_l2_found_clues). Defaults to storage. */
+  foundClueAreaIds?: readonly string[]
 }): {
   visited: string[]
   remaining: string[]
@@ -483,9 +505,10 @@ export function level2Progress(input: {
   const searched = input.searchedAreaIds ?? []
   const talked = input.talkedNpcIds ?? []
   const deduced = input.deducedCaseIds ?? []
+  const found = input.foundClueAreaIds ?? readFoundClues()
   const visited = LEVEL2_CASES.filter((c) => {
     if (stamps.has(c.id)) return true
-    const pins = c.clues.every((clue) => clueWorked(clue, searched, talked))
+    const pins = c.clues.every((clue) => clueWorked(clue, searched, talked, found))
     // A case with a deduction is not visited on pins alone — the call must be made.
     return c.deduction ? pins && deduced.includes(c.id) : pins
   }).map((c) => c.id)
