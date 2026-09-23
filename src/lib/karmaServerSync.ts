@@ -82,6 +82,9 @@ const KARMA_BACKOFF_MS = 8000
 // Tombstones older than KARMA_REFUSED_TTL_MS are pruned, so counts cover ~7 days.
 const KARMA_OUTBOX_PREFIX = 'bobr_karma_ob1:'
 const KARMA_TOMBSTONE_PREFIX = 'bobr_karma_obx1:'
+// An expired/capped refused spend leaves its debit behind, one small key per event
+// (no shared counter), so dropping the queued event never refunds the spend.
+const KARMA_REFUSED_DEBIT_PREFIX = 'bobr_karma_rd1:'
 export const KARMA_OUTBOX_MAX = 500
 export const KARMA_REFUSED_TTL_MS = 7 * 24 * 60 * 60 * 1000
 export const KARMA_REFUSED_MAX = 50
@@ -172,7 +175,9 @@ function allOutbox(): PendingKarmaEvent[] {
   for (const e of refused) if (now - (e.refusedAt ?? 0) >= KARMA_REFUSED_TTL_MS) drop.add(e.eventId)
   const live = refused.filter((e) => !drop.has(e.eventId))
   for (let i = 0; i < live.length - KARMA_REFUSED_MAX; i++) drop.add(live[i].eventId)
+  const byDropId = new Map(refused.map((e) => [e.eventId, e]))
   for (const id of drop) {
+    keepRefusedDebit(byDropId.get(id)!)
     deleteEvent(id); addTombstone('expired', id)
     console.warn('[karma] refused spend expired or over the cap; it no longer counts as pending', id)
   }
@@ -182,6 +187,40 @@ function allOutbox(): PendingKarmaEvent[] {
 /** Events still waiting to be sent, oldest first. */
 export function readKarmaOutbox(): PendingKarmaEvent[] {
   return allOutbox().filter((e) => !e.refused)
+}
+
+interface RefusedDebit { s: string; t: KarmaType; d: number }
+const memoryRefusedDebits = new Map<string, RefusedDebit>()
+
+function keepRefusedDebit(e: PendingKarmaEvent): void {
+  if (!(e.delta < 0)) return
+  const k = KARMA_REFUSED_DEBIT_PREFIX + e.eventId
+  const v: RefusedDebit = { s: e.sessionId, t: e.karmaType, d: e.delta }
+  try {
+    const s = storage()
+    if (!s) throw new Error('no storage')
+    s.setItem(k, JSON.stringify(v))
+  } catch {
+    memoryRefusedDebits.set(k, v)
+  }
+}
+
+function refusedDebits(): RefusedDebit[] {
+  const byKey = new Map(memoryRefusedDebits)
+  const s = storage()
+  if (s) {
+    try {
+      for (let i = 0; i < s.length; i++) {
+        const k = s.key(i)
+        if (!k || !k.startsWith(KARMA_REFUSED_DEBIT_PREFIX)) continue
+        try {
+          const v = JSON.parse(s.getItem(k) ?? 'null')
+          if (v && typeof v.s === 'string' && typeof v.d === 'number' && v.d < 0) byKey.set(k, v)
+        } catch { /* corrupt entry: skip */ }
+      }
+    } catch { /* storage unreadable: memory only */ }
+  }
+  return [...byKey.values()]
 }
 
 type TombstoneKind = 'refused' | 'overflowDropped' | 'refusedExpired'
@@ -249,13 +288,17 @@ export function karmaSyncStatus(): KarmaSyncStatus {
 /**
  * Not-yet-acknowledged deltas for a session, per karma type (may be negative).
  * Includes refused spends: the player spent that karma locally, and a server
- * refusal must not turn into a refund — until the refused spend expires
- * (KARMA_REFUSED_TTL_MS) or is pushed out by the KARMA_REFUSED_MAX cap.
+ * refusal must not turn into a refund. When a refused spend expires
+ * (KARMA_REFUSED_TTL_MS) or is pushed out by the KARMA_REFUSED_MAX cap, its queued
+ * event goes but its debit stays (KARMA_REFUSED_DEBIT_PREFIX).
  */
 export function pendingKarmaDeltas(sessionId: string): KarmaBalance {
   const out: KarmaBalance = { good: 0, neutral: 0, bad: 0 }
   for (const e of allOutbox()) {
     if (e.sessionId === sessionId && e.karmaType in out) out[e.karmaType] += e.delta
+  }
+  for (const d of refusedDebits()) {
+    if (d.s === sessionId && d.t in out) out[d.t] += d.d
   }
   return out
 }

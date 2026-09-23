@@ -197,13 +197,16 @@ async function main() {
   const s7Rec = s7Key ? JSON.parse(store.get(s7Key)!) : null
   check('400 invalid_delta on a spend: kept as refused with refusedAt', s7Rec?.refused === true && s7Rec?.refusedAt === s7At && pendingKarmaDeltas('s7').good === -9, s7Rec)
 
-  // Refused spends EXPIRE after 7 days: they stop counting and their key is deleted.
+  // Refused spends EXPIRE after 7 days: the queued event and its key go, the DEBIT stays.
   const expiredBefore = getKarmaOutboxStats().refusedExpired
   fakeNow = s7At + KARMA_REFUSED_TTL_MS - 1
   check('refused spend still pending just before 7 days', pendingKarmaDeltas('s7').good === -9)
-  check('the older refused spend (s2) has already expired', pendingKarmaDeltas('s2').good === 0, pendingKarmaDeltas('s2'))
+  check('the older refused spend (s2) expired but its debit is kept', pendingKarmaDeltas('s2').good === -20, pendingKarmaDeltas('s2'))
+  const afterExpiry = reconcile({ good: 30, neutral: 0, bad: 0 }, { good: 50, neutral: 0, bad: 0 }, pendingKarmaDeltas('s2'))
+  check('an EXPIRED refused spend is still NOT refunded by reconcile (Codex r3)', afterExpiry.good === 30, afterExpiry)
   fakeNow = s7At + KARMA_REFUSED_TTL_MS
-  check('refused spend no longer pending at 7 days', pendingKarmaDeltas('s7').good === 0, pendingKarmaDeltas('s7'))
+  check('refused spend debit still counted at 7 days', pendingKarmaDeltas('s7').good === -9, pendingKarmaDeltas('s7'))
+  check('the debit is counted once, not per read', pendingKarmaDeltas('s7').good === -9 && pendingKarmaDeltas('s7').good === -9)
   check('expired refused spend key is deleted', !!s7Key && !store.has(s7Key))
   check('expiries are counted', getKarmaOutboxStats().refusedExpired === expiredBefore + 2, getKarmaOutboxStats())
   check('no refused spends left', getKarmaOutboxStats().refusedSpends === 0)
@@ -218,7 +221,7 @@ async function main() {
     if (i === 0) firstCapKey = [...store.keys()].find((k) => k.startsWith('bobr_karma_ob1:') && JSON.parse(store.get(k)!).sessionId === 's8')
   }
   const capStats = getKarmaOutboxStats()
-  check(`refused spends capped at ${KARMA_REFUSED_MAX}`, capStats.refusedSpends === KARMA_REFUSED_MAX && pendingKarmaDeltas('s8').good === -KARMA_REFUSED_MAX, capStats)
+  check(`refused spends capped at ${KARMA_REFUSED_MAX}`, capStats.refusedSpends === KARMA_REFUSED_MAX && pendingKarmaDeltas('s8').good === -(KARMA_REFUSED_MAX + 1), { capStats, s8: pendingKarmaDeltas('s8') })
   check('the OLDEST refused spend is the one dropped', !!firstCapKey && !store.has(firstCapKey))
   check('cap drop is counted', capStats.refusedExpired === expiredBeforeCap + 1, capStats)
 
