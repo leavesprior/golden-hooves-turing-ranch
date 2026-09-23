@@ -53,6 +53,7 @@ export function level2PinPosition(id: string, lat: number, lng: number): { x: nu
 
 export const LEVEL2_STAMP_KEY = 'bobr_l2_stamps'
 export const LEVEL2_TALKED_KEY = 'bobr_l2_talked_npcs'
+export const LEVEL2_DEDUCED_KEY = 'bobr_l2_deduced_cases'
 export const LEVEL2_VISIT_GOAL = 5
 
 export type Level2ClueKind = 'search' | 'talk'
@@ -84,6 +85,17 @@ export type Level2Case = {
   /** Why these three clues are the same case. */
   thinking: string
   clues: readonly [Level2Clue, Level2Clue, Level2Clue]
+  /**
+   * Optional deduction (2026-09-23, Angels Camp slice). When present, three worked
+   * pins are not enough: the case stamps only after the player USES the evidence
+   * to make the right call. Wrong calls explain why and cost nothing but a day.
+   */
+  deduction?: Level2Deduction
+}
+
+export type Level2Deduction = {
+  question: string
+  choices: readonly { id: string; label: string; correct?: true; response: string }[]
 }
 
 export const LEVEL2_CASES: readonly Level2Case[] = [
@@ -122,6 +134,32 @@ export const LEVEL2_CASES: readonly Level2Case[] = [
       { id: 'angels_saloon', kind: 'search', label: 'Barroom', x: 28, y: 52 },
       { id: 'bartender_ben', kind: 'talk', label: 'Ben Coon', x: 20, y: 68 },
     ],
+    deduction: {
+      question: 'The register margin, the note behind the bar, and Ben’s nervous prospector. Where do they point?',
+      choices: [
+        {
+          id: 'follow_moaning_hole',
+          label: 'Follow the note to the moaning hole in the limestone',
+          correct: true,
+          response: 'All three say the same place: the margin says ask Ben about it, the note sets the meeting there after dark, and Ben’s prospector asked the way and wanted no company. You leave the bar for the limestone hills where the wind moans. (Later: miners probe the cave for gold in 1851; the name Moaning Cavern comes later still.)',
+        },
+        {
+          id: 'buy_the_frog',
+          label: 'Buy the champion frog the boys keep betting on',
+          response: 'A frog is a wager, not a lead. None of your three clues mentions a frog for sale.',
+        },
+        {
+          id: 'wait_at_the_bar',
+          label: 'Wait at the bar for the prospector to come back',
+          response: 'Ben told you the man wanted no company. He is not coming back to be watched.',
+        },
+        {
+          id: 'carson_hill',
+          label: 'Head for Carson Hill, where the quartz pays',
+          response: 'Ben says he has never walked Carson Hill, and nothing you found names it. Rumor is not evidence.',
+        },
+      ],
+    },
   },
   {
     id: 'murphys',
@@ -293,6 +331,46 @@ export function replaceTalkedNpcs(ids: string[], storage?: StorageLike | null): 
   return next
 }
 
+export function readDeducedCases(storage?: StorageLike | null): string[] {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  return parseStamps(s?.getItem(LEVEL2_DEDUCED_KEY) ?? null)
+}
+
+export function writeDeducedCase(caseId: string, storage?: StorageLike | null): string[] {
+  const s = storage ?? (typeof window !== 'undefined' ? window.localStorage : null)
+  const next = Array.from(new Set([...readDeducedCases(s), caseId]))
+  try { s?.setItem?.(LEVEL2_DEDUCED_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+  return next
+}
+
+/** True when all three pins are worked but the case still waits on the player's call. */
+export function caseAwaitsDeduction(
+  caze: Level2Case,
+  searchedAreaIds: readonly string[],
+  talkedNpcIds: readonly string[],
+  storage?: StorageLike | null,
+): boolean {
+  if (!caze.deduction) return false
+  if (!caze.clues.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds))) return false
+  return !readDeducedCases(storage).includes(caze.id)
+}
+
+/**
+ * Badge state for a storefront that holds case clues. 'done' only when EVERY clue
+ * the front holds is worked — a saloon holding the register, the barroom and Ben
+ * must not turn green after one of the three (the "broken talk pin" report).
+ */
+export function frontClueState(
+  heldIds: readonly string[],
+  caze: Level2Case | null | undefined,
+  searchedAreaIds: readonly string[],
+  talkedNpcIds: readonly string[],
+): 'none' | 'waiting' | 'done' {
+  const held = caze ? caze.clues.filter((c) => heldIds.includes(c.id)) : []
+  if (held.length === 0) return 'none'
+  return held.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds)) ? 'done' : 'waiting'
+}
+
 export function clueWorked(clue: Level2Clue, searchedAreaIds: readonly string[], talkedNpcIds: readonly string[]): boolean {
   if (clue.kind === 'search') return searchedAreaIds.includes(clue.id)
   return talkedNpcIds.includes(clue.id)
@@ -307,7 +385,7 @@ export function casePinsDone(
   return { done, total: 3, complete: done >= 3 }
 }
 
-/** Stamp only when all three Carmen pins are worked — not for walking through a door. */
+/** Stamp only when all three Carmen pins are worked (and any deduction is made) — not for walking through a door. */
 export function maybeStampCase(
   locationId: string,
   searchedAreaIds: readonly string[],
@@ -317,6 +395,10 @@ export function maybeStampCase(
   const caze = caseForLocation(locationId)
   if (!caze) return readLevel2Stamps(storage)
   if (!caze.clues.every((c) => clueWorked(c, searchedAreaIds, talkedNpcIds))) {
+    return readLevel2Stamps(storage)
+  }
+  // A case with a deduction stamps only once the player has made the right call.
+  if (caze.deduction && !readDeducedCases(storage).includes(caze.id)) {
     return readLevel2Stamps(storage)
   }
   return writeLevel2Stamp(locationId, storage)
