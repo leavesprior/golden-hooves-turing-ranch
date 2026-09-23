@@ -10,20 +10,23 @@ let fakeNow = 1_800_000_000_000
 Date.now = () => fakeNow
 const store = new Map<string, string>()
 const g = globalThis as unknown as Record<string, unknown>
+let quotaFull = false
 g.localStorage = {
   getItem: (k: string) => store.get(k) ?? null,
-  setItem: (k: string, v: string) => { store.set(k, v) },
+  setItem: (k: string, v: string) => { if (quotaFull) throw new Error('QuotaExceededError'); store.set(k, v) },
   removeItem: (k: string) => { store.delete(k) },
+  key: (i: number) => [...store.keys()][i] ?? null,
+  get length() { return store.size },
 }
 g.window = globalThis
 const timers: (() => void)[] = []
 g.setTimeout = ((fn: () => void) => { timers.push(fn); return timers.length }) as unknown
 type Reply = { status: number; body: unknown } | 'throw'
 let replies: Reply[] = []
-const sent: { eventId: string; delta: number }[] = []
+const sent: { eventId: string; delta: number; refused?: unknown }[] = []
 g.fetch = async (_url: string, init?: { body?: string }) => {
   const b = JSON.parse(init?.body ?? '{}')
-  sent.push({ eventId: b.eventId, delta: b.delta })
+  sent.push({ eventId: b.eventId, delta: b.delta, refused: b.refused })
   const r = replies.shift() ?? { status: 200, body: { ok: true, balance: { good: 0, neutral: 0, bad: 0 } } }
   if (r === 'throw') throw new Error('offline')
   return { ok: r.status >= 200 && r.status < 300, status: r.status, json: async () => r.body }
@@ -135,10 +138,45 @@ async function main() {
   await flushKarmaOutbox()
   check('403 refusal is removed and counted', readKarmaOutbox().length === 0 && getKarmaOutboxStats().refused === before + 1)
 
+  // Codex #2: a REFUSED SPEND must not be refunded, and must not be re-sent.
+  fakeNow += 10_000
+  replies = [{ status: 403, body: { ok: false, reason: 'qsd_envelope_required' } }]
+  await postKarmaEvent({ sessionId: 's2', karmaType: 'good', delta: -20, source: 'spend' })
+  check('refused spend is not resent', readKarmaOutbox().length === 0)
+  check('refused spend still counts as pending', pendingKarmaDeltas('s2').good === -20, pendingKarmaDeltas('s2'))
+  check('refused spend is visible in stats', getKarmaOutboxStats().refusedSpends === 1)
+  const afterRefusal = reconcile({ good: 30, neutral: 0, bad: 0 }, { good: 50, neutral: 0, bad: 0 }, pendingKarmaDeltas('s2'))
+  check('refused spend is NOT refunded by reconcile', afterRefusal.good === 30, afterRefusal)
+  fakeNow += 10_000; sent.length = 0
+  await flushKarmaOutbox()
+  check('nothing is sent for a refused spend on the next flush', sent.length === 0, sent)
+
+  // Codex #1: two tabs enqueue at the same moment — neither event may be lost.
+  fakeNow += 10_000
+  replies = ['throw', 'throw']
+  await Promise.all([
+    postKarmaEvent({ sessionId: 's3', karmaType: 'good', delta: -7, source: 'spend' }),
+    postKarmaEvent({ sessionId: 's3', karmaType: 'neutral', delta: 9, source: 'earn' }),
+  ])
+  check('concurrent enqueues both survive (one key per event)', readKarmaOutbox().filter((e) => e.sessionId === 's3').length === 2)
+  const obKeys = [...store.keys()].filter((k) => k.startsWith('bobr_karma_ob1:'))
+  check('each queued event has its own storage key', obKeys.length === readKarmaOutbox().length + getKarmaOutboxStats().refusedSpends, obKeys)
+
+  // Codex #3: storage full — the event is held in memory and the outbox says so.
+  fakeNow += 10_000
+  quotaFull = true
+  replies = ['throw']
+  await postKarmaEvent({ sessionId: 's4', karmaType: 'good', delta: -3, source: 'spend' })
+  check('quota-full spend held in memory, not lost', readKarmaOutbox().some((e) => e.sessionId === 's4'))
+  check('quota-full spend counts as pending', pendingKarmaDeltas('s4').good === -3)
+  check('outbox reports degraded durability', getKarmaOutboxStats().degraded === true)
+  quotaFull = false
+
   // Out-of-bound deltas are never queued (unchanged behaviour).
   fakeNow += 10_000
+  const before5000 = readKarmaOutbox().length
   await postKarmaEvent({ sessionId: 's1', karmaType: 'good', delta: 5000, source: 'earn' })
-  check('out-of-bound delta never enters the outbox', readKarmaOutbox().length === 0)
+  check('out-of-bound delta never enters the outbox', readKarmaOutbox().length === before5000)
 
   const failed = results.filter(r => !r.pass)
   console.log(JSON.stringify({ test: 'karmaLedgerHonesty', passed: results.length - failed.length, total: results.length, failed }, null, 2))

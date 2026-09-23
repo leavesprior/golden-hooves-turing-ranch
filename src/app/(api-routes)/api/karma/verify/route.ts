@@ -1,21 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { dbVerifyKarmaLedger } from '@/lib/discountCodesDb';
-import { rateLimitOk, clientIpFrom } from '@/lib/markerSession';
+import type { KarmaChainVerdict } from '@/lib/karmaLedgerVerify';
 
 export const runtime = 'nodejs';
 
 // Read-only re-walk of the karma hash chain (2026-09-23). Gives the chain a
 // reader: a Wheelwright canary or an outside witness can poll this and record
 // `head`, which is what makes a truncated tail detectable at all.
+// `ok` is true ONLY for `intact` — an empty ledger verified nothing.
 // A ledger that cannot be opened reports `unmeasured`, never `intact`.
-export async function GET(req: NextRequest) {
-  if (!rateLimitOk(clientIpFrom(req.headers))) {
-    return NextResponse.json({ ok: false, reason: 'rate_limited' }, { status: 429 });
-  }
+// The walk is a full-table scan, so the verdict is cached per process instead of
+// spending the gameplay rate limiter or DB time on every poll.
+const CACHE_MS = 30_000;
+let cached: { at: number; verdict: KarmaChainVerdict; checkedAt: string } | null = null;
+
+export async function GET() {
   try {
-    const verdict = dbVerifyKarmaLedger();
+    if (!cached || Date.now() - cached.at > CACHE_MS) {
+      cached = { at: Date.now(), verdict: dbVerifyKarmaLedger(), checkedAt: new Date().toISOString() };
+    }
     return NextResponse.json(
-      { ok: verdict.status !== 'broken', ...verdict, checkedAt: new Date().toISOString() },
+      { ok: cached.verdict.status === 'intact', ...cached.verdict, checkedAt: cached.checkedAt },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (err) {

@@ -49,6 +49,11 @@ export interface RedeemResult {
 let _warnedTmpDb = false
 
 function getDbPath(): string {
+  // Test-only override (never honored in production): lets the ledger tests run
+  // against a throwaway file instead of the shared dev DB in /tmp.
+  if (process.env.NODE_ENV !== 'production' && process.env.BOBR_DB_PATH_FOR_TESTS) {
+    return process.env.BOBR_DB_PATH_FOR_TESTS;
+  }
   const volumePath = '/data';
   try {
     if (fs.existsSync(volumePath) && fs.statSync(volumePath).isDirectory()) {
@@ -310,20 +315,25 @@ export function dbAppendKarmaEvent(params: {
   eventId: string; sessionId: string; karmaType: KarmaType; delta: number; source: string;
 }): KarmaBalance {
   const db = getDb();
-  const createdAt = new Date().toISOString();
-  const prev = db.prepare(
-    'SELECT row_hash FROM bobr_karma_ledger ORDER BY seq DESC LIMIT 1'
-  ).get() as { row_hash: string } | undefined;
-  const prevHash = prev?.row_hash ?? KARMA_GENESIS_HASH;
-  const rowHash = karmaRowHash({
-    prevHash, eventId: params.eventId, sessionId: params.sessionId,
-    karmaType: params.karmaType, delta: Math.trunc(params.delta), createdAt,
-  });
-  db.prepare(`
-    INSERT OR IGNORE INTO bobr_karma_ledger
-      (event_id, session_id, karma_type, delta, source, created_at, prev_hash, row_hash)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(params.eventId, params.sessionId, params.karmaType, Math.trunc(params.delta), params.source, createdAt, prevHash, rowHash);
+  // Read-head + insert must be one IMMEDIATE transaction: it takes SQLite's write
+  // lock BEFORE reading the head, so two server processes cannot both chain onto
+  // the same prev_hash (a fork the verifier would report as a broken ledger).
+  db.transaction(() => {
+    const createdAt = new Date().toISOString();
+    const prev = db.prepare(
+      'SELECT row_hash FROM bobr_karma_ledger ORDER BY seq DESC LIMIT 1'
+    ).get() as { row_hash: string } | undefined;
+    const prevHash = prev?.row_hash ?? KARMA_GENESIS_HASH;
+    const rowHash = karmaRowHash({
+      prevHash, eventId: params.eventId, sessionId: params.sessionId,
+      karmaType: params.karmaType, delta: Math.trunc(params.delta), createdAt,
+    });
+    db.prepare(`
+      INSERT OR IGNORE INTO bobr_karma_ledger
+        (event_id, session_id, karma_type, delta, source, created_at, prev_hash, row_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(params.eventId, params.sessionId, params.karmaType, Math.trunc(params.delta), params.source, createdAt, prevHash, rowHash);
+  }).immediate();
   return dbGetKarmaBalance(params.sessionId);
 }
 

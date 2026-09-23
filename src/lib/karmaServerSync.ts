@@ -59,10 +59,16 @@ const KARMA_BACKOFF_MS = 8000
 // DURABLE OUTBOX (2026-09-23). The throttle above used to DROP any event that
 // arrived inside the gap/backoff window, and the eventId was minted per attempt,
 // so nothing could ever be replayed. Silent drops made the ledger undercount, and
-// a dropped SPEND was refunded by reconcile's max(). Now every allowed event is
-// queued once (eventId minted at enqueue, so a replay is idempotent server-side)
-// and drained in order. Refusals are counted, never silent.
-const KARMA_OUTBOX_KEY = 'bobr_karma_outbox_v1'
+// a dropped SPEND was refunded by reconcile's max().
+//
+// Each queued event lives under ITS OWN localStorage key (prefix + eventId), so
+// two tabs never read-modify-write a shared list and cannot erase each other's
+// events; removal deletes only the acknowledged key. A double send from two tabs
+// is harmless — the server is idempotent on eventId. If storage refuses a write
+// (quota / private mode) the event is held in memory for this tab and the outbox
+// reports itself degraded. A REFUSED spend is kept (marked refused) so reconcile
+// keeps honouring it instead of refunding it; refusals are warned and counted.
+const KARMA_OUTBOX_PREFIX = 'bobr_karma_ob1:'
 const KARMA_OUTBOX_STATS_KEY = 'bobr_karma_outbox_stats_v1'
 export const KARMA_OUTBOX_MAX = 500
 
@@ -72,47 +78,104 @@ export interface PendingKarmaEvent {
   karmaType: KarmaType
   delta: number
   source: string
+  /** Server refused it for good. Kept only for spends, so the deduction stands. */
+  refused?: true
 }
 
-export interface KarmaOutboxStats { refused: number; overflowDropped: number }
+export interface KarmaOutboxStats { refused: number; overflowDropped: number; refusedSpends: number; degraded: boolean }
 
-function readJson<T>(key: string, fallback: T): T {
+const memoryOutbox = new Map<string, PendingKarmaEvent>()
+let storageDegraded = false
+
+function storage(): Storage | null {
+  try { return typeof window === 'undefined' ? null : window.localStorage } catch { return null }
+}
+
+function isPendingEvent(e: unknown): e is PendingKarmaEvent {
+  return !!e && typeof e === 'object' &&
+    typeof (e as PendingKarmaEvent).eventId === 'string' &&
+    typeof (e as PendingKarmaEvent).sessionId === 'string' &&
+    typeof (e as PendingKarmaEvent).delta === 'number'
+}
+
+/** evt_<ms>_<rand>: order by the enqueue time, then id. */
+function eventOrder(a: PendingKarmaEvent, b: PendingKarmaEvent): number {
+  const ta = Number(a.eventId.split('_')[1]) || 0
+  const tb = Number(b.eventId.split('_')[1]) || 0
+  return ta - tb || (a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0)
+}
+
+function putEvent(e: PendingKarmaEvent): void {
+  const s = storage()
   try {
-    const raw = localStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : fallback
+    if (!s) throw new Error('no storage')
+    s.setItem(KARMA_OUTBOX_PREFIX + e.eventId, JSON.stringify(e))
+    memoryOutbox.delete(e.eventId)
   } catch {
-    return fallback
+    memoryOutbox.set(e.eventId, e)
+    storageDegraded = true
   }
 }
-function writeJson(key: string, value: unknown): void {
-  try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* quota/private mode: stays in memory only */ }
+
+function deleteEvent(eventId: string): void {
+  memoryOutbox.delete(eventId)
+  try { storage()?.removeItem(KARMA_OUTBOX_PREFIX + eventId) } catch { /* nothing else to do */ }
 }
 
-export function readKarmaOutbox(): PendingKarmaEvent[] {
-  if (typeof window === 'undefined') return []
-  const list = readJson<unknown>(KARMA_OUTBOX_KEY, [])
-  return Array.isArray(list)
-    ? list.filter((e): e is PendingKarmaEvent =>
-        !!e && typeof e === 'object' &&
-        typeof (e as PendingKarmaEvent).eventId === 'string' &&
-        typeof (e as PendingKarmaEvent).delta === 'number')
-    : []
+/** Every queued event (sendable and refused spends), oldest first. */
+function allOutbox(): PendingKarmaEvent[] {
+  const byId = new Map<string, PendingKarmaEvent>()
+  const s = storage()
+  if (s) {
+    try {
+      for (let i = 0; i < s.length; i++) {
+        const k = s.key(i)
+        if (!k || !k.startsWith(KARMA_OUTBOX_PREFIX)) continue
+        try {
+          const e = JSON.parse(s.getItem(k) ?? 'null')
+          if (isPendingEvent(e)) byId.set(e.eventId, e)
+        } catch { /* skip a corrupt entry */ }
+      }
+    } catch { /* storage unreadable: memory only */ }
+  }
+  for (const e of memoryOutbox.values()) byId.set(e.eventId, e)
+  return [...byId.values()].sort(eventOrder)
 }
-function writeKarmaOutbox(list: PendingKarmaEvent[]): void { writeJson(KARMA_OUTBOX_KEY, list) }
+
+/** Events still waiting to be sent, oldest first. */
+export function readKarmaOutbox(): PendingKarmaEvent[] {
+  return allOutbox().filter((e) => !e.refused)
+}
+
+function readStats(): { refused: number; overflowDropped: number } {
+  try {
+    const v = JSON.parse(storage()?.getItem(KARMA_OUTBOX_STATS_KEY) ?? '{}')
+    return { refused: Number(v.refused) || 0, overflowDropped: Number(v.overflowDropped) || 0 }
+  } catch {
+    return { refused: 0, overflowDropped: 0 }
+  }
+}
+function bumpStat(k: 'refused' | 'overflowDropped'): void {
+  const st = readStats(); st[k] += 1
+  try { storage()?.setItem(KARMA_OUTBOX_STATS_KEY, JSON.stringify(st)) } catch { storageDegraded = true }
+}
 
 export function getKarmaOutboxStats(): KarmaOutboxStats {
-  if (typeof window === 'undefined') return { refused: 0, overflowDropped: 0 }
-  const s = readJson<Partial<KarmaOutboxStats>>(KARMA_OUTBOX_STATS_KEY, {})
-  return { refused: s.refused ?? 0, overflowDropped: s.overflowDropped ?? 0 }
-}
-function bumpStat(k: keyof KarmaOutboxStats): void {
-  const s = getKarmaOutboxStats(); s[k] += 1; writeJson(KARMA_OUTBOX_STATS_KEY, s)
+  return {
+    ...readStats(),
+    refusedSpends: allOutbox().filter((e) => e.refused).length,
+    degraded: storageDegraded || memoryOutbox.size > 0,
+  }
 }
 
-/** Sum of not-yet-acknowledged deltas for a session, per karma type (may be negative). */
+/**
+ * Not-yet-acknowledged deltas for a session, per karma type (may be negative).
+ * Includes refused spends: the player spent that karma locally, and a server
+ * refusal must not turn into a refund.
+ */
 export function pendingKarmaDeltas(sessionId: string): KarmaBalance {
   const out: KarmaBalance = { good: 0, neutral: 0, bad: 0 }
-  for (const e of readKarmaOutbox()) {
+  for (const e of allOutbox()) {
     if (e.sessionId === sessionId && e.karmaType in out) out[e.karmaType] += e.delta
   }
   return out
@@ -125,7 +188,7 @@ function scheduleFlush(ms: number): void {
   flushTimer = setTimeout(() => { flushTimer = null; void flushKarmaOutbox() }, ms)
 }
 
-/** Queue an in-game earn/spend for the server ledger, then try to send. Never drops an allowed event. */
+/** Queue an in-game earn/spend for the server ledger, then try to send. Never drops an allowed event silently. */
 export async function postKarmaEvent(params: {
   sessionId: string
   karmaType: KarmaType
@@ -134,17 +197,19 @@ export async function postKarmaEvent(params: {
 }): Promise<ServerBalanceResult> {
   if (!allowedLedgerDelta(params.delta)) return { ok: false }
   if (typeof window === 'undefined') return { ok: false }
-  const list = readKarmaOutbox()
-  list.push({ ...params, eventId: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}` })
-  while (list.length > KARMA_OUTBOX_MAX) { list.shift(); bumpStat('overflowDropped') }
-  writeKarmaOutbox(list)
+  putEvent({ ...params, eventId: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}` })
+  const queued = readKarmaOutbox()
+  for (let i = 0; i < queued.length - KARMA_OUTBOX_MAX; i++) {
+    deleteEvent(queued[i].eventId); bumpStat('overflowDropped')
+    console.warn('[karma] outbox full — oldest queued event dropped', queued[i].eventId)
+  }
   return flushKarmaOutbox()
 }
 
 /**
  * Send the oldest queued event (one per call, respecting the throttle); reschedules
  * itself until the outbox is empty. Idempotent on eventId, so a send whose response
- * was lost is safely re-sent.
+ * was lost — or that another tab also sent — is safely re-sent.
  */
 export async function flushKarmaOutbox(): Promise<ServerBalanceResult> {
   if (typeof window === 'undefined' || flushInFlight) return { ok: false }
@@ -155,20 +220,28 @@ export async function flushKarmaOutbox(): Promise<ServerBalanceResult> {
   if (now - karmaLastPostAt < KARMA_MIN_GAP_MS) { scheduleFlush(KARMA_MIN_GAP_MS + 50); return { ok: false } }
   karmaLastPostAt = now
   flushInFlight = true
-  const removeHead = () => writeKarmaOutbox(readKarmaOutbox().filter(e => e.eventId !== head.eventId))
   try {
+    const { refused: _r, ...body } = head
+    void _r
     const res = await fetch('/api/karma/event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(head),
+      body: JSON.stringify(body),
     })
     if (res.status === 429 || res.status >= 500) {
       karmaBackoffUntil = Date.now() + KARMA_BACKOFF_MS
       return { ok: false }
     }
     if (!res.ok) {
-      // 400/403: the server will refuse this event forever. Drop it, but COUNT it.
-      removeHead(); bumpStat('refused')
+      // 400/403: the server will refuse this event forever. Never silent.
+      bumpStat('refused')
+      if (head.delta < 0) {
+        putEvent({ ...head, refused: true }) // the spend stands; reconcile keeps honouring it
+        console.warn('[karma] server refused a spend; keeping it so it is not refunded', head.eventId, res.status)
+      } else {
+        deleteEvent(head.eventId)
+        console.warn('[karma] server refused an earn; not recorded on the ledger', head.eventId, res.status)
+      }
       return { ok: false }
     }
     const data = await res.json()
@@ -177,7 +250,7 @@ export async function flushKarmaOutbox(): Promise<ServerBalanceResult> {
       karmaBackoffUntil = Date.now() + KARMA_BACKOFF_MS
       return { ok: false }
     }
-    removeHead()
+    deleteEvent(head.eventId)
     return { ok: true, balance: data.balance, asOf: data.asOf }
   } catch {
     karmaBackoffUntil = Date.now() + KARMA_BACKOFF_MS
