@@ -18,7 +18,7 @@ import {
   writeDeducedCase,
   writeFoundClue,
 } from './goldCountryLevel2'
-import { LOCATION_SEARCH_AREAS as SEARCH_AREAS, resolveCaseSearch } from '../app/oregon-trail/data/goldCountryEncounters'
+import { LOCATION_SEARCH_AREAS as SEARCH_AREAS, resolveCaseSearch, resolveSearch } from '../app/oregon-trail/data/goldCountryEncounters'
 import { applyLevel2Persist, frontsForLocation, snapshotLevel2Persist } from './goldCountryStreet'
 import { GOLD_COUNTRY_NPCS as goldCountryNPCs, type GoldCountryQuest } from '../app/oregon-trail/data/goldCountryNPCs'
 import { getGoldCountryLocation } from '../app/oregon-trail/data/goldCountryLocations'
@@ -216,6 +216,20 @@ const winText = frogOutcomeConsequence(frogJumpOutcome(FROG_SWEET_MIN), consolat
 ok(!winText.includes('Win or lose') && winText === frogJumpOutcome(FROG_SWEET_MIN).line, 'a WIN does not append the win-or-lose line')
 ok(frogOutcomeConsequence(frogJumpOutcome(0), consolation).endsWith(consolation), 'a short jump gets the consolation line')
 ok(frogOutcomeConsequence(frogJumpOutcome(100), consolation).endsWith(consolation), 'a belly-flop gets the consolation line')
+
+// An authored probability of 1.0 is a certainty; the 0.95 ceiling only bounds a stat BONUS.
+{
+  const realRandom = Math.random
+  Math.random = () => 0.97
+  try {
+    const sure = { findings: [{ id: 'sure', description: 'always there', probability: 1.0, isClue: false }] } as unknown as Parameters<typeof resolveSearch>[0]
+    ok(resolveSearch(sure)?.id === 'sure', 'a probability-1.0 find is never missed (roll 0.97)')
+    const boosted = { statBonus: 'wits', findings: [{ id: 'maybe', description: 'x', probability: 0.9, isClue: false }] } as unknown as Parameters<typeof resolveSearch>[0]
+    ok(resolveSearch(boosted, 10) === null, 'a stat bonus still cannot lift a find past 0.95 (roll 0.97)')
+  } finally {
+    Math.random = realRandom
+  }
+}
 
 console.log(JSON.stringify({ test: 'angelsCampSlice', passed, total: passed + failures.length, failed: failures }, null, 2))
 process.exit(failures.length ? 1 : 0)

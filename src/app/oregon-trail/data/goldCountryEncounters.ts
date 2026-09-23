@@ -2106,7 +2106,8 @@ export function resolveSearch(area: SearchArea, statValue: number = 0): SearchFi
   const bonusChance = area.statBonus ? statValue * 0.05 : 0
 
   for (const finding of area.findings) {
-    const adjustedProbability = Math.min(finding.probability + bonusChance, 0.95)
+    // The 0.95 ceiling bounds the stat bonus; an authored 1.0 stays a certainty.
+    const adjustedProbability = Math.min(finding.probability + bonusChance, Math.max(finding.probability, 0.95))
     if (Math.random() < adjustedProbability) {
       return finding
     }
