@@ -78,12 +78,12 @@ export const LOCAL_PLACES: LocalPlace[] = [
       point: { lat: 38.442575, lng: -120.63102 },
       pointSource: 'Amador County parcel 029-043-010 (county GIS), centre of the lot',
       keeper: {
-        name: 'The Guide (Where in Time)',
+        name: 'The Guide to Where in Time',
         radiusM: 45,
         lines: [
           'Mind the front wall. Those stones are older than the building they dress — the 2021 sale papers say they came from Stone Jug, an 1850s camp up the road toward Upper Rancheria.',
-          'Somebody carried a camp’s worth of time down the hill and laid it here as a face. When the walls behind it went up, nobody has written down. Find that out and you know something the county’s online records don’t.',
-          'The bread is today’s, though. Friday to Sunday, eight to three.',
+          'Read it by its true grain: somebody carried a camp’s worth of time down the hill and set it here as a face. The stones say 1850s. The walls behind them have said nothing yet — nobody has written down when they went up. Find that out and you know something the county’s online records don’t.',
+          'This narrator sees every era at once, which is how it knows the bread is today’s. Friday to Sunday, eight to three. Proceed.',
         ],
       },
     },
