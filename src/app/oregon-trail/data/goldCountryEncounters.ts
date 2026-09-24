@@ -1985,8 +1985,8 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
   },
   {
     id: 'mokelumne_cemetery',
-    name: 'French Cemetery',
-    description: 'The old French cemetery on the hill. Weathered headstones and overgrown paths.',
+    name: 'Hill cemetery',
+    description: 'The Protestant cemetery on the hill. Weathered headstones and overgrown paths.',
     location: 'mokelumne_hill',
     icon: '⚰️',
     searchDifficulty: 5,
