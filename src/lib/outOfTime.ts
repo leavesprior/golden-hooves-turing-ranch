@@ -10,6 +10,8 @@ import { metersBetween } from '@/lib/oneMapDiscovery'
  *   in_town  → you are in town, walk this way
  *   here     → the keeper speaks (only within a very short distance)
  * A fix too rough to tell "here" from "down the street" never unlocks the keeper.
+ * Even a good fix cannot tell one door from the next: at 16154 Main the
+ * neighbour's door is 13.9 m away (outOfTime.keeperDoor.test.ts, intended red).
  * The fix is used on the device only; nothing here sends it anywhere.
  */
 export interface OutOfTime {
