@@ -9,6 +9,11 @@ for (const p of LOCAL_PLACES) {
   assert.ok(p.today.length > 5 && p.then.length > 5, `${p.id}: says what it is now and then`)
 }
 
+// Hours read off a listing aggregator are never stated as fact (council 20260923_195527).
+for (const p of LOCAL_PLACES) {
+  if (/restaurantji/.test(p.source)) assert.match(p.today, /call ahead/i, `${p.id}: aggregator hours say call ahead`)
+}
+
 // Ids are unique.
 assert.equal(new Set(LOCAL_PLACES.map((p) => p.id)).size, LOCAL_PLACES.length)
 

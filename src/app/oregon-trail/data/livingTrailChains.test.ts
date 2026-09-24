@@ -40,7 +40,7 @@ for (const n of LIVING_TRAIL_NODES) {
 // a night ghost on the public street with a safety notice.
 const vol = getChainNodes('vol_kept_burning')
 assert.ok(vol.length >= 4, 'volcano chain has its stops')
-const OSM = new Set(['38.44175,-120.63058', '38.4431,-120.63079', '38.44241,-120.6316'])
+const OSM = new Set(['38.44175,-120.63058', '38.4431,-120.63079', '38.44241,-120.6316', '38.4417812,-120.6307693'])
 for (const n of vol) assert.ok(OSM.has(`${n.geofence.lat},${n.geofence.lng}`), `${n.id}: OSM-verified anchor`)
 const ghost = vol.find((n) => n.id === 'lt_vol_fire_dragon')!
 assert.ok(ghost, 'the Fire Dragon night stop exists')
@@ -51,5 +51,52 @@ assert.match(ghost.safetyNotice ?? '', /public/i, 'ghost stop tells players to s
 const dragon = GOLD_COUNTRY_NPCS.find((n) => n.id === ghost.npcId)!
 assert.match([dragon.greeting, ...dragon.dialogueLines].join(' '), /legend/i, 'the ghost labels itself legend')
 assert.match(dragon.dialogueLines.join(' '), /1853/, 'the ghost tells the documented burnings')
+// Council 20260923_195527: the night stop's zero must be the public road, not the private hotel.
+assert.equal(`${ghost.geofence.lat},${ghost.geofence.lng}`, '38.4417812,-120.6307693', 'Fire Dragon anchors on the OSM Main Street road node')
+// A remote (daytime) play must not greet with 'after dark'.
+assert.doesNotMatch(dragon.greeting, /after dark/i)
+
+// Mokelumne Hill + Angels Camp: every anchor is on an explicit per-chain allow-list
+// of OSM coordinates; ghosts label themselves legend; the Leger legend stays uncited-free.
+const ALLOWED: Record<string, Set<string>> = {
+  mh_courthouse_hill: new Set(['38.3004709,-120.7046552', '38.3011585,-120.7057368', '38.3010086,-120.7059348']),
+  ac_frog_and_hearse: new Set(['38.0727006,-120.5432579', '38.0756818,-120.5457283']),
+}
+const npcText = (id: string) => {
+  const n = GOLD_COUNTRY_NPCS.find((x) => x.id === id)!
+  assert.ok(n, `npc ${id} exists`)
+  return [n.title, n.greeting, n.personality, n.ollamaPrompt, ...n.dialogueLines].join(' ')
+}
+for (const [chainId, allowed] of Object.entries(ALLOWED)) {
+  const chain = LIVING_TRAIL_CHAINS.find((c) => c.id === chainId)
+  assert.ok(chain, `${chainId} exists`)
+  assert.ok(chain!.completionLine, `${chainId}: completionLine`)
+  const nodes = getChainNodes(chainId)
+  assert.ok(nodes.length >= 2 && nodes.length <= 3, `${chainId}: 2-3 stops`)
+  for (const n of nodes) assert.ok(allowed.has(`${n.geofence.lat},${n.geofence.lng}`), `${n.id}: allow-listed OSM anchor`)
+}
+assert.equal(LIVING_TRAIL_CHAINS.find((c) => c.id === 'mh_courthouse_hill')!.place, 'Mokelumne Hill, California')
+assert.equal(LIVING_TRAIL_CHAINS.find((c) => c.id === 'ac_frog_and_hearse')!.place, 'Angels Camp, California')
+
+const leger = getChainNodes('mh_courthouse_hill').find((n) => n.id === 'lt_mh_leger_ghost')!
+assert.ok(leger, 'the Leger night stop exists')
+assert.equal(isNodeInTimeWindow(leger, 22), true, 'Leger walks at 22:00')
+assert.equal(isNodeInTimeWindow(leger, 0), true, 'Leger walks past midnight')
+assert.equal(isNodeInTimeWindow(leger, 14), false, 'no Leger at 14:00')
+assert.match(leger.safetyNotice ?? '', /public/i, 'Leger stop keeps players on public ground')
+assert.equal(`${leger.geofence.lat},${leger.geofence.lng}`, '38.3010086,-120.7059348', 'Leger anchors on the public Main x Lafayette corner, not the hotel')
+const legerText = npcText(leger.npcId)
+assert.match(legerText, /legend/i, 'the Leger ghost labels itself legend')
+assert.doesNotMatch(legerText, /shot|room \d/i, 'no uncited shooting or room-number claims')
+
+const hearse = getChainNodes('ac_frog_and_hearse').find((n) => n.id === 'lt_ac_carly_wagon')!
+assert.ok(hearse, 'the museum wagon stop exists')
+assert.equal(isNodeInTimeWindow(hearse, 20), false, 'museum closed at 20:00')
+assert.equal(isNodeInTimeWindow(hearse, 12), true, 'museum open at noon')
+assert.match(npcText(hearse.npcId), /legend/i, 'the Carly wagon labels itself legend')
+const coon = getChainNodes('ac_frog_and_hearse').find((n) => n.id === 'lt_ac_angels_hotel')!
+assert.ok(coon, 'the Angels Hotel stop exists')
+assert.match(npcText(coon.npcId), /legend/i, 'the Ben Coon ghost labels the ghost as legend')
+assert.match(npcText(coon.npcId), /reportedly/i, 'the frog yarn is kept "reportedly"')
 
 console.log(`livingTrailChains: ok (${LIVING_TRAIL_CHAINS.length} chains, ${LIVING_TRAIL_NODES.length} nodes)`)

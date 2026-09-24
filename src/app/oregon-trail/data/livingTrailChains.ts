@@ -86,7 +86,7 @@ export const LIVING_TRAIL_NODES: LivingTrailNode[] = [
     id: 'lt_vol_soldiers_gulch',
     chainId: 'vol_kept_burning',
     title: 'The Winter at Soldiers Gulch',
-    geofence: { lat: 38.44241, lng: -120.6316, radiusM: 100 },  // OSM "Soldiers Memorial Park" (plaques)
+    geofence: { lat: 38.44241, lng: -120.6316, radiusM: 150 },  // OSM "Soldiers Memorial Park"; r=150 reaches the plaques (~103 m, Google visual)
     dwellMs: 10_000,
     npcId: 'lt_npc_vol_soldier',
     microAction: { kind: 'talk', prompt: 'Talk with the soldier by the plaques' },
@@ -109,7 +109,7 @@ export const LIVING_TRAIL_NODES: LivingTrailNode[] = [
     id: 'lt_vol_cobblestone',
     chainId: 'vol_kept_burning',
     title: 'Smoke in the Stone Walls',
-    geofence: { lat: 38.44175, lng: -120.63058, radiusM: 150 },  // district anchor (St. George, OSM); theatre is 16121 Main
+    geofence: { lat: 38.4417812, lng: -120.6307693, radiusM: 100 },  // OSM Main Street (way 10286534) road node; Cobblestone ~45 m north
     dwellMs: 10_000,
     prerequisiteNodeId: 'lt_vol_old_abe',
     npcId: 'lt_npc_vol_adolph_mayer',
@@ -121,7 +121,7 @@ export const LIVING_TRAIL_NODES: LivingTrailNode[] = [
     id: 'lt_vol_fire_dragon',
     chainId: 'vol_kept_burning',
     title: 'The Fire Dragon',
-    geofence: { lat: 38.44175, lng: -120.63058, radiusM: 150 },  // St. George (OSM) — from the public street
+    geofence: { lat: 38.4417812, lng: -120.6307693, radiusM: 75 },  // OSM Main Street road node (way 10286534), 17 m from the hotel: zero is the street, not the building
     dwellMs: 20_000,
     timeWindow: { startHour: 20, endHour: 1 },  // night only; wraps midnight
     prerequisiteNodeId: 'lt_vol_cobblestone',
@@ -130,6 +130,75 @@ export const LIVING_TRAIL_NODES: LivingTrailNode[] = [
     reward: { goodKarma: 5 },
     remoteVariant: { enabled: true, karmaScale: 0.5 },
     safetyNotice: 'Stay on the public street — the St. George is a private hotel, not a stop to enter. Rural town, little light: bring a flashlight and watch for cars.',
+  },
+  // === Mokelumne Hill — "Courthouse Hill" (CHL #269, #256, #663; hotelleger.com).
+  // Anchors are OSM: the CHL #269 GNIS point (approx) and the Hotel Léger building way.
+  // The Leger ghost is LEGEND with no documented source; he speaks only the record.
+  {
+    id: 'lt_mh_french_war',
+    chainId: 'mh_courthouse_hill',
+    title: 'The French War on French Hill',
+    geofence: { lat: 38.3004709, lng: -120.7046552, radiusM: 100 },  // OSM/GNIS CHL #269 plaque, Main & Center (approx)
+    dwellMs: 10_000,
+    npcId: 'lt_npc_mh_french_miner',
+    microAction: { kind: 'talk', prompt: 'Talk with the French miner by the plaque' },
+    reward: { goodKarma: 3 },
+    remoteVariant: { enabled: true, karmaScale: 0.5 },
+  },
+  {
+    id: 'lt_mh_courthouse',
+    chainId: 'mh_courthouse_hill',
+    title: 'The County Seat in a Hotel Wall',
+    geofence: { lat: 38.3011585, lng: -120.7057368, radiusM: 100 },  // OSM way, Hotel Léger building
+    dwellMs: 10_000,
+    prerequisiteNodeId: 'lt_mh_french_war',
+    npcId: 'lt_npc_mh_court_clerk',
+    microAction: { kind: 'talk', prompt: 'Talk with the court clerk outside the old courthouse' },
+    reward: { goodKarma: 3 },
+    remoteVariant: { enabled: true, karmaScale: 0.5 },
+  },
+  {
+    id: 'lt_mh_leger_ghost',
+    chainId: 'mh_courthouse_hill',
+    title: 'Mr. Leger Keeps Late Hours',
+    geofence: { lat: 38.3010086, lng: -120.7059348, radiusM: 75 },  // OSM Main St x Lafayette St road node (ways 1368508584/1154097502): the public corner the notice names
+    dwellMs: 20_000,
+    timeWindow: { startHour: 20, endHour: 1 },  // night only; wraps midnight
+    prerequisiteNodeId: 'lt_mh_courthouse',
+    npcId: 'lt_npc_mh_george_leger',
+    microAction: { kind: 'waypoint', prompt: 'Stand on the sidewalk at Main & Lafayette and watch the old hotel' },
+    reward: { goodKarma: 5 },
+    remoteVariant: { enabled: true, karmaScale: 0.5 },
+    safetyNotice: 'Stay on the public sidewalk at Main & Lafayette — the Léger is a private hotel and restaurant. Never enter the rooms.',
+  },
+
+  // === Angels Camp — "The Frog and the Hearse" (angelsmuseumfoundation.org;
+  // gocalaveras.com/haunted-calaveras/ 2025-10-10). Anchors are OSM ways: Utica Park
+  // (by the Angels Hotel) and the Angels Camp Museum. The Carly wagon is a named legend.
+  {
+    id: 'lt_ac_angels_hotel',
+    chainId: 'ac_frog_and_hearse',
+    title: 'A Yarn at the Angels Hotel',
+    geofence: { lat: 38.0727006, lng: -120.5432579, radiusM: 150 },  // OSM way, Utica Park (Angels Hotel across Main)
+    dwellMs: 10_000,
+    npcId: 'lt_npc_ac_ben_coon',
+    microAction: { kind: 'talk', prompt: 'Talk with the old proprietor outside the Angels Hotel' },
+    reward: { goodKarma: 3 },
+    remoteVariant: { enabled: true, karmaScale: 0.5 },
+  },
+  {
+    id: 'lt_ac_carly_wagon',
+    chainId: 'ac_frog_and_hearse',
+    title: 'The Carly Funeral Wagon',
+    geofence: { lat: 38.0756818, lng: -120.5457283, radiusM: 100 },  // OSM way, Angels Camp Museum, 753 S Main
+    dwellMs: 10_000,
+    timeWindow: { startHour: 10, endHour: 16 },  // museum hours, daily 10-4
+    prerequisiteNodeId: 'lt_ac_angels_hotel',
+    npcId: 'lt_npc_ac_carly_wagon',
+    microAction: { kind: 'talk', prompt: 'Stand by the old funeral wagon and listen' },
+    reward: { goodKarma: 5 },
+    remoteVariant: { enabled: true, karmaScale: 0.5 },
+    safetyNotice: 'Open during Angels Camp Museum hours only (daily 10 to 4) — 753 S Main St.',
   },
 ]
 
@@ -153,6 +222,28 @@ export const LIVING_TRAIL_CHAINS: LivingTrailChain[] = [
     nodeIds: ['lt_vol_soldiers_gulch', 'lt_vol_old_abe', 'lt_vol_cobblestone', 'lt_vol_fire_dragon'],
     completionLine: 'Four hotels on one lot, three of them ash — and the brick one still stands. '
       + 'You walked the town that would not stay burned down.',
+  },
+  {
+    id: 'mh_courthouse_hill',
+    title: 'Courthouse Hill',
+    place: 'Mokelumne Hill, California',
+    description:
+      'Mokelumne Hill was a county seat, a battleground over a tax, and a town that burned three times. '
+      + 'Three stops on Main Street — the last one only after dark.',
+    nodeIds: ['lt_mh_french_war', 'lt_mh_courthouse', 'lt_mh_leger_ghost'],
+    completionLine: 'A tax war, a courthouse folded into a hotel, and a hotelier who never quite checked out — '
+      + 'or so the legend goes. You walked the hill that held the county.',
+  },
+  {
+    id: 'ac_frog_and_hearse',
+    title: 'The Frog and the Hearse',
+    place: 'Angels Camp, California',
+    description:
+      'Angels Camp gave the world a jumping frog and kept a museum full of wagons. '
+      + 'Two stops on Main Street — the second only while the museum is open.',
+    nodeIds: ['lt_ac_angels_hotel', 'lt_ac_carly_wagon'],
+    completionLine: 'A frog yarn reportedly heard at a hotel bar, and a hearse that will not stay quiet. '
+      + 'You walked the town that turned a tall tale into a legend.',
   },
 ]
 

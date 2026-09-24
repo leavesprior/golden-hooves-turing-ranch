@@ -11,7 +11,7 @@
  * half karma, recorded verifiedPresence: false.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import {
   LIVING_TRAIL_CHAINS,
@@ -87,17 +87,22 @@ export function LivingTrailScreen() {
     setDialogueIndex(0)
   }, [])
 
+  // A fast double-tap fired this twice before re-render and paid karma twice
+  // (council 20260923_195527). Claim the node synchronously first.
+  const claimedRef = useRef<Set<string>>(new Set())
   const handleMicroAction = useCallback(() => {
     if (!encounter) return
     const node = getLivingTrailNode(encounter.nodeId)
     if (!node) return
+    if (claimedRef.current.has(node.id) || nodeStates[node.id]?.status !== 'available') return
+    claimedRef.current.add(node.id)
     const verified = !encounter.remote
     completeLivingTrailNode(node.id, verified)
     // Record-only server check-in (P1 — fire-and-forget, fail-soft offline)
     postPresenceCheckin(
       node.id,
-      verified && presence.position
-        ? { lat: presence.position.lat, lng: presence.position.lng, accuracyM: presence.position.accuracyM }
+      verified && presence.position && presence.distanceM !== null
+        ? { distanceM: presence.distanceM, accuracyM: presence.position.accuracyM }
         : null,
       verified,
     ).catch(() => {})
@@ -108,10 +113,10 @@ export function LivingTrailScreen() {
     setRewardToast(
       `+${karma} good karma — ${node.title}` +
       (verified ? '' : ' (by lantern-light: half karma)') +
-      (isLastNode ? `\n\n${WP_FOUNDERS_COMPLETION_LINE}` : '')
+      (isLastNode ? `\n\n${chain.completionLine ?? WP_FOUNDERS_COMPLETION_LINE}` : '')
     )
     setEncounter(null)
-  }, [encounter, completeLivingTrailNode, presence.position, chainNodes])
+  }, [encounter, completeLivingTrailNode, presence.position, presence.distanceM, chainNodes, chain, nodeStates])
 
   const chainComplete = chainNodes.every(n => nodeStates[n.id]?.status === 'completed')
 
