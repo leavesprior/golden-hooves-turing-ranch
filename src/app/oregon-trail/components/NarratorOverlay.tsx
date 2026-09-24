@@ -28,10 +28,13 @@ export function NarratorOverlay({ position = 'bottom', autoHide = true, showReli
 
   if (!comment) return null
 
+  // Clear the fixed bottom row (Save/Load + Pioneer + sound at bottom-4), which
+  // sat on top of the toast. bottom-16 on a phone keeps the town's Continue tile
+  // uncovered; wider screens also clear My Farm (bottom-20).
   const positionClasses = {
     top: 'top-4 left-1/2 -translate-x-1/2',
-    bottom: 'bottom-4 left-1/2 -translate-x-1/2',
-    corner: 'bottom-4 right-4'
+    bottom: 'bottom-16 left-1/2 -translate-x-1/2 sm:bottom-32',
+    corner: 'bottom-16 right-4 sm:bottom-32'
   }
 
   return (
