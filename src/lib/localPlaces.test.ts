@@ -27,9 +27,10 @@ const vol = localPlacesFor('volcano')
 for (const kind of ['food', 'show', 'explore'] as const) {
   assert.ok(vol.some((p) => p.kind === kind), `volcano has a ${kind} place`)
 }
-// Coffee is honest: no verified café is claimed in Volcano.
-assert.equal(vol.some((p) => /coffee|café|cafe/i.test(p.name)), false)
-assert.ok(LOCAL_AVOID.some((a) => a.townId === 'volcano' && /coffee|café/i.test(a.reason)))
+// The bakery at 16154 Main is the operating one (own site + Google, 2026-09-23);
+// the closed café names there stay on the avoid list, never recommended.
+assert.ok(vol.some((p) => p.id === 'vol_baked_in_amador' && p.kind === 'food'))
+assert.ok(LOCAL_AVOID.some((a) => a.townId === 'volcano' && /Aimee/.test(a.reason)))
 
 // Only OSM-verified coordinates are stored (see research VOLCANO_LOCAL_PLACES_20260923).
 const OSM_VERIFIED = new Set(['38.44175,-120.63058', '38.4431,-120.63079', '38.44241,-120.6316'])
