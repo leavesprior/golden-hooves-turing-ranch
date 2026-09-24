@@ -5,13 +5,13 @@ import { metersBetween } from '@/lib/oneMapDiscovery'
  * stood. The fact/interpretation line is load-bearing: `known` holds only what
  * a cited source says; the painted "then" plate is always labelled as a guess.
  *
- * Distance decides what a guest gets:
- *   far      → a place to see (name, distance, hours)
- *   in_town  → you are in town, walk this way
- *   here     → the keeper speaks (only within a very short distance)
- * A fix too rough to tell "here" from "down the street" never unlocks the keeper.
- * Even a good fix cannot tell one door from the next: at 16154 Main the
- * neighbour's door is 13.9 m away (outOfTime.keeperDoor.test.ts, intended red).
+ * GPS decides three tiers; only the door code decides the fourth:
+ *   far       → a place to see (name, distance, hours)
+ *   in_town   → you are in town, walk this way
+ *   on_block  → you are on the block; the hint names which front is the door
+ *   here      → the keeper speaks — ONLY from the code posted at the door
+ * GPS never says "here": at 16154 Main the neighbour's door is 13.9 m away and
+ * phone GPS is 10–50 m (outOfTime.keeperDoor.test.ts).
  * The fix is used on the device only; nothing here sends it anywhere.
  */
 export interface OutOfTime {
@@ -24,19 +24,25 @@ export interface OutOfTime {
   interpretationLabel: string
   /** What sources actually say, with the source named in the text. */
   known: string
-  /** Where the keeper stands and how close is "here". */
+  /** Centre for the GPS tiers (distance, in town, on the block). */
   point: { lat: number; lng: number }
   pointSource: string
-  keeper: { name: string; radiusM: number; lines: string[] }
+  /** GPS radius for "on this block". Never unlocks the keeper. */
+  blockRadiusM: number
+  /** Which front is the door, told to a guest on the block. */
+  blockHint: string
+  /** The code at the door. `posted` = a card is physically up; until then no copy promises one. */
+  doorCode: { token: string; posted: boolean }
+  keeper: { name: string; lines: string[] }
 }
 
-export type PlaceTier = 'far' | 'in_town' | 'here'
+export type PlaceTier = 'far' | 'in_town' | 'on_block' | 'here'
 
 /** Within this, you are in the town the place belongs to. */
 export const IN_TOWN_M = 1500
-/** A fix worse than this can't tell "at the door" from "down the street". */
-export const MAX_ACCURACY_FOR_HERE_M = 50
-/** At most this much GPS slack is added to the keeper radius. */
+/** A fix worse than this can't tell "on the block" from "down the street". */
+export const MAX_ACCURACY_FOR_BLOCK_M = 50
+/** At most this much GPS slack is added to the block radius. */
 const MAX_SLACK_M = 25
 
 export interface Fix {
@@ -45,12 +51,28 @@ export interface Fix {
   accuracyM: number
 }
 
-export function placeTier(fix: Fix, oot: Pick<OutOfTime, 'point' | 'keeper'>): { tier: PlaceTier; meters: number } {
+/** GPS tier. Never returns 'here' — see atDoor. */
+export function placeTier(fix: Fix, oot: Pick<OutOfTime, 'point' | 'blockRadiusM'>): { tier: Exclude<PlaceTier, 'here'>; meters: number } {
   const meters = metersBetween(fix, oot.point)
-  const reach = oot.keeper.radiusM + Math.min(fix.accuracyM, MAX_SLACK_M)
-  if (meters <= reach && fix.accuracyM <= MAX_ACCURACY_FOR_HERE_M) return { tier: 'here', meters }
+  const reach = oot.blockRadiusM + Math.min(fix.accuracyM, MAX_SLACK_M)
+  if (meters <= reach && fix.accuracyM <= MAX_ACCURACY_FOR_BLOCK_M) return { tier: 'on_block', meters }
   if (meters <= IN_TOWN_M) return { tier: 'in_town', meters }
   return { tier: 'far', meters }
+}
+
+/** The guest scanned this place's door code: ?door=<token>. */
+export function atDoor(search: string, oot: Pick<OutOfTime, 'doorCode'>): boolean {
+  try {
+    const q = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+    return (q.get('door') || '').trim() === oot.doorCode.token
+  } catch {
+    return false
+  }
+}
+
+/** The door code's URL. `town` is a peek town, so a stranger scanning it lands in the game. */
+export function doorCodePath(townId: string, oot: Pick<OutOfTime, 'doorCode'>): string {
+  return `/explore?town=${encodeURIComponent(townId)}&door=${encodeURIComponent(oot.doorCode.token)}`
 }
 
 export function distanceLabel(meters: number): string {

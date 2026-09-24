@@ -77,9 +77,11 @@ export const LOCAL_PLACES: LocalPlace[] = [
         'The 2021 sale listing says the building is “fronted with bricks from Stone Jug community of the 1850’s” — Stone Jug Road runs toward Upper Rancheria on the 1866 county map. Volcano had three bakeries in 1853. County parcel 029-043-010.',
       point: { lat: 38.442575, lng: -120.63102 },
       pointSource: 'Amador County parcel 029-043-010 (county GIS), centre of the lot',
+      blockRadiusM: 45,
+      blockHint: 'BAKED. is the brick front just north of Sizemore\u2019s, on the same side of Main Street.',
+      doorCode: { token: 'baked-16154', posted: false },
       keeper: {
         name: 'The Guide to Where in Time',
-        radiusM: 45,
         lines: [
           'Mind the front wall. Those stones are older than the building they dress — the 2021 sale papers say they came from Stone Jug, an 1850s camp up the road toward Upper Rancheria.',
           'Read it by its true grain: somebody carried a camp’s worth of time down the hill and set it here as a face. The stones say 1850s. The walls behind them have said nothing yet — nobody has written down when they went up. Find that out and you know something the county’s online records don’t.',

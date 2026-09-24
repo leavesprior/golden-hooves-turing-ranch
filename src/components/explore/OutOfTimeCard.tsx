@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import {
-  MAX_ACCURACY_FOR_HERE_M,
+  MAX_ACCURACY_FOR_BLOCK_M,
+  atDoor,
   distanceLabel,
   parseSimulatedPlaceFix,
   placeTier,
@@ -12,14 +13,19 @@ import {
 
 /**
  * Today ⇄ Out of time for one real place. From afar it is a place to see; in
- * town it points the way; at the door its keeper speaks. Location is read on
- * the device when the guest taps, and never sent anywhere.
+ * town it points the way; on the block it names the door. The keeper speaks
+ * only to a guest who scanned the code at the door (?door=<token>). Location is
+ * read on the device when the guest taps, and never sent anywhere.
  */
+const noSubscribe = () => () => {}
+
 export function OutOfTimeCard({ placeId, placeName, townName, oot }: { placeId: string; placeName: string; townName: string; oot: OutOfTime }) {
   const [era, setEra] = useState<'today' | 'then'>('today')
   const [inside, setInside] = useState(false)
   const [fix, setFix] = useState<Fix | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  // Read the door code after hydration; the server never sees it.
+  const door = useSyncExternalStore(noSubscribe, () => atDoor(window.location.search, oot), () => false)
 
   const locate = () => {
     const sim = parseSimulatedPlaceFix(window.location.search, placeId, oot.point, window.location.hostname)
@@ -29,7 +35,7 @@ export function OutOfTimeCard({ placeId, placeName, townName, oot }: { placeId: 
       return
     }
     if (!('geolocation' in navigator)) {
-      setNote('This device cannot share its location. The place still shows; the keeper only speaks at the door.')
+      setNote('This device cannot share its location. The place still shows.')
       return
     }
     setNote('Finding you…')
@@ -38,13 +44,13 @@ export function OutOfTimeCard({ placeId, placeName, townName, oot }: { placeId: 
         setFix({ lat: p.coords.latitude, lng: p.coords.longitude, accuracyM: Math.round(p.coords.accuracy) })
         setNote(null)
       },
-      () => setNote('Location is off. The place still shows; the keeper only speaks at the door.'),
+      () => setNote('Location is off. The place still shows.'),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
     )
   }
 
   const where = fix ? placeTier(fix, oot) : null
-  const tooRough = !!fix && where?.tier === 'in_town' && fix.accuracyM > MAX_ACCURACY_FOR_HERE_M && where.meters <= oot.keeper.radiusM + fix.accuracyM
+  const tooRough = !!fix && where?.tier === 'in_town' && fix.accuracyM > MAX_ACCURACY_FOR_BLOCK_M && where.meters <= oot.blockRadiusM + fix.accuracyM
   const src = era === 'today' ? oot.plateToday : inside && oot.plateThenInside ? oot.plateThenInside : oot.plateThen
   const alt =
     era === 'today'
@@ -86,11 +92,17 @@ export function OutOfTimeCard({ placeId, placeName, townName, oot }: { placeId: 
         {where && where.tier === 'in_town' && (
           <p className="mt-1 font-serif text-xs text-[#e8dcc4]" data-testid="oot-in-town">
             {tooRough
-              ? `You may be at the door, but your location is only good to ±${fix!.accuracyM} m. Step into the open and ask again.`
-              : `You’re in ${townName} — ${distanceLabel(where.meters)} to the door. Walk closer; someone is waiting.`}
+              ? `You may be close, but your location is only good to ±${fix!.accuracyM} m. Step into the open and ask again.`
+              : `You’re in ${townName} — about ${distanceLabel(where.meters)} away. Walk closer.`}
           </p>
         )}
-        {where && where.tier === 'here' && (
+        {!door && where && where.tier === 'on_block' && (
+          <p className="mt-1 font-serif text-xs text-[#e8dcc4]" data-testid="oot-on-block">
+            You’re on this block. {oot.blockHint}
+            {oot.doorCode.posted ? ' Scan the card by the door and the Guide will speak.' : ''}
+          </p>
+        )}
+        {door && (
           <div className="mt-2 border-l-2 border-[#8b2e2e] pl-3" data-testid="oot-keeper">
             <p className="west-face-eyebrow">{oot.keeper.name}</p>
             {oot.keeper.lines.map((line) => (

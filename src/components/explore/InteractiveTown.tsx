@@ -5,6 +5,7 @@ import { arcadePresentAttractions, useExplorer, type Town, type Attraction } fro
 import { useKarma } from '@/lib/karmaContext'
 import { VolcanoStayShow } from '@/components/VolcanoStayShow'
 import { LocalTodayPanel } from './LocalTodayPanel'
+import { DoorArrival } from './DoorArrival'
 import {
   editorialForExplorePlace,
   TOWN_HOTSPOTS,
@@ -87,6 +88,7 @@ export function InteractiveTown({
 
   return (
     <div className="game-chrome-pad fixed inset-0 z-40 flex flex-col bg-[#0e0c0a]" data-testid="explore-town-face" data-town={town.id}>
+      <DoorArrival townId={town.id} townName={town.name} />
       <header className="flex items-center justify-between px-4 py-3">
         <div>
           <p className="west-face-eyebrow">In town</p>
