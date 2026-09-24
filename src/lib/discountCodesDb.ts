@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { karmaRowHash, verifyKarmaChain, KARMA_GENESIS_HASH, type KarmaLedgerRow, type KarmaChainVerdict, type KarmaLedgerHead } from './karmaLedgerVerify';
 
 export interface DiscountCode {
   id: string;
@@ -47,7 +48,21 @@ export interface RedeemResult {
 
 let _warnedTmpDb = false
 
+/**
+ * Test-only DB override: lets the ledger tests run against a throwaway file
+ * instead of the shared dev DB in /tmp. Honored only when the process opts in
+ * (NODE_ENV=test or BOBR_ALLOW_TEST_DB=1) and NEVER on Railway (RAILWAY_ENVIRONMENT
+ * set), whatever NODE_ENV says there.
+ */
+export function testDbPathOverride(env: NodeJS.ProcessEnv): string | null {
+  if (env.RAILWAY_ENVIRONMENT) return null;
+  if (env.NODE_ENV !== 'test' && env.BOBR_ALLOW_TEST_DB !== '1') return null;
+  return env.BOBR_DB_PATH_FOR_TESTS || null;
+}
+
 function getDbPath(): string {
+  const override = testDbPathOverride(process.env);
+  if (override) return override;
   const volumePath = '/data';
   try {
     if (fs.existsSync(volumePath) && fs.statSync(volumePath).isDirectory()) {
@@ -309,20 +324,42 @@ export function dbAppendKarmaEvent(params: {
   eventId: string; sessionId: string; karmaType: KarmaType; delta: number; source: string;
 }): KarmaBalance {
   const db = getDb();
-  const createdAt = new Date().toISOString();
-  const prev = db.prepare(
-    'SELECT row_hash FROM bobr_karma_ledger ORDER BY seq DESC LIMIT 1'
-  ).get() as { row_hash: string } | undefined;
-  const prevHash = prev?.row_hash ?? 'genesis';
-  const rowHash = crypto.createHash('sha256')
-    .update(`${prevHash}|${params.eventId}|${params.sessionId}|${params.karmaType}|${params.delta}|${createdAt}`)
-    .digest('hex');
-  db.prepare(`
-    INSERT OR IGNORE INTO bobr_karma_ledger
-      (event_id, session_id, karma_type, delta, source, created_at, prev_hash, row_hash)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(params.eventId, params.sessionId, params.karmaType, Math.trunc(params.delta), params.source, createdAt, prevHash, rowHash);
+  // Read-head + insert must be one IMMEDIATE transaction: it takes SQLite's write
+  // lock BEFORE reading the head, so two server processes cannot both chain onto
+  // the same prev_hash (a fork the verifier would report as a broken ledger).
+  db.transaction(() => {
+    const createdAt = new Date().toISOString();
+    const prev = db.prepare(
+      'SELECT row_hash FROM bobr_karma_ledger ORDER BY seq DESC LIMIT 1'
+    ).get() as { row_hash: string } | undefined;
+    const prevHash = prev?.row_hash ?? KARMA_GENESIS_HASH;
+    const rowHash = karmaRowHash({
+      prevHash, eventId: params.eventId, sessionId: params.sessionId,
+      karmaType: params.karmaType, delta: Math.trunc(params.delta), createdAt,
+    });
+    db.prepare(`
+      INSERT OR IGNORE INTO bobr_karma_ledger
+        (event_id, session_id, karma_type, delta, source, created_at, prev_hash, row_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(params.eventId, params.sessionId, params.karmaType, Math.trunc(params.delta), params.source, createdAt, prevHash, rowHash);
+  }).immediate();
   return dbGetKarmaBalance(params.sessionId);
+}
+
+/** Re-walk the whole hash chain (see karmaLedgerVerify.ts for the verdict's limits). */
+export function dbVerifyKarmaLedger(): KarmaChainVerdict {
+  const rows = getDb().prepare(
+    'SELECT seq, event_id, session_id, karma_type, delta, source, created_at, prev_hash, row_hash FROM bobr_karma_ledger ORDER BY seq ASC'
+  ).all() as KarmaLedgerRow[];
+  return verifyKarmaChain(rows);
+}
+
+/** The ledger head (max seq + its row_hash), or null when empty. One indexed row read. */
+export function dbKarmaLedgerHead(): KarmaLedgerHead | null {
+  const row = getDb().prepare(
+    'SELECT seq, row_hash FROM bobr_karma_ledger ORDER BY seq DESC LIMIT 1'
+  ).get() as KarmaLedgerHead | undefined;
+  return row ?? null;
 }
 
 /** Server fold of the ledger for a session into a {good,neutral,bad} balance. */

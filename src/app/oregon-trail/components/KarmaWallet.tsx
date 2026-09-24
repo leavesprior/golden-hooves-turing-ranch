@@ -17,8 +17,16 @@ interface KarmaWalletProps {
  * │ 🌮 385 │ 🍪 15 │ 🪨 0          │
  * └─────────────────────────────────┘
  */
+/** Short, honest lines for sync problems the player should know about. */
+function karmaSyncWarnings(refusedSpends: number, storageDegraded: boolean): string[] {
+  const lines: string[] = []
+  if (refusedSpends > 0) lines.push(`${refusedSpends} spend${refusedSpends !== 1 ? 's' : ''} refused by the ledger`)
+  if (storageDegraded) lines.push('Storage full — karma not saved if you reload')
+  return lines
+}
+
 export function KarmaWallet({ compact = false, showBadKarma = true, className = '' }: KarmaWalletProps) {
-  const { balance, isOnline, pendingCount } = useKarmaWallet()
+  const { balance, isOnline, pendingCount, refusedSpends, storageDegraded } = useKarmaWallet()
   const [showTooltip, setShowTooltip] = useState(false)
 
   if (compact) {
@@ -49,6 +57,11 @@ export function KarmaWallet({ compact = false, showBadKarma = true, className = 
         {pendingCount > 0 && (
           <span className="text-blue-400 text-xs" title={`${pendingCount} pending transactions`}>
             ↻{pendingCount}
+          </span>
+        )}
+        {(storageDegraded || refusedSpends > 0) && (
+          <span className="text-red-400 text-xs" title={karmaSyncWarnings(refusedSpends, storageDegraded).join(' · ')}>
+            !
           </span>
         )}
       </div>
@@ -149,6 +162,10 @@ export function KarmaWallet({ compact = false, showBadKarma = true, className = 
                 {pendingCount} transaction{pendingCount !== 1 ? 's' : ''} pending sync
               </div>
             )}
+
+            {karmaSyncWarnings(refusedSpends, storageDegraded).map((line) => (
+              <div key={line} className="text-red-400 text-[10px]">{line}</div>
+            ))}
           </div>
         </div>
       )}

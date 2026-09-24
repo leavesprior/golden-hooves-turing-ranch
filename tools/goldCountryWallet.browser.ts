@@ -56,7 +56,7 @@ async function main() {
         '@/lib/karmaBlockchain': `export class KarmaBlockchainClient {}; export const oregonTrailKarma = new Proxy({ pendingCount: 0, online: false }, { get: (target,key) => key in target ? target[key] : (...args) => { window.__h.oldSync.push({key,args}); return Promise.resolve(key==='checkConnection' ? false : undefined) } });`,
         '@/lib/karmaStorage': `export const KarmaStorage = { load: () => null, applyAction() {} }`,
         '@/lib/crossGameProgression': `export const CrossGameStorage = { syncKarmaToPool() {}, loadSharedKarma: () => ({totalEarned:0}) }`,
-        '@/lib/karmaServerSync': `export const getKarmaSessionId = () => 'fixture'; export const fetchServerBalance = async () => ({ok:false}); export const reconcile = local => local; export const postKarmaEvent = async data => { window.__h.sync.push(data); return {ok:false} }`,
+        '@/lib/karmaServerSync': `export const getKarmaSessionId = () => 'fixture'; export const fetchServerBalance = async () => ({ok:false}); export const reconcile = local => local; export const postKarmaEvent = async data => { window.__h.sync.push(data); return {ok:false} }; export const flushKarmaOutbox = async () => ({ok:false}); export const pendingKarmaDeltas = () => ({good:0,neutral:0,bad:0}); export const karmaSyncStatus = () => ({online:true,pending:0,refusedSpends:0,degraded:false})`,
         '@/lib/authContext': `export const useAuth = () => ({user:window.__h.user})`,
         '@/lib/saveLoadContext': `export const useSaveLoad = () => window.__h.saves`,
         '../oregonTrailContext': `export const useOregonTrail = () => ({state:window.__h.core,loadState:data=>window.__h.loaded.push(data)})`,
