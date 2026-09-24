@@ -5,16 +5,25 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
 import { PlaceBackdrop } from '@/components/PlaceBackdrop'
-import { editorialForExplorePlace } from '@/lib/goldCountryEditorial'
+import { EDITORIAL_ERA_CAPTION, editorialForExplorePlace } from '@/lib/goldCountryEditorial'
 import {
   caseForLocation,
   casePinsDone,
-  clueWorked,
+  deductionCtaVisible,
   editorialTownId,
+  frontClueState,
+  guaranteeCaseClue,
   maybeStampCase,
+  pinsCompleteLine,
+  readDeducedCases,
+  readFoundClues,
   readTalkedNpcs,
+  writeDeducedCase,
+  writeFoundClue,
   writeTalkedNpc,
 } from '@/lib/goldCountryLevel2'
+import FrogJumpMicrogame from './FrogJumpMicrogame'
+import { frogOutcomeConsequence, type FrogJumpOutcome } from '@/lib/frogJump'
 import {
   capturePayout,
   frontsForLocation,
@@ -78,7 +87,7 @@ import {
 } from '../data/goldCountryNPCs'
 import {
   getSearchAreasForLocation,
-  resolveSearch,
+  resolveCaseSearch,
   type SearchArea,
   type SearchFinding,
 } from '../data/goldCountryEncounters'
@@ -101,7 +110,7 @@ interface GoldCountryLocationProps {
   onOpenSettlement: () => void  // Only used at bobr_cabin
 }
 
-type LocationView = 'main' | 'npc' | 'quest' | 'moral_choice' | 'quest_outcome' | 'search' | 'search_result' | 'shop' | 'warrant_board' | 'guest_book' | 'bounty_chase' | 'capture_xp'
+type LocationView = 'main' | 'npc' | 'quest' | 'moral_choice' | 'quest_outcome' | 'search' | 'search_result' | 'shop' | 'warrant_board' | 'guest_book' | 'bounty_chase' | 'capture_xp' | 'case_deduce' | 'frog_jump'
 
 export function GoldCountryLocation({
   locationId,
@@ -120,6 +129,8 @@ export function GoldCountryLocation({
   const [npcDialogueIndex, setNpcDialogueIndex] = useState(0)
   const [isSearching, setIsSearching] = useState(false)
   const [questOutcome, setQuestOutcome] = useState<{ consequence: string; reward: QuestReward } | null>(null)
+  const [deduceResponse, setDeduceResponse] = useState<{ text: string; correct: boolean } | null>(null)
+  const [pendingFrogChoice, setPendingFrogChoice] = useState<{ quest: GoldCountryQuest; choice: MoralChoice } | null>(null)
   const [selectedFront, setSelectedFront] = useState<TownFront | null>(null)
   const [shopNote, setShopNote] = useState<string | null>(null)
   const [boughtIds, setBoughtIds] = useState<string[]>(() => readBought())
@@ -128,6 +139,7 @@ export function GoldCountryLocation({
   const [takenWarrants, setTakenWarrants] = useState<TakenWarrant[]>(() => readTakenWarrants())
   const [warrantTakes, setWarrantTakes] = useState<Record<string, number>>(() => readWarrantTakes())
   const [huntClues, setHuntClues] = useState<string[]>(() => readHuntClues())
+  const [foundClues, setFoundClues] = useState<string[]>(() => readFoundClues())
   const [huntVoice, setHuntVoice] = useState<string | null>(null)
   const [huntCard, setHuntCard] = useState<string | null>(null)
   const [chaseNpc, setChaseNpc] = useState<GoldCountryNPC | null>(null)
@@ -146,6 +158,12 @@ export function GoldCountryLocation({
   const onStreetPeople = streetNpcs(locationId, npcs).filter(
     (n) => !(n.shelterInRain && skyWashesStreet(sky)) && !npcInWind(n.id, takenIdsForStreet, arrests, huntClues),
   )
+  // A required clue area stays open until its clue is actually found (legacy saves
+  // may have searched it and drawn a non-clue finding before the guarantee).
+  const closedAreaIds = state.searchedAreas.filter((id) => {
+    const area = searchAreas.find((a) => a.id === id)
+    return !(area && guaranteeCaseClue(level2Case, area, foundClues))
+  })
   const outdoorIds = outdoorSearchIds(locationId, searchAreas.map((a) => a.id))
   const outdoorSearches = searchAreas.filter((a) => outdoorIds.includes(a.id))
   const poster = posterForLocation(locationId)
@@ -205,13 +223,16 @@ export function GoldCountryLocation({
 
     // Simulate search with delay
     setTimeout(() => {
-      const finding = resolveSearch(area)
+      // A required case-clue area turns up its clue until that clue has been found.
+      const guaranteeClue = guaranteeCaseClue(caseForLocation(locationId), area, readFoundClues())
+      const finding = resolveCaseSearch(area, { guaranteeClue })
       setSearchResult(finding)
       setIsSearching(false)
       setView('search_result')
 
       if (finding) {
         markAreaSearched(area.id)
+        if (finding.isClue) setFoundClues(writeFoundClue(area.id))
         const talked = readTalkedNpcs()
         maybeStampCase(locationId, [...state.searchedAreas, area.id], talked)
         if (finding.itemGained) addInventoryItem(finding.itemGained)
@@ -395,6 +416,12 @@ export function GoldCountryLocation({
   }
 
   const handleMoralChoice = (quest: GoldCountryQuest, choice: MoralChoice) => {
+    // The honest frog wager is played, not just chosen. Same reward either way.
+    if (quest.id === 'quest_frog_wager' && choice.id === 'compete_honestly' && !pendingFrogChoice) {
+      setPendingFrogChoice({ quest, choice })
+      setView('frog_jump')
+      return
+    }
     completeQuestWithReward(quest.id, choice.reward, choice.id)
     setQuestOutcome({
       consequence: choice.consequence || 'Your choice has been made.',
@@ -451,6 +478,75 @@ export function GoldCountryLocation({
     </div>
   }
 
+  // Frog jump (Angels Camp slice): the honest wager is played, then paid as before.
+  if (view === 'frog_jump' && pendingFrogChoice) {
+    const finishFrog = (outcome: FrogJumpOutcome) => {
+      const { quest, choice } = pendingFrogChoice
+      completeQuestWithReward(quest.id, choice.reward, choice.id)
+      setQuestOutcome({ consequence: frogOutcomeConsequence(outcome, choice.consequence), reward: choice.reward })
+      setPendingFrogChoice(null)
+      setView('quest_outcome')
+      advanceGoldCountryDay(1)
+    }
+    return <FrogJumpMicrogame onDone={finishFrog} />
+  }
+
+  // Deduction: three worked pins are evidence; the stamp waits on the player's call.
+  if (view === 'case_deduce' && level2Case?.deduction) {
+    const deduction = level2Case.deduction
+    const choose = (choice: (typeof deduction.choices)[number]) => {
+      if (choice.correct) {
+        writeDeducedCase(level2Case.id)
+        maybeStampCase(locationId, state.searchedAreas, readTalkedNpcs())
+      } else {
+        advanceGoldCountryDay(1)
+      }
+      setDeduceResponse({ text: choice.response, correct: !!choice.correct })
+    }
+    return (
+      <div className="west-face-shell min-h-screen">
+        <div className="max-w-2xl mx-auto p-4 pt-8">
+          <div className="west-face-paper" data-testid="case-deduce">
+            <p className="west-face-eyebrow mb-2">{level2Case.icon} Make the call · {level2Case.title}</p>
+            <h2 className="west-face-title text-2xl mb-3">{deduction.question}</h2>
+            {deduceResponse ? (
+              <>
+                <p className="west-face-body mb-4" data-testid="case-deduce-response">{deduceResponse.text}</p>
+                <button
+                  type="button"
+                  className="west-face-pill west-face-pill-cream w-full justify-center"
+                  onClick={() => {
+                    const solved = deduceResponse.correct
+                    setDeduceResponse(null)
+                    if (solved) setView('main')
+                  }}
+                >
+                  {deduceResponse.correct ? 'Case stamped — back to the street' : 'Think again'}
+                </button>
+              </>
+            ) : (
+              <div className="space-y-2">
+                {deduction.choices.map((choice) => (
+                  <button
+                    key={choice.id}
+                    type="button"
+                    className="west-face-pill w-full justify-start text-left"
+                    onClick={() => choose(choice)}
+                  >
+                    {choice.label}
+                  </button>
+                ))}
+                <button type="button" className="west-face-pill w-full justify-center mt-2" onClick={() => setView('main')}>
+                  Not yet
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Main location view
   if (view === 'main') {
     const art = editorialForExplorePlace(locationId) || editorialForExplorePlace(editorialTownId(locationId))
@@ -475,6 +571,18 @@ export function GoldCountryLocation({
             Map
           </button>
         </header>
+        {deductionCtaVisible(level2Case, state.searchedAreas, talked, { hunting }) && (
+          <div className="px-4 py-3 border-b border-[var(--west-line)]">
+            <button
+              type="button"
+              className="west-face-pill west-face-pill-cream w-full justify-center"
+              data-testid="case-deduce-open"
+              onClick={() => setView('case_deduce')}
+            >
+              All three clues are in — make the call
+            </button>
+          </div>
+        )}
 
         <div className="relative min-h-[52vh] sm:min-h-[64vh]">
           {art ? (
@@ -484,17 +592,23 @@ export function GoldCountryLocation({
             <PlaceBackdrop id={locationId} className="absolute inset-0 h-full w-full" />
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/20" />
+          {art && EDITORIAL_ERA_CAPTION[locationId] && (
+            <p
+              className="pointer-events-none absolute bottom-2 right-2 z-30 max-w-[18rem] rounded-sm bg-black/70 px-2 py-1 font-serif text-[11px] leading-snug text-[#e8dcc4]"
+              data-testid="street-art-era-caption"
+            >
+              {EDITORIAL_ERA_CAPTION[locationId]}
+            </p>
+          )}
           {sky === 'fog' && <div className="pointer-events-none absolute inset-0 bg-white/20" data-testid="sky-fog" />}
           {skyWashesStreet(sky) && <div className="pointer-events-none absolute inset-0 bg-slate-900/25" data-testid="sky-rain" />}
           {fronts.map((front) => {
             const ids = [front.keeperNpcId, ...front.patronNpcIds, ...front.searchAreaIds].filter(
               (id): id is string => !!id,
             )
-            const holdsClue = !!level2Case?.clues.some((clue) => ids.includes(clue.id))
-            const done = level2Case
-              ? level2Case.clues.some((clue) => ids.includes(clue.id) && clueWorked(clue, state.searchedAreas, talked))
-              : false
-            const waiting = holdsClue && !done
+            const clueState = frontClueState(ids, level2Case, state.searchedAreas, talked)
+            const done = clueState === 'done'
+            const waiting = clueState === 'waiting'
             return (
               <button
                 key={front.id}
@@ -546,7 +660,7 @@ export function GoldCountryLocation({
               </button>
             ))}
           {outdoorSearches.map((area) => {
-            const searched = state.searchedAreas.includes(area.id)
+            const searched = closedAreaIds.includes(area.id)
             const clue = level2Case?.clues.find((c) => c.id === area.id)
             return (
               <button
@@ -620,7 +734,9 @@ export function GoldCountryLocation({
                       ? 'Doors, a hole, a name — the street still has work.'
                       : pins.done === 1
                         ? 'One pin down. Two still wait on this street.'
-                        : 'Two pins. One more and the case stamps.'}
+                        : level2Case?.deduction
+                          ? 'Two pins. One more, then make the call.'
+                          : 'Two pins. One more and the case stamps.'}
                 </span>
               </p>
               {pins.done >= 1 && (
@@ -1100,8 +1216,8 @@ export function GoldCountryLocation({
                 <p className="font-serif text-[#e8dcc4]">{searchResult.description}</p>
                 {thisWasPin && pinsAfter && (
                   <p className="west-face-body mt-2">
-                    {pinsAfter.complete
-                      ? 'The three pins close. The case stamps.'
+                    {pinsAfter.complete && level2Case
+                      ? pinsCompleteLine(level2Case, readDeducedCases())
                       : pinsAfter.done === 1
                         ? 'The camp comes into focus.'
                         : 'Another pin. The later years start to show.'}
@@ -1271,7 +1387,7 @@ export function GoldCountryLocation({
           keeper={keeper}
           patrons={patrons}
           searches={indoorSearches}
-          searchedAreaIds={state.searchedAreas}
+          searchedAreaIds={closedAreaIds}
           poster={hidePaper}
           posterSeen={!!hidePaper && postersSeen.includes(hidePaper.id)}
           takenWarrant={hidePaper ? takenWarrants.find((t) => t.id === hidePaper.id) : undefined}
