@@ -8,6 +8,8 @@
  * the building; Main St addresses are interpolation and stay without a pin.
  */
 
+import type { OutOfTime } from '@/lib/outOfTime'
+
 export type LocalPlaceKind = 'food' | 'show' | 'explore'
 
 export interface LocalPlace {
@@ -26,6 +28,8 @@ export interface LocalPlace {
   verifiedAt: string
   source: string
   coordinates?: { lat: number; lng: number }
+  /** Today ⇄ Out of time plates, distance tiers and a keeper who speaks up close. */
+  outOfTime?: OutOfTime
 }
 
 export interface LocalAvoid {
@@ -62,6 +66,27 @@ export const LOCAL_PLACES: LocalPlace[] = [
     then: 'In 1853 Volcano already had three bakeries; this one keeps the habit on Main Street.',
     verifiedAt: '2026-09-23',
     source: 'https://bakedinamador.com/',
+    outOfTime: {
+      era: 'about 1885',
+      plateToday: '/images/out-of-time/volcano_baked_today.jpg',
+      plateThen: '/images/out-of-time/volcano_baked_1885.jpg',
+      plateThenInside: '/images/out-of-time/volcano_baked_1885_inside.jpg',
+      interpretationLabel:
+        'Painted interpretation. The stones are old; what this building was in the 1880s is not recorded, and its build year is not published.',
+      known:
+        'The 2021 sale listing says the building is “fronted with bricks from Stone Jug community of the 1850’s” — Stone Jug Road runs toward Upper Rancheria on the 1866 county map. Volcano had three bakeries in 1853. County parcel 029-043-010.',
+      point: { lat: 38.442575, lng: -120.63102 },
+      pointSource: 'Amador County parcel 029-043-010 (county GIS), centre of the lot',
+      keeper: {
+        name: 'The Guide (Where in Time)',
+        radiusM: 45,
+        lines: [
+          'Mind the front wall. Those stones are older than the building they dress — the 2021 sale papers say they came from Stone Jug, an 1850s camp up the road toward Upper Rancheria.',
+          'Somebody carried a camp’s worth of time down the hill and laid it here as a face. When the walls behind it went up, nobody has written down. Find that out and you know something the county’s online records don’t.',
+          'The bread is today’s, though. Friday to Sunday, eight to three.',
+        ],
+      },
+    },
   },
   {
     id: 'vol_les_chinese',

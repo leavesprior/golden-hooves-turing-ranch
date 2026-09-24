@@ -2,6 +2,7 @@
 
 import { localAvoidFor, localPlacesFor, type LocalPlaceKind } from '@/lib/localPlaces'
 import { VolcanoStayShow } from '@/components/VolcanoStayShow'
+import { OutOfTimeCard } from './OutOfTimeCard'
 
 const KIND_LABEL: Record<LocalPlaceKind, string> = { food: 'Eat', show: 'A show', explore: 'Walk & explore' }
 
@@ -15,7 +16,7 @@ function checkedLabel(iso: string): string {
  * what stood there then. The 1849 face hides later buildings on purpose; this
  * panel is where a guest finds where to actually go.
  */
-export function LocalTodayPanel({ townId, townName, defaultOpen = false }: { townId: string; townName: string; defaultOpen?: boolean }) {
+export function LocalTodayPanel({ townId, townName, defaultOpen = false, heading = 'Go there today' }: { townId: string; townName: string; defaultOpen?: boolean; heading?: string }) {
   const places = localPlacesFor(townId)
   if (places.length === 0) return null
   const avoid = localAvoidFor(townId)
@@ -23,7 +24,7 @@ export function LocalTodayPanel({ townId, townName, defaultOpen = false }: { tow
   return (
     <details className="west-face-paper mt-3" data-testid="local-today" open={defaultOpen}>
       <summary className="cursor-pointer font-serif text-sm text-[#f3ead8]">
-        Go there today · {townName} <span className="text-xs text-[#b8a88a]">(checked {checkedLabel(oldest)})</span>
+        {heading} · {townName} <span className="text-xs text-[#b8a88a]">(checked {checkedLabel(oldest)})</span>
       </summary>
       {(['food', 'show', 'explore'] as const).map((kind) => {
         const group = places.filter((p) => p.kind === kind)
@@ -41,6 +42,7 @@ export function LocalTodayPanel({ townId, townName, defaultOpen = false }: { tow
                   <p className="font-serif text-xs text-[#e8dcc4]">{p.today}</p>
                   <p className="font-serif text-xs italic text-[#b8a88a]">Then: {p.then}</p>
                   {p.id === 'vol_cobblestone' && <VolcanoStayShow />}
+                  {p.outOfTime && <OutOfTimeCard placeId={p.id} placeName={p.name} townName={townName} oot={p.outOfTime} />}
                 </li>
               ))}
             </ul>

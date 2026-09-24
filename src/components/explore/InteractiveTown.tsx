@@ -202,7 +202,7 @@ export function InteractiveTown({
             </button>
           ))}
         </div>
-        <LocalTodayPanel townId={town.id} townName={town.name} />
+        <LocalTodayPanel townId={town.id} townName={town.name} heading="Places to explore & things to enjoy nearby" />
       </aside>
     </div>
   )
