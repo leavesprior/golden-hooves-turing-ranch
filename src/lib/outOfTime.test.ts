@@ -70,6 +70,10 @@ for (const p of withOot) {
 const baked = LOCAL_PLACES.find((p) => p.id === 'vol_baked_in_amador')!.outOfTime!
 assert.deepEqual(baked.point, { lat: 38.442575, lng: -120.63102 })
 assert.match(baked.known, /Stone Jug/)
+// The 2021 listing says the front is BRICKS from Stone Jug (Leif 09-24: "change to bricks").
+for (const text of [baked.known, baked.interpretationLabel, baked.blockHint, ...baked.keeper.lines]) {
+  assert.doesNotMatch(text, /\bstones?\b(?! Jug)/i, `16154: the facade is brick, not stone: ${text.slice(0, 50)}`)
+}
 assert.match(baked.pointSource, /029-043-010/)
 const stGeorge = { lat: 38.44175, lng: -120.63058 }
 const d = metersBetween(baked.point, stGeorge)

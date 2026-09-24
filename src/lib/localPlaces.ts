@@ -72,7 +72,7 @@ export const LOCAL_PLACES: LocalPlace[] = [
       plateThen: '/images/out-of-time/volcano_baked_1885.jpg',
       plateThenInside: '/images/out-of-time/volcano_baked_1885_inside.jpg',
       interpretationLabel:
-        'Painted interpretation. The stones are old; what this building was in the 1880s is not recorded, and its build year is not published.',
+        'Painted interpretation. The bricks are old; what this building was in the 1880s is not recorded, and its build year is not published.',
       known:
         'The 2021 sale listing says the building is “fronted with bricks from Stone Jug community of the 1850’s” — Stone Jug Road runs toward Upper Rancheria on the 1866 county map. Volcano had three bakeries in 1853. County parcel 029-043-010.',
       point: { lat: 38.442575, lng: -120.63102 },
@@ -83,8 +83,8 @@ export const LOCAL_PLACES: LocalPlace[] = [
       keeper: {
         name: 'The Guide to Where in Time',
         lines: [
-          'Mind the front wall. Those stones are older than the building they dress — the 2021 sale papers say they came from Stone Jug, an 1850s camp up the road toward Upper Rancheria.',
-          'Read it by its true grain: somebody carried a camp’s worth of time down the hill and set it here as a face. The stones say 1850s. The walls behind them have said nothing yet — nobody has written down when they went up. Find that out and you know something the county’s online records don’t.',
+          'Mind the front wall. Those bricks are older than the building they dress — the 2021 sale papers say they came from Stone Jug, an 1850s camp up the road toward Upper Rancheria.',
+          'Read it by its true grain: somebody carried a camp’s worth of time down the hill and set it here as a face. The bricks say 1850s. The walls behind them have said nothing yet — nobody has written down when they went up. Find that out and you know something the county’s online records don’t.',
           'This narrator sees every era at once, which is how it knows the bread is today’s. Friday to Sunday, eight to three. Proceed.',
         ],
       },
