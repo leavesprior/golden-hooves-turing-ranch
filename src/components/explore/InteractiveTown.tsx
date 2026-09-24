@@ -4,6 +4,7 @@ import { useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { arcadePresentAttractions, useExplorer, type Town, type Attraction } from '@/app/explore/explorerContext'
 import { useKarma } from '@/lib/karmaContext'
 import { VolcanoStayShow } from '@/components/VolcanoStayShow'
+import { LocalTodayPanel } from './LocalTodayPanel'
 import {
   editorialForExplorePlace,
   TOWN_HOTSPOTS,
@@ -201,6 +202,7 @@ export function InteractiveTown({
             </button>
           ))}
         </div>
+        <LocalTodayPanel townId={town.id} townName={town.name} />
       </aside>
     </div>
   )
