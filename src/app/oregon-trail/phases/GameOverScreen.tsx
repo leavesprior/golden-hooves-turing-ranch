@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
-import { successorLegacy } from '@/app/adventure/play/perilEngine'
-import { passingForState } from '../state/passing'
+import { heirFor, passingForState } from '../state/passing'
 import { HEALTH_MESSAGES } from '../data/eventMessages'
 import { TrailOutcomePicture } from '../components/TrailOutcomePicture'
 import { useCharacter } from '../characterContext'
@@ -23,7 +22,7 @@ import { getPassingPlayerPortrait } from '../data/passingPlayerPortrait'
  * death NEVER a fail-state") and QUESTLINE_MILESTONE_SYNTHESIS_20260720 §18.
  */
 export function GameOverScreen() {
-  const { state, resetGame } = useOregonTrail()
+  const { state, continueAsHeir } = useOregonTrail()
   const { state: characterState } = useCharacter()
   const [stage, setStage] = useState<'passing' | 'legacy'>('passing')
 
@@ -38,11 +37,8 @@ export function GameOverScreen() {
       : passing.kind === 'trail'
         ? `A wooden cross and cairn along the trail. Last landmark: ${passing.place}.`
         : 'A memorial along the trail. The place of passing was not recorded.'
-  // A final companion death may be the memorial subject; the established
-  // wagon leader's family still owns the inherited continuation.
-  const legacyOwner = state.wagonLeader || fallen
-  const legacy = successorLegacy(legacyOwner, 0)
-  const heirName = `${legacyOwner.split(' ').slice(-1)[0] || 'the fallen'}'s heir`
+  // The heir continues THIS run (CONTINUE_AS_HEIR), not a fresh wagon.
+  const { name: heirName, heirloomTrait } = heirFor(state)
   const playerPortrait = getPassingPlayerPortrait(state, characterState.character)
   const familyPortrait = playerPortrait ? (
     <div data-testid="passing-family-portrait" className="flex items-center justify-center gap-4 text-left mb-6">
@@ -60,7 +56,7 @@ export function GameOverScreen() {
     CrossGameStorage.logEvent(
       'prospectors_tale', 'party_member_died',
       `The trail claimed its own: ${state.message || 'the journey ended'}`,
-      { detail: `Day ${state.daysOnTrail}, ${state.totalMilesTraveled} miles, heirloom ${legacy.heirloomTrait}` }
+      { detail: `Day ${state.daysOnTrail}, ${state.totalMilesTraveled} miles, heirloom ${heirloomTrait}` }
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -119,12 +115,12 @@ export function GameOverScreen() {
             </p>
 
             <p className="text-xs text-stone-500 mb-8">
-              Heirloom carried forward: <span className="text-amber-300 font-pixel">{legacy.heirloomTrait}</span>
+              Heirloom carried forward: <span className="text-amber-300 font-pixel">{heirloomTrait}</span>
             </p>
 
             <button
               data-testid="passing-heir"
-              onClick={resetGame}
+              onClick={continueAsHeir}
               className="px-6 py-3 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 font-pixel text-sm rounded border-4 border-emerald-600"
             >
               Continue as {heirName}

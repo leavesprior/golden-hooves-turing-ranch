@@ -49,7 +49,7 @@ import { createRelationship, applyDispositionChange } from '../data/npcRelations
 import type { PartyRole } from '../data/posseSystem'
 import { getHuntingMessage } from '../data/eventMessages'
 import { migrateGoldCountryTrip } from './goldCountryTrip'
-import { createPassingRecord, hasNewPartyDeath, readPassingRecord } from './passing'
+import { continueAsHeir, createPassingRecord, hasNewPartyDeath, readPassingRecord } from './passing'
 import { copySaddleSnapshot } from './saddleSnapshot'
 import { canHireTeamster, canRetainTeamsterHire, readTeamsterHire } from './teamsterHire'
 
@@ -136,6 +136,10 @@ function reduceGameState(state: OregonTrailState, action: GameAction): OregonTra
 
     case 'RESET_GAME':
       return DEFAULT_STATE
+
+    case 'CONTINUE_AS_HEIR':
+      if (state.phase !== 'game_over') return state
+      return continueAsHeir(state)
 
     case 'LOAD_STATE': {
       // graphicsTier pinned: presentation is not save data (visual64) — old

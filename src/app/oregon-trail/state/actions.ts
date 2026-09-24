@@ -26,6 +26,7 @@ export type GameAction =
   | { type: 'BEGIN_JOURNEY'; saddle?: SaddleStats }
   | { type: 'TRAVEL' }
   | { type: 'RESET_GAME' }
+  | { type: 'CONTINUE_AS_HEIR' }
   | { type: 'LOAD_STATE'; savedState: OregonTrailState }
 
   // Settings

@@ -8,7 +8,7 @@ export interface PlayerBackgroundPortrait {
 
 /** Fictional player-role art. Separate from named NPCs and their placeholder map. */
 export const PLAYER_BACKGROUND_PORTRAITS: Readonly<Record<CharacterBackground, PlayerBackgroundPortrait>> = {
-  pinkerton_veteran: { src: '/sprites/player-backgrounds/pinkerton_veteran.png', label: 'Pinkerton Veteran', emoji: '🕵' },
+  pinkerton_veteran: { src: '/sprites/player-backgrounds/pinkerton_veteran.png', label: 'Detective Veteran', emoji: '🕵' },
   frontier_scout: { src: '/sprites/player-backgrounds/frontier_scout.png', label: 'Frontier Scout', emoji: '🎯' },
   army_officer: { src: '/sprites/player-backgrounds/army_officer.png', label: 'Army Officer', emoji: '⚔' },
   gambler: { src: '/sprites/player-backgrounds/gambler.png', label: 'Gambler', emoji: '🃏' },

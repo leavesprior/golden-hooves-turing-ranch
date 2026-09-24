@@ -58,6 +58,8 @@ export interface PartyMember {
   posseMemberId?: string     // Links back to PosseMember definition
   specialAbilityCooldown?: number  // Days until ability available
   emoji?: string
+  /** Recorded on an heir (CONTINUE_AS_HEIR). Display-only: no trait->effect mapping exists yet. */
+  heirloomTrait?: string
 }
 
 export interface RandomEvent {
@@ -207,6 +209,7 @@ export interface OregonTrailState {
   // Scarcity cascades (#8)
   scarcityDays: Record<string, number>       // Consecutive days per resource in each scarcity state
   firedDesperationEvents: string[]           // One-time desperation events already fired
+  recentEventIds?: string[]                  // Last EVENT_COOLDOWN random event ids (old saves: [])
   activeDesperationEvent: DesperationEvent | null  // Currently showing desperation event
   lastDesperationEventDay: number            // Day the last desperation event fired (3-day cooldown)
 

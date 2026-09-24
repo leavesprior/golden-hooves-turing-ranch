@@ -46,6 +46,12 @@ export const NO_OXEN_EVENT: RandomEvent = {
   ],
 }
 import { LANDMARKS, RANDOM_EVENTS, getRandomWeather } from './constants'
+
+/**
+ * Playtest 2026-09-23: one run saw Oxen Thieves 5x and Starving Family twice in
+ * 3 days. A random event cannot recur until this many OTHER events have fired.
+ */
+export const EVENT_COOLDOWN = 5
 import {
   calculatePartyBonuses,
   checkDesertion,
@@ -419,7 +425,10 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
 
   // Random events (30% chance when traveling)
   if (newPhase === 'traveling' && Math.random() < 0.3) {
-    const event = RANDOM_EVENTS[Math.floor(Math.random() * RANDOM_EVENTS.length)]
+    const recent = prev.recentEventIds ?? []
+    const eligible = RANDOM_EVENTS.filter(e => !recent.includes(e.id))
+    const pool = eligible.length > 0 ? eligible : RANDOM_EVENTS
+    const event = pool[Math.floor(Math.random() * pool.length)]
     return {
       ...prev,
       day: prev.day + 1,
@@ -438,6 +447,7 @@ export function computeTravel(prev: OregonTrailState): OregonTrailState {
       daysOnTrail: prev.daysOnTrail + 1,
       phase: 'event',
       currentEvent: event,
+      recentEventIds: [...recent, event.id].slice(-EVENT_COOLDOWN),
       weather: getRandomWeather(newDistance),
       scarcityDays: newScarcityDays,
       partyBonuses: newBonuses,

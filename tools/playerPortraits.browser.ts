@@ -222,8 +222,9 @@ async function bridgeAndPassing(page: Page, background: CharacterBackground, com
   assert.equal(await page.getByTestId('passing-heir').innerText(), "Continue as Cedar's heir")
   await page.screenshot({ path: output + '/' + activeLabel + '-heir.png', fullPage: true })
   await page.getByTestId('passing-heir').click()
-  await page.getByTestId('title-play').waitFor()
-  assert.deepEqual(await readCharacter(page), before, 'heir reset preserves the existing donor character')
+  // 2026-09-23: the heir continues the run on the trail (CONTINUE_AS_HEIR), not the title.
+  await page.getByTestId('passing-screen').waitFor({ state: 'detached' })
+  assert.deepEqual(await readCharacter(page), before, 'the heir preserves the existing donor character')
   await noEarnedCompletion(page)
   return { bridge: seen, scrolling, scrolledPixels, cause, companionLast, actualWrongAnswerResolvedDeath: true, preservedHeirOwner: name }
 }
