@@ -17,7 +17,7 @@ export interface LivingTrailNode {
   title: string
   geofence: { lat: number; lng: number; radiusM: number }   // radii >=75-100m per research
   dwellMs: number                 // default 10_000
-  timeWindow?: { startHour: number; endHour: number }       // local hours; cemetery node daylight-gated 8-18
+  timeWindow?: { startHour: number; endHour: number }       // local hours; end < start wraps midnight (ghosts 20 -> 1)
   prerequisiteNodeId?: string
   npcId: string                   // GoldCountryNPC id
   microAction: { kind: 'talk' | 'ovation_tap' | 'waypoint'; prompt: string }
@@ -31,6 +31,8 @@ export interface LivingTrailChain {
   title: string
   description: string
   nodeIds: string[]               // in narrative order
+  completionLine?: string         // spoken over the last reward; default is the West Point Twain line
+  place: string                   // shown in the walk header, e.g. 'Volcano, California'
 }
 
 export const LIVING_TRAIL_NODES: LivingTrailNode[] = [
@@ -74,16 +76,83 @@ export const LIVING_TRAIL_NODES: LivingTrailNode[] = [
     reward: { goodKarma: 5 },
     remoteVariant: { enabled: true, karmaScale: 0.5 },
   },
+
+  // === Volcano — "The Town That Kept Burning" (research 2026-09-23:
+  // ~/Documents/BOBR/research/volcano_local/). Only three points are placed by
+  // OpenStreetMap; the Main St buildings are address interpolation, so the
+  // theatre and hotel stops share the district anchor at the St. George
+  // (NRHP: the commercial district lies within two blocks of the hotel).
+  {
+    id: 'lt_vol_soldiers_gulch',
+    chainId: 'vol_kept_burning',
+    title: 'The Winter at Soldiers Gulch',
+    geofence: { lat: 38.44241, lng: -120.6316, radiusM: 100 },  // OSM "Soldiers Memorial Park" (plaques)
+    dwellMs: 10_000,
+    npcId: 'lt_npc_vol_soldier',
+    microAction: { kind: 'talk', prompt: 'Talk with the soldier by the plaques' },
+    reward: { goodKarma: 3 },
+    remoteVariant: { enabled: true, karmaScale: 0.5 },
+  },
+  {
+    id: 'lt_vol_old_abe',
+    chainId: 'vol_kept_burning',
+    title: 'The Cannon in the Hearse',
+    geofence: { lat: 38.4431, lng: -120.63079, radiusM: 75 },  // OSM Union Inn; Old Abe's shed stands beside it
+    dwellMs: 10_000,
+    prerequisiteNodeId: 'lt_vol_soldiers_gulch',
+    npcId: 'lt_npc_vol_volcano_blue',
+    microAction: { kind: 'talk', prompt: 'Talk with the Union man at the cannon shed' },
+    reward: { goodKarma: 3 },
+    remoteVariant: { enabled: true, karmaScale: 0.5 },
+  },
+  {
+    id: 'lt_vol_cobblestone',
+    chainId: 'vol_kept_burning',
+    title: 'Smoke in the Stone Walls',
+    geofence: { lat: 38.44175, lng: -120.63058, radiusM: 150 },  // district anchor (St. George, OSM); theatre is 16121 Main
+    dwellMs: 10_000,
+    prerequisiteNodeId: 'lt_vol_old_abe',
+    npcId: 'lt_npc_vol_adolph_mayer',
+    microAction: { kind: 'talk', prompt: 'Talk with the tobacconist outside the Cobblestone' },
+    reward: { goodKarma: 3 },
+    remoteVariant: { enabled: true, karmaScale: 0.5 },
+  },
+  {
+    id: 'lt_vol_fire_dragon',
+    chainId: 'vol_kept_burning',
+    title: 'The Fire Dragon',
+    geofence: { lat: 38.44175, lng: -120.63058, radiusM: 150 },  // St. George (OSM) — from the public street
+    dwellMs: 20_000,
+    timeWindow: { startHour: 20, endHour: 1 },  // night only; wraps midnight
+    prerequisiteNodeId: 'lt_vol_cobblestone',
+    npcId: 'lt_npc_vol_fire_dragon',
+    microAction: { kind: 'waypoint', prompt: 'Stand on Main Street and watch the old hotel' },
+    reward: { goodKarma: 5 },
+    remoteVariant: { enabled: true, karmaScale: 0.5 },
+    safetyNotice: 'Stay on the public street — the St. George is a private hotel, not a stop to enter. Rural town, little light: bring a flashlight and watch for cars.',
+  },
 ]
 
 export const LIVING_TRAIL_CHAINS: LivingTrailChain[] = [
   {
     id: 'wp_founders',
     title: 'The Founders of Indian Gulch',
+    place: 'West Point, California',
     description:
       'West Point began as Indian Gulch in 1852. Walk the real ground where it happened — '
       + 'three stops, three voices out of the 1850s.',
     nodeIds: ['lt_wp_marker', 'lt_wp_sandy_gulch', 'lt_wp_cemetery_gate'],
+  },
+  {
+    id: 'vol_kept_burning',
+    title: 'The Town That Kept Burning',
+    place: 'Volcano, California',
+    description:
+      'Volcano began as a winter camp at Soldiers Gulch and burned down more than once. '
+      + 'Four stops on the real street — the last one only after dark.',
+    nodeIds: ['lt_vol_soldiers_gulch', 'lt_vol_old_abe', 'lt_vol_cobblestone', 'lt_vol_fire_dragon'],
+    completionLine: 'Four hotels on one lot, three of them ash — and the brick one still stands. '
+      + 'You walked the town that would not stay burned down.',
   },
 ]
 
@@ -116,5 +185,8 @@ export function getChildNodes(nodeId: string): LivingTrailNode[] {
  */
 export function isNodeInTimeWindow(node: LivingTrailNode, hour: number = new Date().getHours()): boolean {
   if (!node.timeWindow) return true
-  return hour >= node.timeWindow.startHour && hour < node.timeWindow.endHour
+  const { startHour, endHour } = node.timeWindow
+  // A window whose end is before its start runs past midnight (21 -> 2).
+  if (endHour < startHour) return hour >= startHour || hour < endHour
+  return hour >= startHour && hour < endHour
 }
