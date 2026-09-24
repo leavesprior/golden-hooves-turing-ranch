@@ -81,7 +81,7 @@ export const LOCAL_PLACES: LocalPlace[] = [
       blockHint: 'BAKED. is the brick front just north of Sizemore\u2019s, on the same side of Main Street.',
       doorCode: { token: 'baked-16154', posted: false },
       keeper: {
-        name: 'The Guide to Where in Time',
+        name: 'The Grizzly Guide',
         lines: [
           'Mind the front wall. Those bricks are older than the building they dress — the 2021 sale papers say they came from Stone Jug, an 1850s camp up the road toward Upper Rancheria.',
           'Read it by its true grain: somebody carried a camp’s worth of time down the hill and set it here as a face. The bricks say 1850s. The walls behind them have said nothing yet — nobody has written down when they went up. Find that out and you know something the county’s online records don’t.',
