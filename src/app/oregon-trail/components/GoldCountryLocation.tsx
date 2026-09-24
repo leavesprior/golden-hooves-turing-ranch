@@ -50,6 +50,7 @@ import {
   type WarrantApproach,
   type WarrantCapture,
 } from '@/lib/goldCountryStreet'
+import { LocalTodayPanel } from '@/components/explore/LocalTodayPanel'
 import { GoldCountryShopInterior } from './GoldCountryShopInterior'
 import { GoldCountryBountyChase } from './GoldCountryBountyChase'
 import { CaptureXp } from './GoldCountryXpGain'
@@ -834,6 +835,7 @@ export function GoldCountryLocation({
               </ul>
             </div>
           )}
+          <LocalTodayPanel townId={locationId} townName={location.name} defaultOpen />
         </div>
       </div>
     )

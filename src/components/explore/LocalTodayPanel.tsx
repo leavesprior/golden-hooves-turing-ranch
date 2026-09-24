@@ -15,13 +15,13 @@ function checkedLabel(iso: string): string {
  * what stood there then. The 1849 face hides later buildings on purpose; this
  * panel is where a guest finds where to actually go.
  */
-export function LocalTodayPanel({ townId, townName }: { townId: string; townName: string }) {
+export function LocalTodayPanel({ townId, townName, defaultOpen = false }: { townId: string; townName: string; defaultOpen?: boolean }) {
   const places = localPlacesFor(townId)
   if (places.length === 0) return null
   const avoid = localAvoidFor(townId)
   const oldest = places.map((p) => p.verifiedAt).sort()[0]
   return (
-    <details className="west-face-paper mt-3" data-testid="local-today">
+    <details className="west-face-paper mt-3" data-testid="local-today" open={defaultOpen}>
       <summary className="cursor-pointer font-serif text-sm text-[#f3ead8]">
         Go there today · {townName} <span className="text-xs text-[#b8a88a]">(checked {checkedLabel(oldest)})</span>
       </summary>
