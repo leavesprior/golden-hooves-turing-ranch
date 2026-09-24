@@ -1,11 +1,15 @@
 'use client'
 
+import { useState } from 'react'
+
 import type { GoldCountryNPC } from '../data/goldCountryNPCs'
 import type { SearchArea } from '../data/goldCountryEncounters'
 import type { ShopGood, StreetPoster, TakenWarrant, TownFront, WarrantCapture } from '@/lib/goldCountryStreet'
 import { goodsForAge } from '@/lib/goldCountryStreet'
 import { alleyConfrontHint } from '@/lib/goldCountryAlley'
 import { asciiForStreetFront } from '@/lib/overlay/townAsciiInterior'
+import { interiorPlateFor } from '@/lib/interiorPlates'
+import { PlayerPortrait } from './PlayerPortrait'
 
 export function GoldCountryShopInterior({
   front,
@@ -30,6 +34,7 @@ export function GoldCountryShopInterior({
   emptyChair = null,
   kid = false,
   onOpenGuestBook,
+  player,
 }: {
   front: TownFront
   keeper?: GoldCountryNPC
@@ -54,8 +59,12 @@ export function GoldCountryShopInterior({
   emptyChair?: string | null
   kid?: boolean
   onOpenGuestBook?: () => void
+  /** The player's own character, shown standing in the room. */
+  player?: { name: string; background?: string | null } | null
 }) {
   const ascii = asciiForStreetFront(front.id)
+  const plate = interiorPlateFor(front.id)
+  const [showPlan, setShowPlan] = useState(false)
   const guestBookSearch = searches.find((area) => area.id === 'cabin_guest_book')
   const lookAround = searches.filter((area) => area.id !== 'cabin_guest_book')
   const goods = goodsForAge(front.goods, kid)
@@ -89,7 +98,33 @@ export function GoldCountryShopInterior({
         </button>
       </header>
 
+      {plate && !showPlan ? (
+        <div className="relative w-full aspect-video max-h-[70vh] overflow-hidden bg-[#120e0a]" data-testid="interior-plate">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={plate} alt={`Inside ${front.name}, 1849`} className="absolute inset-0 h-full w-full object-cover object-center" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0e0c0a]/90 via-transparent to-transparent" />
+          {player?.name ? (
+            <div className="absolute bottom-3 left-3 flex items-end gap-2" data-testid="interior-player">
+              <PlayerPortrait background={player.background} name={player.name} width={72} className="shadow-lg" />
+              <span className="west-face-paper px-2 py-1 font-serif text-xs text-[#e8dcc4]">{player.name}</span>
+            </div>
+          ) : null}
+          {ascii ? (
+            <button type="button" className="west-face-pill absolute right-3 top-3 text-[11px]" onClick={() => setShowPlan(true)} data-testid="interior-plan-toggle">
+              Floor plan
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {plate && !showPlan ? (
+        <p className="max-w-xl px-4 pt-3 font-serif text-[#e8dcc4]">{ascii ? ascii.finding : front.interior}</p>
+      ) : (
       <div className="relative min-h-[42vh] sm:min-h-[52vh] bg-[#120e0a]">
+        {plate ? (
+          <button type="button" className="west-face-pill absolute right-3 top-3 z-20 text-[11px]" onClick={() => setShowPlan(false)}>
+            Picture
+          </button>
+        ) : null}
         {ascii ? (
           <pre
             data-testid={ascii.testid}
@@ -109,6 +144,7 @@ export function GoldCountryShopInterior({
           {ascii ? ascii.finding : front.interior}
         </p>
       </div>
+      )}
 
       <div className="max-w-4xl mx-auto p-4 space-y-4">
         {keeper && (
