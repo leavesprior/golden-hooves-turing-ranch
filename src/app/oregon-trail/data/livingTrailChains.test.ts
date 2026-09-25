@@ -60,7 +60,7 @@ assert.doesNotMatch(dragon.greeting, /after dark/i)
 // of OSM coordinates; ghosts label themselves legend; the Leger legend stays uncited-free.
 const ALLOWED: Record<string, Set<string>> = {
   mh_courthouse_hill: new Set(['38.3004709,-120.7046552', '38.3011585,-120.7057368', '38.3010086,-120.7059348']),
-  ac_frog_and_hearse: new Set(['38.0727006,-120.5432579', '38.0756818,-120.5457283']),
+  ac_frog_and_hearse: new Set(['38.0684646,-120.5393015', '38.0756818,-120.5457283']),
 }
 const npcText = (id: string) => {
   const n = GOLD_COUNTRY_NPCS.find((x) => x.id === id)!
@@ -100,3 +100,14 @@ assert.match(npcText(coon.npcId), /legend/i, 'the Ben Coon ghost labels the ghos
 assert.match(npcText(coon.npcId), /reportedly/i, 'the frog yarn is kept "reportedly"')
 
 console.log(`livingTrailChains: ok (${LIVING_TRAIL_CHAINS.length} chains, ${LIVING_TRAIL_NODES.length} nodes)`)
+
+// The Angels Hotel stop stands at the hotel: NE corner of S Main St x Birds Way (NRHP 72000220),
+// OSM junction node 86883112, not Utica Park ~0.6 km away (Street View survey 2026-09-24).
+{
+  const hotelStop = LIVING_TRAIL_NODES.find((n) => n.id === 'lt_ac_angels_hotel')!
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const m = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) =>
+    6371000 * 2 * Math.asin(Math.sqrt(Math.sin(toRad(b.lat - a.lat) / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(toRad(b.lng - a.lng) / 2) ** 2))
+  assert.ok(m(hotelStop.geofence, { lat: 38.0684646, lng: -120.5393015 }) < 30, 'hotel stop is on the Main x Birds Way corner')
+  assert.ok(m(hotelStop.geofence, { lat: 38.0727006, lng: -120.5432579 }) > 400, 'not at Utica Park')
+}

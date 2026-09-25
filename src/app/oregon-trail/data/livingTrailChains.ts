@@ -174,12 +174,12 @@ export const LIVING_TRAIL_NODES: LivingTrailNode[] = [
 
   // === Angels Camp — "The Frog and the Hearse" (angelsmuseumfoundation.org;
   // gocalaveras.com/haunted-calaveras/ 2025-10-10). Anchors are OSM ways: Utica Park
-  // (by the Angels Hotel) and the Angels Camp Museum. The Carly wagon is a named legend.
+  // (the hotel stop sits on the public S Main x Birds Way corner, 09-24) and the Angels Camp Museum. The Carly wagon is a named legend.
   {
     id: 'lt_ac_angels_hotel',
     chainId: 'ac_frog_and_hearse',
     title: 'A Yarn at the Angels Hotel',
-    geofence: { lat: 38.0727006, lng: -120.5432579, radiusM: 150 },  // OSM way, Utica Park (Angels Hotel across Main)
+    geofence: { lat: 38.0684646, lng: -120.5393015, radiusM: 75 },  // OSM node 86883112, S Main St x Birds Way: the public corner at the Angels Hotel (NE corner, NRHP 72000220). Was Utica Park, ~0.6 km away (Street View survey 2026-09-24)
     dwellMs: 10_000,
     npcId: 'lt_npc_ac_ben_coon',
     microAction: { kind: 'talk', prompt: 'Talk with the old proprietor outside the Angels Hotel' },
