@@ -49,7 +49,7 @@ export const LIVING_TRAIL_NODES: LivingTrailNode[] = [
     id: 'lt_wp_sandy_gulch',
     chainId: 'wp_founders',
     title: 'The Carsner Nuggets',
-    geofence: { lat: 38.38018, lng: -120.53230, radiusM: 100 },  // HMDB m=11975, SR-26 roadside (marker-exact)
+    geofence: { lat: 38.379061, lng: -120.540014, radiusM: 100 },  // CHL #253 / HMDB 11975 cairn: 'north side of SR 26, 0.4 miles west of Associated Office Road' (HMDB text), measured along OSM way 287683710 from junction node 86785841; Street View cairn within 18 m. HMDB's own coordinates point at the junction, ~0.4 mi off (fixed 2026-09-24)
     dwellMs: 10_000,
     prerequisiteNodeId: 'lt_wp_marker',
     npcId: 'lt_npc_carsner_brothers',
