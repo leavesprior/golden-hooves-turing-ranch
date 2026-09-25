@@ -111,3 +111,13 @@ console.log(`livingTrailChains: ok (${LIVING_TRAIL_CHAINS.length} chains, ${LIVI
   assert.ok(m(hotelStop.geofence, { lat: 38.0684646, lng: -120.5393015 }) < 30, 'hotel stop is on the Main x Birds Way corner')
   assert.ok(m(hotelStop.geofence, { lat: 38.0727006, lng: -120.5432579 }) > 400, 'not at Utica Park')
 }
+
+// Sandy Gulch: at the CHL #253 cairn (HMDB text, OSM-measured, seen in Street View), not the junction.
+{
+  const sg = LIVING_TRAIL_NODES.find((n) => n.id === 'lt_wp_sandy_gulch')!
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const m = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) =>
+    6371000 * 2 * Math.asin(Math.sqrt(Math.sin(toRad(b.lat - a.lat) / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(toRad(b.lng - a.lng) / 2) ** 2))
+  assert.ok(m(sg.geofence, { lat: 38.379061, lng: -120.540014 }) < 30, 'Sandy Gulch stop is at the cairn')
+  assert.ok(m(sg.geofence, { lat: 38.38019, lng: -120.532862 }) > 500, 'not at the Associated Office Rd junction')
+}
