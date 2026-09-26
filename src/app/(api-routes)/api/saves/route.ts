@@ -1,265 +1,91 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getSaveMeta, readSave, writeSave, MAX_SAVE_BYTES, type SaveFailure } from '@/lib/cloudSaveStore'
 
 /**
- * Cloud Save API Route - Encrypted Game State via Notion
+ * Cloud Save API — encrypted game state on the Railway /data volume.
  *
- * GET /api/saves?playerId=X&saveType=adventure_save[&metadataOnly=true]
- *   Retrieves the latest save for a player + save type
- *   With metadataOnly=true, returns existence check without save data
+ * GET /api/saves?playerId=X&saveType=adventure_save&metadataOnly=true
+ *   Existence + last-saved time. No proof needed; never returns save data.
+ * GET /api/saves?playerId=X&saveType=adventure_save   (header X-Save-Proof)
+ *   The owner's ciphertext.
+ * POST /api/saves  { playerId, saveType, saveData, saveVersion?, deviceId?, proof }
+ *   Creates (first write claims the player) or replaces a save.
  *
- * POST /api/saves
- *   Creates or updates an encrypted save (dedup by PlayerId + SaveType)
- *
- * Save data is stored as Notion page content blocks (not properties)
- * to avoid the 2000-char rich_text limit. Metadata stays in properties.
+ * The browser encrypts before sending and derives the proof from the
+ * passphrase (cryptoSave.ts, saveProof.ts). See cloudSaveStore.ts.
+ * Replaced the Notion store 2026-09-26: it was not configured in production
+ * (Notion key absent; it had been live around 2026-06) and let anyone holding a playerId overwrite that player's save.
  */
 
-const NOTION_API_KEY = process.env.NOTION_API_KEY || ''
-const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID || ''
-const NOTION_API_VERSION = '2022-06-28'
-const NOTION_BASE = 'https://api.notion.com/v1'
-const FETCH_TIMEOUT = 10000
-
-function notionHeaders() {
-  return {
-    'Authorization': `Bearer ${NOTION_API_KEY}`,
-    'Notion-Version': NOTION_API_VERSION,
-    'Content-Type': 'application/json',
-  }
+const STATUS: Record<SaveFailure, number> = {
+  invalid: 400,
+  forbidden: 403,
+  not_found: 404,
+  too_large: 413,
+  throttled: 429,
 }
 
-async function notionFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT)
-  try {
-    return await fetch(url, {
-      ...options,
-      headers: { ...notionHeaders(), ...(options.headers || {}) },
-      signal: controller.signal,
-    })
-  } finally {
-    clearTimeout(timeout)
-  }
+const MESSAGE: Record<SaveFailure, string> = {
+  invalid: 'Invalid request',
+  forbidden: 'Wrong passphrase for this save',
+  not_found: 'No save found',
+  too_large: 'Save too large',
+  throttled: 'Too many wrong passphrases. Wait a minute and try again.',
 }
 
-/**
- * Split a long string into chunks for Notion rich_text blocks (max 2000 chars each)
- */
-function chunkString(str: string, size: number = 2000): string[] {
-  const chunks: string[] = []
-  for (let i = 0; i < str.length; i += size) {
-    chunks.push(str.slice(i, i + size))
-  }
-  return chunks
+function failure(reason: SaveFailure) {
+  return NextResponse.json({ error: MESSAGE[reason], reason }, { status: STATUS[reason] })
 }
 
-// GET /api/saves
+function storeDown(err: unknown) {
+  console.error('Cloud save store error:', err)
+  return NextResponse.json({ error: 'Cloud saves unavailable' }, { status: 503 })
+}
+
 export async function GET(request: NextRequest) {
-  if (!NOTION_API_KEY || !NOTION_DATABASE_ID) {
-    return NextResponse.json({ error: 'Cloud saves not configured' }, { status: 503 })
-  }
-
   const { searchParams } = new URL(request.url)
-  const playerId = searchParams.get('playerId')
-  const saveType = searchParams.get('saveType')
-  const metadataOnly = searchParams.get('metadataOnly') === 'true'
-
-  if (!playerId) {
-    return NextResponse.json({ error: 'playerId required' }, { status: 400 })
-  }
+  const playerId = searchParams.get('playerId') ?? ''
+  const saveType = searchParams.get('saveType') ?? undefined
 
   try {
-    // Query for matching saves
-    const filters: Record<string, unknown>[] = [
-      { property: 'PlayerId', rich_text: { equals: playerId } },
-    ]
-
-    if (saveType) {
-      filters.push({ property: 'SaveType', select: { equals: saveType } })
+    if (searchParams.get('metadataOnly') === 'true') {
+      const meta = getSaveMeta(playerId, saveType)
+      return meta ? NextResponse.json(meta) : NextResponse.json(null, { status: 404 })
     }
-
-    // Exclude leaderboard entries
-    filters.push({
-      property: 'SaveType',
-      select: { does_not_equal: 'leaderboard' },
-    })
-
-    const queryResp = await notionFetch(`${NOTION_BASE}/databases/${NOTION_DATABASE_ID}/query`, {
-      method: 'POST',
-      body: JSON.stringify({
-        filter: filters.length === 1 ? filters[0] : { and: filters },
-        sorts: [{ property: 'LastSaved', direction: 'descending' }],
-        page_size: 1,
-      }),
-    })
-
-    if (!queryResp.ok) {
-      console.error('Notion save query failed:', queryResp.status)
-      return NextResponse.json({ error: 'Query failed' }, { status: 502 })
-    }
-
-    const queryData = await queryResp.json()
-    const pages = queryData.results as Array<{ id: string; properties: Record<string, unknown> }>
-
-    if (pages.length === 0) {
-      return NextResponse.json(null, { status: 404 })
-    }
-
-    const page = pages[0]
-    const props = page.properties
-
-    // Extract metadata
-    const lastSavedProp = props.LastSaved as { date?: { start?: string } } | undefined
-    const saveTypeProp = props.SaveType as { select?: { name?: string } } | undefined
-
-    if (metadataOnly) {
-      return NextResponse.json({
-        exists: true,
-        lastSaved: lastSavedProp?.date?.start || null,
-        saveType: saveTypeProp?.select?.name || null,
-      })
-    }
-
-    // Fetch page content blocks (where encrypted save data lives)
-    const blocksResp = await notionFetch(`${NOTION_BASE}/blocks/${page.id}/children?page_size=100`)
-    if (!blocksResp.ok) {
-      console.error('Notion blocks fetch failed:', blocksResp.status)
-      return NextResponse.json({ error: 'Failed to read save data' }, { status: 502 })
-    }
-
-    const blocksData = await blocksResp.json()
-    const blocks = blocksData.results as Array<{
-      type: string
-      paragraph?: { rich_text: Array<{ plain_text: string }> }
-    }>
-
-    // Reassemble save data from paragraph blocks
-    let saveData = ''
-    for (const block of blocks) {
-      if (block.type === 'paragraph' && block.paragraph?.rich_text) {
-        for (const rt of block.paragraph.rich_text) {
-          saveData += rt.plain_text
-        }
-      }
-    }
-
-    if (!saveData) {
-      return NextResponse.json({ error: 'Save data empty' }, { status: 404 })
-    }
-
-    return NextResponse.json({
-      saveData,
-      lastSaved: lastSavedProp?.date?.start || null,
-      saveType: saveTypeProp?.select?.name || null,
-    })
+    const result = readSave(playerId, saveType ?? '', request.headers.get('x-save-proof') ?? '')
+    if (!result.ok) return failure(result.reason)
+    return NextResponse.json(
+      { saveData: result.saveData, lastSaved: result.lastSaved, saveType: result.saveType },
+      { headers: { 'Cache-Control': 'no-store' } },
+    )
   } catch (err) {
-    console.error('Save GET error:', err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return storeDown(err)
   }
 }
 
-// POST /api/saves
 export async function POST(request: NextRequest) {
-  if (!NOTION_API_KEY || !NOTION_DATABASE_ID) {
-    return NextResponse.json({ error: 'Cloud saves not configured' }, { status: 503 })
+  const declared = Number(request.headers.get('content-length') ?? 0)
+  if (declared > MAX_SAVE_BYTES + 16 * 1024) return failure('too_large')
+
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return failure('invalid')
   }
 
   try {
-    const body = await request.json()
-    const { playerId, saveType, saveData, saveVersion, deviceId } = body
-
-    if (!playerId || !saveType || !saveData) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
-    // Check for existing save (dedup by PlayerId + SaveType)
-    const existingResp = await notionFetch(`${NOTION_BASE}/databases/${NOTION_DATABASE_ID}/query`, {
-      method: 'POST',
-      body: JSON.stringify({
-        filter: {
-          and: [
-            { property: 'PlayerId', rich_text: { equals: playerId } },
-            { property: 'SaveType', select: { equals: saveType } },
-          ],
-        },
-        page_size: 1,
-      }),
+    const result = writeSave({
+      playerId: body.playerId as string,
+      saveType: body.saveType as string,
+      saveData: body.saveData as string,
+      saveVersion: body.saveVersion as string | undefined,
+      deviceId: body.deviceId as string | undefined,
+      proof: body.proof as string,
     })
-
-    if (!existingResp.ok) {
-      return NextResponse.json({ error: 'Notion query failed' }, { status: 502 })
-    }
-
-    const existingData = await existingResp.json()
-    const existingPages = existingData.results as Array<{ id: string }>
-
-    const now = new Date().toISOString()
-
-    // Build properties
-    const properties: Record<string, unknown> = {
-      Name: { title: [{ text: { content: `${playerId}:${saveType}` } }] },
-      PlayerId: { rich_text: [{ text: { content: playerId } }] },
-      SaveType: { select: { name: saveType } },
-      LastSaved: { date: { start: now } },
-      IsNPC: { checkbox: false },
-    }
-    if (saveVersion) {
-      properties.SaveVersion = { rich_text: [{ text: { content: saveVersion } }] }
-    }
-    if (deviceId) {
-      properties.DeviceId = { rich_text: [{ text: { content: deviceId } }] }
-    }
-
-    // Build content blocks — split save data into 2000-char chunks
-    const chunks = chunkString(saveData, 2000)
-    const children = chunks.map(chunk => ({
-      object: 'block' as const,
-      type: 'paragraph' as const,
-      paragraph: {
-        rich_text: [{ type: 'text' as const, text: { content: chunk } }],
-      },
-    }))
-
-    if (existingPages.length > 0) {
-      const pageId = existingPages[0].id
-
-      // Update properties
-      await notionFetch(`${NOTION_BASE}/pages/${pageId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ properties }),
-      })
-
-      // Delete old content blocks
-      const oldBlocksResp = await notionFetch(`${NOTION_BASE}/blocks/${pageId}/children?page_size=100`)
-      if (oldBlocksResp.ok) {
-        const oldBlocks = (await oldBlocksResp.json()).results as Array<{ id: string }>
-        for (const block of oldBlocks) {
-          await notionFetch(`${NOTION_BASE}/blocks/${block.id}`, { method: 'DELETE' })
-        }
-      }
-
-      // Append new content blocks
-      await notionFetch(`${NOTION_BASE}/blocks/${pageId}/children`, {
-        method: 'PATCH',
-        body: JSON.stringify({ children }),
-      })
-
-      return NextResponse.json({ action: 'saved' })
-    }
-
-    // Create new page with content
-    await notionFetch(`${NOTION_BASE}/pages`, {
-      method: 'POST',
-      body: JSON.stringify({
-        parent: { database_id: NOTION_DATABASE_ID },
-        properties,
-        children,
-      }),
-    })
-
-    return NextResponse.json({ action: 'created' })
+    if (!result.ok) return failure(result.reason)
+    return NextResponse.json({ action: result.action })
   } catch (err) {
-    console.error('Save POST error:', err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return storeDown(err)
   }
 }

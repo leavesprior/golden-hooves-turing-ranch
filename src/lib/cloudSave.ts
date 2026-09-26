@@ -1,4 +1,5 @@
 import { encryptSave, decryptSave } from './cryptoSave'
+import { deriveSaveProof } from './saveProof'
 
 export type SaveType = 'adventure_save' | 'rpg_session' | 'cross_game' | 'karma' | 'leaderboard'
 
@@ -70,8 +71,8 @@ export async function saveToCloud(
   deviceId?: string
 ): Promise<SaveToCloudResult> {
   try {
-    // Encrypt the data
-    const encrypted = await encryptSave(data, passphrase)
+    // Encrypt the data; the proof (from the same passphrase) claims/unlocks the slot
+    const [encrypted, proof] = await Promise.all([encryptSave(data, passphrase), deriveSaveProof(passphrase, playerId)])
 
     // Prepare the payload
     const payload = {
@@ -79,7 +80,8 @@ export async function saveToCloud(
       saveType,
       saveData: JSON.stringify(encrypted),
       saveVersion: '1.0',
-      deviceId: deviceId || getDeviceId()
+      deviceId: deviceId || getDeviceId(),
+      proof,
     }
 
     // POST to API
@@ -95,7 +97,7 @@ export async function saveToCloud(
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
       return {
         action: 'error',
-        error: errorData.error || `HTTP ${response.status}`
+        error: response.status === 403 ? 'Wrong passphrase' : errorData.error || `HTTP ${response.status}`
       }
     }
 
@@ -121,13 +123,21 @@ export async function loadFromCloud(
 ): Promise<LoadFromCloudResult> {
   try {
     // GET from API
+    const proof = await deriveSaveProof(passphrase, playerId)
     const response = await fetch(
-      `/api/saves?playerId=${encodeURIComponent(playerId)}&saveType=${encodeURIComponent(saveType)}`
+      `/api/saves?playerId=${encodeURIComponent(playerId)}&saveType=${encodeURIComponent(saveType)}`,
+      { headers: { 'X-Save-Proof': proof }, cache: 'no-store' }
     )
 
     if (!response.ok) {
       if (response.status === 404) {
         return { data: null }
+      }
+      if (response.status === 403) {
+        return { data: null, error: 'Wrong passphrase' }
+      }
+      if (response.status === 429) {
+        return { data: null, error: 'Too many wrong passphrases. Wait a minute and try again.' }
       }
       return {
         data: null,

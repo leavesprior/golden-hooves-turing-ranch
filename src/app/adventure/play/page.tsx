@@ -14,6 +14,7 @@ import { NPCProvider } from '@/app/oregon-trail/npcContext'
 import { MysteryProvider, useMystery } from '@/app/oregon-trail/mysteryContext'
 import { CrossGameStorage, qualitiesFromSaddle } from '@/lib/crossGameProgression'
 import { saveToCloud, loadFromCloud, hasCloudSave, cachePassphrase, getCachedPassphrase, getDeviceId } from '@/lib/cloudSave'
+import { MIN_PASSPHRASE_LENGTH } from '@/lib/saveProof'
 import { getPlayerIdentifier } from '@/lib/trophyStateCollector'
 
 // Adventure Components
@@ -405,7 +406,7 @@ function PassphraseModal({
   const [confirm, setConfirm] = useState('')
 
   const needsConfirm = mode === 'save' && !getCachedPassphrase()
-  const canSubmit = passphrase.length >= 4 && (!needsConfirm || passphrase === confirm)
+  const canSubmit = passphrase.length >= MIN_PASSPHRASE_LENGTH && (!needsConfirm || passphrase === confirm)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
@@ -436,12 +437,12 @@ function PassphraseModal({
           <>
             <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-3">
               {mode === 'save'
-                ? 'Enter a Trail Passphrase to encrypt your save. Remember it — there is no recovery.'
+                ? `Enter a Trail Passphrase (${MIN_PASSPHRASE_LENGTH}+ characters) to encrypt your save. Remember it — there is no recovery.`
                 : 'Enter your Trail Passphrase to decrypt your cloud save.'}
             </p>
             <input
               type="password"
-              placeholder="Trail Passphrase"
+              placeholder={`Trail Passphrase (${MIN_PASSPHRASE_LENGTH}+ characters)`}
               value={passphrase}
               onChange={e => setPassphrase(e.target.value)}
               className="w-full mb-2 px-3 py-2 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] outline-none focus:border-[var(--pixel-gold-dark)]"
