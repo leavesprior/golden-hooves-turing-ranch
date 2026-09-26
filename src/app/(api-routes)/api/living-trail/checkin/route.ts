@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   let body: {
     sessionId?: unknown
     nodeId?: unknown
-    coords?: unknown
+    presence?: unknown
     verified?: unknown
     clientTs?: unknown
   }
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'invalid_json' }, { status: 400 })
   }
 
-  const { sessionId, nodeId, coords, verified, clientTs } = body
+  const { sessionId, nodeId, presence, verified, clientTs } = body
   if (typeof sessionId !== 'string' || !SESSION_ID_PATTERN.test(sessionId)) {
     return NextResponse.json({ ok: false, reason: 'invalid_session' }, { status: 400 })
   }
@@ -55,27 +55,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'invalid_verified' }, { status: 400 })
   }
 
-  // coords: null (remote variant) or { lat, lng, accuracyM? } with finite numbers
-  let safeCoords: { lat: number; lng: number; accuracyM?: number } | null = null
-  if (coords !== null && coords !== undefined) {
-    const c = coords as { lat?: unknown; lng?: unknown; accuracyM?: unknown }
+  // Privacy: coordinates are never stored — an old client may still send them,
+  // and they are dropped. Only distance-to-stop and GPS accuracy are recorded.
+  let safePresence: { distanceM: number; accuracyM: number } | null = null
+  if (presence !== null && presence !== undefined) {
+    const p = presence as { distanceM?: unknown; accuracyM?: unknown }
     if (
-      typeof c.lat !== 'number' || !Number.isFinite(c.lat) || Math.abs(c.lat) > 90 ||
-      typeof c.lng !== 'number' || !Number.isFinite(c.lng) || Math.abs(c.lng) > 180
+      typeof p.distanceM !== 'number' || !Number.isFinite(p.distanceM) || p.distanceM < 0 || p.distanceM > 1e7 ||
+      typeof p.accuracyM !== 'number' || !Number.isFinite(p.accuracyM) || p.accuracyM < 0 || p.accuracyM > 1e7
     ) {
-      return NextResponse.json({ ok: false, reason: 'invalid_coords' }, { status: 400 })
+      return NextResponse.json({ ok: false, reason: 'invalid_presence' }, { status: 400 })
     }
-    safeCoords = { lat: c.lat, lng: c.lng }
-    if (typeof c.accuracyM === 'number' && Number.isFinite(c.accuracyM) && c.accuracyM >= 0) {
-      safeCoords.accuracyM = c.accuracyM
-    }
+    safePresence = { distanceM: Math.round(p.distanceM), accuracyM: Math.round(p.accuracyM) }
   }
 
   const record = {
     receivedAt: new Date().toISOString(),
     sessionId,
     nodeId,
-    coords: safeCoords,
+    presence: safePresence,
     verified,
     clientTs: typeof clientTs === 'number' && Number.isFinite(clientTs) ? clientTs : null,
   }

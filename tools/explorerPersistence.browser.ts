@@ -107,7 +107,7 @@ function progress(record: Snapshot, attractions: string[]) {
   assert.deepEqual(saved.journalEntries[0], priorEntry)
   assert.equal(saved.journalEntries.length, prior.journalEntries.length + attractions.length, 'one journal entry per actual first visit')
   const expected: Record<string, { town: string; title: string }> = {
-    wp_trail_camp: { town: 'west_point', title: 'The pack road' },
+    wp_trail_camp: { town: 'west_point', title: 'West Point Road' },
     vol_canvas_flat: { town: 'volcano', title: 'Canvas saloon' },
   }
   for (const attraction of attractions) {
@@ -134,7 +134,7 @@ async function openTown(page: Page, town: string, navigate = true) {
 
 async function packRoad(page: Page) {
   await page.getByTestId('explore-spot-wp_trail_camp').click()
-  await page.getByRole('heading', { name: 'The pack road', exact: true }).waitFor({ state: 'visible' })
+  await page.getByRole('heading', { name: 'West Point Road', exact: true }).waitFor({ state: 'visible' })
 }
 
 async function nextTown(page: Page) {

@@ -123,7 +123,7 @@ const westPointExterior: TownWalkMap = {
     prop('rock', 6, 4), prop('rock', 14, 8), prop('crate', 16, 5), prop('fire', 6, 7),
   ],
   targets: [
-    { id: 'wp_trail_camp', kind: 'attraction', attractionId: 'wp_trail_camp', label: 'Look at the pack road', position: at(10, 6) },
+    { id: 'wp_trail_camp', kind: 'attraction', attractionId: 'wp_trail_camp', label: 'Look at the West Point Road', position: at(10, 6) },
     { id: 'wp_trail_camp.enter', kind: 'entrance', attractionId: 'wp_trail_camp', label: 'Enter the pack shelter', position: at(15, 4), destination: { roomId: 'shelter', position: at(10, 8) } },
     { id: 'wp_pack', kind: 'npc', npcId: 'wp_pack', label: 'Talk to the Packer', position: at(12, 5) },
   ],
@@ -141,7 +141,7 @@ function shelter(townId: TownWalkTownId): TownWalkMap {
     spawn: at(10, 8), fictional: true,
     notes: volcano
       ? 'Fictional canvas-room furniture for walking. The existing canvas-saloon ASCII reading remains its own view; no new historical building or reward is implied.'
-      : 'Fictional shelter beside the pack road, with flour and rope. No surviving building, surveyed placement or new historical attraction is claimed.',
+      : 'Fictional shelter beside the trail, with flour and rope. No surviving building, surveyed placement or new historical attraction is claimed.',
     sources: volcano ? VOLCANO_SOURCES : WEST_POINT_SOURCES,
     props: [...walls, prop('table', 9, 3), prop('table', 10, 3), prop('table', 11, 3),
       prop('crate', 3, 2), prop('crate', 4, 2), prop('crate', 3, 3),

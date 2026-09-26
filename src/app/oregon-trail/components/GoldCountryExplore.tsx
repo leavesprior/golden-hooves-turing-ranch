@@ -52,7 +52,7 @@ export function GoldCountryExplore({
   onOpenQuestLog,
   onLeave,
 }: GoldCountryExploreProps) {
-  const { state, setPhase } = useOregonTrail()
+  const { state, setPhase, enterLivingTrail } = useOregonTrail()
   const { balance } = useKarmaWallet()
   const { state: mysteryState } = useMystery()
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
@@ -188,6 +188,15 @@ export function GoldCountryExplore({
           <div className="flex flex-wrap gap-2">
             <button type="button" className="west-face-pill" onClick={onOpenQuestLog}>
               Dossier
+            </button>
+            <button
+              type="button"
+              className="west-face-pill"
+              onClick={enterLivingTrail}
+              title="Real-world walks with GPS: meet the characters and ghosts where the history happened (West Point, Volcano)."
+              data-testid="gc-living-trail"
+            >
+              🥾 Living Trail
             </button>
             <button type="button" className="west-face-pill" onClick={onLeave}>
               Leave
