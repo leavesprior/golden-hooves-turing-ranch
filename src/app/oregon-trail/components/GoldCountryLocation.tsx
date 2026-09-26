@@ -119,7 +119,7 @@ export function GoldCountryLocation({
 }: GoldCountryLocationProps) {
   const { state, markAreaSearched, addInventoryItem, completeQuest, completeQuestWithReward, advanceGoldCountryDay, getShopDiscount } = useOregonTrail()
   const { earnGood, earnNeutral, spendNeutral, canAfford, balance, addBadKarma } = useKarmaWallet()
-  const { rollSkillCheck } = useCharacter()
+  const { rollSkillCheck, state: characterState } = useCharacter()
 
   const [view, setView] = useState<LocationView>('main')
   const [selectedNPC, setSelectedNPC] = useState<GoldCountryNPC | null>(null)
@@ -1383,6 +1383,7 @@ export function GoldCountryLocation({
         )}
         <GoldCountryShopInterior
           front={front}
+          player={characterState.character ? { name: characterState.character.name, background: characterState.character.background } : null}
           art={editorialForExplorePlace(locationId) || editorialForExplorePlace(editorialTownId(locationId))}
           keeper={keeper}
           patrons={patrons}
