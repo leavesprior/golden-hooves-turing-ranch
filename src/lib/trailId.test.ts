@@ -28,6 +28,8 @@ check('tolerates copy-paste whitespace and en-dashes', normalizeTrailId('  BOBRâ
 const bad = ['', 'BOBR-123', 'BOBR-A1B2-C3D4-E5F6-G7H8', 'BOBR-A1B2-C3D4-E5U6', 'hello world!', 'BOBR-A1B2-C3D4-E5F*']
 check('rejects wrong length, U, and junk', bad.every((b) => normalizeTrailId(b) === null), bad.map((b) => [b, normalizeTrailId(b)]))
 check('keeps a legacy slot_<uuid> id as-is (saves made before Trail IDs)', normalizeTrailId('slot_4f1c2a9e-8b7d-4e21-9c3a-1b2c3d4e5f60') === 'slot_4f1c2a9e-8b7d-4e21-9c3a-1b2c3d4e5f60')
+check('a legacy id typed in capitals (phone auto-capitalize) still works', normalizeTrailId('SLOT_4F1C2A9E-8B7D-4E21-9C3A-1B2C3D4E5F60') === 'slot_4f1c2a9e-8b7d-4e21-9c3a-1b2c3d4e5f60', normalizeTrailId('SLOT_4F1C2A9E-8B7D-4E21-9C3A-1B2C3D4E5F60'))
+check('the Unicode minus sign is accepted as a dash', normalizeTrailId('BOBR\u2212A1B2\u2212C3D4\u2212E5F6') === 'BOBR-A1B2-C3D4-E5F6', normalizeTrailId('BOBR\u2212A1B2\u2212C3D4\u2212E5F6'))
 check('the server id pattern accepts a Trail ID', /^[A-Za-z0-9_-]{8,80}$/.test(id))
 
 const failed = results.filter((r) => !r.pass)

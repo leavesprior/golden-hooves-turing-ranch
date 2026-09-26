@@ -63,7 +63,11 @@ export function getCloudSlotId(): string {
 export function adoptCloudSlotId(trailId: string): void {
   if (typeof window === 'undefined') return
   const id = normalizeTrailId(trailId)
-  if (id) localStorage.setItem(CLOUD_SLOT_KEY, id)
+  if (!id) return
+  const before = localStorage.getItem(CLOUD_SLOT_KEY)
+  // Keep the trail this device followed before, so it is never simply forgotten.
+  if (before && before !== id) localStorage.setItem(`${CLOUD_SLOT_KEY}_previous`, before)
+  localStorage.setItem(CLOUD_SLOT_KEY, id)
 }
 
 /**

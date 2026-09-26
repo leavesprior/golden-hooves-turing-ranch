@@ -21,8 +21,9 @@ export function generateTrailId(): string {
 /** Canonical Trail ID from what a player typed, or null if it cannot be one. */
 export function normalizeTrailId(input: string): string | null {
   const trimmed = input.trim()
-  if (LEGACY_SLOT_PATTERN.test(trimmed)) return trimmed
-  let s = trimmed.toUpperCase().replace(/[\s\-‐-―_]/g, '')
+  // Legacy ids are lowercase uuids; phones may auto-capitalize what is typed.
+  if (LEGACY_SLOT_PATTERN.test(trimmed.toLowerCase())) return trimmed.toLowerCase()
+  let s = trimmed.toUpperCase().replace(/[\s\-‐-―−_]/g, '')
   if (s.startsWith('BOBR') && s.length === 16) s = s.slice(4)
   if (s.length !== 12) return null
   s = s.replace(/O/g, '0').replace(/[IL]/g, '1')
