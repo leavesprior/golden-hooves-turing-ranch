@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSaveMeta, readSave, writeSave, MAX_SAVE_BYTES, type SaveFailure } from '@/lib/cloudSaveStore'
+import { clientIpFrom } from '@/lib/markerSession'
 
 /**
  * Cloud Save API — encrypted game state on the Railway /data volume.
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
       const meta = getSaveMeta(playerId, saveType)
       return meta ? NextResponse.json(meta) : NextResponse.json(null, { status: 404 })
     }
-    const result = readSave(playerId, saveType ?? '', request.headers.get('x-save-proof') ?? '')
+    const result = readSave(playerId, saveType ?? '', request.headers.get('x-save-proof') ?? '', clientIpFrom(request.headers))
     if (!result.ok) return failure(result.reason)
     return NextResponse.json(
       { saveData: result.saveData, lastSaved: result.lastSaved, saveType: result.saveType },
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
       saveVersion: body.saveVersion as string | undefined,
       deviceId: body.deviceId as string | undefined,
       proof: body.proof as string,
+      clientKey: clientIpFrom(request.headers),
     })
     if (!result.ok) return failure(result.reason)
     return NextResponse.json({ action: result.action })

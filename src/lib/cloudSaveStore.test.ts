@@ -10,7 +10,7 @@
  *   - replacing a save is one statement: there is no moment with no save
  *   - metadata answers without a proof, but never carries save data
  *   - bad ids / types / oversized payloads are refused before touching the DB
- *   - repeated wrong proofs are throttled, and the right proof still works after
+ *   - repeated wrong proofs throttle the guessing client (IP), never the owner
  *   - the proof is deterministic per (passphrase, player) and differs otherwise
  *   npx tsx src/lib/cloudSaveStore.test.ts
  */
@@ -106,19 +106,32 @@ async function main() {
   const p3 = await deriveSaveProof('p3 passphrase ok', P3)
   store.writeSave({ playerId: P3, saveType: 'adventure_save', saveData: 'P3', proof: p3 })
   const wrong = await deriveSaveProof('guess guess guess', P3)
+  // The throttle follows the GUESSER (client key = IP), never the account:
+  // player ids are public on the Hall of Fame, so an account lock would let
+  // anyone lock any owner out.
   const reasons: string[] = []
   for (let i = 0; i < store.MAX_FAILED_PROOFS + 2; i++) {
-    const r = store.readSave(P3, 'adventure_save', wrong)
+    const r = store.readSave(P3, 'adventure_save', wrong, 'ip-attacker')
     reasons.push(r.ok ? 'ok' : r.reason)
   }
-  check('wrong proofs become throttled after the limit', reasons.slice(-2).every((r) => r === 'throttled') && reasons[0] === 'forbidden', reasons)
-  const rThrottledOwner = store.readSave(P3, 'adventure_save', p3)
-  check('while throttled even the owner waits (no oracle)', !rThrottledOwner.ok && rThrottledOwner.reason === 'throttled', rThrottledOwner)
+  check('wrong proofs from one client become throttled after the limit', reasons.slice(-2).every((r) => r === 'throttled') && reasons[0] === 'forbidden', reasons)
+  const rOwner = store.readSave(P3, 'adventure_save', p3, 'ip-owner')
+  check('the owner is NOT locked out by someone else guessing', rOwner.ok && rOwner.saveData === 'P3', rOwner)
+  const wOwner = store.writeSave({ playerId: P3, saveType: 'adventure_save', saveData: 'P3b', proof: p3, clientKey: 'ip-owner' })
+  check('the owner can still save while the attacker is throttled', wOwner.ok, wOwner)
+  const rOtherPlayer = store.readSave(P1, 'adventure_save', owner, 'ip-attacker')
+  check('a throttled client is throttled for every player, even with a right proof', !rOtherPlayer.ok && rOtherPlayer.reason === 'throttled', rOtherPlayer)
+  const wAttack = store.writeSave({ playerId: P3, saveType: 'adventure_save', saveData: 'X', proof: wrong, clientKey: 'ip-attacker' })
+  check('a throttled client cannot write either', !wAttack.ok && wAttack.reason === 'throttled', wAttack)
   store._advanceClockForTests(store.THROTTLE_MS + 1)
-  const rOwnerLater = store.readSave(P3, 'adventure_save', p3)
-  check('after the window the owner gets in', rOwnerLater.ok && rOwnerLater.saveData === 'P3', rOwnerLater)
-  const rWrongAfter = store.readSave(P3, 'adventure_save', wrong)
-  check('a success resets the failure count', !rWrongAfter.ok && rWrongAfter.reason === 'forbidden', rWrongAfter)
+  const rWrongAfter = store.readSave(P3, 'adventure_save', wrong, 'ip-attacker')
+  check('after the window the client is back to plain forbidden', !rWrongAfter.ok && rWrongAfter.reason === 'forbidden', rWrongAfter)
+  // A success must not wipe the guesser's count (else: guess 9, log into own account, repeat).
+  for (let i = 0; i < store.MAX_FAILED_PROOFS - 1; i++) store.readSave(P3, 'adventure_save', wrong, 'ip-mixed')
+  store.readSave(P1, 'adventure_save', owner, 'ip-mixed')
+  store.readSave(P3, 'adventure_save', wrong, 'ip-mixed')
+  const rMixed = store.readSave(P3, 'adventure_save', wrong, 'ip-mixed')
+  check("a client's own success does not reset its failure count", !rMixed.ok && rMixed.reason === 'throttled', rMixed)
 
   fs.rmSync(dir, { recursive: true, force: true })
 }

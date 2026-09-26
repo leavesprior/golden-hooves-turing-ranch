@@ -44,6 +44,8 @@ export interface WriteParams {
   saveVersion?: string | null;
   deviceId?: string | null;
   proof: string;
+  /** Who is asking (the client IP). Wrong proofs are throttled per client. */
+  clientKey?: string;
 }
 
 let _warnedTmpDb = false;
@@ -79,9 +81,7 @@ function getDb(): Database.Database {
     CREATE TABLE IF NOT EXISTS cloud_save_owners (
       player_id      TEXT PRIMARY KEY,
       proof_hash     TEXT NOT NULL,
-      claimed_at     TEXT NOT NULL,
-      failed_count   INTEGER NOT NULL DEFAULT 0,
-      last_failed_ms INTEGER NOT NULL DEFAULT 0
+      claimed_at     TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS cloud_saves (
       player_id    TEXT NOT NULL,
@@ -111,26 +111,39 @@ function validIds(playerId: unknown, proof: unknown): boolean {
 
 interface OwnerRow {
   proof_hash: string;
-  failed_count: number;
-  last_failed_ms: number;
 }
 
 /**
- * Check a proof against a claimed owner. Throttled while the failure count is at
- * the limit and the last failure is inside the window — for everyone, the owner
- * included, so the throttle cannot be used as a right/wrong oracle.
+ * Wrong-proof throttle, keyed by the CLIENT (IP), never by the account.
+ * Player ids are public on the Hall of Fame, so an account lock would let
+ * anyone lock any owner out. A throttled client is refused for every player,
+ * and its own successes do not reset its count (no guess-9-then-log-in loop).
+ * In-memory: one Railway instance; a restart forgives, which is acceptable.
  */
-function checkOwner(db: Database.Database, playerId: string, owner: OwnerRow, proof: string): SaveFailure | null {
-  if (owner.failed_count >= MAX_FAILED_PROOFS && now() - owner.last_failed_ms < THROTTLE_MS) return 'throttled';
-  const match = crypto.timingSafeEqual(Buffer.from(owner.proof_hash, 'hex'), hashProof(proof));
-  if (!match) {
-    db.prepare('UPDATE cloud_save_owners SET failed_count = failed_count + 1, last_failed_ms = ? WHERE player_id = ?').run(now(), playerId);
-    return 'forbidden';
+const failuresByClient = new Map<string, { count: number; firstMs: number }>();
+
+function clientThrottled(clientKey: string): boolean {
+  const f = failuresByClient.get(clientKey);
+  if (!f) return false;
+  if (now() - f.firstMs >= THROTTLE_MS) {
+    failuresByClient.delete(clientKey);
+    return false;
   }
-  if (owner.failed_count > 0) {
-    db.prepare('UPDATE cloud_save_owners SET failed_count = 0, last_failed_ms = 0 WHERE player_id = ?').run(playerId);
+  return f.count >= MAX_FAILED_PROOFS;
+}
+
+function recordFailure(clientKey: string): void {
+  const f = failuresByClient.get(clientKey);
+  if (!f || now() - f.firstMs >= THROTTLE_MS) {
+    if (failuresByClient.size > 10_000) failuresByClient.clear();
+    failuresByClient.set(clientKey, { count: 1, firstMs: now() });
+  } else {
+    f.count += 1;
   }
-  return null;
+}
+
+function proofMatches(owner: OwnerRow, proof: string): boolean {
+  return crypto.timingSafeEqual(Buffer.from(owner.proof_hash, 'hex'), hashProof(proof));
 }
 
 /** Existence + timestamp only; never save data. Needs no proof. */
@@ -146,14 +159,17 @@ export function getSaveMeta(playerId: string, saveType?: string): SaveMeta | nul
   return row ? { exists: true, lastSaved: row.last_saved, saveType: row.save_type } : null;
 }
 
-export function readSave(playerId: string, saveType: string, proof: string): ReadResult {
+export function readSave(playerId: string, saveType: string, proof: string, clientKey = 'unknown'): ReadResult {
   if (!validIds(playerId, proof) || !isSaveType(saveType)) return { ok: false, reason: 'invalid' };
+  if (clientThrottled(clientKey)) return { ok: false, reason: 'throttled' };
   const db = getDb();
   return db.transaction((): ReadResult => {
-    const owner = db.prepare('SELECT proof_hash, failed_count, last_failed_ms FROM cloud_save_owners WHERE player_id = ?').get(playerId) as OwnerRow | undefined;
+    const owner = db.prepare('SELECT proof_hash FROM cloud_save_owners WHERE player_id = ?').get(playerId) as OwnerRow | undefined;
     if (!owner) return { ok: false, reason: 'not_found' };
-    const refused = checkOwner(db, playerId, owner, proof);
-    if (refused) return { ok: false, reason: refused };
+    if (!proofMatches(owner, proof)) {
+      recordFailure(clientKey);
+      return { ok: false, reason: 'forbidden' };
+    }
     const row = db.prepare('SELECT save_data, last_saved FROM cloud_saves WHERE player_id = ? AND save_type = ?').get(playerId, saveType) as
       | { save_data: string; last_saved: string }
       | undefined;
@@ -166,6 +182,8 @@ export function writeSave(p: WriteParams): WriteResult {
   if (!validIds(p.playerId, p.proof) || !isSaveType(p.saveType)) return { ok: false, reason: 'invalid' };
   if (typeof p.saveData !== 'string' || p.saveData.length === 0) return { ok: false, reason: 'invalid' };
   if (Buffer.byteLength(p.saveData, 'utf8') > MAX_SAVE_BYTES) return { ok: false, reason: 'too_large' };
+  const clientKey = p.clientKey || 'unknown';
+  if (clientThrottled(clientKey)) return { ok: false, reason: 'throttled' };
   const saveVersion = typeof p.saveVersion === 'string' ? p.saveVersion.slice(0, 32) : null;
   const deviceId = typeof p.deviceId === 'string' ? p.deviceId.slice(0, 64) : null;
   const db = getDb();
@@ -173,13 +191,13 @@ export function writeSave(p: WriteParams): WriteResult {
   // two first writes cannot both claim, and the old save is only ever replaced
   // by the new one in a single statement — never deleted first.
   return db.transaction((): WriteResult => {
-    const owner = db.prepare('SELECT proof_hash, failed_count, last_failed_ms FROM cloud_save_owners WHERE player_id = ?').get(p.playerId) as OwnerRow | undefined;
+    const owner = db.prepare('SELECT proof_hash FROM cloud_save_owners WHERE player_id = ?').get(p.playerId) as OwnerRow | undefined;
     const stamp = new Date(now()).toISOString();
     if (!owner) {
       db.prepare('INSERT INTO cloud_save_owners (player_id, proof_hash, claimed_at) VALUES (?, ?, ?)').run(p.playerId, hashProof(p.proof).toString('hex'), stamp);
-    } else {
-      const refused = checkOwner(db, p.playerId, owner, p.proof);
-      if (refused) return { ok: false, reason: refused };
+    } else if (!proofMatches(owner, p.proof)) {
+      recordFailure(clientKey);
+      return { ok: false, reason: 'forbidden' };
     }
     const existed = db.prepare('SELECT 1 FROM cloud_saves WHERE player_id = ? AND save_type = ?').get(p.playerId, p.saveType);
     db.prepare(`
