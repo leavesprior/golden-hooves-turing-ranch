@@ -23,6 +23,8 @@ export const MAX_FAILED_PROOFS = 10;
 export const THROTTLE_MS = 60_000;
 export const MAX_TRACKED_CLIENTS = 10_000;
 export const HISTORY_DEPTH = 3;
+export const MAX_NEW_SLOTS_PER_CLIENT = 5;
+export const NEW_SLOT_WINDOW_MS = 60 * 60_000;
 
 const PLAYER_ID_PATTERN = /^[A-Za-z0-9_-]{8,80}$/;
 const PROOF_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -156,6 +158,33 @@ function recordFailure(clientKey: string): void {
   if (failuresByClient.size < MAX_TRACKED_CLIENTS) failuresByClient.set(clientKey, { count: 1, firstMs: now() });
 }
 
+/**
+ * New-slot cap per client: anonymous first writes are the one write path with
+ * no proof to check, so without a cap one client could fill the volume
+ * (council 20260926_143243_secure-save-r2). Updates to owned slots are not
+ * counted. In-memory and bounded like the failure table.
+ */
+const claimsByClient = new Map<string, { count: number; firstMs: number }>();
+
+function claimAllowed(clientKey: string): boolean {
+  const c = claimsByClient.get(clientKey);
+  return !c || now() - c.firstMs >= NEW_SLOT_WINDOW_MS || c.count < MAX_NEW_SLOTS_PER_CLIENT;
+}
+
+function recordClaim(clientKey: string): void {
+  const c = claimsByClient.get(clientKey);
+  if (c && now() - c.firstMs < NEW_SLOT_WINDOW_MS) {
+    c.count += 1;
+    return;
+  }
+  claimsByClient.delete(clientKey);
+  if (claimsByClient.size >= MAX_TRACKED_CLIENTS) {
+    for (const [k, v] of claimsByClient) if (now() - v.firstMs >= NEW_SLOT_WINDOW_MS) claimsByClient.delete(k);
+    if (claimsByClient.size >= MAX_TRACKED_CLIENTS) claimsByClient.delete(claimsByClient.keys().next().value as string);
+  }
+  claimsByClient.set(clientKey, { count: 1, firstMs: now() });
+}
+
 function proofMatches(owner: OwnerRow, proof: string): boolean {
   const stored = Buffer.from(owner.proof_hash, 'hex');
   const given = hashProof(proof);
@@ -210,6 +239,8 @@ export function writeSave(p: WriteParams): WriteResult {
     const owner = d.prepare('SELECT proof_hash FROM cloud_save_owners WHERE player_id = ?').get(p.playerId) as OwnerRow | undefined;
     const stamp = new Date(now()).toISOString();
     if (!owner) {
+      if (!claimAllowed(clientKey)) return { ok: false, reason: 'throttled' };
+      recordClaim(clientKey);
       d.prepare('INSERT INTO cloud_save_owners (player_id, proof_hash, claimed_at) VALUES (?, ?, ?)').run(p.playerId, hashProof(p.proof).toString('hex'), stamp);
     } else if (!proofMatches(owner, p.proof)) {
       recordFailure(clientKey);

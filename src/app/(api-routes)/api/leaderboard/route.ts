@@ -117,6 +117,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result)
   } catch (err) {
     console.error('Leaderboard POST error:', err)
-    return NextResponse.json({ action: 'skipped', reason: 'Server error' }, { status: 500 })
+    return NextResponse.json({ action: 'skipped', reason: 'Leaderboard unavailable' }, { status: 503 })
   }
 }

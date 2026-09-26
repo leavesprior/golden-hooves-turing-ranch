@@ -231,7 +231,8 @@ export async function hasCloudSave(
       lastSaved: result.lastSaved,
       saveType: result.saveType
     }
-  } catch (error) {
-    return { exists: false }
+  } catch {
+    // The check itself failed: unknown, not "no save" (keeps Load reachable).
+    return { exists: false, error: 'Network error' }
   }
 }

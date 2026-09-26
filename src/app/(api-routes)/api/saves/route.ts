@@ -32,7 +32,7 @@ const MESSAGE: Record<SaveFailure, string> = {
   forbidden: 'Wrong passphrase for this save',
   not_found: 'No save found',
   too_large: 'Save too large',
-  throttled: 'Too many wrong passphrases. Wait a minute and try again.',
+  throttled: 'Too many attempts from this connection. Wait a bit and try again.',
 }
 
 function failure(reason: SaveFailure) {
@@ -66,7 +66,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const parsed = await readBoundedJson<Record<string, unknown>>(request, MAX_SAVE_BYTES + 16 * 1024)
+  let parsed: Awaited<ReturnType<typeof readBoundedJson<Record<string, unknown>>>>
+  try {
+    parsed = await readBoundedJson<Record<string, unknown>>(request, MAX_SAVE_BYTES + 16 * 1024)
+  } catch {
+    return failure('invalid') // the client aborted the upload mid-stream
+  }
   if (!parsed.ok) return failure(parsed.reason)
   const body = parsed.value
   if (!body || typeof body !== 'object' || Array.isArray(body)) return failure('invalid')

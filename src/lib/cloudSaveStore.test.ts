@@ -156,6 +156,22 @@ async function main() {
   check('a throttled client stays throttled after the table is flooded', !floodPre.ok && floodPre.reason === 'throttled' && !floodPost.ok && floodPost.reason === 'throttled', { floodPre, floodPost })
   check('the throttle table stays bounded', store._trackedClientCount() <= store.MAX_TRACKED_CLIENTS, store._trackedClientCount())
 
+  // Disk-fill: new slots are capped per client (council r2, both labs).
+  const claims: string[] = []
+  for (let i = 0; i < store.MAX_NEW_SLOTS_PER_CLIENT + 1; i++) {
+    const id = `slot_fill_${String(i).padStart(4, '0')}_client`
+    const r = store.writeSave({ playerId: id, saveType: 'adventure_save', saveData: 'X', proof: await deriveSaveProof('fill passphrase', id), clientKey: 'ip-filler' })
+    claims.push(r.ok ? r.action : r.reason)
+  }
+  check('one client can claim only MAX_NEW_SLOTS_PER_CLIENT new slots per window', claims.slice(0, -1).every((c) => c === 'created') && claims.at(-1) === 'throttled', claims)
+  const fillOwn = store.writeSave({ playerId: 'slot_fill_0000_client', saveType: 'adventure_save', saveData: 'Y', proof: await deriveSaveProof('fill passphrase', 'slot_fill_0000_client'), clientKey: 'ip-filler' })
+  check('the capped client can still update the slots it owns', fillOwn.ok && fillOwn.action === 'saved', fillOwn)
+  const otherClaim = store.writeSave({ playerId: 'slot_other_client_0001', saveType: 'adventure_save', saveData: 'Z', proof: await deriveSaveProof('other passphrase', 'slot_other_client_0001'), clientKey: 'ip-someone-else' })
+  check('another client can still claim a new slot', otherClaim.ok && otherClaim.action === 'created', otherClaim)
+  store._advanceClockForTests(store.NEW_SLOT_WINDOW_MS + 1)
+  const later = store.writeSave({ playerId: 'slot_fill_later_client', saveType: 'adventure_save', saveData: 'X', proof: await deriveSaveProof('fill passphrase', 'slot_fill_later_client'), clientKey: 'ip-filler' })
+  check('after the window the client may claim again', later.ok && later.action === 'created', later)
+
   fs.rmSync(dir, { recursive: true, force: true })
 
   // Production must fail CLOSED when the /data volume is missing, never "save" to /tmp.
