@@ -290,7 +290,7 @@ export function TravelingScreen({
               </div>
               <div className="flex justify-between">
                 <span className="text-amber-400">Wagon:</span>
-                <span className={state.wagonCondition < 30 ? 'text-red-400' : 'text-amber-200'}>{state.wagonCondition}%</span>
+                <span className={state.wagonCondition < 30 ? 'text-red-400' : 'text-amber-200'}>{Math.round(state.wagonCondition)}%</span>
               </div>
               {/* Karma Balance */}
               <div className="mt-2 pt-2 border-t border-amber-600">

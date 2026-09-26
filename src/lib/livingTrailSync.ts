@@ -15,12 +15,14 @@ export interface PresenceCheckinResult {
 
 /**
  * Record a presence check-in for a Living Trail node completion.
- * `coords` is null for remote ("by-lantern-light") completions with no GPS fix.
+ * Privacy: sends how close the player was to the stop (metres) and the GPS
+ * accuracy — never latitude/longitude, so no location trail leaves the device.
+ * `presence` is null for remote ("by-lantern-light") completions.
  * Client fire-and-forget; every failure path resolves { ok: false }.
  */
 export async function postPresenceCheckin(
   nodeId: string,
-  coords: { lat: number; lng: number; accuracyM?: number } | null,
+  presence: { distanceM: number; accuracyM: number } | null,
   verified: boolean,
 ): Promise<PresenceCheckinResult> {
   try {
@@ -30,7 +32,9 @@ export async function postPresenceCheckin(
       body: JSON.stringify({
         sessionId: getKarmaSessionId(),
         nodeId,
-        coords,
+        presence: presence
+          ? { distanceM: Math.round(presence.distanceM), accuracyM: Math.round(presence.accuracyM) }
+          : null,
         verified,
         clientTs: Date.now(),
       }),

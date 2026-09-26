@@ -257,7 +257,7 @@ export function PipBoyMenu({ isOpen, onClose, onOpenCamp }: GameMenuProps) {
                   {'\ud83d\udee0\ufe0f'} Wagon Condition
                 </span>
                 <span className="font-pixel text-amber-300 text-[10px]">
-                  {state.wagonCondition}%
+                  {Math.round(state.wagonCondition)}%
                 </span>
               </div>
               <div className="w-full h-2 bg-stone-800 rounded overflow-hidden mt-1">

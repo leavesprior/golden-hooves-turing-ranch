@@ -6,6 +6,7 @@ import { useMystery } from '../mysteryContext'
 import {
   generateKarmaDiscountCode,
   getNextTierProgress,
+  tierProgressPercent,
   getQualifyingTier,
   DISCOUNT_TIERS,
   ALIGNMENT_DISPLAY_NAMES,
@@ -142,10 +143,7 @@ export function DiscountReward({
                       className="h-full transition-all duration-500"
                       style={{
                         backgroundColor: '#d4a843',
-                        width: `${Math.min(
-                          100,
-                          (cluesCollected / DISCOUNT_TIERS[progress.nextTier].minClues) * 100
-                        )}%`,
+                        width: `${tierProgressPercent(cluesCollected, progress.nextTier)}%`,
                       }}
                     />
                   </div>
@@ -487,10 +485,7 @@ export function DiscountProgressBar({
                 width: progress.maxed
                   ? '100%'
                   : progress.nextTier
-                  ? `${Math.min(
-                      100,
-                      (cluesCollected / DISCOUNT_TIERS[progress.nextTier].minClues) * 100
-                    )}%`
+                  ? `${tierProgressPercent(cluesCollected, progress.nextTier)}%`
                   : '0%',
               }}
             />

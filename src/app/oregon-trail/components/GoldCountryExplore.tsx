@@ -17,6 +17,7 @@ import {
   casePinsDone,
   level2PinPosition,
   level2Progress,
+  readDeducedCases,
   readLevel2Stamps,
   readTalkedNpcs,
 } from '@/lib/goldCountryLevel2'
@@ -51,7 +52,7 @@ export function GoldCountryExplore({
   onOpenQuestLog,
   onLeave,
 }: GoldCountryExploreProps) {
-  const { state, setPhase } = useOregonTrail()
+  const { state, setPhase, enterLivingTrail } = useOregonTrail()
   const { balance } = useKarmaWallet()
   const { state: mysteryState } = useMystery()
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
@@ -105,6 +106,7 @@ export function GoldCountryExplore({
       stamps: typeof window !== 'undefined' ? readLevel2Stamps() : [],
       searchedAreaIds: state.searchedAreas,
       talkedNpcIds: talked,
+      deducedCaseIds: typeof window !== 'undefined' ? readDeducedCases() : [],
     }),
     [state.searchedAreas, state.discoveredGoldLocations, talked],
   )
@@ -186,6 +188,15 @@ export function GoldCountryExplore({
           <div className="flex flex-wrap gap-2">
             <button type="button" className="west-face-pill" onClick={onOpenQuestLog}>
               Dossier
+            </button>
+            <button
+              type="button"
+              className="west-face-pill"
+              onClick={enterLivingTrail}
+              title="Real-world walks with GPS: meet the characters and ghosts where the history happened (West Point, Volcano)."
+              data-testid="gc-living-trail"
+            >
+              🥾 Living Trail
             </button>
             <button type="button" className="west-face-pill" onClick={onLeave}>
               Leave

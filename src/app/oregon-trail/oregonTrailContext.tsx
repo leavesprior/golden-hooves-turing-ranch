@@ -70,6 +70,7 @@ interface OregonTrailContextValue {
   visitTown: () => void
   leaveTown: () => void
   resetGame: () => void
+  continueAsHeir: () => void
 
   // Shop & Inn Methods
   buySupplies: (resource: 'food' | 'ammunition' | 'medicine' | 'spareParts' | 'clothing' | 'oxen', amount: number, cost: number) => void
@@ -292,6 +293,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
   const visitTown = useCallback(() => dispatch({ type: 'VISIT_TOWN' }), [dispatch])
   const leaveTown = useCallback(() => dispatch({ type: 'LEAVE_TOWN' }), [dispatch])
   const resetGame = useCallback(() => dispatch({ type: 'RESET_GAME' }), [dispatch])
+  const continueAsHeir = useCallback(() => dispatch({ type: 'CONTINUE_AS_HEIR' }), [dispatch])
 
   // === Shop & Inn (cost handled by caller via KarmaWalletContext) ===
 
@@ -667,6 +669,7 @@ export function OregonTrailProvider({ children }: OregonTrailProviderProps) {
     visitTown,
     leaveTown,
     resetGame,
+    continueAsHeir,
     // Shop & Inn methods
     buySupplies,
     sellSupplies,

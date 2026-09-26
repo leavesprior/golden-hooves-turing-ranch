@@ -1,9 +1,11 @@
 import { encryptSave, decryptSave } from './cryptoSave'
+import { deriveSaveProof } from './saveProof'
 
 export type SaveType = 'adventure_save' | 'rpg_session' | 'cross_game' | 'karma' | 'leaderboard'
 
 const PASSPHRASE_CACHE_KEY = 'bobr_trail_passphrase'
 const DEVICE_ID_KEY = 'bobr_device_id'
+const CLOUD_SLOT_KEY = 'bobr_cloud_slot_id'
 
 interface SaveToCloudResult {
   action: 'saved' | 'created' | 'error'
@@ -17,6 +19,8 @@ interface LoadFromCloudResult {
 
 interface HasCloudSaveResult {
   exists: boolean
+  /** Set when the check itself failed (store down, throttled): unknown, not "no save". */
+  error?: string
   lastSaved?: string
   saveType?: string
 }
@@ -33,6 +37,21 @@ export function getDeviceId(): string {
     localStorage.setItem(DEVICE_ID_KEY, deviceId)
   }
   return deviceId
+}
+
+/**
+ * The private id of this browser's cloud save slot. Deliberately NOT the
+ * public Hall of Fame playerId: a public id could be claimed by someone else
+ * before the player's first save.
+ */
+export function getCloudSlotId(): string {
+  if (typeof window === 'undefined') return 'server'
+  let slot = localStorage.getItem(CLOUD_SLOT_KEY)
+  if (!slot) {
+    slot = `slot_${crypto.randomUUID()}`
+    localStorage.setItem(CLOUD_SLOT_KEY, slot)
+  }
+  return slot
 }
 
 /**
@@ -70,8 +89,8 @@ export async function saveToCloud(
   deviceId?: string
 ): Promise<SaveToCloudResult> {
   try {
-    // Encrypt the data
-    const encrypted = await encryptSave(data, passphrase)
+    // Encrypt the data; the proof (from the same passphrase) claims/unlocks the slot
+    const [encrypted, proof] = await Promise.all([encryptSave(data, passphrase), deriveSaveProof(passphrase, playerId)])
 
     // Prepare the payload
     const payload = {
@@ -79,7 +98,8 @@ export async function saveToCloud(
       saveType,
       saveData: JSON.stringify(encrypted),
       saveVersion: '1.0',
-      deviceId: deviceId || getDeviceId()
+      deviceId: deviceId || getDeviceId(),
+      proof,
     }
 
     // POST to API
@@ -95,7 +115,7 @@ export async function saveToCloud(
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
       return {
         action: 'error',
-        error: errorData.error || `HTTP ${response.status}`
+        error: response.status === 403 ? 'Wrong passphrase' : errorData.error || `HTTP ${response.status}`
       }
     }
 
@@ -121,17 +141,26 @@ export async function loadFromCloud(
 ): Promise<LoadFromCloudResult> {
   try {
     // GET from API
+    const proof = await deriveSaveProof(passphrase, playerId)
     const response = await fetch(
-      `/api/saves?playerId=${encodeURIComponent(playerId)}&saveType=${encodeURIComponent(saveType)}`
+      `/api/saves?playerId=${encodeURIComponent(playerId)}&saveType=${encodeURIComponent(saveType)}`,
+      { headers: { 'X-Save-Proof': proof }, cache: 'no-store' }
     )
 
     if (!response.ok) {
       if (response.status === 404) {
         return { data: null }
       }
+      if (response.status === 403) {
+        return { data: null, error: 'Wrong passphrase' }
+      }
+      if (response.status === 429) {
+        return { data: null, error: 'Too many wrong passphrases. Wait a minute and try again.' }
+      }
+      const errorData = await response.json().catch(() => ({}))
       return {
         data: null,
-        error: `HTTP ${response.status}`
+        error: errorData.error || `HTTP ${response.status}`
       }
     }
 
@@ -192,7 +221,7 @@ export async function hasCloudSave(
       if (response.status === 404) {
         return { exists: false }
       }
-      return { exists: false }
+      return { exists: false, error: `HTTP ${response.status}` }
     }
 
     const result = await response.json()
@@ -202,7 +231,8 @@ export async function hasCloudSave(
       lastSaved: result.lastSaved,
       saveType: result.saveType
     }
-  } catch (error) {
-    return { exists: false }
+  } catch {
+    // The check itself failed: unknown, not "no save" (keeps Load reachable).
+    return { exists: false, error: 'Network error' }
   }
 }

@@ -14,6 +14,8 @@
  * Former code format: TOBIAS-{TIER}{DISCOUNT}-{TIMESTAMP}-{SIGNATURE}
  */
 
+import { EARLY_DISCOUNT_MARKER } from '@/lib/locations'
+
 // Updated discount tiers matching the plan
 export type DiscountTier = 'welcome' | 'bronze' | 'silver' | 'gold' | 'platinum'
 
@@ -431,7 +433,12 @@ export function getNextTierProgress(
   if (casesNeeded > 0) parts.push(`${casesNeeded} more case${casesNeeded !== 1 ? 's' : ''} solved`)
   if (needsOutlaw) parts.push('catch an outlaw')
 
-  const message = parts.length > 0
+  // Welcome needs no clues: it is not earned in the trail. The real 5% welcome
+  // code (BOBR-EARLY) is minted server-side at ranch marker EARLY_DISCOUNT_MARKER,
+  // so "Ready for Welcome Prospector!" beside a locked badge was a false promise.
+  const message = nextTier === 'welcome'
+    ? `Find ${EARLY_DISCOUNT_MARKER} ranch markers to earn ${nextTierInfo.displayName} (${nextTierInfo.discount}% off)`
+    : parts.length > 0
     ? `${parts.join(', ')} to unlock ${nextTierInfo.displayName} (${nextTierInfo.discount}% off)!`
     : `Ready for ${nextTierInfo.displayName}!`
 
@@ -445,6 +452,17 @@ export function getNextTierProgress(
     nextDiscount: nextTierInfo.discount,
     message
   }
+}
+
+/**
+ * Clue-bar width (0-100) toward the next tier. A tier with minClues 0 (Welcome)
+ * is not earned by clues, so the bar stays empty instead of dividing by zero
+ * (NaN% / Infinity% rendered as a FULL bar at 0 clues).
+ */
+export function tierProgressPercent(cluesCollected: number, nextTier: DiscountTier): number {
+  const minClues = DISCOUNT_TIERS[nextTier].minClues
+  if (minClues <= 0) return 0
+  return Math.max(0, Math.min(100, (cluesCollected / minClues) * 100))
 }
 
 /**

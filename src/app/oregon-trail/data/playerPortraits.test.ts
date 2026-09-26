@@ -102,4 +102,7 @@ assert.equal(getPassingPlayerPortrait({ ...terminal, party: [] }, player)?.place
 assert.equal(getPassingPlayerPortrait(terminal, { ...player, name: 'Another Campaign' }), undefined, 'stale player save supplies no family identity')
 assert.equal(getPassingPlayerPortrait(terminal, null), undefined)
 assert.equal(JSON.stringify(terminal), terminalBefore, 'portrait placement cannot rewrite death or heir state')
+// Spring 1849: Pinkerton's agency dates to c.1850, so no background may display it (id stays for saves).
+for (const [id, info] of Object.entries(BACKGROUND_DESCRIPTIONS)) assert.doesNotMatch(info.name + info.description, /Pinkerton/, `${id} displays an anachronism`)
+assert.equal(BACKGROUND_DESCRIPTIONS.pinkerton_veteran.name, 'Detective Veteran')
 console.log('Player portraits: seven assets, unchanged backgrounds/donor state, pixelated rendering, fallback and Passing identity safeguards PASS')

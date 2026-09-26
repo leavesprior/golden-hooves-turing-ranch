@@ -157,7 +157,8 @@ export const GOLD_COUNTRY_LOCATIONS: GoldCountryLocation[] = [
   {
     id: 'moaning_cavern',
     name: 'Moaning Cavern',
-    shortName: 'Moaning Cavern',
+    // 1849 label (travel list, map pin): the name is later — it lives in the dated (Later: …) text.
+    shortName: 'The moaning hole',
     // TODO verify: spiral-staircase detail is from the cavern operator's tour materials, not the fact pack
     description: '1849: miners named this hole for the moan at the mouth. Some drop on ropes for color; others will not go in. Bone is already underfoot — no one here can date it. (Later: largest single chamber in California; spiral-stair tours; remains dated to as much as 13,000 years. Now: Moaning Caverns cave tours.)',
     region: 'calaveras',

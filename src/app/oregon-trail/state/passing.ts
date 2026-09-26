@@ -1,4 +1,5 @@
 import type { OregonTrailState, PartyMember } from './types'
+import { successorLegacy } from '@/app/adventure/play/perilEngine'
 
 /** A record of an already-resolved ending, never a damage/death resolver. */
 export interface PassingRecord {
@@ -61,5 +62,53 @@ export function passingForState(state: OregonTrailState): PassingRecord {
     cause: state.message || 'The circumstances of this passing were not recorded.',
     fallenName: state.wagonLeader || state.party.find(member => member.role === 'leader')?.name || 'the traveler',
     day: state.day, miles: state.totalMilesTraveled,
+  }
+}
+
+/**
+ * The heir who takes up the reins after a Passing. One derivation shared by the
+ * PassingScreen label and the CONTINUE_AS_HEIR reducer so the two cannot drift.
+ * A final companion death may be the memorial subject; the established wagon
+ * leader's family still owns the continuation. A second-generation owner
+ * ("Reed's heir") keeps the family name instead of becoming "heir's heir".
+ */
+export function heirFor(state: OregonTrailState): { name: string; heirloomTrait: string } {
+  const legacyOwner = state.wagonLeader || passingForState(state).fallenName
+  const family = legacyOwner.replace(/'s heir$/, '').split(' ').slice(-1)[0] || 'the fallen'
+  return { name: `${family}'s heir`, heirloomTrait: successorLegacy(legacyOwner, 0).heirloomTrait }
+}
+
+/**
+ * Chair's default pending owner decision (2026-09-23): the heir arrives at modest
+ * health, and the family sends a small relief ONLY when the wagon is out of food
+ * or oxen, so a starvation / empty-yoke death cannot loop straight into the next.
+ */
+export const HEIR_HEALTH = 60
+export const HEIR_RELIEF_FOOD = 40
+export const HEIR_RELIEF_OXEN = 2
+
+/** The run continues where it stands; only the fallen leader is replaced. */
+export function continueAsHeir(state: OregonTrailState): OregonTrailState {
+  const heir = heirFor(state)
+  const leader: PartyMember = { id: 'heir', name: heir.name, health: HEIR_HEALTH, isSick: false, role: 'leader', heirloomTrait: heir.heirloomTrait }
+  const food = state.food > 0 ? state.food : HEIR_RELIEF_FOOD
+  const oxen = state.oxen > 0 ? state.oxen : HEIR_RELIEF_OXEN
+  const relief = [food !== state.food && `${HEIR_RELIEF_FOOD} lb of food`, oxen !== state.oxen && `${HEIR_RELIEF_OXEN} oxen`].filter(Boolean)
+  return {
+    ...state,
+    // The heir replaces the fallen leader. Travel/event/river Passings leave no
+    // survivors, but the Gargle Blaster ends the chapter with companions alive.
+    party: [leader, ...state.party.filter(member => member.health > 0 && member.role !== 'leader')],
+    wagonLeader: heir.name,
+    food,
+    oxen,
+    phase: 'traveling',
+    currentEvent: null,
+    activeDesperationEvent: null,
+    previousPhase: null,
+    gargleBlasterShots: undefined,
+    hangoverUntilDay: undefined,
+    message: `${heir.name} takes up the reins at ${state.currentLandmark || 'the trail'}.`
+      + (relief.length ? ` The family sends what it can: ${relief.join(' and ')}.` : ''),
   }
 }

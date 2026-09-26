@@ -1850,7 +1850,7 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
     searchDifficulty: 3,
     statBonus: 'expertise',
     findings: [
-      { id: 'twain_entry', description: 'A name entered twice in different hands. Someone is practicing a signature that is not yet famous.', probability: 0.7, isClue: true, clueId: 'forged_signature' },
+      { id: 'twain_entry', description: 'A name entered twice in different hands — someone practicing a signature. In the margin, in a third hand: “ask Ben about the moaning hole.”', probability: 0.7, isClue: true, clueId: 'forged_signature' },
       { id: 'hotel_history', description: 'Creek-camp names, frog wagers, and a note: “ask Ben about the moaning hole.”', probability: 1.0, isClue: false, karmaGained: 5 },
     ],
   },
@@ -1863,7 +1863,7 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
     searchDifficulty: 5,
     statBonus: 'shrewdness',
     findings: [
-      { id: 'saloon_note', description: 'A crumpled note behind the bar referencing a meeting at Moaning Cavern.', probability: 0.6, isClue: true, clueId: 'cavern_meeting' },
+      { id: 'saloon_note', description: 'A crumpled note behind the bar: “the moaning hole, in the limestone, after dark.”', probability: 0.6, isClue: true, clueId: 'cavern_meeting' },
       { id: 'saloon_coins', description: 'A few gold coins wedged between the floorboards.', probability: 0.4, isClue: false, goldGained: 15 },
     ],
   },
@@ -1985,8 +1985,8 @@ export const LOCATION_SEARCH_AREAS: SearchArea[] = [
   },
   {
     id: 'mokelumne_cemetery',
-    name: 'French Cemetery',
-    description: 'The old French cemetery on the hill. Weathered headstones and overgrown paths.',
+    name: 'Hill cemetery',
+    description: 'The Protestant cemetery on the hill. Weathered headstones and overgrown paths.',
     location: 'mokelumne_hill',
     icon: '⚰️',
     searchDifficulty: 5,
@@ -2085,11 +2085,29 @@ export function getRandomEncounter(travelDistance: number): TravelEncounter | nu
   return eligible[Math.floor(Math.random() * eligible.length)]
 }
 
+/**
+ * Deterministic case search (2026-09-23). The FIRST search of an area that holds a
+ * required case clue always turns up that clue — a required clue behind a dice roll
+ * made players re-search and let a case stamp on an unrelated find. Every other
+ * search keeps the old odds.
+ */
+export function resolveCaseSearch(
+  area: SearchArea,
+  opts: { guaranteeClue: boolean; statValue?: number },
+): SearchFinding | null {
+  if (opts.guaranteeClue) {
+    const clue = area.findings.find((f) => f.isClue)
+    if (clue) return clue
+  }
+  return resolveSearch(area, opts.statValue ?? 0)
+}
+
 export function resolveSearch(area: SearchArea, statValue: number = 0): SearchFinding | null {
   const bonusChance = area.statBonus ? statValue * 0.05 : 0
 
   for (const finding of area.findings) {
-    const adjustedProbability = Math.min(finding.probability + bonusChance, 0.95)
+    // The 0.95 ceiling bounds the stat bonus; an authored 1.0 stays a certainty.
+    const adjustedProbability = Math.min(finding.probability + bonusChance, Math.max(finding.probability, 0.95))
     if (Math.random() < adjustedProbability) {
       return finding
     }

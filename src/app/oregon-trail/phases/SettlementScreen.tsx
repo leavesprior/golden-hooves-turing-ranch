@@ -15,10 +15,10 @@ export function SettlementScreen() {
         onLeave={returnToGoldCountryMap}
         onComplete={completeSettlement}
       />
-      {/* Living Trail entry — a real-world walk in West Point, CA (always visible: it's the point of the product) */}
+      {/* Living Trail entry — real-world walks (West Point, Volcano) (always visible: it's the point of the product) */}
       <button
         onClick={enterLivingTrail}
-        title="Living Trail — a real-world walk in West Point, CA. Visit the actual historic sites to meet the ghosts."
+        title="Living Trail — real-world walks in West Point and Volcano, CA. Visit the actual historic sites to meet the characters and ghosts."
         className="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-lg border-2 border-emerald-500 bg-emerald-950/90 px-3 py-2 font-[var(--font-pixel)] text-[11px] text-emerald-100 shadow-lg transition-colors hover:bg-emerald-900"
       >
         🥾 Living Trail (real world)

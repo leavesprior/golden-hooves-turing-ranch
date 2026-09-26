@@ -130,9 +130,11 @@ export const BACKGROUND_DESCRIPTIONS: Record<CharacterBackground, {
   description: string
   bonuses: string
 }> = {
+  // id kept for saves; display is era-true. Pinkerton's agency dates to c.1850
+  // (Britannica); in spring 1849 Allan Pinkerton was a Chicago police detective.
   pinkerton_veteran: {
-    name: 'Pinkerton Veteran',
-    description: 'Years of detective work have honed your investigative skills.',
+    name: 'Detective Veteran',
+    description: 'Years as a city police detective have honed your investigative skills.',
     bonuses: '+2 Shrewdness, +2 Expertise'
   },
   frontier_scout: {

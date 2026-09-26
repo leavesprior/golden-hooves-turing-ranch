@@ -3681,7 +3681,7 @@ export const chapters: Record<ChapterId, ChapterMeta> = {
     id: 2,
     title: 'Volcano, California',
     subtitle: 'The Haunted Boomtown',
-    description: 'Arrive in Volcano - a real Gold Rush town with over 10,000 souls. Explore the haunted St. George Hotel, attend the Cobblestone Theatre, and gather supplies at the general store that still operates today.',
+    description: 'Arrive in Volcano - a real Gold Rush town of some 5,000 souls at its 1854 peak. Explore the haunted St. George Hotel, attend the Cobblestone Theatre, and gather supplies at the general store that still operates today.',
     maps: ['ch2_volcano', 'ch2_general_store'],
     startMap: 'ch2_volcano',
     puzzleType: 'trading',

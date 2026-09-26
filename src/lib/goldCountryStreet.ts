@@ -12,8 +12,12 @@
 import type { GoldCountryNPC } from '@/app/oregon-trail/data/goldCountryNPCs'
 import { GOLD_COUNTRY_LOCATIONS } from '@/app/oregon-trail/data/goldCountryLocations'
 import {
+  readDeducedCases,
+  readFoundClues,
   readLevel2Stamps,
   readTalkedNpcs,
+  replaceDeducedCases,
+  replaceFoundClues,
   replaceLevel2Stamps,
   replaceTalkedNpcs,
 } from '@/lib/goldCountryLevel2'
@@ -107,6 +111,10 @@ export interface Level2Persist {
   warrantDay?: number
   huntClues?: string[]
   guestBook?: GuestBookLine[]
+  /** Cases where the right call was made (bobr_l2_deduced_cases). */
+  deducedCases?: string[]
+  /** Search-clue areas whose clue was actually found (bobr_l2_found_clues). */
+  foundClues?: string[]
 }
 
 const G = {
@@ -720,6 +728,8 @@ export function snapshotLevel2Persist(storage?: { getItem(k: string): string | n
     warrantDay: readWarrantDay(storage),
     huntClues: readHuntClues(storage),
     guestBook: readGuestBookPlayerLines(storage),
+    deducedCases: readDeducedCases(storage),
+    foundClues: readFoundClues(storage),
   }
 }
 
@@ -738,4 +748,6 @@ export function applyLevel2Persist(
   if (typeof data.warrantDay === 'number' && Number.isFinite(data.warrantDay)) writeWarrantDay(Math.max(0, Math.floor(data.warrantDay)), storage)
   if (Array.isArray(data.huntClues)) replaceHuntClues(data.huntClues, storage)
   if (Array.isArray(data.guestBook)) writeGuestBookPlayerLines(data.guestBook, storage)
+  if (Array.isArray(data.deducedCases)) replaceDeducedCases(data.deducedCases, storage)
+  if (Array.isArray(data.foundClues)) replaceFoundClues(data.foundClues, storage)
 }

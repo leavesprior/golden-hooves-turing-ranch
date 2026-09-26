@@ -11,7 +11,7 @@
  * half karma, recorded verifiedPresence: false.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import {
   LIVING_TRAIL_CHAINS,
@@ -44,8 +44,9 @@ export function LivingTrailScreen() {
   const { state, completeLivingTrailNode, returnToPreviousPhase } = useOregonTrail()
   const nodeStates = state.livingTrail.nodes
 
-  // P1 ships one chain; the render is generic over LIVING_TRAIL_CHAINS.
-  const chain = LIVING_TRAIL_CHAINS[0]
+  // One walk at a time; the picker lists every chain (West Point, Volcano, ...).
+  const [chainId, setChainId] = useState(LIVING_TRAIL_CHAINS[0].id)
+  const chain = LIVING_TRAIL_CHAINS.find((c) => c.id === chainId) ?? LIVING_TRAIL_CHAINS[0]
   const chainNodes = useMemo(() => getChainNodes(chain.id), [chain.id])
 
   // Selected node = the geofence the GPS loop watches. Default: first available.
@@ -54,10 +55,11 @@ export function LivingTrailScreen() {
   useEffect(() => {
     // Follow progression: when the watched node stops being available
     // (completed) move the watch to the next available node.
-    if (!selectedNodeId || nodeStates[selectedNodeId]?.status !== 'available') {
+    const inChain = !!selectedNodeId && chainNodes.some((n) => n.id === selectedNodeId)
+    if (!inChain || nodeStates[selectedNodeId]?.status !== 'available') {
       setSelectedNodeId(firstAvailableId)
     }
-  }, [selectedNodeId, nodeStates, firstAvailableId])
+  }, [selectedNodeId, nodeStates, firstAvailableId, chainNodes])
 
   const selectedNode = selectedNodeId ? getLivingTrailNode(selectedNodeId) ?? null : null
   const presence = useVerifiedPresence(selectedNode?.geofence ?? null, selectedNode?.dwellMs ?? 10_000)
@@ -85,17 +87,22 @@ export function LivingTrailScreen() {
     setDialogueIndex(0)
   }, [])
 
+  // A fast double-tap fired this twice before re-render and paid karma twice
+  // (council 20260923_195527). Claim the node synchronously first.
+  const claimedRef = useRef<Set<string>>(new Set())
   const handleMicroAction = useCallback(() => {
     if (!encounter) return
     const node = getLivingTrailNode(encounter.nodeId)
     if (!node) return
+    if (claimedRef.current.has(node.id) || nodeStates[node.id]?.status !== 'available') return
+    claimedRef.current.add(node.id)
     const verified = !encounter.remote
     completeLivingTrailNode(node.id, verified)
     // Record-only server check-in (P1 — fire-and-forget, fail-soft offline)
     postPresenceCheckin(
       node.id,
-      verified && presence.position
-        ? { lat: presence.position.lat, lng: presence.position.lng, accuracyM: presence.position.accuracyM }
+      verified && presence.position && presence.distanceM !== null
+        ? { distanceM: presence.distanceM, accuracyM: presence.position.accuracyM }
         : null,
       verified,
     ).catch(() => {})
@@ -106,10 +113,10 @@ export function LivingTrailScreen() {
     setRewardToast(
       `+${karma} good karma — ${node.title}` +
       (verified ? '' : ' (by lantern-light: half karma)') +
-      (isLastNode ? `\n\n${WP_FOUNDERS_COMPLETION_LINE}` : '')
+      (isLastNode ? `\n\n${chain.completionLine ?? WP_FOUNDERS_COMPLETION_LINE}` : '')
     )
     setEncounter(null)
-  }, [encounter, completeLivingTrailNode, presence.position, chainNodes])
+  }, [encounter, completeLivingTrailNode, presence.position, presence.distanceM, chainNodes, chain, nodeStates])
 
   const chainComplete = chainNodes.every(n => nodeStates[n.id]?.status === 'completed')
 
@@ -171,7 +178,7 @@ export function LivingTrailScreen() {
           <div>
             <h1 className="font-pixel text-amber-400 text-xl tracking-wider">🥾 LIVING TRAIL</h1>
             <p className="text-green-600 text-xs font-mono tracking-widest uppercase">
-              Real-world walk — West Point, California
+              Real-world walk — {chain.place}
             </p>
           </div>
           <button
@@ -225,6 +232,22 @@ export function LivingTrailScreen() {
       </div>
 
       <main className="flex-1 max-w-3xl mx-auto w-full p-4">
+        {LIVING_TRAIL_CHAINS.length > 1 && (
+          <div className="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Walks" data-testid="lt-chain-picker">
+            {LIVING_TRAIL_CHAINS.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                role="tab"
+                aria-selected={c.id === chain.id}
+                onClick={() => setChainId(c.id)}
+                className={`min-h-[44px] rounded border px-3 py-2 text-xs font-mono ${c.id === chain.id ? 'border-amber-500 bg-amber-900/40 text-amber-200' : 'border-green-800 text-green-500 hover:border-green-600'}`}
+              >
+                {c.title}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="mb-4">
           <h2 className="font-pixel text-green-300 text-base">{chain.title}</h2>
           <p className="text-green-600 text-xs mt-1">{chain.description}</p>
@@ -236,8 +259,8 @@ export function LivingTrailScreen() {
 
         {chainComplete && (
           <div className="mb-4 bg-amber-950/40 border border-amber-600/60 rounded-lg p-4">
-            <p className="text-amber-300 font-pixel text-sm">✨ Chain complete — you walked the founders&apos; ground.</p>
-            <p className="text-amber-200/80 text-xs italic mt-2">{WP_FOUNDERS_COMPLETION_LINE}</p>
+            <p className="text-amber-300 font-pixel text-sm">✨ Chain complete — you walked {chain.id === 'wp_founders' ? 'the founders\u2019' : 'the town\u2019s'} ground.</p>
+            <p className="text-amber-200/80 text-xs italic mt-2">{chain.completionLine ?? WP_FOUNDERS_COMPLETION_LINE}</p>
           </div>
         )}
 
@@ -269,7 +292,7 @@ export function LivingTrailScreen() {
                     </h3>
                     <p className="text-green-600 text-[11px] font-mono mt-1">
                       geofence {node.geofence.radiusM} m • stay {node.dwellMs / 1000}s
-                      {node.timeWindow && ` • daylight only (${node.timeWindow.startHour}:00–${node.timeWindow.endHour}:00)`}
+                      {node.timeWindow && ` • ${node.timeWindow.endHour < node.timeWindow.startHour ? 'after dark only' : 'daylight only'} (${node.timeWindow.startHour}:00–${node.timeWindow.endHour}:00)`}
                     </p>
                     {node.safetyNotice && ns.status !== 'completed' && (
                       <p className="text-amber-500 text-[11px] mt-1">⚠️ {node.safetyNotice}</p>
@@ -279,7 +302,9 @@ export function LivingTrailScreen() {
                     )}
                     {ns.status === 'available' && node.timeWindow && !inWindow && (
                       <p className="text-amber-500 text-[11px] mt-1">
-                        🌙 The gate rests for the night — return between {node.timeWindow.startHour}:00 and {node.timeWindow.endHour}:00.
+                        {node.timeWindow.endHour < node.timeWindow.startHour
+                          ? <>🌙 It only walks after dark — come back between {node.timeWindow.startHour}:00 and {node.timeWindow.endHour}:00.</>
+                          : <>🌙 The gate rests for the night — return between {node.timeWindow.startHour}:00 and {node.timeWindow.endHour}:00.</>}
                       </p>
                     )}
                     {ns.status === 'completed' && (

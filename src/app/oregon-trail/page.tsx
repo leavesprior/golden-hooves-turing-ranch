@@ -212,6 +212,12 @@ function OregonTrailGame() {
     trackPageView('/oregon-trail')
   }, [])
 
+  // A new screen starts at the top. On a phone the long S.A.D.D.L.E. page left
+  // the town screen scrolled ~520px down, hiding its header and action row.
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.scrollTo(0, 0)
+  }, [state.phase])
+
   // Check for local auto-save (works without authentication)
   const [hasLocalSave, setHasLocalSave] = useState(false)
   const [fromBook, setFromBook] = useState(false)

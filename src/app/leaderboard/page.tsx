@@ -57,7 +57,7 @@ export default function LeaderboardPage() {
       if (!resp.ok) throw new Error('fetch failed')
       const data = await resp.json()
 
-      if (data.source === 'notion' && data.entries.length > 0) {
+      if ((data.source === 'server' || data.source === 'notion') && data.entries.length > 0) {
         // Merge NPC legends with real entries
         const merged = mergeWithNPCs(data.entries)
         setHallEntries(merged)

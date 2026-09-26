@@ -5,6 +5,7 @@
  *   Catch Me If You Can  Apr 10–May 16  Cobblestone
  *   Too Many Cooks       Jun 12–Aug 1   Amphitheatre
  *   Dr. Jekyll & Mr Hyde Aug 28–Oct 3   Cobblestone
+ *   On The Farce Day of Christmas Nov 6–Dec 13  Cobblestone (re-read 2026-09-23)
  * Tickets: $24 general / $22 senior / $18 student. Online only at volcanotheatre.net.
  * Ranch: Airbnb room 30045739 / h/backofbeyondranch (West Point). Volcano is a
  * short Gold Country drive — the guest still picks the same weekend on both sites.
@@ -48,6 +49,14 @@ export const THEATRE_SEASON_2026: TheatreShow[] = [
     venue: 'cobblestone',
     start: '2026-08-28',
     end: '2026-10-03',
+    ticketsUrl: THEATRE_TICKETS_URL,
+  },
+  {
+    id: 'farce-day-of-christmas',
+    title: 'On The Farce Day of Christmas',
+    venue: 'cobblestone',
+    start: '2026-11-06',
+    end: '2026-12-13',
     ticketsUrl: THEATRE_TICKETS_URL,
   },
 ]

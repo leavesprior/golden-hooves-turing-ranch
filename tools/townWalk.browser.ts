@@ -371,7 +371,7 @@ async function run() {
           assert.equal(text.split('\n').length, 22, 'original authored 22-row ASCII reading remains available')
           assert.match(text, /#{20}/)
           await page.screenshot({ path: `${output}/${id}-original-ascii.png` })
-        } else await page.getByRole('heading', { name: 'The pack road', exact: true }).waitFor({ state: 'visible' })
+        } else await page.getByRole('heading', { name: 'West Point Road', exact: true }).waitFor({ state: 'visible' })
         rewards(await saved(page, true), earned, talks)
         await startWalk(page, town, outside)
         if (town === 'west_point') {
