@@ -507,7 +507,7 @@ function PassphraseModal({
                   autoCapitalize="characters"
                   autoComplete="off"
                   spellCheck={false}
-                  placeholder="Trail ID (BOBR-XXXX-XXXX-XXXX)"
+                  placeholder="Trail ID (TRAIL-XXXX-XXXX-XXXX)"
                   aria-label="Trail ID"
                   aria-describedby="trail-id-help"
                   aria-invalid={Boolean(trailInput) && !trailOk}
@@ -518,7 +518,7 @@ function PassphraseModal({
                   className="w-full mb-2 px-3 py-2 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] outline-none focus:border-[var(--pixel-gold-dark)]"
                 />
                 <p id="trail-id-help" className={`font-[var(--font-pixel)] text-[10px] mb-2 ${trailInput && !trailOk ? 'text-[var(--pixel-fire-orange)]' : 'text-[var(--pixel-ui-text)]'}`}>
-                  {trailInput && !trailOk ? 'A Trail ID looks like BOBR-XXXX-XXXX-XXXX.' : 'Shown after every cloud save.'}
+                  {trailInput && !trailOk ? 'A Trail ID looks like TRAIL-XXXX-XXXX-XXXX.' : 'Shown after every cloud save.'}
                 </p>
               </>
             )}
