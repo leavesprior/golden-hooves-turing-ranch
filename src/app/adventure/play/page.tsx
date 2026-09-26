@@ -13,8 +13,9 @@ import { NarratorProvider, useNarrator } from '@/app/oregon-trail/narratorContex
 import { NPCProvider } from '@/app/oregon-trail/npcContext'
 import { MysteryProvider, useMystery } from '@/app/oregon-trail/mysteryContext'
 import { CrossGameStorage, qualitiesFromSaddle } from '@/lib/crossGameProgression'
-import { saveToCloud, loadFromCloud, hasCloudSave, cachePassphrase, getCachedPassphrase, clearCachedPassphrase, getDeviceId, getCloudSlotId } from '@/lib/cloudSave'
+import { saveToCloud, loadFromCloud, hasCloudSave, cachePassphrase, getCachedPassphrase, clearCachedPassphrase, getDeviceId, getCloudSlotId, adoptCloudSlotId } from '@/lib/cloudSave'
 import { MIN_PASSPHRASE_LENGTH } from '@/lib/saveProof'
+import { normalizeTrailId } from '@/lib/trailId'
 
 // Adventure Components
 import { ChapterMap } from '@/components/adventure/ChapterMap'
@@ -394,25 +395,48 @@ function PassphraseModal({
   mode,
   status,
   message,
+  trailId,
+  previousTrailId,
   onSubmit,
+  onAdopt,
   onClose,
 }: {
   mode: 'save' | 'load'
   status: 'idle' | 'working' | 'success' | 'error'
   message?: string
-  onSubmit: (passphrase: string) => void
+  trailId?: string
+  /** Set after a load when this device already had its own trail: ask before switching. */
+  previousTrailId?: string
+  onSubmit: (passphrase: string, trailId?: string) => void
+  onAdopt: (trailId: string) => void
   onClose: () => void
 }) {
   const [passphrase, setPassphrase] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [trailInput, setTrailInput] = useState(trailId ?? '')
 
   const needsConfirm = mode === 'save' && !getCachedPassphrase()
-  const canSubmit = passphrase.length >= MIN_PASSPHRASE_LENGTH && (!needsConfirm || passphrase === confirm)
+  const trailOk = mode === 'save' || normalizeTrailId(trailInput) !== null
+  const canSubmit = passphrase.length >= MIN_PASSPHRASE_LENGTH && (!needsConfirm || passphrase === confirm) && trailOk
+  const [copied, setCopied] = useState(false)
+  // Escape closes from anywhere: after a result the focused input is gone,
+  // so a key handler on the dialog itself would never hear it.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+  const submit = () => { if (canSubmit && status !== 'working') onSubmit(passphrase, mode === 'load' ? normalizeTrailId(trailInput) ?? undefined : undefined) }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cloud-modal-title"
+    >
       <div className="bg-[var(--pixel-bg-mid)] border-4 border-[var(--pixel-ui-border)] p-6 max-w-sm w-full mx-4">
-        <h3 className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)] mb-4">
+        <h3 id="cloud-modal-title" className="font-[var(--font-pixel)] text-[14px] text-[var(--pixel-gold-light)] mb-4">
           {mode === 'save' ? 'Cloud Save' : 'Cloud Load'}
         </h3>
 
@@ -421,14 +445,48 @@ function PassphraseModal({
             <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-forest-light)] mb-4">
               {mode === 'save' ? 'Saved to cloud!' : 'Game loaded from cloud!'}
             </p>
-            <button onClick={onClose} className="font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-forest-dark)] border-2 border-[var(--pixel-forest-light)] text-[var(--pixel-ui-text)] px-4 py-2">
-              OK
-            </button>
+            {trailId && (
+              <div className="mb-4 text-left">
+                <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] mb-1">{previousTrailId ? 'Loaded Trail ID' : 'Your Trail ID'}</p>
+                <p className="font-[var(--font-pixel)] text-[13px] text-[var(--pixel-gold-light)] tracking-wider select-all break-all" data-testid="trail-id">{trailId}</p>
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard?.writeText(trailId).then(() => setCopied(true), () => {}) }}
+                  className="mt-1 font-[var(--font-pixel)] text-[10px] underline text-[var(--pixel-ui-text)]"
+                >
+                  {copied ? 'Copied' : 'Copy Trail ID'}
+                </button>
+                {!previousTrailId && (
+                  <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] mt-2">
+                    Write it down with your passphrase. On another device, choose Load and enter both.
+                  </p>
+                )}
+              </div>
+            )}
+            {previousTrailId && trailId ? (
+              <div className="text-left" data-testid="adopt-choice">
+                <p className="font-[var(--font-pixel)] text-[10px] text-[var(--pixel-ui-text)] mb-3">
+                  This device saves to your trail <span className="text-[var(--pixel-gold-light)] break-all">{previousTrailId}</span>. Where should its cloud saves go now? Your own trail stays in the cloud either way.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button onClick={() => onAdopt(trailId)} className="font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-forest-dark)] border-2 border-[var(--pixel-forest-light)] text-[var(--pixel-ui-text)] px-3 py-2">
+                    Continue {trailId}
+                  </button>
+                  <button onClick={onClose} className="font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] px-3 py-2">
+                    Keep saving to {previousTrailId}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={onClose} className="font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-forest-dark)] border-2 border-[var(--pixel-forest-light)] text-[var(--pixel-ui-text)] px-4 py-2">
+                OK
+              </button>
+            )}
           </div>
         ) : status === 'error' ? (
           <div className="text-center py-4">
             <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-fire-orange)] mb-4">
-              {message || (mode === 'load' ? 'No cloud save found for this browser.' : 'Save failed. Try again.')}
+              {message || (mode === 'load' ? 'No save found for that Trail ID. Check the ID and try again.' : 'Save failed. Try again.')}
             </p>
             <button onClick={onClose} className="font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] px-4 py-2">
               Close
@@ -439,22 +497,49 @@ function PassphraseModal({
             <p className="font-[var(--font-pixel)] text-[12px] text-[var(--pixel-ui-text)] mb-3">
               {mode === 'save'
                 ? `Enter a Trail Passphrase (${MIN_PASSPHRASE_LENGTH}+ characters) to encrypt your save. Remember it — there is no recovery.`
-                : 'Enter your Trail Passphrase to decrypt your cloud save.'}
+                : 'Enter your Trail ID and Trail Passphrase to load your cloud save.'}
             </p>
+            {mode === 'load' && (
+              <>
+                <input
+                  type="text"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Trail ID (BOBR-XXXX-XXXX-XXXX)"
+                  aria-label="Trail ID"
+                  aria-describedby="trail-id-help"
+                  aria-invalid={Boolean(trailInput) && !trailOk}
+                  value={trailInput}
+                  onChange={e => setTrailInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') submit() }}
+                  autoFocus
+                  className="w-full mb-2 px-3 py-2 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] outline-none focus:border-[var(--pixel-gold-dark)]"
+                />
+                <p id="trail-id-help" className={`font-[var(--font-pixel)] text-[10px] mb-2 ${trailInput && !trailOk ? 'text-[var(--pixel-fire-orange)]' : 'text-[var(--pixel-ui-text)]'}`}>
+                  {trailInput && !trailOk ? 'A Trail ID looks like BOBR-XXXX-XXXX-XXXX.' : 'Shown after every cloud save.'}
+                </p>
+              </>
+            )}
             <input
               type="password"
               placeholder={`Trail Passphrase (${MIN_PASSPHRASE_LENGTH}+ characters)`}
+              aria-label="Trail Passphrase"
               value={passphrase}
               onChange={e => setPassphrase(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') submit() }}
               className="w-full mb-2 px-3 py-2 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] outline-none focus:border-[var(--pixel-gold-dark)]"
-              autoFocus
+              autoFocus={mode === 'save'}
             />
             {needsConfirm && (
               <input
                 type="password"
                 placeholder="Confirm Passphrase"
+                aria-label="Confirm Passphrase"
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') submit() }}
                 className="w-full mb-2 px-3 py-2 font-[var(--font-pixel)] text-[11px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] outline-none focus:border-[var(--pixel-gold-dark)]"
               />
             )}
@@ -463,7 +548,7 @@ function PassphraseModal({
             )}
             <div className="flex gap-2 mt-3">
               <button
-                onClick={() => { if (canSubmit) onSubmit(passphrase) }}
+                onClick={submit}
                 disabled={!canSubmit || status === 'working'}
                 className="flex-1 py-2 font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-gold-dark)] border-2 border-[var(--pixel-gold-mid)] text-[var(--pixel-gold-light)] disabled:opacity-50"
               >
@@ -670,14 +755,12 @@ function StatsSidebar({
         >
           {'\u2601'} CLOUD SAVE
         </button>
-        {hasCloud && (
-          <button
-            onClick={onCloudLoad}
-            className="w-full py-2 px-3 font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]"
-          >
-            {'\u2601'} CLOUD LOAD
-          </button>
-        )}
+        <button
+          onClick={onCloudLoad}
+          className="w-full py-2 px-3 font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-mid)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] hover:border-[var(--pixel-gold-dark)]"
+        >
+          {'\u2601'} {hasCloud ? 'CLOUD LOAD' : 'LOAD BY TRAIL ID'}
+        </button>
         <PixelButton href="/adventure" variant="orange" size="sm">
           {'\u2190'} EXIT TO MENU
         </PixelButton>
@@ -1693,7 +1776,7 @@ function AdventureContent() {
   }, [adventureState, narratorComment])
 
   // === CLOUD SAVE/LOAD ===
-  const [cloudModal, setCloudModal] = useState<{ mode: 'save' | 'load'; status: 'idle' | 'working' | 'success' | 'error'; message?: string } | null>(null)
+  const [cloudModal, setCloudModal] = useState<{ mode: 'save' | 'load'; status: 'idle' | 'working' | 'success' | 'error'; message?: string; trailId?: string; previousTrailId?: string } | null>(null)
   const [hasCloudSaveFlag, setHasCloudSaveFlag] = useState(false)
 
   // Check for existing cloud save on mount
@@ -1719,7 +1802,7 @@ function AdventureContent() {
       saveToCloud(id, 'adventure_save', cloudPayload, cached).then(result => {
         // A refused passphrase must not stay cached, or every retry reuses it silently.
         if (result.error === 'Wrong passphrase') clearCachedPassphrase()
-        setCloudModal({ mode: 'save', status: result.action === 'error' ? 'error' : 'success', message: result.error })
+        setCloudModal({ mode: 'save', status: result.action === 'error' ? 'error' : 'success', message: result.error, trailId: id })
         if (result.action !== 'error') {
           setHasCloudSaveFlag(true)
           narratorComment('Your journey echoes in the clouds now.', 'observation')
@@ -1730,12 +1813,18 @@ function AdventureContent() {
     }
   }, [adventureState, narratorComment, charState.character])
 
+  // Load always asks for the Trail ID + passphrase, so a player on a new
+  // device can reach a save made elsewhere (the Trail ID locates it; the
+  // passphrase unlocks it).
+  // Prefill only a Trail ID this device has really saved to; on a new device
+  // the field starts empty (a fresh, never-saved id would only lead to a 404).
   const handleCloudLoad = useCallback(() => {
-    const cached = getCachedPassphrase()
-    if (cached) {
-      setCloudModal({ mode: 'load', status: 'working' })
-      const id = getCloudSlotId()
-      loadFromCloud(id, 'adventure_save', cached).then(result => {
+    setCloudModal({ mode: 'load', status: 'idle', trailId: hasCloudSaveFlag ? getCloudSlotId() : '' })
+  }, [hasCloudSaveFlag])
+
+  const runCloudLoad = useCallback((trailId: string, passphrase: string) => {
+    setCloudModal({ mode: 'load', status: 'working', trailId })
+    loadFromCloud(trailId, 'adventure_save', passphrase).then(result => {
         if (result.data) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const raw = result.data as any
@@ -1760,26 +1849,46 @@ function AdventureContent() {
           if (savedCharacter) {
             loadCharacter(savedCharacter)
           }
-          setCloudModal({ mode: 'load', status: 'success' })
+          // The passphrase is cached only once it has proven itself.
+          cachePassphrase(passphrase)
+          const current = getCloudSlotId()
+          if (trailId === current || !hasCloudSaveFlag) {
+            // Nothing of this device's own to lose: continue the loaded trail.
+            adoptCloudSlotId(trailId)
+            setHasCloudSaveFlag(true)
+            setCloudModal({ mode: 'load', status: 'success', trailId })
+          } else {
+            // This device has its own trail: never switch without asking.
+            setCloudModal({ mode: 'load', status: 'success', trailId, previousTrailId: current })
+          }
           narratorComment('The clouds have returned your story.', 'observation')
         } else {
-          if (result.error === 'Wrong passphrase') clearCachedPassphrase()
-          setCloudModal({ mode: 'load', status: 'error', message: result.error })
+          setCloudModal({ mode: 'load', status: 'error', message: result.error, trailId })
         }
       })
-    } else {
-      setCloudModal({ mode: 'load', status: 'idle' })
-    }
-  }, [narratorComment, loadCharacter])
+  }, [narratorComment, loadCharacter, hasCloudSaveFlag])
 
-  const handlePassphraseSubmit = useCallback((passphrase: string) => {
-    cachePassphrase(passphrase)
+  const handleAdoptTrail = useCallback((trailId: string) => {
+    adoptCloudSlotId(trailId)
+    setHasCloudSaveFlag(true)
+    setCloudModal({ mode: 'load', status: 'success', trailId })
+  }, [])
+
+  // "Keep saving to my trail" after loading someone else's: their passphrase
+  // must not stay cached against this device's own trail.
+  const handleCloudModalClose = useCallback(() => {
+    if (cloudModal?.previousTrailId) clearCachedPassphrase()
+    setCloudModal(null)
+  }, [cloudModal])
+
+  const handlePassphraseSubmit = useCallback((passphrase: string, trailId?: string) => {
     if (cloudModal?.mode === 'save') {
+      cachePassphrase(passphrase) // a refused save passphrase is cleared on its 403
       handleCloudSave()
     } else {
-      handleCloudLoad()
+      runCloudLoad(trailId ?? getCloudSlotId(), passphrase)
     }
-  }, [cloudModal, handleCloudSave, handleCloudLoad])
+  }, [cloudModal, handleCloudSave, runCloudLoad])
 
   // Build the journal entries from quests.ts + saved progress. For quests with
   // multiple paths we display the path the player has progressed furthest on
@@ -2179,11 +2288,15 @@ function AdventureContent() {
       {/* Cloud Save Passphrase Modal */}
       {cloudModal && (
         <PassphraseModal
+          key={`${cloudModal.mode}:${cloudModal.trailId ?? ''}`}
           mode={cloudModal.mode}
           status={cloudModal.status}
           message={cloudModal.message}
+          trailId={cloudModal.trailId}
+          previousTrailId={cloudModal.previousTrailId}
           onSubmit={handlePassphraseSubmit}
-          onClose={() => setCloudModal(null)}
+          onAdopt={handleAdoptTrail}
+          onClose={handleCloudModalClose}
         />
       )}
 

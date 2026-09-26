@@ -1,5 +1,6 @@
 import { encryptSave, decryptSave } from './cryptoSave'
 import { deriveSaveProof } from './saveProof'
+import { generateTrailId, normalizeTrailId } from './trailId'
 
 export type SaveType = 'adventure_save' | 'rpg_session' | 'cross_game' | 'karma' | 'leaderboard'
 
@@ -40,18 +41,33 @@ export function getDeviceId(): string {
 }
 
 /**
- * The private id of this browser's cloud save slot. Deliberately NOT the
- * public Hall of Fame playerId: a public id could be claimed by someone else
- * before the player's first save.
+ * This browser's Trail ID — the private name of its cloud save slot
+ * (trailId.ts). Deliberately NOT the public Hall of Fame playerId: a public
+ * id could be claimed by someone else before the player's first save.
+ * Slots made before Trail IDs (slot_<uuid>) keep working as they are.
  */
 export function getCloudSlotId(): string {
   if (typeof window === 'undefined') return 'server'
   let slot = localStorage.getItem(CLOUD_SLOT_KEY)
-  if (!slot) {
-    slot = `slot_${crypto.randomUUID()}`
+  if (!slot || !normalizeTrailId(slot)) {
+    slot = generateTrailId()
     localStorage.setItem(CLOUD_SLOT_KEY, slot)
   }
   return slot
+}
+
+/**
+ * Make a Trail ID this browser's slot — called only after a load with it
+ * succeeded, so later saves go back to the same slot on the new device.
+ */
+export function adoptCloudSlotId(trailId: string): void {
+  if (typeof window === 'undefined') return
+  const id = normalizeTrailId(trailId)
+  if (!id) return
+  const before = localStorage.getItem(CLOUD_SLOT_KEY)
+  // Keep the trail this device followed before, so it is never simply forgotten.
+  if (before && before !== id) localStorage.setItem(`${CLOUD_SLOT_KEY}_previous`, before)
+  localStorage.setItem(CLOUD_SLOT_KEY, id)
 }
 
 /**
