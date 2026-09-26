@@ -53,7 +53,7 @@ async function main() {
 
 main().then(() => {
   const failed = results.filter((r) => !r.pass)
-  for (const r of results) console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${r.name}${r.pass ? '' : '  ' + JSON.stringify(r.detail).slice(0, 300)}`)
+  for (const r of results) console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${r.name}${r.pass ? '' : '  ' + String(JSON.stringify(r.detail)).slice(0, 300)}`)
   console.log(`leaderboardStore: ${results.length - failed.length}/${results.length}`)
   process.exit(failed.length ? 1 : 0)
 }).catch((e) => { console.error(e); process.exit(1) })
