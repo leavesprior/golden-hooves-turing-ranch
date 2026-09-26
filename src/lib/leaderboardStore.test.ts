@@ -40,6 +40,14 @@ async function main() {
   lb.submitEntry({ playerName: 'N'.repeat(500), playerId: 'player_d', score: 1 })
   check('names are capped at 40', lb.listEntries(50).find((e) => e.playerId === 'player_d')?.playerName.length === 40)
 
+  const weird = [
+    lb.submitEntry({ playerName: 'NaN', playerId: 'player_nan', score: NaN }),
+    lb.submitEntry({ playerName: 'Neg', playerId: 'player_neg', score: -5 }),
+    lb.submitEntry({ playerName: 'Inf', playerId: 'player_inf', score: Infinity }),
+  ]
+  check('NaN / negative / infinite scores are skipped', weird.every((r) => r.action === 'skipped'), weird)
+  check('none of them reached the board', !lb.listEntries(50).some((e) => ['player_nan', 'player_neg', 'player_inf'].includes(e.playerId)))
+
   fs.rmSync(dir, { recursive: true, force: true })
 }
 

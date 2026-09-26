@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clientIpFrom, rateLimitOk, verifyScoreClaim } from '@/lib/markerSession'
 import { listEntries, submitEntry } from '@/lib/leaderboardStore'
+import { readBoundedJson } from '@/lib/boundedJson'
+
+const MAX_BODY_BYTES = 16 * 1024
 
 /**
  * Leaderboard API Route — Hall of Fame on the Railway /data volume
@@ -45,14 +48,29 @@ export async function GET(request: NextRequest) {
 // POST /api/leaderboard
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // Rate limit and size cap BEFORE the body is read (council 20260926_141619).
+    const ip = clientIpFrom(request.headers);
+    if (!rateLimitOk(ip)) {
+      return NextResponse.json(
+        { error: 'Rate limited — too many submissions from this IP. Slow down.' },
+        { status: 429 }
+      );
+    }
+    const parsed = await readBoundedJson<Record<string, unknown>>(request, MAX_BODY_BYTES)
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.reason === 'too_large' ? 'Submission too large' : 'Invalid request' }, { status: parsed.reason === 'too_large' ? 413 : 400 })
+    }
+    const body = parsed.value
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
     const {
       playerName, playerId, score, trophies, chapter, level,
       alignment, saddleStats, topFaction, timeEchoes, milestonesCount,
       claimToken, game,
     } = body
 
-    if (!playerName || !playerId || typeof score !== 'number') {
+    if (typeof playerName !== 'string' || !playerName || typeof playerId !== 'string' || !playerId || typeof score !== 'number' || !Number.isFinite(score) || score < 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -77,14 +95,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const ip = clientIpFrom(request.headers);
-    if (!rateLimitOk(ip)) {
-      return NextResponse.json(
-        { error: 'Rate limited — too many submissions from this IP. Slow down.' },
-        { status: 429 }
-      );
-    }
-
     // If a claimToken was supplied, verify it binds this exact player+score+game.
     // (Non-fatal for now; allows the existing leaderboard UI submit form to keep
     // working while games are updated to obtain claims.)
@@ -101,7 +111,7 @@ export async function POST(request: NextRequest) {
       playerName, playerId, score, trophies, chapter, level,
       alignment, topFaction, timeEchoes, milestonesCount, saddleStats,
     })
-    if (result.action === 'skipped' && result.reason === 'Invalid player') {
+    if (result.action === 'skipped' && (result.reason === 'Invalid player' || result.reason === 'Invalid score')) {
       return NextResponse.json({ error: result.reason }, { status: 400 })
     }
     return NextResponse.json(result)

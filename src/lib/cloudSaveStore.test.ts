@@ -133,7 +133,40 @@ async function main() {
   const rMixed = store.readSave(P3, 'adventure_save', wrong, 'ip-mixed')
   check("a client's own success does not reset its failure count", !rMixed.ok && rMixed.reason === 'throttled', rMixed)
 
+  // ── council round 1 (grok + codex, 20260926_141619_secure-save) ──
+  // History: a stale tab / stolen proof cannot destroy the only copy.
+  const P4 = 'slot_history_player_0001'
+  const p4 = await deriveSaveProof('history passphrase', P4)
+  for (let i = 1; i <= 5; i++) store.writeSave({ playerId: P4, saveType: 'adventure_save', saveData: `V${i}`, proof: p4 })
+  const hist = store._historyForTests(P4, 'adventure_save')
+  check('the last 3 replaced versions are kept, newest first', JSON.stringify(hist) === '["V4","V3","V2"]', hist)
+  const cur = store.readSave(P4, 'adventure_save', p4)
+  check('history does not change the current save', cur.ok && cur.saveData === 'V5', cur)
+
+  // A corrupt stored hash must read as a wrong proof, not throw a 503.
+  store._corruptOwnerHashForTests(P4, 'abcd')
+  const rCorrupt = store.readSave(P4, 'adventure_save', p4, 'ip-corrupt')
+  check('a corrupt stored hash is forbidden, not a crash', !rCorrupt.ok && rCorrupt.reason === 'forbidden', rCorrupt)
+
+  // Flooding the throttle table must not free a throttled guesser.
+  for (let i = 0; i < store.MAX_FAILED_PROOFS; i++) store.readSave(P3, 'adventure_save', wrong, 'ip-flooder')
+  const floodPre = store.readSave(P3, 'adventure_save', wrong, 'ip-flooder')
+  for (let i = 0; i < store.MAX_TRACKED_CLIENTS + 5; i++) store.readSave(P3, 'adventure_save', wrong, `ip-flood-${i}`)
+  const floodPost = store.readSave(P3, 'adventure_save', wrong, 'ip-flooder')
+  check('a throttled client stays throttled after the table is flooded', !floodPre.ok && floodPre.reason === 'throttled' && !floodPost.ok && floodPost.reason === 'throttled', { floodPre, floodPost })
+  check('the throttle table stays bounded', store._trackedClientCount() <= store.MAX_TRACKED_CLIENTS, store._trackedClientCount())
+
   fs.rmSync(dir, { recursive: true, force: true })
+
+  // Production must fail CLOSED when the /data volume is missing, never "save" to /tmp.
+  const { spawnSync } = await import('node:child_process')
+  const probe = spawnSync(process.execPath, ['--import', 'tsx', '-e', `
+    const m = await import(${JSON.stringify(path.resolve('src/lib/cloudSaveStore.ts'))}); const s = m.writeSave ? m : m.default;
+    try { const r = s.writeSave({ playerId: 'slot_prod_probe_0001', saveType: 'adventure_save', saveData: 'x', proof: 'A'.repeat(43) }); console.log('RESULT', JSON.stringify(r)) }
+    catch (e) { console.log('THREW', e.message) }
+  `], { env: { ...process.env, RAILWAY_ENVIRONMENT: 'production', NODE_ENV: 'production', BOBR_CLOUD_DATA_DIR: path.join(os.tmpdir(), 'definitely-missing-volume-xyz') }, encoding: 'utf8' })
+  const probeOut = (probe.stdout || '') + (probe.stderr || '')
+  check('production with no /data volume refuses (throws), never writes to /tmp', /THREW .*volume/i.test(probeOut), probeOut.slice(0, 300))
 }
 
 main().then(() => {

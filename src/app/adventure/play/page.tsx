@@ -13,9 +13,8 @@ import { NarratorProvider, useNarrator } from '@/app/oregon-trail/narratorContex
 import { NPCProvider } from '@/app/oregon-trail/npcContext'
 import { MysteryProvider, useMystery } from '@/app/oregon-trail/mysteryContext'
 import { CrossGameStorage, qualitiesFromSaddle } from '@/lib/crossGameProgression'
-import { saveToCloud, loadFromCloud, hasCloudSave, cachePassphrase, getCachedPassphrase, getDeviceId } from '@/lib/cloudSave'
+import { saveToCloud, loadFromCloud, hasCloudSave, cachePassphrase, getCachedPassphrase, clearCachedPassphrase, getDeviceId, getCloudSlotId } from '@/lib/cloudSave'
 import { MIN_PASSPHRASE_LENGTH } from '@/lib/saveProof'
-import { getPlayerIdentifier } from '@/lib/trophyStateCollector'
 
 // Adventure Components
 import { ChapterMap } from '@/components/adventure/ChapterMap'
@@ -394,11 +393,13 @@ const STAT_DISPLAY: Record<StatName, { icon: string; color: string }> = {
 function PassphraseModal({
   mode,
   status,
+  message,
   onSubmit,
   onClose,
 }: {
   mode: 'save' | 'load'
   status: 'idle' | 'working' | 'success' | 'error'
+  message?: string
   onSubmit: (passphrase: string) => void
   onClose: () => void
 }) {
@@ -427,7 +428,7 @@ function PassphraseModal({
         ) : status === 'error' ? (
           <div className="text-center py-4">
             <p className="font-[var(--font-pixel)] text-[11px] text-[var(--pixel-fire-orange)] mb-4">
-              {mode === 'load' ? 'Wrong passphrase or no save found.' : 'Save failed. Try again.'}
+              {message || (mode === 'load' ? 'No cloud save found for this browser.' : 'Save failed. Try again.')}
             </p>
             <button onClick={onClose} className="font-[var(--font-pixel)] text-[10px] bg-[var(--pixel-bg-dark)] border-2 border-[var(--pixel-ui-border)] text-[var(--pixel-ui-text)] px-4 py-2">
               Close
@@ -1692,14 +1693,15 @@ function AdventureContent() {
   }, [adventureState, narratorComment])
 
   // === CLOUD SAVE/LOAD ===
-  const [cloudModal, setCloudModal] = useState<{ mode: 'save' | 'load'; status: 'idle' | 'working' | 'success' | 'error' } | null>(null)
+  const [cloudModal, setCloudModal] = useState<{ mode: 'save' | 'load'; status: 'idle' | 'working' | 'success' | 'error'; message?: string } | null>(null)
   const [hasCloudSaveFlag, setHasCloudSaveFlag] = useState(false)
 
   // Check for existing cloud save on mount
   useEffect(() => {
-    const { id } = getPlayerIdentifier()
+    const id = getCloudSlotId()
     hasCloudSave(id, 'adventure_save').then(result => {
-      setHasCloudSaveFlag(result.exists)
+      // Unknown (store down) is not "no save": keep Load reachable so the player can try.
+      setHasCloudSaveFlag(result.exists || Boolean(result.error))
     }).catch(() => {})
   }, [])
 
@@ -1708,14 +1710,16 @@ function AdventureContent() {
     if (cached && adventureState) {
       // Use cached passphrase
       setCloudModal({ mode: 'save', status: 'working' })
-      const { id } = getPlayerIdentifier()
+      const id = getCloudSlotId()
       // Include character data alongside adventure state
       const cloudPayload = {
         ...adventureState,
         _character: charState.character ?? undefined,
       }
       saveToCloud(id, 'adventure_save', cloudPayload, cached).then(result => {
-        setCloudModal({ mode: 'save', status: result.action === 'error' ? 'error' : 'success' })
+        // A refused passphrase must not stay cached, or every retry reuses it silently.
+        if (result.error === 'Wrong passphrase') clearCachedPassphrase()
+        setCloudModal({ mode: 'save', status: result.action === 'error' ? 'error' : 'success', message: result.error })
         if (result.action !== 'error') {
           setHasCloudSaveFlag(true)
           narratorComment('Your journey echoes in the clouds now.', 'observation')
@@ -1730,7 +1734,7 @@ function AdventureContent() {
     const cached = getCachedPassphrase()
     if (cached) {
       setCloudModal({ mode: 'load', status: 'working' })
-      const { id } = getPlayerIdentifier()
+      const id = getCloudSlotId()
       loadFromCloud(id, 'adventure_save', cached).then(result => {
         if (result.data) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1759,7 +1763,8 @@ function AdventureContent() {
           setCloudModal({ mode: 'load', status: 'success' })
           narratorComment('The clouds have returned your story.', 'observation')
         } else {
-          setCloudModal({ mode: 'load', status: 'error' })
+          if (result.error === 'Wrong passphrase') clearCachedPassphrase()
+          setCloudModal({ mode: 'load', status: 'error', message: result.error })
         }
       })
     } else {
@@ -2176,6 +2181,7 @@ function AdventureContent() {
         <PassphraseModal
           mode={cloudModal.mode}
           status={cloudModal.status}
+          message={cloudModal.message}
           onSubmit={handlePassphraseSubmit}
           onClose={() => setCloudModal(null)}
         />

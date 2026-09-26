@@ -5,6 +5,7 @@ export type SaveType = 'adventure_save' | 'rpg_session' | 'cross_game' | 'karma'
 
 const PASSPHRASE_CACHE_KEY = 'bobr_trail_passphrase'
 const DEVICE_ID_KEY = 'bobr_device_id'
+const CLOUD_SLOT_KEY = 'bobr_cloud_slot_id'
 
 interface SaveToCloudResult {
   action: 'saved' | 'created' | 'error'
@@ -18,6 +19,8 @@ interface LoadFromCloudResult {
 
 interface HasCloudSaveResult {
   exists: boolean
+  /** Set when the check itself failed (store down, throttled): unknown, not "no save". */
+  error?: string
   lastSaved?: string
   saveType?: string
 }
@@ -34,6 +37,21 @@ export function getDeviceId(): string {
     localStorage.setItem(DEVICE_ID_KEY, deviceId)
   }
   return deviceId
+}
+
+/**
+ * The private id of this browser's cloud save slot. Deliberately NOT the
+ * public Hall of Fame playerId: a public id could be claimed by someone else
+ * before the player's first save.
+ */
+export function getCloudSlotId(): string {
+  if (typeof window === 'undefined') return 'server'
+  let slot = localStorage.getItem(CLOUD_SLOT_KEY)
+  if (!slot) {
+    slot = `slot_${crypto.randomUUID()}`
+    localStorage.setItem(CLOUD_SLOT_KEY, slot)
+  }
+  return slot
 }
 
 /**
@@ -139,9 +157,10 @@ export async function loadFromCloud(
       if (response.status === 429) {
         return { data: null, error: 'Too many wrong passphrases. Wait a minute and try again.' }
       }
+      const errorData = await response.json().catch(() => ({}))
       return {
         data: null,
-        error: `HTTP ${response.status}`
+        error: errorData.error || `HTTP ${response.status}`
       }
     }
 
@@ -202,7 +221,7 @@ export async function hasCloudSave(
       if (response.status === 404) {
         return { exists: false }
       }
-      return { exists: false }
+      return { exists: false, error: `HTTP ${response.status}` }
     }
 
     const result = await response.json()

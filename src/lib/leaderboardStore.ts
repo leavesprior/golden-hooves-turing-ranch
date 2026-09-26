@@ -1,7 +1,5 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
-import { testDbPathOverride } from './discountCodesDb';
+import type Database from 'better-sqlite3';
+import { getCloudDb } from './cloudDb';
 
 /**
  * Hall of Fame entries on the Railway /data volume (replaces the Notion store,
@@ -43,42 +41,30 @@ export type SubmitResult = { action: 'created' | 'updated' } | { action: 'skippe
 
 const PLAYER_ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 
-let _db: Database.Database | null = null;
-
-function getDbPath(): string {
-  const override = testDbPathOverride(process.env);
-  if (override) return override;
-  try {
-    if (fs.existsSync('/data') && fs.statSync('/data').isDirectory()) return path.join('/data', 'cloud_saves.db');
-  } catch {
-    // fall through
-  }
-  return path.join('/tmp', 'cloud_saves.db');
-}
+let _schemaReady = false;
 
 function getDb(): Database.Database {
-  if (_db) return _db;
-  const db = new Database(getDbPath());
-  db.pragma('journal_mode = WAL');
-  db.pragma('busy_timeout = 5000');
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS leaderboard_entries (
-      player_id        TEXT PRIMARY KEY,
-      player_name      TEXT NOT NULL,
-      score            INTEGER NOT NULL,
-      trophies         TEXT NOT NULL DEFAULT '[]',
-      chapter          INTEGER NOT NULL DEFAULT 0,
-      level            INTEGER NOT NULL DEFAULT 1,
-      alignment        TEXT NOT NULL DEFAULT '',
-      top_faction      TEXT NOT NULL DEFAULT '',
-      time_echoes      INTEGER NOT NULL DEFAULT 0,
-      milestones_count INTEGER NOT NULL DEFAULT 0,
-      saddle_stats     TEXT,
-      submitted_at     TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_leaderboard_score ON leaderboard_entries (score DESC);
-  `);
-  _db = db;
+  const db = getCloudDb();
+  if (!_schemaReady) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS leaderboard_entries (
+        player_id        TEXT PRIMARY KEY,
+        player_name      TEXT NOT NULL,
+        score            INTEGER NOT NULL,
+        trophies         TEXT NOT NULL DEFAULT '[]',
+        chapter          INTEGER NOT NULL DEFAULT 0,
+        level            INTEGER NOT NULL DEFAULT 1,
+        alignment        TEXT NOT NULL DEFAULT '',
+        top_faction      TEXT NOT NULL DEFAULT '',
+        time_echoes      INTEGER NOT NULL DEFAULT 0,
+        milestones_count INTEGER NOT NULL DEFAULT 0,
+        saddle_stats     TEXT,
+        submitted_at     TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_leaderboard_score ON leaderboard_entries (score DESC);
+    `);
+    _schemaReady = true;
+  }
   return db;
 }
 
@@ -122,7 +108,11 @@ export function submitEntry(p: SubmitParams): SubmitResult {
   if (!playerName || typeof p.playerId !== 'string' || !PLAYER_ID_PATTERN.test(p.playerId)) {
     return { action: 'skipped', reason: 'Invalid player' };
   }
+  if (typeof p.score !== 'number' || !Number.isFinite(p.score) || p.score < 0) {
+    return { action: 'skipped', reason: 'Invalid score' };
+  }
   const trophies = Array.isArray(p.trophies) ? p.trophies.filter((t): t is string => typeof t === 'string').slice(0, 100).map((t) => t.slice(0, 60)) : [];
+  // The route caps the whole body at 16KB before parsing, so this stringify is bounded.
   const saddle = p.saddleStats && typeof p.saddleStats === 'object' ? JSON.stringify(p.saddleStats).slice(0, 2000) : null;
   const db = getDb();
   return db.transaction((): SubmitResult => {

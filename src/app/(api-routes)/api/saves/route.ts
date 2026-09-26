@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSaveMeta, readSave, writeSave, MAX_SAVE_BYTES, type SaveFailure } from '@/lib/cloudSaveStore'
 import { clientIpFrom } from '@/lib/markerSession'
+import { readBoundedJson } from '@/lib/boundedJson'
 
 /**
  * Cloud Save API — encrypted game state on the Railway /data volume.
@@ -65,15 +66,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const declared = Number(request.headers.get('content-length') ?? 0)
-  if (declared > MAX_SAVE_BYTES + 16 * 1024) return failure('too_large')
-
-  let body: Record<string, unknown>
-  try {
-    body = await request.json()
-  } catch {
-    return failure('invalid')
-  }
+  const parsed = await readBoundedJson<Record<string, unknown>>(request, MAX_SAVE_BYTES + 16 * 1024)
+  if (!parsed.ok) return failure(parsed.reason)
+  const body = parsed.value
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return failure('invalid')
 
   try {
     const result = writeSave({
