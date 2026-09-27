@@ -74,7 +74,7 @@ export function build1867() {
   g.add(beam);
   // Shed roof: from 2.55 m at the wall down to 2.34 m over the posts.
   const roof = box(FACADE_W + 0.3, 0.04, depth + 0.15, dark);
-  roof.position.set(0, 2.45, depth / 2);
+  roof.position.set(0, 2.45, depth / 2 + 0.08); // tilted: keep its back edge out of the wall
   roof.rotation.x = Math.atan2(0.21, depth);
   g.add(roof);
 

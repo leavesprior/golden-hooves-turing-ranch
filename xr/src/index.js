@@ -1,4 +1,5 @@
 import {
+  Hovered,
   PokeInteractable,
   Pressed,
   RayInteractable,
@@ -18,6 +19,7 @@ import {
 } from 'three';
 import projectOptions from 'virtual:iwsdk-project';
 import { LINE, PLACE } from './line-data.js';
+import { checkLaws, lawCoverage } from './laws.js';
 import { FACADE_W, build1867, buildCat, buildFrog, buildSlip1, setOpacity } from './line-layers.js';
 
 const FADE_SECONDS = 0.8;
@@ -26,6 +28,7 @@ const FALLBACK_DISTANCE = 2.5;
 const EYE_TO_FLOOR = 1.6;
 const FROG_HOME = new Vector3(1.05, 0, 0.9);
 
+const scan = { planes: [], placedBy: null };
 const state = { index: 0, fades: LINE.map((_, i) => (i === 0 ? 1 : 0)), hop: -1 };
 const CONF_WORD = { 1: 'documented', 0: 'described from a source', '-1': 'imagined' };
 
@@ -134,14 +137,17 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       if (!this.world.session || this.placed) return;
       if (this.sessionStart === null) this.sessionStart = time;
       const head = this.world.camera.getWorldPosition(new Vector3());
+      const facing = this.world.camera.getWorldDirection(new Vector3()).setY(0).normalize();
       let wall = null;
       let floorY = null;
+      scan.planes = [];
       for (const entity of this.queries.planes.entities) {
         const plane = entity.getValue(XRPlane, '_plane');
         const obj = entity.object3D;
         if (!plane || !obj) continue;
         const origin = obj.getWorldPosition(new Vector3());
         const label = plane.semanticLabel;
+        scan.planes.push({ o: plane.orientation, label: label ?? null, y: +origin.y.toFixed(2), d: +head.distanceTo(origin).toFixed(2) });
         if (plane.orientation === 'horizontal') {
           if ((!label || label === 'floor') && head.y - origin.y > 1) {
             floorY = floorY === null ? origin.y : Math.min(floorY, origin.y);
@@ -151,12 +157,26 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         if (plane.orientation !== 'vertical' || (label && label !== 'wall')) continue;
         const q = obj.getWorldQuaternion(obj.quaternion.clone());
         const normal = up.clone().applyQuaternion(q);
-        const dist = head.clone().sub(origin).dot(normal);
+        let dist = head.clone().sub(origin).dot(normal);
+        // Plane +Y may point into the wall (it does in IWER): face it toward the viewer.
+        if (dist < 0) {
+          normal.negate();
+          dist = -dist;
+        }
+        scan.planes[scan.planes.length - 1].signed = +dist.toFixed(2);
         if (dist < 1.2 || dist > 8) continue;
-        if (!wall || dist < wall.dist) wall = { obj, plane, normal, dist, q };
+        // Only a wall the viewer is facing (within ~60 degrees): the facade goes in front, not behind.
+        const square = facing.dot(normal.clone().setY(0).normalize().negate());
+        if (square < 0.5) continue;
+        // Prefer the wall most squarely ahead; distance only breaks near-ties.
+        const score = square - 0.05 * dist;
+        if (!wall || score > wall.score) wall = { obj, plane, normal, dist, q, score };
       }
       if (wall && (floorY !== null || time - this.sessionStart > WALL_WAIT_SECONDS)) {
-        const pos = head.clone().addScaledVector(wall.normal, -wall.dist);
+        // Centre the facade where the viewer is looking: gaze ray meets the wall plane.
+        const flatNormal = wall.normal.clone().setY(0).normalize();
+        const along = facing.dot(flatNormal.clone().negate());
+        const pos = head.clone().addScaledVector(facing, wall.dist / Math.max(along, 0.5));
         // Keep the facade inside the detected wall's width (plane-local x or z).
         const local = wall.obj.worldToLocal(pos.clone());
         const xWorld = new Vector3(1, 0, 0).applyQuaternion(wall.q);
@@ -169,6 +189,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
             min = Math.min(min, p[axis]);
             max = Math.max(max, p[axis]);
           }
+          scan.wallWidth = +(max - min).toFixed(2);
           const lo = min + FACADE_W / 2;
           const hi = max - FACADE_W / 2;
           local[axis] = lo <= hi ? Math.min(Math.max(local[axis], lo), hi) : (min + max) / 2;
@@ -176,6 +197,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         pos.copy(wall.obj.localToWorld(local));
         pos.y = floorY ?? head.y - EYE_TO_FLOOR;
         placeFrame(pos, wall.normal.clone().setY(0).normalize());
+        scan.placedBy = { by: 'wall', dist: +wall.dist.toFixed(2), label: wall.plane.semanticLabel ?? null, floorY, facingDot: +facing.dot(pos.clone().sub(head).setY(0).normalize()).toFixed(2) };
         this.placed = true;
         return;
       }
@@ -188,13 +210,24 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       const pos = head.clone().addScaledVector(forward, FALLBACK_DISTANCE);
       pos.y = floorY ?? head.y - EYE_TO_FLOOR;
       placeFrame(pos, forward.clone().negate());
+      scan.placedBy = { by: 'fallback', floorY };
       this.placed = true;
     }
   }
 
-  class FrogSystem extends createSystem({ pressed: { required: [RayInteractable, Pressed] } }) {
+  class FrogSystem extends createSystem({
+    pressed: { required: [RayInteractable, Pressed] },
+    hovered: { required: [RayInteractable, Hovered] },
+  }) {
     init() {
-      this.queries.pressed.subscribe('qualify', step);
+      // Act on release, like a button: the Frog hops away from under the ray,
+      // so stepping on press-start left the press hanging (seen in IWER).
+      this.queries.pressed.subscribe('disqualify', step);
+    }
+
+    update() {
+      scan.frogHovered = this.queries.hovered.entities.size > 0;
+      if (scan.frogHovered) scan.everHovered = true;
     }
   }
 
@@ -257,6 +290,19 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   window.__outOfTime = {
     layer: () => LINE[state.index].id,
     session: () => !!world.session,
+    laws: () => {
+      root.updateMatrixWorld(true);
+      return checkLaws({ scene: world.scene, root, layers, line: LINE });
+    },
+    lawCoverage: () => lawCoverage(layers),
+    // Mutation seed for testing the law machine itself: adds a full-frame sheet.
+    seedVeil: () => {
+      const veil = new Mesh(new PlaneGeometry(3, 2), new MeshBasicMaterial({ transparent: true, opacity: 0.2 }));
+      veil.position.set(0, 1.2, 1.5);
+      layers.slip1.add(veil);
+      return () => layers.slip1.remove(veil);
+    },
+    scan: () => JSON.parse(JSON.stringify(scan)),
     placedAt: () => root.getWorldPosition(new Vector3()).toArray().map((v) => +v.toFixed(2)),
     step,
     frogWorld: () => frog.getWorldPosition(new Vector3()).toArray(),
