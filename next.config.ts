@@ -6,6 +6,10 @@ const isDev = process.env.NODE_ENV === 'development';
 const isLanCanary = process.env.LAN_CANARY === '1';
 
 const nextConfig: NextConfig = {
+  // Out of Time (XR): a static IWSDK build copied into public/xr (see xr/README.md).
+  async rewrites() {
+    return [{ source: '/xr', destination: '/xr/index.html' }];
+  },
   async headers() {
     return [
       {
