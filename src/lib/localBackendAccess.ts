@@ -8,6 +8,8 @@ export interface LocalBackendConfig {
   enabled: boolean
   workerEnabled: boolean
   slidesEnabled: boolean
+  /** Out of Time (XR) app, served from its own HTTPS host; shown behind the bridge. */
+  xrUrl: string | null
   secret: string
 }
 
@@ -17,8 +19,25 @@ export function localBackendConfig(env: Record<string, string | undefined>): Loc
     enabled: env.DM_TABLE_ENABLED === 'true' && secret.trim().length >= 32,
     workerEnabled: env.WORKER_TIMESHEETS_ENABLED === 'true',
     slidesEnabled: env.LOCAL_BACKEND_SLIDES_ENABLED === 'true',
+    xrUrl: localBackendXrUrl(env.LOCAL_BACKEND_XR_URL),
     secret,
   }
+}
+
+/** The XR link becomes an href: only a plain https URL passes (never javascript:/data:/userinfo). */
+export function localBackendXrUrl(raw: string | undefined): string | null {
+  const value = raw?.trim() ?? ''
+  if (!value || value.length > 512) return null
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' || url.username || url.password) return null
+    return url.href
+  } catch { return null }
+}
+
+/** Same loopback names the server honours; the client uses it to hide the bridge on public hosts. */
+export function isLoopbackHostname(hostname: string): boolean {
+  return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname.toLowerCase())
 }
 
 /** Do not reuse the broader LAN_CANARY/HSTS policy, trust forwarded hosts, or match prefixes. */
