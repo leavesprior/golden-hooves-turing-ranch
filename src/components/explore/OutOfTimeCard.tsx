@@ -52,8 +52,9 @@ export function OutOfTimeCard({ placeId, placeName, townName, oot }: { placeId: 
   const where = fix ? placeTier(fix, oot) : null
   const tooRough = !!fix && where?.tier === 'in_town' && fix.accuracyM > MAX_ACCURACY_FOR_BLOCK_M && where.meters <= oot.blockRadiusM + fix.accuracyM
   const src = era === 'today' ? oot.plateToday : inside && oot.plateThenInside ? oot.plateThenInside : oot.plateThen
-  const alt =
-    era === 'today'
+  const alt = oot.plateCredit
+    ? oot.plateCredit
+    : era === 'today'
       ? `${placeName} today, painted`
       : `${placeName} imagined ${oot.era}${inside ? ', inside' : ''} — painted interpretation`
 
@@ -74,6 +75,9 @@ export function OutOfTimeCard({ placeId, placeName, townName, oot }: { placeId: 
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={src} alt={alt} width={1600} height={900} loading="lazy" className="mt-2 w-full h-auto rounded-sm" data-testid="oot-plate" />
+      {oot.plateCredit && (
+        <p className="mt-1 font-serif text-[11px] italic text-[#b8a88a]" data-testid="oot-credit">{oot.plateCredit}</p>
+      )}
       {era === 'then' && (
         <p className="mt-1 font-serif text-[11px] italic text-[#b8a88a]" data-testid="oot-label">{oot.interpretationLabel}</p>
       )}

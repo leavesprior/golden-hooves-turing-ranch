@@ -50,7 +50,14 @@ for (const p of withOot) {
   for (const src of [o.plateToday, o.plateThen, o.plateThenInside].filter(Boolean) as string[]) {
     assert.ok(existsSync(join(process.cwd(), 'public', src)), `${p.id}: ${src} exists`)
   }
-  assert.match(o.interpretationLabel, /interpretation/i, `${p.id}: then-plate says it is an interpretation`)
+  // A stand-in plate is credited, not presented as the place; a plate of the place is labelled a guess.
+  if (o.plateCredit) {
+    for (const text of [o.plateCredit, o.interpretationLabel]) {
+      assert.doesNotMatch(text, /painted/i, `${p.id}: a stand-in photo is not called a painting of the place`)
+    }
+  } else {
+    assert.match(o.interpretationLabel, /interpretation/i, `${p.id}: then-plate says it is an interpretation`)
+  }
   assert.ok(o.blockRadiusM <= 60, `${p.id}: 'on the block' is short range`)
   assert.ok(o.blockHint.length > 10, `${p.id}: the block hint names the door`)
   assert.match(o.doorCode.token, /^[a-z0-9-]{6,}$/, `${p.id}: door token is URL-plain`)
@@ -70,6 +77,20 @@ for (const p of withOot) {
 const baked = LOCAL_PLACES.find((p) => p.id === 'vol_baked_in_amador')!.outOfTime!
 assert.deepEqual(baked.point, { lat: 38.442575, lng: -120.63102 })
 assert.match(baked.known, /Stone Jug/)
+// The bakery's painted plates wait on the owners' consent (2026-09-26): none may be served, and
+// the stand-in is the public-domain Adams photograph, credited as on loan in the card.
+for (const src of [baked.plateToday, baked.plateThen, baked.plateThenInside].filter(Boolean) as string[]) {
+  assert.doesNotMatch(src, /volcano_baked_/, `16154: owners' plates are off the site: ${src}`)
+  assert.equal(src, '/images/out-of-time/adams_naid519953_framed.jpg')
+}
+for (const f of ['volcano_baked_today.jpg', 'volcano_baked_1885.jpg', 'volcano_baked_1885_inside.jpg']) {
+  assert.ok(!existsSync(join(process.cwd(), 'public/images/out-of-time', f)), `16154: ${f} is not in public/`)
+}
+assert.equal(baked.plateThenInside, undefined, '16154: no "Step inside" onto an identical stand-in')
+assert.match(baked.plateCredit ?? '', /on loan/i)
+assert.match(baked.plateCredit ?? '', /Ansel Adams/)
+assert.match(baked.plateCredit ?? '', /NAID 519953/)
+assert.match(baked.plateCredit ?? '', /public domain/i)
 // The front is visibly STONE (the bakery's own photo + Street View, 09-24); the 2021 MLS calls it "bricks".
 // Leif 09-24: "use stones, what's there". Only the quoted MLS line in `known` may say bricks.
 for (const text of [baked.interpretationLabel, baked.blockHint, ...baked.keeper.lines]) {

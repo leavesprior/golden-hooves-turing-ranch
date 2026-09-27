@@ -20,6 +20,8 @@ export interface OutOfTime {
   plateToday: string
   plateThen: string
   plateThenInside?: string
+  /** Credit shown under the plate in both eras when the plate is a stand-in, not a picture of this place. */
+  plateCredit?: string
   /** Shown under every "then" plate. */
   interpretationLabel: string
   /** What sources actually say, with the source named in the text. */

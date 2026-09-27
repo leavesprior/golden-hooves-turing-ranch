@@ -68,11 +68,14 @@ export const LOCAL_PLACES: LocalPlace[] = [
     source: 'https://bakedinamador.com/',
     outOfTime: {
       era: 'about 1885',
-      plateToday: '/images/out-of-time/volcano_baked_today.jpg',
-      plateThen: '/images/out-of-time/volcano_baked_1885.jpg',
-      plateThenInside: '/images/out-of-time/volcano_baked_1885_inside.jpg',
+      // The bakery's own plates wait on the owners' consent (asked 2026-09-26); a public-domain
+      // Adams photograph stands in. See public/images/out-of-time/manifest.json.
+      plateToday: '/images/out-of-time/adams_naid519953_framed.jpg',
+      plateThen: '/images/out-of-time/adams_naid519953_framed.jpg',
+      plateCredit:
+        'Picture on loan while we ask the bakery\u2019s owners \u2014 Ansel Adams, Flock in Owens Valley, California, 1941 (National Archives NAID 519953, public domain).',
       interpretationLabel:
-        'Painted interpretation. The stones are old; what this building was in the 1880s is not recorded, and its build year is not published.',
+        'The stones are old; what this building was in the 1880s is not recorded, and its build year is not published.',
       known:
         'The 2021 sale listing says the building is “fronted with bricks from Stone Jug community of the 1850’s” — Stone Jug Road runs toward Upper Rancheria on the 1866 county map. Volcano had three bakeries in 1853. County parcel 029-043-010.',
       point: { lat: 38.442575, lng: -120.63102 },
