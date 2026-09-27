@@ -140,6 +140,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       const facing = this.world.camera.getWorldDirection(new Vector3()).setY(0).normalize();
       let wall = null;
       let floorY = null;
+      let labelledFloor = false;
       scan.planes = [];
       for (const entity of this.queries.planes.entities) {
         const plane = entity.getValue(XRPlane, '_plane');
@@ -149,8 +150,13 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         const label = plane.semanticLabel;
         scan.planes.push({ o: plane.orientation, label: label ?? null, y: +origin.y.toFixed(2), d: +head.distanceTo(origin).toFixed(2) });
         if (plane.orientation === 'horizontal') {
-          if ((!label || label === 'floor') && head.y - origin.y > 1) {
-            floorY = floorY === null ? origin.y : Math.min(floorY, origin.y);
+          // A labelled floor wins; otherwise the HIGHEST unlabelled plane >= 1 m
+          // below the eyes (a street below the kerb must not sink the facade).
+          if (label === 'floor' && head.y - origin.y > 1) {
+            floorY = labelledFloor ? Math.max(floorY, origin.y) : origin.y;
+            labelledFloor = true;
+          } else if (!label && !labelledFloor && head.y - origin.y > 1) {
+            floorY = floorY === null ? origin.y : Math.max(floorY, origin.y);
           }
           continue;
         }
@@ -238,7 +244,10 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         const target = i === state.index ? 1 : 0;
         const s = delta / FADE_SECONDS;
         state.fades[i] += Math.max(-s, Math.min(s, target - state.fades[i]));
-        if (layers[layer.id]) setOpacity(layers[layer.id], state.fades[i]);
+        if (layers[layer.id] && layers[layer.id].userData.fade !== state.fades[i]) {
+          layers[layer.id].userData.fade = state.fades[i];
+          setOpacity(layers[layer.id], state.fades[i]);
+        }
       });
 
       // Lantern flicker, drifting motes and fog, the door in the air.
@@ -263,7 +272,10 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       cat.userData.tail.rotation.x = Math.sin(time * 2) * 0.4;
       let catOpacity = current === 'c1867' ? state.fades[1] : 0;
       if (current === 'slip1') catOpacity = Math.sin(time * 3.1) * Math.sin(time * 1.7) > 0.15 ? state.fades[2] : 0;
-      setOpacity(cat, catOpacity);
+      if (cat.userData.fade !== catOpacity) {
+        cat.userData.fade = catOpacity;
+        setOpacity(cat, catOpacity);
+      }
 
       // The Frog breathes, and hops when touched.
       if (state.hop >= 0) {

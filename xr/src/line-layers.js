@@ -206,5 +206,7 @@ export function setOpacity(root, opacity) {
     if (!m) return;
     if (m.userData.baseOpacity === undefined) m.userData.baseOpacity = m.opacity;
     m.opacity = m.userData.baseOpacity * opacity;
+    // Only a fully shown solid writes depth, so a fading layer never hides the incoming one.
+    if (!m.blending || m.blending === 1) m.depthWrite = opacity >= 0.999;
   });
 }
