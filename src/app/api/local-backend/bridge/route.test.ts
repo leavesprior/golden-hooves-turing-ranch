@@ -5,7 +5,7 @@ import { middleware } from '../../../../middleware'
 import { issueLocalBridgeGrant, localBackendConfig, LOCAL_BRIDGE_COOKIE, LOCAL_BRIDGE_TTL_MS } from '../../../../lib/localBackendAccess'
 
 async function main() {
-  const envKeys = ['DM_TABLE_ENABLED', 'WORKER_TIMESHEETS_ENABLED', 'LOCAL_BACKEND_SLIDES_ENABLED', 'LOCAL_BACKEND_BRIDGE_SECRET'] as const
+  const envKeys = ['DM_TABLE_ENABLED', 'WORKER_TIMESHEETS_ENABLED', 'LOCAL_BACKEND_SLIDES_ENABLED', 'LOCAL_BACKEND_BRIDGE_SECRET', 'LOCAL_BACKEND_XR_URL'] as const
   const before = Object.fromEntries(envKeys.map(key => [key, process.env[key]]))
   const origin = 'http://127.0.0.1:3360', endpoint = `${origin}/api/local-backend/bridge`
   const answers = ['42', 'my towel', "don't panic", 'African or European?']
@@ -17,6 +17,7 @@ async function main() {
     process.env.WORKER_TIMESHEETS_ENABLED = 'true'
     process.env.LOCAL_BACKEND_SLIDES_ENABLED = 'true'
     process.env.LOCAL_BACKEND_BRIDGE_SECRET = 'disposable-local-route-test-secret-0123456789'
+    process.env.LOCAL_BACKEND_XR_URL = 'https://xr.example.test/out-of-time/'
     for (const body of [{}, { answers: [] }, { answers: answers.slice(0, 3) }, { answers: [...answers, 'extra'] }, { answers: ['wrong', ...answers.slice(1)] }, { answers: ['42', '', ...answers.slice(2)] }, { answers: [42, ...answers.slice(1)] }, { answers: ['x'.repeat(513), ...answers.slice(1)] }]) {
       const result = await POST(request(body))
       assert.equal(result.status, 403)
@@ -46,6 +47,7 @@ async function main() {
     const body = await result.json()
     assert.equal(body.workerEnabled, true)
     assert.equal(body.slidesEnabled, true)
+    assert.equal(body.xrUrl, 'https://xr.example.test/out-of-time/', 'the grant carries the validated XR link')
     assert.ok(body.expiresAt > Date.now())
     const config = localBackendConfig(process.env)
     const expired = await issueLocalBridgeGrant(origin, config, Date.now() - LOCAL_BRIDGE_TTL_MS - 1)

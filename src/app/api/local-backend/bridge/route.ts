@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   } catch { return response('Invalid answers', 400) }
   const grant = await issueLocalBridgeGrant(origin, config)
   if (!grant) return response('Not Found', 404)
-  const result = NextResponse.json({ expiresAt: grant.expiresAt, workerEnabled: config.workerEnabled, slidesEnabled: config.slidesEnabled }, { headers: { 'Cache-Control': 'no-store' } })
+  const result = NextResponse.json({ expiresAt: grant.expiresAt, workerEnabled: config.workerEnabled, slidesEnabled: config.slidesEnabled, xrUrl: config.xrUrl }, { headers: { 'Cache-Control': 'no-store' } })
   result.cookies.set(LOCAL_BRIDGE_COOKIE, grant.token, {
     httpOnly: true,
     sameSite: 'strict',

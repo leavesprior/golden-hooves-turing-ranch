@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict'
-import { allowLocalBackendRequest, issueLocalBridgeGrant, localBackendConfig, localBackendOrigin, localBackendRoute, LOCAL_BRIDGE_TTL_MS, verifyLocalBridgeGrant } from './localBackendAccess'
+import { allowLocalBackendRequest, isLoopbackHostname, localBackendXrUrl, issueLocalBridgeGrant, localBackendConfig, localBackendOrigin, localBackendRoute, LOCAL_BRIDGE_TTL_MS, verifyLocalBridgeGrant } from './localBackendAccess'
 
 async function main() {
   const env = { DM_TABLE_ENABLED: 'true', WORKER_TIMESHEETS_ENABLED: 'true', LOCAL_BACKEND_SLIDES_ENABLED: 'true', LOCAL_BACKEND_BRIDGE_SECRET: 'disposable-local-test-secret-0123456789' }
   const config = localBackendConfig(env), origin = 'http://127.0.0.1:3360', now = 1_800_000_000_000
   let checked = 0
+  // XR link: https only, no userinfo, bounded; anything else is absent.
+  assert.equal(config.xrUrl, null, 'no XR url configured')
+  assert.equal(localBackendConfig({ ...env, LOCAL_BACKEND_XR_URL: 'https://xr.example.test/out-of-time/' }).xrUrl, 'https://xr.example.test/out-of-time/')
+  assert.equal(localBackendXrUrl(' https://localhost:8081 '), 'https://localhost:8081/')
+  for (const bad of ['http://xr.example.test/', 'javascript:alert(1)', 'data:text/html,hi', 'https://user:pw@xr.example.test/', 'https://user@xr.example.test/', 'xr.example.test', '', '   ', `https://x.test/${'a'.repeat(520)}`, undefined]) {
+    assert.equal(localBackendXrUrl(bad), null, String(bad)); checked++
+  }
+  for (const host of ['localhost', 'LOCALHOST', '127.0.0.1', '[::1]', '::1']) { assert.equal(isLoopbackHostname(host), true, host); checked++ }
+  for (const host of ['backofbeyondranch.farm', '192.168.50.101', 'localhost.evil', '127.0.0.11', '']) { assert.equal(isLoopbackHostname(host), false, host); checked++ }
   for (const host of ['localhost', 'localhost:3360', '127.0.0.1', '127.0.0.1:3360', '[::1]', '[::1]:3360']) {
     assert.equal(localBackendOrigin(`http://${host}/dm-table`, host), `http://${host}`); checked++
   }
