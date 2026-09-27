@@ -13,6 +13,9 @@ const eslintConfig = defineConfig([
     "build/**",
     "scripts/**",
     "next-env.d.ts",
+    // Out of Time (XR) static build, minified (source lives in xr/src).
+    "public/xr/**",
+    "xr/dist/**",
   ]),
   // Rule overrides: warnings for patterns that are common in this codebase
   // but not actual bugs. Errors reserved for things that break at runtime.

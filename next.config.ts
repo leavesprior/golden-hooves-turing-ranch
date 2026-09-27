@@ -5,7 +5,21 @@ const isDev = process.env.NODE_ENV === 'development';
 // upgrade-insecure-requests/HSTS don't blank the site. Never set in production.
 const isLanCanary = process.env.LAN_CANARY === '1';
 
+const siteCsp = isDev || isLanCanary
+  ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws:; media-src 'self'; frame-src https://my.matterport.com https://www.google.com/maps/embed; frame-ancestors 'self' https://my.matterport.com"
+  : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; frame-src https://my.matterport.com https://www.google.com/maps/embed; frame-ancestors 'self' https://my.matterport.com; upgrade-insecure-requests";
+// /xr (Out of Time): same two widenings as src/lib/siteCsp.ts XR_CSP — the
+// IWSDK bundle compiles WebAssembly it embeds as a data: URL. Must agree with
+// middleware: where both headers reach the browser, both policies apply.
+const xrCsp = siteCsp
+  .replace("script-src 'self' 'unsafe-inline'", "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'")
+  .replace("connect-src 'self'", "connect-src 'self' data:");
+
 const nextConfig: NextConfig = {
+  // Out of Time (XR): a static IWSDK build copied into public/xr (see xr/README.md).
+  async rewrites() {
+    return [{ source: '/xr', destination: '/xr/index.html' }];
+  },
   async headers() {
     return [
       {
@@ -37,12 +51,12 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: isDev || isLanCanary
-              ? "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws:; media-src 'self'; frame-src https://my.matterport.com https://www.google.com/maps/embed; frame-ancestors 'self' https://my.matterport.com"
-              : "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; frame-src https://my.matterport.com https://www.google.com/maps/embed; frame-ancestors 'self' https://my.matterport.com; upgrade-insecure-requests",
+            value: siteCsp,
           },
         ],
       },
+      // Later rules override earlier ones for the same header key.
+      ...['/xr', '/xr/:path*'].map(source => ({ source, headers: [{ key: 'Content-Security-Policy', value: xrCsp }] })),
     ];
   },
   images: {

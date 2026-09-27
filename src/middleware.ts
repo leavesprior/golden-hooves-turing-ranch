@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { allowLocalBackendRequest, localBackendConfig, localBackendRoute, LOCAL_BRIDGE_COOKIE } from './lib/localBackendAccess'
+import { contentSecurityPolicyFor } from './lib/siteCsp'
 
 export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') || ''
@@ -66,7 +67,7 @@ export async function middleware(request: NextRequest) {
     response.headers.set('X-XSS-Protection', '1; mode=block')
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
     response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)')
-    response.headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; frame-src https://www.google.com/maps/embed; frame-ancestors 'none'; upgrade-insecure-requests")
+    response.headers.set('Content-Security-Policy', contentSecurityPolicyFor(path))
   }
 
   return response

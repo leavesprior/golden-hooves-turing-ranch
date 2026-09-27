@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <link rel="icon" href="data:," />
+    <title>Out of Time</title>
+    <style>
+      body { margin: 0; background: #140e08; font-family: Georgia, serif; }
+      #overlay {
+        position: fixed; left: 16px; top: 16px; max-width: 340px; padding: 16px;
+        background: rgba(20, 14, 8, 0.85); color: #f3e6c8; border-radius: 10px; z-index: 1;
+      }
+      #overlay h1 { margin: 0 0 6px; font-size: 26px; }
+      #overlay p { margin: 8px 0 0; font-size: 14px; line-height: 1.4; color: #d8c7a2; }
+      #enter-ar {
+        margin-top: 10px; padding: 10px 18px; font: bold 16px Georgia, serif;
+        color: #fff4dc; background: #7a1f1a; border: 2px solid #e8c872; border-radius: 8px; cursor: pointer;
+      }
+      #enter-ar:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+  </head>
+  <body>
+    <div id="overlay">
+      <h1>Out of Time</h1>
+      <p>One building on Main Street, Volcano, California: as it stands today, and a painted guess at about 1885.</p>
+      <button id="enter-ar" type="button" disabled>Enter AR</button>
+      <p id="enter-note">Checking for a WebXR headset&hellip;</p>
+    </div>
+    <div id="scene-container"></div>
+    <script type="module" src="/src/index.js"></script>
+  </body>
+</html>
