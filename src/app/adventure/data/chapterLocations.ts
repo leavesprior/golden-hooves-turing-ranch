@@ -2554,6 +2554,33 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
 ]
 
 // ============================================
+// CHAPTER 6: THE WALL AND THE POST (post-game, present-day frame)
+// Unlocked only after the chapter-5 ranch finale has shown ClueGameUnlock
+// (flag CH6_UNLOCK_FLAG). Design: the Chapter 6 design docs (03_level_design, 06_wiring_plan).
+// The narrator is shown only as "Stovepipe" until his real-life author consents.
+// ============================================
+
+export const CHAPTER_6_LOCATIONS: ChapterLocation[] = [
+  {
+    id: 'ch6_liars_bench',
+    name: 'The Liar\'s Bench, Sonora',
+    description: 'A worn bench on a Sonora sidewalk, in the present day. An old man in a stovepipe hat sits there most afternoons with a gold pocket watch in his hand, telling stories to anyone who stops. Some of the stories are true. Some are stretched. Some are pure whoppers. He says there is a carved toy board that is really a map, and that you have been everywhere in this country but never really looked. Then he winds the watch and says, "Showtime."',
+    chapter: 6,
+    x: 50, y: 50,
+    icon: '\u231A',
+    atmosphere: 'storytelling',
+    connectedTo: [],
+    travelDanger: 'safe',
+    discoveredByDefault: true,
+    services: [],
+    npcs: [
+      { id: 'ch6_stovepipe', name: 'Stovepipe', role: 'Storyteller', witnessType: 'settler', dialogueHint: 'Truth, Stretcher or Whopper? Catch him in a lie.' },
+    ],
+    historicalFact: 'Sonora formed its first Vigilance Committee at Sunday noon on June 29, 1851, days after someone tried to burn the town. A year earlier, on May 19, 1850, about 4,000 mostly Mexican, Chilean and Peruvian miners protested the new $20-a-month Foreign Miners\' Tax in Sonora. The tax was repealed on March 14, 1851.',
+  },
+]
+
+// ============================================
 // HELPER FUNCTIONS
 // ============================================
 
@@ -2563,6 +2590,7 @@ export const ALL_CHAPTER_LOCATIONS: Record<number, ChapterLocation[]> = {
   3: CHAPTER_3_LOCATIONS,
   4: CHAPTER_4_LOCATIONS,
   5: CHAPTER_5_LOCATIONS,
+  6: CHAPTER_6_LOCATIONS,
 }
 
 export function getChapterLocations(chapter: number): ChapterLocation[] {

@@ -1,5 +1,6 @@
 import type { StatName } from '@/app/oregon-trail/characterContext'
 import type { FactionId } from '@/app/oregon-trail/reputationContext'
+import { CH6_UNLOCK_FLAG } from '@/lib/ch6/unlock'
 
 // ============================================
 // QUEST SYSTEM — Fallout-style multi-path quests
@@ -2019,6 +2020,40 @@ const CH5_QUEST_FINAL_CHOICE: Quest = {
 // MASTER QUEST LIST
 // ============================================
 
+// ============================================
+// CHAPTER 6: THE WALL AND THE POST (post-game)
+// Gated on CH6_UNLOCK_FLAG, written when ClueGameUnlock is shown at the end
+// of chapter 5. Slice 1 ships data only; the entry to the bench comes later.
+// ============================================
+
+const CH6_QUEST_LIARS_BENCH: Quest = {
+  id: 'ch6_liars_bench',
+  chapter: 6,
+  title: 'The Liar\'s Bench',
+  description:
+    'An old storyteller in a stovepipe hat holds court on a Sonora bench. He tells three stories: one true, one stretched, ' +
+    'one a whopper. Learn to tell them apart before he takes you back to look at everything again.',
+  giver: 'ch6_stovepipe', // Stovepipe (persona only — no real name until consent)
+  giverLocation: 'ch6_liars_bench',
+  prerequisite: { flag: CH6_UNLOCK_FLAG },
+  paths: [
+    {
+      id: 'ch6_lb_listen',
+      name: 'Truth, Stretcher or Whopper',
+      description: 'Sit on the bench, hear his three tales, and make your calls.',
+      objectives: [
+        { id: 'ch6_lb_1', description: 'Find the Liar\'s Bench in Sonora', type: 'travel', target: 'ch6_liars_bench' },
+        { id: 'ch6_lb_2', description: 'Hear Stovepipe out and make your three calls', type: 'talk', target: 'ch6_stovepipe' },
+      ],
+      reward: { xp: 50 },
+    },
+  ],
+  trueHistory:
+    'Sonora formed its first Vigilance Committee at Sunday noon on June 29, 1851. The Foreign Miners\' Tax of 1850 ' +
+    'charged $20 a month and was repealed on March 14, 1851. Landmark No. 140, the Wells Fargo Express Company ' +
+    'Building, stands in Chinese Camp, not Sonora.',
+}
+
 export const QUESTS: Quest[] = [
   // Chapter 1: The Journey West
   CH1_QUEST_STOLEN_SUPPLIES,
@@ -2036,6 +2071,8 @@ export const QUESTS: Quest[] = [
   // Chapter 5: The Treasure
   CH5_QUEST_TOBIAS_LEGACY,
   CH5_QUEST_FINAL_CHOICE,
+  // Chapter 6: The Wall and the Post (post-game, flag-gated)
+  CH6_QUEST_LIARS_BENCH,
 ]
 
 // ============================================

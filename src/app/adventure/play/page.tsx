@@ -62,6 +62,7 @@ import { DialogueView } from '@/components/adventure/DialogueView'
 import { QuestLog, type QuestLogEntry, type QuestStatus } from '@/components/adventure/QuestLog'
 import { getDialoguesForNpc, type Dialogue, type DialogueEffect } from '@/app/adventure/data/dialogues'
 import { QUESTS, type Quest, type QuestPath } from '@/app/adventure/data/quests'
+import { withCh6Unlocked } from '@/lib/ch6/unlock'
 import {
   questEventProgress,
   questObjectiveProgress,
@@ -1678,6 +1679,8 @@ function AdventureContent() {
       // runs through ClueGameUnlock (full-screen takeover below); its LEAVE INN
       // button routes to /game, replacing the old immediate redirect.
       narratorComment('And so the story ends. Or does it? Check the ranch for the real treasure.', 'fourth_wall')
+      // Chapter 6 unlocks alongside — never instead of — the discount path.
+      setAdventureState(prev => (prev ? { ...prev, dialogueFlags: withCh6Unlocked(prev.dialogueFlags) } : prev))
       setShowClueGameUnlock(true)
       return
     }
