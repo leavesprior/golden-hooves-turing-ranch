@@ -9,6 +9,7 @@ import type { KarmaBalance, KarmaType } from '@/lib/karmaBlockchain'
 import { allowedLedgerDelta } from '@/lib/karmaUnverifiedBound'
 
 const KARMA_SESSION_KEY = 'bobr_karma_session_id'
+const KARMA_TOKEN_KEY = 'bobr_karma_session_token'
 
 // Stable per-browser karma session id (own key — no coupling to other providers).
 // Prefers an already-stored game session id if present, so karma + markers can
@@ -23,6 +24,27 @@ export function getKarmaSessionId(): string {
     return id
   } catch {
     return `karma_${Date.now()}`
+  }
+}
+
+/**
+ * The server-minted karma session + its HMAC token (bench 2026-09-28). A stored id
+ * without a token (legacy, client-minted) is replaced by a fresh server session:
+ * its ledger rows stay on the server but are no longer written to from here.
+ */
+async function ensureKarmaSession(): Promise<{ sessionId: string; token: string } | null> {
+  try {
+    const sessionId = localStorage.getItem(KARMA_SESSION_KEY)
+    const token = localStorage.getItem(KARMA_TOKEN_KEY)
+    if (sessionId && token) return { sessionId, token }
+    const res = await fetch('/api/karma/session', { method: 'POST', cache: 'no-store' })
+    const data = res.ok ? await res.json() : null
+    if (!data?.ok || typeof data.sessionId !== 'string' || typeof data.token !== 'string') return null
+    localStorage.setItem(KARMA_SESSION_KEY, data.sessionId)
+    localStorage.setItem(KARMA_TOKEN_KEY, data.token)
+    return { sessionId: data.sessionId, token: data.token }
+  } catch {
+    return null
   }
 }
 
@@ -349,11 +371,17 @@ export async function flushKarmaOutbox(): Promise<ServerBalanceResult> {
   karmaLastPostAt = now
   flushInFlight = true
   try {
-    const { eventId, sessionId, karmaType, delta, source } = head
+    const auth = await ensureKarmaSession()
+    if (!auth) {
+      lastServerContactOk = false
+      karmaBackoffUntil = Date.now() + KARMA_BACKOFF_MS
+      return { ok: false }
+    }
+    const { eventId, karmaType, delta, source } = head
     const res = await fetch('/api/karma/event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventId, sessionId, karmaType, delta, source }),
+      body: JSON.stringify({ eventId, sessionId: auth.sessionId, token: auth.token, karmaType, delta, source }),
     })
     if (res.status === 429) {
       lastServerContactOk = true // reachable, just busy
@@ -370,6 +398,9 @@ export async function flushKarmaOutbox(): Promise<ServerBalanceResult> {
       try { reason = (await res.json())?.reason } catch { /* no JSON body: not a known refusal */ }
       const permanent = (res.status === 400 || res.status === 403) &&
         typeof reason === 'string' && KARMA_PERMANENT_REFUSALS.has(reason)
+      if (reason === 'session_token_required' || reason === 'invalid_session_token') {
+        try { localStorage.removeItem(KARMA_TOKEN_KEY) } catch { /* re-mint on the next flush */ }
+      }
       if (!permanent) {
         // 401/404/other 4xx, or no known reason: could be a proxy or a deploy in
         // progress, not the ledger's answer. Keep it queued and back off.

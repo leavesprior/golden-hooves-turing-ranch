@@ -19,6 +19,8 @@ g.localStorage = {
   get length() { return store.size },
 }
 g.window = globalThis
+// Karma auth (bench 2026-09-28): a stored server session so no /api/karma/session fetch consumes a reply.
+store.set('bobr_karma_session_id', 's_auth'); store.set('bobr_karma_session_token', 'test-token')
 const timers: (() => void)[] = []
 g.setTimeout = ((fn: () => void) => { timers.push(fn); return timers.length }) as unknown
 type Reply = { status: number; body: unknown } | 'throw'

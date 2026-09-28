@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbAppendKarmaEvent, type KarmaType } from '@/lib/discountCodesDb';
-import { rateLimitOk, clientIpFrom, signBalance } from '@/lib/markerSession';
+import { rateLimitOk, clientIpFrom, signBalance, verifyKarmaSessionToken } from '@/lib/markerSession';
 import { allowedLedgerDelta } from '@/lib/karmaUnverifiedBound';
 
 export const runtime = 'nodejs';
@@ -26,16 +26,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'rate_limited' }, { status: 429 });
   }
 
-  let body: { sessionId?: string; eventId?: string; karmaType?: string; delta?: number; source?: string };
+  let body: { sessionId?: string; token?: unknown; eventId?: string; karmaType?: string; delta?: number; source?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, reason: 'invalid_json' }, { status: 400 });
   }
 
-  const { sessionId, eventId, karmaType, delta, source } = body;
+  const { sessionId, token, eventId, karmaType, delta, source } = body;
   if (!sessionId || !SESSION_ID_PATTERN.test(sessionId)) {
     return NextResponse.json({ ok: false, reason: 'invalid_session' }, { status: 400 });
+  }
+  // Proof of ownership: the server-issued token for THIS sessionId (POST /api/karma/session).
+  if (token === undefined || token === null || token === '') {
+    return NextResponse.json({ ok: false, reason: 'session_token_required' }, { status: 401 });
+  }
+  if (!verifyKarmaSessionToken(sessionId, token)) {
+    return NextResponse.json({ ok: false, reason: 'invalid_session_token' }, { status: 403 });
   }
   if (!karmaType || !KARMA_TYPES.has(karmaType as KarmaType)) {
     return NextResponse.json({ ok: false, reason: 'invalid_karma_type' }, { status: 400 });
