@@ -26,3 +26,18 @@ export const LINE = [
       'A slip down the line of probability: the Frog’s side of things. Nothing here is history. The cat was here a moment ago. Or was not.',
   },
 ];
+
+// Figures who walk the line. Fictional composites only: never a real person's
+// name, face or costume (law 4). Each carries era + source + ternary conf (law 5).
+export const CAST = [
+  {
+    id: 'hattie',
+    name: 'Hattie',
+    kind: 'story',
+    fictional: true,
+    era: 'c1867',
+    role: 'hotel cook',
+    source: 'Composite of period working dress (long skirt, apron, shawl, kerchief); no real person.',
+    conf: -1,
+  },
+];

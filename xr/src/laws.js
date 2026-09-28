@@ -7,7 +7,7 @@ export const LAW_LIMITS = {
   frame: { x: 2.2, yMin: -0.05, yMax: 3.0, zMin: -0.05, zMax: 2.6 }, // facade volume, m (law 2)
 };
 
-export function checkLaws({ scene, root, layers, line }) {
+export function checkLaws({ scene, root, layers, line, cast = [] }) {
   const v = [];
   if (scene.background) v.push('law1: scene.background is set (passthrough must show)');
   if (scene.fog) v.push('law1: scene.fog is set (a veil)');
@@ -36,6 +36,11 @@ export function checkLaws({ scene, root, layers, line }) {
   for (const layer of line) {
     if (![1, 0, -1].includes(layer.conf)) v.push(`law5: layer ${layer.id} has no ternary conf`);
     if (!layer.record || layer.record.length < 20) v.push(`law5: layer ${layer.id} has no Honest Record`);
+  }
+  for (const c of cast) {
+    if (![1, 0, -1].includes(c.conf)) v.push(`law5: cast ${c.id} has no ternary conf`);
+    if (!c.era || !c.source) v.push(`law5: cast ${c.id} lacks era or source`);
+    if (c.fictional !== true) v.push(`law4: cast ${c.id} is not marked fictional (never costume real people)`);
   }
   return v;
 }

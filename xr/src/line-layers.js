@@ -210,3 +210,60 @@ export function setOpacity(root, opacity) {
     if (!m.blending || m.blending === 1) m.depthWrite = opacity >= 0.999;
   });
 }
+
+/**
+ * Hattie, a hotel cook about 1867. A fictional composite (no real person): long
+ * dark skirt, apron, shawl, kerchief. Front faces +z; legs swing from the hip.
+ */
+export function buildHattie() {
+  const g = new Group();
+  const body = new Group(); // everything above the feet bobs with the step
+  g.add(body);
+  const skirtMat = mat(0x2b2433);
+  const skin = mat(0xc49a78);
+  const skirt = new Mesh(new CylinderGeometry(0.13, 0.3, 0.86, 14), skirtMat);
+  skirt.position.y = 0.47;
+  const apron = box(0.3, 0.58, 0.02, mat(0xe9e1cd));
+  apron.position.set(0, 0.6, 0.215);
+  apron.rotation.x = -0.17;
+  const bodice = new Mesh(new CylinderGeometry(0.12, 0.14, 0.44, 12), mat(0x3d3242));
+  bodice.position.y = 1.11;
+  const shawl = new Mesh(new CylinderGeometry(0.1, 0.23, 0.2, 12), mat(0x8c2f24));
+  shawl.position.y = 1.26;
+  const neck = new Mesh(new CylinderGeometry(0.04, 0.045, 0.08, 8), skin);
+  neck.position.y = 1.38;
+  const head = new Mesh(new SphereGeometry(0.095, 14, 10), skin);
+  head.position.y = 1.47;
+  const kerchief = new Mesh(new SphereGeometry(0.105, 14, 8, 0, Math.PI * 2, 0, Math.PI / 1.8), mat(0xd9ceb4));
+  kerchief.position.set(0, 1.49, -0.01);
+  const knot = new Mesh(new SphereGeometry(0.035, 8, 6), mat(0xd9ceb4));
+  knot.position.set(0, 1.44, -0.1);
+  body.add(skirt, apron, bodice, shawl, neck, head, kerchief, knot);
+  g.userData.arms = [];
+  for (const s of [-1, 1]) {
+    const shoulder = new Group();
+    shoulder.position.set(s * 0.17, 1.3, 0);
+    const arm = new Mesh(new CapsuleGeometry(0.035, 0.38, 4, 8), mat(0x3d3242));
+    arm.position.y = -0.22;
+    const hand = new Mesh(new SphereGeometry(0.035, 8, 6), skin);
+    hand.position.y = -0.45;
+    shoulder.add(arm, hand);
+    body.add(shoulder);
+    g.userData.arms.push(shoulder);
+  }
+  g.userData.legs = [];
+  for (const s of [-1, 1]) {
+    const hip = new Group();
+    hip.position.set(s * 0.07, 0.62, 0);
+    const leg = new Mesh(new CylinderGeometry(0.04, 0.035, 0.56, 8), skirtMat);
+    leg.position.y = -0.3;
+    const boot = box(0.08, 0.07, 0.16, mat(0x1c1410));
+    boot.position.set(0, -0.585, 0.04);
+    hip.add(leg, boot);
+    g.add(hip);
+    g.userData.legs.push(hip);
+  }
+  g.userData.body = body;
+  g.userData.skirt = skirt;
+  return g;
+}
