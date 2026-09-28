@@ -12,7 +12,7 @@ import { AnimalTreatsStore } from './components/AnimalTreatsStore'
 import { MomentoCollection } from './components/MomentoCollection'
 import { ConsensusIndicator } from './components/ConsensusIndicator'
 import { PixelNavigation } from '@/components/pixel'
-import { fetchServerBalance, getKarmaSessionId } from '@/lib/karmaServerSync'
+import { ensureKarmaSession, fetchServerBalance } from '@/lib/karmaServerSync'
 import type { KarmaBalance } from '@/lib/karmaBlockchain'
 
 type MarketTab = 'market' | 'donate' | 'treats' | 'momentos'
@@ -41,7 +41,9 @@ export default function KarmaMarketPage() {
     let cancelled = false
 
     async function loadServerLedgerBalance() {
-      const result = await fetchServerBalance(getKarmaSessionId())
+      // Show the session the wallet writes to (server-minted), never a legacy id.
+      const auth = await ensureKarmaSession()
+      const result = auth ? await fetchServerBalance(auth.sessionId) : { ok: false as const }
       if (cancelled) return
       if (result.ok && result.balance) {
         setServerLedgerBalance(result.balance)

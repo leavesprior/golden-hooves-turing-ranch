@@ -32,7 +32,7 @@ export function getKarmaSessionId(): string {
  * without a token (legacy, client-minted) is replaced by a fresh server session:
  * its ledger rows stay on the server but are no longer written to from here.
  */
-async function ensureKarmaSession(): Promise<{ sessionId: string; token: string } | null> {
+export async function ensureKarmaSession(): Promise<{ sessionId: string; token: string } | null> {
   try {
     const sessionId = localStorage.getItem(KARMA_SESSION_KEY)
     const token = localStorage.getItem(KARMA_TOKEN_KEY)
@@ -438,6 +438,23 @@ export async function flushKarmaOutbox(): Promise<ServerBalanceResult> {
     flushInFlight = false
     if (readKarmaOutbox().length > 0) scheduleFlush(Math.max(KARMA_MIN_GAP_MS, karmaBackoffUntil - Date.now()) + 50)
   }
+}
+
+/**
+ * Read the server balance for the CURRENT server session and the spends still pending
+ * for that same session. The session is settled first: a returning player's legacy id
+ * is replaced before anything is read, so the balance, the pending spends and the
+ * flush all use one id. (Reading the legacy id while an un-awaited flush moved a
+ * pending spend to the new id refunded that spend through reconcile's max().)
+ * Returns null when the server can't be reached: the caller keeps its local balance.
+ */
+export async function syncKarmaBalance(): Promise<{ server: KarmaBalance; pending: KarmaBalance } | null> {
+  const auth = await ensureKarmaSession()
+  if (!auth) return null
+  void flushKarmaOutbox() // drain events queued by an earlier visit
+  const res = await fetchServerBalance(auth.sessionId)
+  if (!res.ok || !res.balance) return null
+  return { server: res.balance, pending: pendingKarmaDeltas(auth.sessionId) }
 }
 
 /**
