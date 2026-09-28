@@ -86,6 +86,15 @@ check('both writer processes finished cleanly', codes.every((c) => c === 0), cod
 const v2 = dbVerifyKarmaLedger()
 check('no fork: 126 rows, chain intact after concurrent writers', v2.status === 'intact' && v2.rows === 126, v2)
 
+// A NaN delta binds as NULL; INSERT OR IGNORE used to drop it silently and return a
+// normal balance. It must throw and write nothing.
+let nanThrew = false
+try { dbAppendKarmaEvent({ eventId: 'nan_delta', sessionId: 's_nan', karmaType: 'good', delta: Number.NaN, source: 'earn' }) } catch { nanThrew = true }
+const nanDb = new Database(process.env.BOBR_DB_PATH_FOR_TESTS)
+const nanRows = (nanDb.prepare("SELECT COUNT(*) AS n FROM bobr_karma_ledger WHERE event_id = 'nan_delta'").get() as { n: number }).n
+nanDb.close()
+check('non-finite delta: throws and writes nothing', nanThrew && nanRows === 0, { nanThrew, nanRows })
+
 const raw = new Database(process.env.BOBR_DB_PATH_FOR_TESTS)
 raw.prepare('UPDATE bobr_karma_ledger SET delta = delta + 50 WHERE seq = 3').run()
 raw.close()

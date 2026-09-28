@@ -315,6 +315,13 @@ export function dbGetMarkerProgressCount(sessionId: string): number {
 export type KarmaType = 'good' | 'neutral' | 'bad';
 export interface KarmaBalance { good: number; neutral: number; bad: number }
 
+// INSERT OR IGNORE drops a row that breaks ANY constraint, not only a duplicate
+// event_id: a NaN delta binds as NULL, fails NOT NULL, and vanished silently while
+// the caller got a normal balance back. Refuse it loudly instead.
+function assertFiniteDelta(delta: number): void {
+  if (!Number.isFinite(delta)) throw new Error(`karma ledger: non-finite delta ${delta}`);
+}
+
 /**
  * Append a SERVER-COMPUTED karma earn-event, hash-chained + idempotent on eventId.
  * The caller (a server route) decides the delta from validated facts — never the
@@ -323,6 +330,7 @@ export interface KarmaBalance { good: number; neutral: number; bad: number }
 export function dbAppendKarmaEvent(params: {
   eventId: string; sessionId: string; karmaType: KarmaType; delta: number; source: string;
 }): KarmaBalance {
+  assertFiniteDelta(params.delta);
   const db = getDb();
   // Read-head + insert must be one IMMEDIATE transaction: it takes SQLite's write
   // lock BEFORE reading the head, so two server processes cannot both chain onto

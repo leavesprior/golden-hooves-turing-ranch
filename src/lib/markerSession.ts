@@ -164,3 +164,18 @@ export function verifyScoreClaim(playerId: string, score: number, game: string, 
 export function signBalance(payload: string): string {
   return crypto.createHmac('sha256', getSecret()).update(`karma-balance::${payload}`).digest('hex');
 }
+
+// Karma ledger session token (bench 2026-09-28). Own prefix so a marker token can
+// never double as a karma token. Issued only by POST /api/karma/session for a
+// server-minted sessionId; required on POST /api/karma/event.
+export function issueKarmaSessionToken(sessionId: string): string {
+  return crypto.createHmac('sha256', getSecret()).update(`karma-session::${sessionId}`).digest('hex');
+}
+
+export function verifyKarmaSessionToken(sessionId: string, presented: unknown): boolean {
+  if (typeof presented !== 'string') return false;
+  const a = Buffer.from(issueKarmaSessionToken(sessionId), 'utf8');
+  const b = Buffer.from(presented, 'utf8');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}

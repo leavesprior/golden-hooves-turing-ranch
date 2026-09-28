@@ -14,7 +14,7 @@ import {
 } from './data/discountEngine'
 import { KarmaStorage } from '@/lib/karmaStorage'
 import { CrossGameStorage } from '@/lib/crossGameProgression'
-import { getKarmaSessionId, fetchServerBalance, postKarmaEvent, reconcile, flushKarmaOutbox, pendingKarmaDeltas, karmaSyncStatus } from '@/lib/karmaServerSync'
+import { getKarmaSessionId, postKarmaEvent, reconcile, syncKarmaBalance, karmaSyncStatus } from '@/lib/karmaServerSync'
 import { scaleKarmaGrant } from '@/lib/gftAgeMode'
 import { convertGoodToTacos, withinUnverifiedBound } from '@/lib/karmaUnverifiedBound'
 import { commitGoldCountryFare, hasGoldCountryFareReceipt, GoldCountryFareReceipt, GoldCountryFareResult } from '@/lib/goldCountryFare'
@@ -231,14 +231,9 @@ export function KarmaWalletProvider({ children }: KarmaWalletProviderProps) {
     if (!state.isInitialized || !state.walletMode) return
     let cancelled = false
     ;(async () => {
-      const sessionId = getKarmaSessionId()
-      void flushKarmaOutbox() // drain events queued by an earlier visit
-      const res = await fetchServerBalance(sessionId)
-      if (cancelled) return
-      if (res.ok && res.balance) {
-        const pending = pendingKarmaDeltas(sessionId)
-        setState(prev => ({ ...prev, balance: reconcile(prev.balance, res.balance!, pending) }))
-      }
+      const synced = await syncKarmaBalance()
+      if (cancelled || !synced) return
+      setState(prev => ({ ...prev, balance: reconcile(prev.balance, synced.server, synced.pending) }))
     })()
     return () => { cancelled = true }
   }, [state.isInitialized, state.walletMode, setState])
