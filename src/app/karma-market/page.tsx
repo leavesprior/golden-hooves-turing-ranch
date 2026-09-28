@@ -12,6 +12,8 @@ import { AnimalTreatsStore } from './components/AnimalTreatsStore'
 import { MomentoCollection } from './components/MomentoCollection'
 import { ConsensusIndicator } from './components/ConsensusIndicator'
 import { PixelNavigation } from '@/components/pixel'
+import { fetchServerBalance, getKarmaSessionId } from '@/lib/karmaServerSync'
+import type { KarmaBalance } from '@/lib/karmaBlockchain'
 
 type MarketTab = 'market' | 'donate' | 'treats' | 'momentos'
 
@@ -24,6 +26,8 @@ const TAB_CONFIG: { id: MarketTab; label: string; emoji: string }[] = [
 
 export default function KarmaMarketPage() {
   const [activeTab, setActiveTab] = useState<MarketTab>('market')
+  const [serverLedgerBalance, setServerLedgerBalance] = useState<KarmaBalance | null>(null)
+  const [serverLedgerUnavailable, setServerLedgerUnavailable] = useState(true)
   const { balance, isInitialized, initializeWallet } = useKarmaWallet()
 
   // Auto-initialize wallet if needed (must be in useEffect, not render body)
@@ -32,6 +36,25 @@ export default function KarmaMarketPage() {
       initializeWallet('continue')
     }
   }, [isInitialized, initializeWallet])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadServerLedgerBalance() {
+      const result = await fetchServerBalance(getKarmaSessionId())
+      if (cancelled) return
+      if (result.ok && result.balance) {
+        setServerLedgerBalance(result.balance)
+        setServerLedgerUnavailable(false)
+      } else {
+        setServerLedgerBalance(null)
+        setServerLedgerUnavailable(true)
+      }
+    }
+
+    void loadServerLedgerBalance()
+    return () => { cancelled = true }
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-950 via-amber-900 to-amber-950">
@@ -57,19 +80,31 @@ export default function KarmaMarketPage() {
 
           {/* Wallet bar */}
           <div className="mt-3 flex items-center justify-between bg-amber-800/30 border border-amber-700 rounded-lg px-3 py-2">
-            <div className="flex gap-4 text-[10px]">
-              <span className="text-amber-300">
-                <span className="text-amber-500">Neutral:</span>{' '}
-                <span className="font-pixel">{balance.neutral}</span>
-              </span>
-              <span className="text-amber-300">
-                <span className="text-amber-500">Good:</span>{' '}
-                <span className="font-pixel">{balance.good}</span>
-              </span>
-              <span className="text-amber-300">
-                <span className="text-amber-500">Bad:</span>{' '}
-                <span className="font-pixel">{balance.bad}</span>
-              </span>
+            <div>
+              <div className="flex gap-4 text-[10px]">
+                <span className="text-amber-300">
+                  <span className="text-amber-500">Neutral:</span>{' '}
+                  <span className="font-pixel">{balance.neutral}</span>
+                </span>
+                <span className="text-amber-300">
+                  <span className="text-amber-500">Good:</span>{' '}
+                  <span className="font-pixel">{balance.good}</span>
+                </span>
+                <span className="text-amber-300">
+                  <span className="text-amber-500">Bad:</span>{' '}
+                  <span className="font-pixel">{balance.bad}</span>
+                </span>
+              </div>
+              <div className="mt-1 text-[9px] text-amber-500">
+                <span>Ledger balance (server ledger):</span>{' '}
+                {serverLedgerUnavailable || !serverLedgerBalance ? (
+                  <span className="font-pixel text-amber-600">unavailable</span>
+                ) : (
+                  <span className="font-pixel text-amber-300">
+                    neutral {serverLedgerBalance.neutral} · good {serverLedgerBalance.good} · bad {serverLedgerBalance.bad}
+                  </span>
+                )}
+              </div>
             </div>
             <ConsensusIndicator />
           </div>
