@@ -1,124 +1,70 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { ledgerDisplayFromJson, type LedgerDisplay } from '@/lib/ledgerDisplay'
 
-type ConsensusMode = 'full' | 'provisional' | 'offline'
-
-interface ConsensusState {
-  mode: ConsensusMode
-  nodesOnline: number
-  totalNodes: number
-}
-
-/**
- * Shows the current blockchain consensus status.
- * - Green: Full Consensus (3 nodes)
- * - Yellow: Provisional Ledger (2 nodes)
- * - Red: Local Only (offline)
- */
+/** Shows the current server karma ledger verification status. */
 export function ConsensusIndicator() {
-  const [consensus, setConsensus] = useState<ConsensusState>({
-    mode: 'offline',
-    nodesOnline: 0,
-    totalNodes: 3,
-  })
+  const [ledgerDisplay, setLedgerDisplay] = useState<LedgerDisplay>(ledgerDisplayFromJson(''))
 
-  // Check blockchain connectivity on mount and periodically
+  // Check the same-origin server ledger verifier on mount and periodically.
   useEffect(() => {
-    // The karma ledger node lives at localhost:8131 on a Neoma machine — it is
-    // never reachable from a public visitor's browser. In production, firing this
-    // fetch only produces a guaranteed-failed cross-origin request plus CSP console
-    // noise on every page view (audit L1). Probe only on localhost (dev); otherwise
-    // show the same graceful "offline" the catch path would have produced, without
-    // the doomed request or the 30s polling interval.
-    // 2026-06-21: even on localhost, the :8131 probe trips CSP (connect-src 'self')
-    // and spews console errors, because :8131 isn't an allowed connect source. The
-    // karma ledger is server-authoritative (SQLite via /api/karma/*), so "provisional"
-    // is the honest state without a live EVM node. Only probe :8131 when the dev-chain
-    // flag is explicitly on; otherwise show the graceful state with no doomed fetch.
-    const probeDevChain =
-      typeof window !== 'undefined' &&
-      window.location.hostname === 'localhost' &&
-      process.env.NEXT_PUBLIC_ENABLE_KARMA_DEV_CHAIN === '1'
-    if (!probeDevChain) {
-      setConsensus({ mode: 'provisional', nodesOnline: 2, totalNodes: 3 })
-      return
-    }
-
-    const checkConsensus = async () => {
+    const checkLedger = async () => {
       try {
-        const response = await fetch('http://localhost:8131/health', {
-          signal: AbortSignal.timeout(1000),
+        const response = await fetch('/api/karma/verify', {
+          cache: 'no-store',
         })
-
-        if (response.ok) {
-          const data = await response.json()
-          const nodesOnline = data.nodes_online ?? data.nodesOnline ?? 2
-          const totalNodes = data.total_nodes ?? data.totalNodes ?? 3
-
-          setConsensus({
-            mode: nodesOnline >= 3 ? 'full' : nodesOnline >= 2 ? 'provisional' : 'offline',
-            nodesOnline,
-            totalNodes,
-          })
-        } else {
-          setConsensus({ mode: 'offline', nodesOnline: 0, totalNodes: 3 })
-        }
+        setLedgerDisplay(ledgerDisplayFromJson(await response.text()))
       } catch {
-        // In production or when blockchain is down, default to provisional
-        if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-          setConsensus({ mode: 'provisional', nodesOnline: 2, totalNodes: 3 })
-        } else {
-          setConsensus({ mode: 'offline', nodesOnline: 0, totalNodes: 3 })
-        }
+        setLedgerDisplay(ledgerDisplayFromJson(''))
       }
     }
 
-    checkConsensus()
-    const interval = setInterval(checkConsensus, 30000)
+    checkLedger()
+    const interval = setInterval(checkLedger, 30000)
     return () => clearInterval(interval)
   }, [])
 
   const config = {
-    full: {
+    green: {
       color: 'text-green-400',
       bg: 'bg-green-900/30',
       border: 'border-green-600',
       dot: 'bg-green-400',
-      label: 'Karma Ledger',
-      description: 'All karma tracked',
     },
-    provisional: {
+    amber: {
       color: 'text-yellow-400',
       bg: 'bg-yellow-900/30',
       border: 'border-yellow-600',
       dot: 'bg-yellow-400',
-      label: 'Karma Ledger',
-      description: 'Syncing your karma',
     },
-    offline: {
-      color: 'text-amber-400',
-      bg: 'bg-amber-900/30',
-      border: 'border-amber-700',
-      dot: 'bg-amber-400',
-      label: 'Karma Ledger',
-      description: 'Saved locally',
+    red: {
+      color: 'text-red-400',
+      bg: 'bg-red-900/30',
+      border: 'border-red-700',
+      dot: 'bg-red-400',
+    },
+    grey: {
+      color: 'text-gray-400',
+      bg: 'bg-gray-900/30',
+      border: 'border-gray-700',
+      dot: 'bg-gray-400',
     },
   }
 
-  const c = config[consensus.mode]
+  const c = config[ledgerDisplay.tone]
 
   return (
     <div className={`flex items-center gap-2 px-3 py-1.5 rounded border ${c.bg} ${c.border}`}>
       <div className="relative">
         <div className={`w-2 h-2 rounded-full ${c.dot}`} />
-        {consensus.mode !== 'offline' && (
+        {ledgerDisplay.tone === 'green' && (
           <div className={`absolute inset-0 w-2 h-2 rounded-full ${c.dot} animate-ping opacity-50`} />
         )}
       </div>
       <div>
-        <div className={`font-pixel text-[9px] ${c.color}`}>{c.label}</div>
-        <div className="text-[8px] text-amber-600">{c.description}</div>
+        <div className={`font-pixel text-[9px] ${c.color}`}>{ledgerDisplay.label}</div>
+        <div className="text-[8px] text-amber-600">{ledgerDisplay.description}</div>
       </div>
     </div>
   )
