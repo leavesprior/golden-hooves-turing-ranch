@@ -24,6 +24,9 @@ import projectOptions from 'virtual:iwsdk-project';
 import { CAST, LINE, PLACE } from './line-data.js';
 import { checkLaws, lawCoverage } from './laws.js';
 import { FACADE_W, build1867, buildCat, buildFrog, buildHattie, buildSlip1, setOpacity } from './line-layers.js';
+import { REVEAL } from './reveal-config.js';
+import { EMITTERS, createPeriodAudio } from './period-audio.js';
+import { buildCard, buildWords } from './speech.js';
 
 const FADE_SECONDS = 0.8;
 const WALL_WAIT_SECONDS = 3;
@@ -31,9 +34,26 @@ const FALLBACK_DISTANCE = 2.5;
 const EYE_TO_FLOOR = 1.6;
 const FROG_HOME = new Vector3(1.05, 0, 0.9);
 
+const params = new URLSearchParams(location.search);
+// Verification hooks exist only with ?probe=1; a normal page exposes nothing.
+const PROBE = params.get('probe') === '1';
+// Rung 1: the caption cards break the spell, so they exist only with ?captions=1.
+const CAPTIONS = params.get('captions') === '1';
+// Probe-only: point Hattie at another loopback port (a stub, or a dead port).
+const BRAIN_URL = PROBE && /^\d+$/.test(params.get('brain') || '') ? `http://127.0.0.1:${params.get('brain')}/ask` : REVEAL.brainUrl;
+// Words the brain uses to mark 'no mind answered': never shown as speech.
+const SPOKEN_TIERS = ['remembered', 'local', 'strong'];
+
 const scan = { planes: [], placedBy: null, steps: [], lastSelect: null };
 const tableRefs = []; // detected real tables (verification only)
-const state = { hattieHold: null, index: 0, fades: LINE.map((_, i) => (i === 0 ? 1 : 0)), hop: -1 };
+const state = { hattieHold: null, index: 0, fades: LINE.map((_, i) => (i === 0 ? 1 : 0)), hop: -1, stepAtMs: 0 };
+// The reveal ladder's live state (rungs 1-6); every pacing number is in REVEAL.
+const freshReveal = () => ({
+  t0: null, elapsed: 0, frog: 0, nextSound: null,
+  gazeFade: 1, gazed: false, gazeDeg: null, glimpses: 0, noticed: false, holdX: null, yaw: 0,
+  contact: false, busy: false, thinking: false, think: 0, speech: null, shrug: -1,
+});
+const reveal = { ...freshReveal(), asks: [] };
 // Hattie's walk in the facade frame: idle, walk across, pause, walk back.
 const HATTIE_Z = 1.25;
 const HATTIE_X = 1.3;
@@ -93,20 +113,26 @@ function captionCard() {
 }
 
 const up = new Vector3(0, 1, 0);
+const DEG = Math.PI / 180;
+const rand = ([a, b]) => a + Math.random() * (b - a);
 
 World.create(document.getElementById('scene-container'), projectOptions).then((world) => {
   const root = new Group();
   const rootEntity = world.createTransformEntity(root, { persistent: true });
 
+  // Rung 4: the WHOLE c.1867 and Sideways layers sit behind real objects, not only Hattie.
   const layers = { c1867: build1867(), slip1: buildSlip1() };
-  for (const g of Object.values(layers)) {
+  const layerEntities = {};
+  for (const [id, g] of Object.entries(layers)) {
     setOpacity(g, 0);
-    root.add(g);
+    layerEntities[id] = world.createTransformEntity(g, { parent: rootEntity, persistent: true });
+    layerEntities[id].addComponent(DepthOccludable);
   }
   const cat = buildCat();
+  layerEntities.cat = world.createTransformEntity(cat, { parent: rootEntity, persistent: true });
   cat.position.set(0, 0.03, 0.8);
   setOpacity(cat, 0);
-  root.add(cat);
+  layerEntities.cat.addComponent(DepthOccludable);
 
   const hattie = buildHattie();
   const hattieEntity = world.createTransformEntity(hattie, { parent: rootEntity, persistent: true });
@@ -114,25 +140,49 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   setOpacity(hattie, 0);
   // Real-world occlusion: the headset's depth map hides her behind real tables.
   hattieEntity.addComponent(DepthOccludable);
+  layerEntities.hattie = hattieEntity;
 
-  const caption = captionCard();
-  caption.mesh.position.set(-1.05, 1.3, 1.1);
-  caption.mesh.rotation.y = 0.25;
-  root.add(caption.mesh);
-  caption.draw(LINE[0]);
+  // Her words: in the facade frame beside her, never parented to an occluded group.
+  const words = buildWords();
+  words.mesh.position.set(0, 1.86, HATTIE_Z);
+  root.add(words.mesh);
+
+  const caption = CAPTIONS ? captionCard() : null;
+  if (caption) {
+    caption.mesh.position.set(-1.05, 1.3, 1.1);
+    caption.mesh.rotation.y = 0.25;
+    root.add(caption.mesh);
+    caption.draw(LINE[0]);
+  }
 
   const frog = buildFrog();
   const frogEntity = world.createTransformEntity(frog, { parent: rootEntity, persistent: true });
   frog.position.copy(FROG_HOME);
   frog.rotation.y = -0.5;
+  setOpacity(frog, 0); // Rung 1: not even the Frog, at first.
   frogEntity.addComponent(RayInteractable);
   frogEntity.addComponent(PokeInteractable);
+
+  // Rung 6: three question cards by the player's left hand (player space, not the facade).
+  const cards = REVEAL.cards.map((c) => {
+    const mesh = buildCard(c.text);
+    mesh.visible = false;
+    const entity = world.createTransformEntity(mesh, { persistent: true });
+    entity.addComponent(RayInteractable);
+    entity.addComponent(PokeInteractable);
+    return { ...c, mesh, entity };
+  });
+
+  let audio = null;
 
   const step = () => {
     if (state.hop >= 0) return;
     state.hop = 0;
     state.index = (state.index + 1) % LINE.length;
-    caption.draw(LINE[state.index]);
+    state.stepAtMs = performance.now();
+    if (caption) caption.draw(LINE[state.index]);
+    // Sound before sight: c.1867 is heard at once, seen REVEAL.sightDelay1867 later.
+    if (LINE[state.index].id === 'c1867' && reveal.t0 !== null) reveal.nextSound = reveal.elapsed;
     const src = scan.lastSelect;
     scan.steps.push({ to: LINE[state.index].id, by: src ? (src.hand ? 'hand-pinch' : 'controller') : 'screen' });
   };
@@ -147,6 +197,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     // Flat-screen preview only: stand back far enough to see the ground and the Frog.
     root.position.set(0, 0.25, -4.8);
     root.rotation.set(0, 0, 0);
+    Object.assign(reveal, freshReveal());
   };
   placeInBrowser();
 
@@ -154,6 +205,53 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   const placeFrame = (pos, normal) => {
     root.position.copy(pos);
     root.lookAt(pos.clone().add(normal));
+  };
+
+  const say = (text, tier) => {
+    words.draw(text);
+    reveal.speech = { text, tier, age: 0, dur: REVEAL.speechHoldSeconds + REVEAL.speechHoldPerChar * text.length, opacity: 0 };
+  };
+
+  // Ask the brain. Only an answer a mind actually gave is ever spoken; anything else is a shrug.
+  const ask = async (card) => {
+    if (reveal.busy) return;
+    reveal.busy = true;
+    reveal.thinking = true; // the thinking beat: she turns to the stove
+    reveal.speech = null;
+    const rec = { card: card.id, question: card.text, at: new Date().toISOString() };
+    reveal.asks.push(rec);
+    const t0 = performance.now();
+    let r = null;
+    try {
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), REVEAL.brainTimeoutMs);
+      const res = await fetch(BRAIN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ npc_id: REVEAL.npcId, question: card.text }),
+        signal: ctl.signal,
+      });
+      clearTimeout(timer);
+      r = res.ok ? await res.json() : null;
+      rec.http = res.status;
+    } catch (e) {
+      rec.error = String(e && e.message);
+    }
+    rec.ms = Math.round(performance.now() - t0);
+    rec.tier = r ? r.tier : 'unreachable';
+    rec.learned = !!(r && r.learned);
+    rec.brain = r ? { tier: r.tier, answer: r.answer, _conf: r._conf, why: r.why, source: r.source, best: r.best, learned: r.learned } : null;
+    reveal.busy = false;
+    reveal.thinking = false;
+    const answer = r && SPOKEN_TIERS.includes(r.tier) && typeof r.answer === 'string' ? r.answer.trim() : '';
+    if (!answer) {
+      reveal.shrug = 0; // no mind answered: she shrugs, and says nothing
+      rec.shown = null;
+      return;
+    }
+    const text = (r.tier === 'remembered' ? REVEAL.rememberedPrefix : '') + answer;
+    rec.shown = text;
+    say(text, r.tier);
   };
 
   class PlacementSystem extends createSystem({ planes: { required: [XRPlane] } }) {
@@ -268,11 +366,16 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     init() {
       // Act on release, like a button: the Frog hops away from under the ray,
       // so stepping on press-start left the press hanging (seen in IWER).
-      this.queries.pressed.subscribe('disqualify', step);
+      // Only the Frog steps the line; a question card is RayInteractable too.
+      this.queries.pressed.subscribe('disqualify', (entity) => {
+        if (entity === frogEntity && reveal.frog > 0.5) step();
+        const card = cards.find((c) => c.entity === entity);
+        if (card && reveal.contact && card.mesh.visible) ask(card);
+      });
     }
 
     update() {
-      scan.frogHovered = this.queries.hovered.entities.size > 0;
+      scan.frogHovered = [...this.queries.hovered.entities].includes(frogEntity);
       if (scan.frogHovered) scan.everHovered = true;
     }
   }
@@ -280,8 +383,10 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   class LineSystem extends createSystem({}) {
     update(delta, time) {
       const current = LINE[state.index].id;
+      const heard = performance.now() - state.stepAtMs < REVEAL.sightDelay1867 * 1000;
       LINE.forEach((layer, i) => {
-        const target = i === state.index ? 1 : 0;
+        // Sound before sight: c.1867 stays unseen for its first beat.
+        const target = i === state.index && !(layer.id === 'c1867' && heard) ? 1 : 0;
         const s = delta / FADE_SECONDS;
         state.fades[i] += Math.max(-s, Math.min(s, target - state.fades[i]));
         if (layers[layer.id] && layers[layer.id].userData.fade !== state.fades[i]) {
@@ -317,16 +422,18 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         setOpacity(cat, catOpacity);
       }
 
-      // Hattie walks the board walk in 1867; sideways she flickers like the cat.
-      const pose = state.hattieHold === null ? hattiePose(time) : { x: state.hattieHold, dir: 0, walking: false };
+      // Hattie walks the board walk in 1867 (until she notices you); sideways she flickers like the cat.
+      const holdX = state.hattieHold ?? reveal.holdX;
+      const pose = holdX === null ? hattiePose(time) : { x: holdX, dir: 0, walking: false };
       hattie.position.x = pose.x;
-      hattie.rotation.y = pose.dir === 0 ? 0 : (pose.dir * Math.PI) / 2;
+      hattie.rotation.y = reveal.noticed ? reveal.yaw : pose.dir === 0 ? 0 : (pose.dir * Math.PI) / 2;
       const swing = pose.walking ? Math.sin(time * 5.5) : 0;
       hattie.userData.legs.forEach((leg, i) => { leg.rotation.x = swing * 0.4 * (i ? -1 : 1); });
       hattie.userData.arms.forEach((arm, i) => { arm.rotation.x = swing * 0.3 * (i ? 1 : -1); });
       hattie.userData.body.position.y = pose.walking ? Math.abs(Math.sin(time * 5.5)) * 0.025 : Math.sin(time * 1.5) * 0.004;
       hattie.userData.skirt.rotation.z = swing * 0.04;
-      let hattieOpacity = current === 'c1867' ? state.fades[1] : 0;
+      // Rung 3: in c.1867 she is seen at the edge of vision; looked at, she is gone (until she notices you).
+      let hattieOpacity = current === 'c1867' ? state.fades[1] * (reveal.noticed ? 1 : reveal.gazeFade) : 0;
       if (current === 'slip1') hattieOpacity = Math.sin(time * 2.3) * Math.sin(time * 1.1) > 0.3 ? state.fades[2] * 0.6 : 0;
       if (hattie.userData.fade !== hattieOpacity) {
         hattie.userData.fade = hattieOpacity;
@@ -350,6 +457,140 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     }
   }
 
+  // The reveal ladder, rungs 1-6. Runs after LineSystem each frame.
+  const head = new Vector3();
+  const fwd = new Vector3();
+  const camUp = new Vector3();
+  const tmp = new Vector3();
+  const torso = new Vector3();
+  class RevealSystem extends createSystem({}) {
+    update(delta, time) {
+      if (!this.world.session) {
+        // Flat-screen preview: the Frog is there to click.
+        if (reveal.frog < 1) setOpacity(frog, (reveal.frog = 1));
+        return;
+      }
+      const cam = this.world.camera;
+      cam.getWorldPosition(head);
+      cam.getWorldDirection(fwd);
+      camUp.set(0, 1, 0).applyQuaternion(cam.getWorldQuaternion(cam.quaternion.clone()));
+      if (reveal.t0 === null) {
+        reveal.t0 = time;
+        setOpacity(frog, (reveal.frog = 0));
+      }
+      reveal.elapsed = time - reveal.t0;
+      const current = LINE[state.index].id;
+
+      // Rung 1: the Frog, the first thing seen, only after the quiet and the first sounds.
+      if (reveal.elapsed >= REVEAL.frogAppearSeconds && reveal.frog < 1) {
+        reveal.frog = Math.min(1, reveal.frog + delta / REVEAL.frogFadeSeconds);
+        setOpacity(frog, reveal.frog);
+      }
+
+      // Rung 2: sound before sight, from where the 1867 layer is (or will be).
+      if (audio) {
+        audio.setListener(head, fwd, camUp);
+        for (const [kind, p] of Object.entries(EMITTERS)) audio.setEmitter(kind, root.localToWorld(tmp.set(...p)));
+        if (reveal.elapsed >= REVEAL.quietSeconds && (current === 'now' || current === 'c1867')) {
+          if (reveal.nextSound === null) reveal.nextSound = reveal.elapsed;
+          if (reveal.elapsed >= reveal.nextSound) {
+            audio.play();
+            reveal.nextSound = reveal.elapsed + rand(current === 'c1867' ? REVEAL.soundGap1867 : REVEAL.soundGapNow);
+          }
+        }
+      }
+
+      // Rung 3: gaze. Head forward within the cone of her torso = looking at her.
+      torso.copy(hattie.position).setY(1.1);
+      root.localToWorld(torso);
+      tmp.copy(torso).sub(head).normalize();
+      reveal.gazeDeg = Math.acos(Math.max(-1, Math.min(1, fwd.dot(tmp)))) / DEG;
+      const inC1867 = current === 'c1867' && state.fades[1] > 0.5;
+      const gazed = inC1867 && reveal.gazeDeg < REVEAL.gazeConeDeg;
+      if (gazed && !reveal.gazed && !reveal.noticed && hattie.userData.fade >= 0.5) {
+        reveal.glimpses++; // she was seen at the edge of vision, and looked at
+        // Rung 5: after N glimpses she stops fading, stops walking and turns to you.
+        if (reveal.glimpses >= REVEAL.glimpsesToNotice) {
+          reveal.noticed = true;
+          reveal.holdX = hattie.position.x;
+          reveal.yaw = hattie.rotation.y;
+        }
+      }
+      reveal.gazed = gazed;
+      const g = delta / REVEAL.gazeFadeSeconds;
+      reveal.gazeFade += Math.max(-g, Math.min(g, (gazed ? 0 : 1) - reveal.gazeFade));
+
+      // She faces you (or, while thinking, turns toward the stove).
+      reveal.think += Math.max(-delta * 2, Math.min(delta * 2, (reveal.thinking ? 1 : 0) - reveal.think));
+      if (reveal.noticed) {
+        const local = root.worldToLocal(tmp.copy(head));
+        let target = Math.atan2(local.x - hattie.position.x, local.z - hattie.position.z) + reveal.think * REVEAL.thinkTurnRad;
+        let d = target - reveal.yaw;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        reveal.yaw += Math.max(-REVEAL.turnRadPerSecond * delta, Math.min(REVEAL.turnRadPerSecond * delta, d));
+        hattie.rotation.y = reveal.yaw;
+        if (reveal.think > 0.01) hattie.userData.arms[1].rotation.x = -0.9 * reveal.think; // stirring the pot
+      }
+
+      // Rung 6: contact. Near her and facing her, she speaks; the cards appear by your left hand.
+      const flat = tmp.copy(torso).sub(head).setY(0);
+      const dist = flat.length();
+      const facingDeg = Math.acos(Math.max(-1, Math.min(1, flat.normalize().dot(fwd.clone().setY(0).normalize())))) / DEG;
+      if (!reveal.contact && reveal.noticed && current === 'c1867' && dist < REVEAL.contactDistance && facingDeg < REVEAL.contactFacingDeg) {
+        reveal.contact = true;
+        say(REVEAL.greeting, 'authored');
+      } else if (reveal.contact && (current !== 'c1867' || dist > REVEAL.contactReleaseDistance)) {
+        reveal.contact = false;
+      }
+      reveal.dist = +dist.toFixed(2);
+      reveal.facingDeg = +facingDeg.toFixed(1);
+
+      // Cards follow the left hand; if it is not tracked near the head, low and to the left.
+      const grip = this.world.playerSpaceEntities?.gripSpaces?.left?.object3D;
+      const anchor = new Vector3();
+      if (grip) grip.getWorldPosition(anchor);
+      if (!grip || anchor.distanceTo(head) > 0.9 || anchor.lengthSq() < 1e-6) {
+        const right = new Vector3().crossVectors(fwd, camUp).normalize();
+        anchor.copy(head).addScaledVector(fwd, 0.4).addScaledVector(right, -0.18).addScaledVector(camUp, -0.3);
+        reveal.cardsOn = 'head-fallback';
+      } else reveal.cardsOn = 'left-hand';
+      cards.forEach((c, i) => {
+        c.mesh.visible = reveal.contact;
+        c.mesh.position.copy(anchor).addScaledVector(up, 0.1 + (cards.length - 1 - i) * 0.062);
+        c.mesh.lookAt(head);
+        c.mesh.material.opacity = reveal.busy ? 0.45 : 1;
+      });
+
+      // Her words by her mouth: fade in, hold, fade out. Nothing left on screen.
+      const sp = reveal.speech;
+      if (sp) {
+        sp.age += delta;
+        const fin = Math.min(1, sp.age / REVEAL.speechFadeInSeconds);
+        const fout = Math.max(0, 1 - Math.max(0, sp.age - REVEAL.speechFadeInSeconds - sp.dur) / REVEAL.speechFadeOutSeconds);
+        sp.opacity = Math.min(fin, fout);
+        words.mesh.material.opacity = sp.opacity;
+        words.mesh.visible = sp.opacity > 0.001 && hattie.userData.fade > 0.1;
+        // Just above her mouth, a little toward the listener, so the words come FROM her.
+        const toward = root.worldToLocal(tmp.copy(head)).sub(hattie.position).setY(0).normalize();
+        words.mesh.position.copy(hattie.position).addScaledVector(toward, 0.3).setY(1.68);
+        words.mesh.lookAt(head);
+        if (sp.opacity <= 0 && sp.age > 1) reveal.speech = null;
+      } else words.mesh.visible = false;
+
+      // No mind answered: a shrug, and no words.
+      if (reveal.shrug >= 0) {
+        reveal.shrug += delta / REVEAL.shrugSeconds;
+        const k = Math.sin(Math.min(1, reveal.shrug) * Math.PI);
+        hattie.userData.arms.forEach((arm, i) => { arm.rotation.z = (i ? 1 : -1) * 0.55 * k; });
+        hattie.userData.body.position.y += 0.03 * k;
+        if (reveal.shrug >= 1) {
+          reveal.shrug = -1;
+          hattie.userData.arms.forEach((arm) => { arm.rotation.z = 0; });
+        }
+      }
+    }
+  }
+
   world.renderer.xr.addEventListener('sessionstart', () => {
     world.renderer.xr.getSession().addEventListener('selectstart', onSelectStart);
   });
@@ -357,82 +598,162 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   world.registerSystem(PlacementSystem);
   world.registerSystem(FrogSystem);
   world.registerSystem(LineSystem);
+  world.registerSystem(RevealSystem);
 
-  // Headless verification hook (no effect on play).
-  window.__outOfTime = {
-    layer: () => LINE[state.index].id,
-    session: () => !!world.session,
-    laws: () => {
-      root.updateMatrixWorld(true);
-      return checkLaws({ scene: world.scene, root, layers: { ...layers, hattie }, line: LINE, cast: CAST });
-    },
-    lawCoverage: () => lawCoverage({ ...layers, hattie }),
-    // Mutation seed for testing the law machine itself: adds a full-frame sheet.
-    seedVeil: () => {
-      const veil = new Mesh(new PlaneGeometry(3, 2), new MeshBasicMaterial({ transparent: true, opacity: 0.2 }));
-      veil.position.set(0, 1.2, 1.5);
-      layers.slip1.add(veil);
-      return () => layers.slip1.remove(veil);
-    },
-    scan: () => JSON.parse(JSON.stringify(scan)),
-    placedAt: () => root.getWorldPosition(new Vector3()).toArray().map((v) => +v.toFixed(2)),
-    step,
-    steps: () => scan.steps.slice(),
-    inputSources: () => (world.session ? [...world.session.inputSources].map((s) => ({ hand: !!s.hand, handedness: s.handedness, profiles: s.profiles })) : []),
-    hattie: () => {
-      hattie.updateMatrixWorld(true);
-      const box = new Box3().setFromObject(hattie);
-      let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
-      for (const cx of [box.min.x, box.max.x]) for (const cy of [box.min.y, box.max.y]) for (const cz of [box.min.z, box.max.z]) {
-        const p = new Vector3(cx, cy, cz).project(world.camera);
-        const sx = ((p.x + 1) / 2) * window.innerWidth;
-        const sy = ((1 - p.y) / 2) * window.innerHeight;
-        x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
-      }
-      return {
-        opacity: hattie.userData.fade ?? 0,
-        visible: hattie.visible,
-        local: hattie.position.toArray().map((v) => +v.toFixed(3)),
-        world: hattie.getWorldPosition(new Vector3()).toArray().map((v) => +v.toFixed(3)),
-        screenBox: [x0, y0, x1, y1].map(Math.round),
-        occludable: hattieEntity.hasComponent(DepthOccludable),
+  if (PROBE) {
+    // Everything this app adds to the world, for 'is anything drawn?' checks.
+    const visibleOwned = () => {
+      let n = 0;
+      const names = [];
+      const visit = (o, shown) => {
+        const on = shown && o.visible;
+        if (on && (o.isMesh || o.isSprite) && (o.material?.opacity ?? 1) > 0.01) {
+          n++;
+          if (names.length < 8) names.push(o.geometry?.type ?? o.type);
+        }
+        o.children.forEach((c) => visit(c, on));
       };
-    },
-    setOcclusion: (on) => {
-      if (on && !hattieEntity.hasComponent(DepthOccludable)) hattieEntity.addComponent(DepthOccludable);
-      if (!on && hattieEntity.hasComponent(DepthOccludable)) hattieEntity.removeComponent(DepthOccludable);
-      return hattieEntity.hasComponent(DepthOccludable);
-    },
-    depth: () => {
-      const sys = world.getSystem(DepthSensingSystem);
-      return { cpu: sys?.cpuDepthData?.length ?? -1, gpu: sys?.gpuDepthData?.length ?? -1, enabled: world.session?.enabledFeatures ?? null };
-    },
-    // Verification only: pin Hattie at x (facade frame) for like-for-like screenshots; null resumes the walk.
-    holdHattie: (x) => { state.hattieHold = x; },
-    // Real table planes in the facade frame: x/z extent and top height.
-    tablesLocal: () => tableRefs.map(({ obj, plane }) => {
-      const pts = (plane.polygon || []).map((q) => root.worldToLocal(obj.localToWorld(new Vector3(q.x, q.y, q.z))));
-      const r = (f) => +f.toFixed(2);
-      return { x: [r(Math.min(...pts.map((q) => q.x))), r(Math.max(...pts.map((q) => q.x)))], z: [r(Math.min(...pts.map((q) => q.z))), r(Math.max(...pts.map((q) => q.z)))], top: r(pts.reduce((a, q) => a + q.y, 0) / Math.max(pts.length, 1)) };
-    }),
-    toWorld: (x, y, z) => root.localToWorld(new Vector3(x, y, z)).toArray(),
-    frogWorld: () => frog.getWorldPosition(new Vector3()).toArray(),
-    frogScreen: () => {
-      const p = frog.getWorldPosition(new Vector3()).add(new Vector3(0, 0.1, 0)).project(world.camera);
-      return [(p.x + 1) / 2 * window.innerWidth, (1 - p.y) / 2 * window.innerHeight];
-    },
-  };
+      visit(root, true);
+      cards.forEach((c) => visit(c.mesh, true));
+      return { n, names };
+    };
+    const screen = (v) => {
+      const p = v.clone().project(world.camera);
+      return [Math.round(((p.x + 1) / 2) * window.innerWidth), Math.round(((1 - p.y) / 2) * window.innerHeight), +p.z.toFixed(3)];
+    };
+    window.__outOfTime = {
+      config: () => JSON.parse(JSON.stringify(REVEAL)),
+      layer: () => LINE[state.index].id,
+      session: () => !!world.session,
+      laws: () => {
+        root.updateMatrixWorld(true);
+        return checkLaws({ scene: world.scene, root, layers: { ...layers, hattie, words: words.mesh }, line: LINE, cast: CAST });
+      },
+      lawCoverage: () => lawCoverage({ ...layers, hattie, words: words.mesh }),
+      // Mutation seed for testing the law machine itself: adds a full-frame sheet.
+      seedVeil: () => {
+        const veil = new Mesh(new PlaneGeometry(3, 2), new MeshBasicMaterial({ transparent: true, opacity: 0.2 }));
+        veil.position.set(0, 1.2, 1.5);
+        layers.slip1.add(veil);
+        return () => layers.slip1.remove(veil);
+      },
+      scan: () => JSON.parse(JSON.stringify(scan)),
+      placedAt: () => root.getWorldPosition(new Vector3()).toArray().map((v) => +v.toFixed(2)),
+      step,
+      steps: () => scan.steps.slice(),
+      inputSources: () => (world.session ? [...world.session.inputSources].map((s) => ({ hand: !!s.hand, handedness: s.handedness, profiles: s.profiles })) : []),
+      reveal: () => {
+        const { speech, ...rest } = reveal;
+        return JSON.parse(JSON.stringify({
+          ...rest,
+          speech: speech && { text: speech.text, tier: speech.tier, opacity: +speech.opacity.toFixed(2), visible: words.mesh.visible },
+          visibleOwned: visibleOwned(),
+          captions: !!caption && caption.mesh.parent !== null,
+          hattieOpacity: hattie.userData.fade ?? 0,
+          yaw: +hattie.rotation.y.toFixed(3),
+        }));
+      },
+      audio: () => (audio ? { ...audio.graph(), peak: +audio.peak().toFixed(5) } : null),
+      catBox: () => {
+        const b = new Box3().setFromObject(cat);
+        const pts = [];
+        for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) pts.push(screen(new Vector3(x, y, z)));
+        return cat.visible ? [Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1])), Math.max(...pts.map((q) => q[0])), Math.max(...pts.map((q) => q[1]))] : null;
+      },
+      // World point the head should look at to put her torso `deg` off the head's forward (yaw).
+      lookOffHattie: (deg) => {
+        const headW = world.camera.getWorldPosition(new Vector3());
+        const t = root.localToWorld(hattie.position.clone().setY(1.1)).sub(headW);
+        t.applyAxisAngle(up, deg * DEG);
+        return headW.add(t).toArray();
+      },
+      headLocal: () => root.worldToLocal(world.camera.getWorldPosition(new Vector3())).toArray().map((v) => +v.toFixed(2)),
+      hattie: () => {
+        hattie.updateMatrixWorld(true);
+        const box = new Box3().setFromObject(hattie);
+        let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
+        for (const cx of [box.min.x, box.max.x]) for (const cy of [box.min.y, box.max.y]) for (const cz of [box.min.z, box.max.z]) {
+          const p = new Vector3(cx, cy, cz).project(world.camera);
+          const sx = ((p.x + 1) / 2) * window.innerWidth;
+          const sy = ((1 - p.y) / 2) * window.innerHeight;
+          x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
+        }
+        // Angle between her facing (+z) and the direction to the player, on the floor.
+        const toCam = root.worldToLocal(world.camera.getWorldPosition(new Vector3())).sub(hattie.position).setY(0).normalize();
+        const facing = new Vector3(Math.sin(hattie.rotation.y), 0, Math.cos(hattie.rotation.y));
+        return {
+          opacity: hattie.userData.fade ?? 0,
+          visible: hattie.visible,
+          local: hattie.position.toArray().map((v) => +v.toFixed(3)),
+          world: hattie.getWorldPosition(new Vector3()).toArray().map((v) => +v.toFixed(3)),
+          head: root.localToWorld(hattie.position.clone().setY(1.47)).toArray(),
+          screenBox: [x0, y0, x1, y1].map(Math.round),
+          occludable: hattieEntity.hasComponent(DepthOccludable),
+          facingPlayerDeg: +(Math.acos(Math.max(-1, Math.min(1, facing.dot(toCam)))) / DEG).toFixed(1),
+        };
+      },
+      layerOcclusion: () => Object.fromEntries(Object.entries(layerEntities).map(([k, e]) => [k, e.hasComponent(DepthOccludable)])),
+      setLayerOcclusion: (on) => {
+        for (const e of Object.values(layerEntities)) {
+          if (on && !e.hasComponent(DepthOccludable)) e.addComponent(DepthOccludable);
+          if (!on && e.hasComponent(DepthOccludable)) e.removeComponent(DepthOccludable);
+        }
+        return window.__outOfTime.layerOcclusion();
+      },
+      setOcclusion: (on) => {
+        if (on && !hattieEntity.hasComponent(DepthOccludable)) hattieEntity.addComponent(DepthOccludable);
+        if (!on && hattieEntity.hasComponent(DepthOccludable)) hattieEntity.removeComponent(DepthOccludable);
+        return hattieEntity.hasComponent(DepthOccludable);
+      },
+      depth: () => {
+        const sys = world.getSystem(DepthSensingSystem);
+        return { cpu: sys?.cpuDepthData?.length ?? -1, gpu: sys?.gpuDepthData?.length ?? -1, enabled: world.session?.enabledFeatures ?? null };
+      },
+      // Verification only: pin Hattie at x (facade frame) for like-for-like screenshots; null resumes the walk.
+      holdHattie: (x) => { state.hattieHold = x; },
+      // Real table planes in the facade frame: x/z extent and top height.
+      tablesLocal: () => tableRefs.map(({ obj, plane }) => {
+        const pts = (plane.polygon || []).map((q) => root.worldToLocal(obj.localToWorld(new Vector3(q.x, q.y, q.z))));
+        const r = (f) => +f.toFixed(2);
+        return { x: [r(Math.min(...pts.map((q) => q.x))), r(Math.max(...pts.map((q) => q.x)))], z: [r(Math.min(...pts.map((q) => q.z))), r(Math.max(...pts.map((q) => q.z)))], top: r(pts.reduce((a, q) => a + q.y, 0) / Math.max(pts.length, 1)) };
+      }),
+      toWorld: (x, y, z) => root.localToWorld(new Vector3(x, y, z)).toArray(),
+      toScreen: (x, y, z) => screen(root.localToWorld(new Vector3(x, y, z))),
+      frogWorld: () => frog.getWorldPosition(new Vector3()).toArray(),
+      frogScreen: () => {
+        const p = frog.getWorldPosition(new Vector3()).add(new Vector3(0, 0.1, 0)).project(world.camera);
+        return [(p.x + 1) / 2 * window.innerWidth, (1 - p.y) / 2 * window.innerHeight];
+      },
+      cards: () => cards.map((c) => ({ id: c.id, text: c.text, visible: c.mesh.visible, world: c.mesh.getWorldPosition(new Vector3()).toArray(), screen: screen(c.mesh.getWorldPosition(new Vector3())) })),
+      wordsScreen: () => {
+        const b = new Box3().setFromObject(words.mesh);
+        const a = screen(b.min); const z = screen(b.max);
+        return [Math.min(a[0], z[0]), Math.min(a[1], z[1]), Math.max(a[0], z[0]), Math.max(a[1], z[1])];
+      },
+      head: () => world.camera.getWorldPosition(new Vector3()).toArray(),
+    };
+  }
 
   const button = document.getElementById('enter-ar');
   const note = document.getElementById('enter-note');
-  button.addEventListener('click', () => world.launchXR());
+  button.addEventListener('click', () => {
+    // The click is the user gesture that lets the period sounds play.
+    try {
+      audio = audio || createPeriodAudio();
+      audio.resume();
+    } catch {
+      audio = null; // no WebAudio: the ladder goes on without its sounds
+    }
+    setOpacity(frog, (reveal.frog = 0)); // Rung 1 starts on pure passthrough
+    world.launchXR();
+  });
   const supported = navigator.xr?.isSessionSupported?.('immersive-ar') ?? Promise.resolve(false);
   supported
     .catch(() => false)
     .then((ok) => {
       button.disabled = !ok;
       note.textContent = ok
-        ? 'Put on the headset. Touch the Golden Frog to step along the line.'
+        ? 'Put on the headset. Stand still a moment, and listen.'
         : 'Enter AR needs a WebXR headset (Meta Quest 3 / 3S browser). Click the Golden Frog to step along the line here.';
     });
 });
