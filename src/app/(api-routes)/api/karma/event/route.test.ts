@@ -13,7 +13,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { NextRequest } from 'next/server'
 
-const TIER = Number(process.env.EXPECT_TIER ?? '2')
+const TIER = Number(process.env.EXPECT_TIER ?? '1') // this branch ships Tier 1
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'karma-auth-test-'))
 process.env.BOBR_ALLOW_TEST_DB = '1'
 process.env.BOBR_DB_PATH_FOR_TESTS = path.join(dir, 'ledger.db')
