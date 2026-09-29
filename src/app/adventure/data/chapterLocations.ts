@@ -484,7 +484,7 @@ export const CHAPTER_2_LOCATIONS: ChapterLocation[] = [
       { type: 'saloon', name: 'The Nugget Saloon', description: 'Whiskey and rumors in equal measure' },
     ],
     npcs: [
-      { id: 'ch2_barkeep', name: 'Big Mae Sullivan', role: 'Saloon Owner', witnessType: 'bartender', faction: 'settlers', dialogueHint: 'Hears everything. Tells nothing for free.' },
+      { id: 'ch2_barkeep', name: 'Big Mae Sullivan', role: 'Saloon Owner', witnessType: 'bartender', faction: 'settlers', dialogueHint: 'Hears everything. Tells nothing for free, and some things not for any price.' },
       { id: 'ch2_assayer', name: 'Professor Morley', role: 'Gold Assayer', witnessType: 'merchant', dialogueHint: 'Weighs gold and judges character.' },
     ],
     historicalFact: 'Volcano claims a string of California firsts: lending library, theater group (1854), and astronomical observatory (1860). During the Civil War, the town\'s Union volunteers — the "Volcano Blues" — smuggled in a cannon called Old Abe, an 1837 Boston-cast six-pounder, hidden in a hearse. Loaded with rocks and nails for want of cannonballs, it was never fired in anger: the Confederate sympathizers backed down at the sight of it. Volcano\'s population peaked at 5,000 in 1855 before the placers played out. Old Abe is still displayed in Volcano today, and the little town still fits inside its stone-walled bowl of a valley.',
@@ -658,7 +658,7 @@ export const CHAPTER_2_LOCATIONS: ChapterLocation[] = [
     travelDanger: 'safe',
     services: [],
     npcs: [
-      { id: 'ch2_actress', name: 'Lily Fontaine', role: 'Lead Actress', witnessType: 'settler', dialogueHint: 'Dramatic in all things. Observes everyone from the stage.', skillCheckStat: 'Diplomacy', skillCheckDC: 10 },
+      { id: 'ch2_actress', name: 'Lily Fontaine', role: 'Lead Actress', witnessType: 'settler', dialogueHint: 'Dramatic in all things. From the stage she watches every face in the house, and remembers the ones that do not applaud.', skillCheckStat: 'Diplomacy', skillCheckDC: 10 },
     ],
     historicalFact: 'Theatre was wildly popular in Gold Country. Lola Montez, the notorious Irish-born dancer, performed her scandalous "Spider Dance" across the mining camps. Miners paid in gold dust — a pinch was roughly a dollar. The famous actress Lotta Crabtree got her start as a child performer in these camps, coached by Montez herself, and became the richest actress in America.',
     discoveryClues: [
@@ -869,7 +869,7 @@ export const CHAPTER_2_LOCATIONS: ChapterLocation[] = [
     ],
     npcs: [
       { id: 'ch2_drytown_barkeep', name: 'Whiskey Jim Rawlins', role: 'Saloon Owner', witnessType: 'bartender', dialogueHint: 'Runs the busiest of the 26 saloons. Has opinions about the other 25.', skillCheckStat: 'Diplomacy', skillCheckDC: 8 },
-      { id: 'ch2_drytown_gambler', name: 'Madame Josephine', role: 'Card Sharp', witnessType: 'outlaw', faction: 'outlaws', dialogueHint: 'Deals faro and information in equal measure. French accent, American cunning.', skillCheckStat: 'Luck', skillCheckDC: 12 },
+      { id: 'ch2_drytown_gambler', name: 'Madame Josephine', role: 'Card Sharp', witnessType: 'outlaw', faction: 'outlaws', dialogueHint: 'Deals faro and information in equal measure, and never lets you see which one you just lost. French accent, American cunning.', skillCheckStat: 'Luck', skillCheckDC: 12 },
     ],
     historicalFact: 'Drytown really did have 26 saloons in its heyday, despite a population that never topped 1,500. The town was a microcosm of Gold Rush excess — more money was spent on whiskey than on mining equipment. A fire in 1857 destroyed most of the town, but the saloons were rebuilt first. Drytown was also where the notorious outlaw Rattlesnake Dick Barter got his start, graduating from petty theft to stagecoach robbery.',
     discoveryClues: [

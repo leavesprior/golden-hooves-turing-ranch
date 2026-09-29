@@ -1768,6 +1768,40 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
     ],
   },
   {
+    // Femme fatale noir, by the history (Leif 2026-09-29). A time slip, true year stated.
+    id: 'lady_at_the_twenty_one_table',
+    title: 'The Lady at the Twenty-One Table',
+    description: 'Lamplight, green baize, and a young woman with a French name dealing vingt-et-un faster than your eye can follow. The sign outside says NEVADA CITY. The broadsheet on the wall says 1854. The frog has slipped you forward again. She is Eleanor Dumont, and she has already noticed that you are not from around here, or from around now. "Sit, stranger. Nobody curses at my table, nobody fights, and nobody leaves richer than I allow."',
+    type: 'mystery',
+    icon: '🃏',
+    choices: [
+      {
+        id: 'play_hands',
+        text: 'Play a few hands of twenty-one',
+        outcome: {
+          message: 'You win the first hand and lose the next two, and you could not say how. She rakes the pot with a smile that costs her nothing and tells you less. "Come back when you know what year it is."',
+          goldDelta: -10,
+        },
+      },
+      {
+        id: 'watch_the_room',
+        text: 'Watch the players, not the cards',
+        outcome: {
+          message: 'The man in the corner who never bets is paying her in whispers. She sees you see it, and lets you keep what you learned. In this town that is a kind of friendship.',
+          reputationDelta: 2,
+        },
+      },
+      {
+        id: 'tip_hat_leave',
+        text: 'Tip your hat and leave the parlor',
+        outcome: {
+          message: 'In the doorway you glance back. She is already looking at the next stranger, and she was never really looking at you. Down the road in Grass Valley, they say Lola Montez keeps a grizzly cub chained in her yard. This country collects dangerous women the way other places collect rain.',
+        },
+      },
+    ],
+    minDistance: 3,
+  },
+  {
     id: 'thunderstorm_shelter',
     title: 'Sierra Thunderstorm',
     description: 'The sky turns green-black in twenty minutes. Lightning walks the ridgeline above you, striking the tallest ponderosa pines with cracks that shake your teeth. The rain arrives not in drops but in sheets — horizontal, stinging, cold. You are on an exposed trail with no settlement for miles. Your horse trembles.',

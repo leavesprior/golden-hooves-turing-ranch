@@ -822,7 +822,7 @@ const ch2_big_mae: Dialogue = {
   nodes: [
     {
       id: 'start',
-      text: '"Welcome to Mae\'s. Whiskey\'s two bits, information\'s a dollar, and trouble\'s free." She polishes a glass, eyeing you up.',
+      text: '"Welcome to Mae\'s. Whiskey\'s two bits, information\'s a dollar, and trouble\'s free." She polishes a glass that is already clean and watches you in the mirror behind the bar, not in the room.',
       speaker: 'Big Mae Sullivan',
       options: [
         {
@@ -846,7 +846,7 @@ const ch2_big_mae: Dialogue = {
     },
     {
       id: 'drink_talk',
-      text: 'She pours a generous shot. "You don\'t look like a miner. Too clean. Detective? Bounty hunter?" She leans on the bar.',
+      text: 'She pours a generous shot. "You don\'t look like a miner. Too clean. And you look at a room like you already know how it ends. Detective? Bounty hunter?" She leans on the bar, close enough to read your answer before you give it.',
       speaker: 'Big Mae Sullivan',
       options: [
         {
@@ -897,7 +897,7 @@ const ch2_big_mae: Dialogue = {
     },
     {
       id: 'charmed',
-      text: '"Ha! You\'ve got brass, I\'ll say that." She pours two glasses. "Drink with me and I\'ll tell you something worth knowing."',
+      text: '"Ha! You\'ve got brass, I\'ll say that." She pours two glasses and slides one across without spilling a drop. "Drink with me and I\'ll tell you something worth knowing. Maybe even something true."',
       speaker: 'Big Mae Sullivan',
       options: [
         {
