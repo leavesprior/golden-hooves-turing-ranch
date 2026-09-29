@@ -44,6 +44,7 @@ export const CHARACTER_PORTRAITS: Record<string, string> = {
   old_miner_giuseppe: PLACEHOLDER_PORTRAIT, // TODO: needs art
   foreman_harris: PLACEHOLDER_PORTRAIT, // TODO: needs art
   ghost_hunter_edgar: PLACEHOLDER_PORTRAIT, // TODO: needs art
+  bard_robert_service: PLACEHOLDER_PORTRAIT, // TODO: needs art (editorial grade; 1907 photographs of Service are the reference)
   innkeeper_rosa: PLACEHOLDER_PORTRAIT, // TODO: needs art
   winemaker_frank: PLACEHOLDER_PORTRAIT, // TODO: needs art
   curator_james: PLACEHOLDER_PORTRAIT, // TODO: needs art
