@@ -14,6 +14,7 @@
       "offer": "always",
       "features": {
         "handTracking": true,
+        "depthSensing": { "required": false, "usage": "gpu-optimized", "format": "float32" },
         "planeDetection": true
       }
     },
