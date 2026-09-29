@@ -134,37 +134,37 @@ export const BACKGROUND_DESCRIPTIONS: Record<CharacterBackground, {
   // (Britannica); in spring 1849 Allan Pinkerton was a Chicago police detective.
   pinkerton_veteran: {
     name: 'Detective Veteran',
-    description: 'Years as a city police detective have honed your investigative skills.',
+    description: 'Years as a city detective. The Pinkertons will hire you the minute they exist.',
     bonuses: '+2 Shrewdness, +2 Expertise'
   },
   frontier_scout: {
     name: 'Frontier Scout',
-    description: 'You know the land better than anyone.',
+    description: 'You know every creek and cutoff from here to the Sierra, including a few that haven\'t been dug yet.',
     bonuses: '+2 Agility, +2 Expertise'
   },
   army_officer: {
     name: 'Army Officer',
-    description: 'Military discipline and leadership come naturally.',
+    description: 'Military discipline and leadership come naturally. So does getting up before the bugle.',
     bonuses: '+2 Diplomacy, +2 Durability'
   },
   gambler: {
     name: 'Gambler',
-    description: 'Lady Luck has always favored you. Reading people is your trade.',
+    description: 'Lady Luck has always favored you. Reading people is your trade, and time travel is a mighty long con.',
     bonuses: '+2 Luck, +2 Shrewdness'
   },
   doctor: {
     name: 'Doctor',
-    description: 'Medical training provides keen observation and endurance.',
+    description: 'Medical training gives you a keen eye and a strong stomach. Here, you are well over a century ahead of your colleagues.',
     bonuses: '+2 Shrewdness, +2 Durability'
   },
   preacher: {
     name: 'Preacher',
-    description: 'Faith guides you. People trust your words.',
+    description: 'Faith guides you, and folks trust your word, even when you tell them where you came from.',
     bonuses: '+2 Diplomacy, +2 Luck'
   },
   outlaw_reformed: {
     name: 'Reformed Outlaw',
-    description: 'You know how criminals think. Some lawmen are suspicious.',
+    description: 'You know how outlaws think. Some lawmen are suspicious, and they may be right.',
     bonuses: '+2 Agility, +2 Luck'
   }
 }

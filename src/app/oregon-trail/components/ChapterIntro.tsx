@@ -199,13 +199,16 @@ export const CHAPTERS = {
   1: {
     number: 1,
     title: 'The Journey West',
-    subtitle: 'Independence, Missouri - Spring 1849',
+    subtitle: 'Independence, Missouri · Spring 1849 (arriving from 2026)',
     narrative: [
-      'The year is 1849. Word has spread like wildfire across the nation: gold has been discovered in California.',
-      'You are not a prospector. You are something far more dangerous to those who would profit from chaos.',
-      'You are a Pinkerton agent, tasked with tracking the notorious Black Bart Gang across two thousand miles of unforgiving frontier.',
-      'Your wagon awaits in Independence. The trail is long, the dangers many.',
-      'But justice rides with you.',
+      // Cadence after H.G. Wells, The Time Machine (1895, public domain):
+      // "night followed day like the flapping of a black wing."
+      'You press the golden frog. The ranch goes hazy. Night follows day like the flapping of a black wing, faster and faster, until the hills are one green-and-gold flicker.',
+      'When the flicker stops it is spring, 1849, in Independence, Missouri, and a man in a stovepipe hat wants to know if you have seen his mule.',
+      'Word has spread like wildfire: gold in California. Half the country is fixing to go and get some.',
+      'You carry a Pinkerton badge. The Pinkerton agency will not be founded until next year. Nobody here has thought to check.',
+      'Your quarry is Black Bart. He will not rob his first stagecoach until 1875, in Calaveras County. You are early. That is rather the point.',
+      'Your wagon waits. Two thousand miles of trail, and justice rides with you. So, it appears, does the narrator.',
     ],
   },
   2: {

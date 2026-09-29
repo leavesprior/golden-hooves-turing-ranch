@@ -145,11 +145,11 @@ export function CharacterCreationScreen() {
     createCharacter(leaderName, selectedBackground, finalizedStats)
 
     if (hasRolled && getTotalStats() >= 70) {
-      comment("The dice favor the bold. Or perhaps just the persistent.", 'observation')
+      comment("The dice favor the bold, pardner. The persistent, they merely tolerate.", 'observation')
     } else if (hasRolled) {
-      comment("The frontier accepts all rolls. Some just have to work harder.", 'observation')
+      comment("The frontier takes all rolls. Some folks just have to shovel harder.", 'observation')
     } else {
-      comment("Another hero setting off to bring justice to the frontier. How... optimistic.", 'observation')
+      comment("Another hero bound for 1849 to bring justice to the frontier. The frontier has been warned.", 'observation')
     }
     beginJourney(finalizedStats)
   }
@@ -170,15 +170,15 @@ export function CharacterCreationScreen() {
 
       <div className="max-w-2xl mx-auto pt-8">
         <header className="text-center mb-8">
-          <h1 className="font-pixel text-purple-300 text-xl mb-2">Create Your Agent</h1>
+          <h1 className="font-pixel text-purple-300 text-xl mb-2">Swear In Your Agent</h1>
           <p className="text-purple-400 text-sm">
-            Distribute your S.A.D.D.L.E. stats{kidTrail ? ' · kid trail' : ' · adult warrant'}
+            Saddle up your S.A.D.D.L.E. stats{kidTrail ? ' · kid trail' : ' · adult warrant'}
           </p>
         </header>
 
         {/* Background Selection */}
         <div className="bg-gray-900/80 border-2 border-purple-600 rounded-lg p-4 mb-6">
-          <h2 className="font-pixel text-purple-300 text-sm mb-4">Choose Background</h2>
+          <h2 className="font-pixel text-purple-300 text-sm mb-4">Choose Your Past</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {backgrounds.map(bg => (
               <button
@@ -201,13 +201,13 @@ export function CharacterCreationScreen() {
               </button>
             ))}
           </div>
-          <p className="mt-3 text-xs text-purple-300/70">Fictional adult portraits for your 1849 adventure.</p>
+          <p className="mt-3 text-xs text-purple-300/70">Fictional adult portraits {'\u2014'} no real folks sat for these daguerreotypes.</p>
         </div>
 
         {/* Dice Roll Section */}
         <div className="bg-gray-900/80 border-2 border-amber-600 rounded-lg p-4 mb-6">
           <div className="flex justify-between items-center mb-3">
-            <h2 className="font-pixel text-amber-300 text-sm">{'\uD83C\uDFB2'} Roll for Stats</h2>
+            <h2 className="font-pixel text-amber-300 text-sm">{'\uD83C\uDFB2'} Roll the Bones</h2>
             {hasRolled && (
               <span className="text-amber-400 text-xs">
                 Total: {getTotalStats()} | Rolls: {rollCount}
@@ -345,7 +345,7 @@ export function CharacterCreationScreen() {
           disabled={pointsRemaining !== 0 || !selectedBackground}
           className="relative z-10 mt-4 w-full py-4 md:py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 font-pixel text-base md:text-sm rounded border-4 border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
         >
-          {!selectedBackground ? 'Select a background' : pointsRemaining > 0 ? `Assign ${pointsRemaining} more points` : 'Begin the trail'}
+          {!selectedBackground ? 'Select a background' : pointsRemaining > 0 ? `Assign ${pointsRemaining} more points` : 'Hitch the wagon'}
         </button>
       </div>
     </div>
