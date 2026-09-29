@@ -93,14 +93,13 @@ const CHAPTER_TITLES: Record<number, string> = {
 }
 
 // The line under the end-of-chapter ceremony. Old west with the time slip.
-// Each of chapters 2-4 carries one faint whisper toward its Stovepipe-trail
-// mark (src/lib/ch6/trail.ts): the Weight, the leaden frog, the self-made
-// mayor. Whispers only: never a mark's answer (no cave, name, number or year).
+// Ordinary flavor only. Royal's hidden chapter is found by sight, in plain
+// view, and is never signposted in copy (Leif 2026-09-29; the design is Tower's).
 const CHAPTER_FLAVOR: Record<number, string> = {
   1: 'You make camp. The golden frog is quiet tonight. Tomorrow, by its reckoning, is 1852.',
   2: 'You make camp. The Volcano brothers went home speaking low, as if every word had weight.',
   3: 'You make camp. The frog that lost today sat heavier than a frog ought to. Nobody laughed but the reporter.',
-  4: 'You make camp. Over in West Point a man in a tall hat has named himself mayor. Nobody voted. He says a number outranks a mayor.',
+  4: 'You make camp on your own land, under your own pines, some hundred and seventy years before anyone will call it a ranch.',
 }
 
 /** Diggings (Gold Country, 1852) starts at Volcano. Chapter 1 is the 1849 Missouri prequel. */

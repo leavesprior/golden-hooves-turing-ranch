@@ -266,7 +266,7 @@ export const TOWN_ARRIVALS: Record<string, TownArrivalSet> = {
 
   'West Point': {
     first: [
-      { text: 'West Point. A small town with large ambitions, and one man in a tall hat whose ambitions are larger. Cynthia\'s Inn glows warmly in the evening.', mood: 'welcoming' },
+      { text: 'West Point. A small town with large ambitions, and a ridge Kit Carson named before there was gold to name it for. Cynthia\'s Inn glows warmly in the evening.', mood: 'welcoming' },
       { text: 'The heart of Gold Country. Every rock tells a story of fortune sought and sometimes found.', mood: 'mysterious' },
     ],
     return: [
