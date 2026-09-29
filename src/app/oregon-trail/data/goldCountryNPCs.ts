@@ -346,7 +346,7 @@ export const GOLD_COUNTRY_NPCS: GoldCountryNPC[] = [
     location: 'angels_camp',
     witnessType: 'miner',
     portrait: '⛏️',
-    greeting: '*squints* You ain\'t a claim agent from Sacramento, are ya?',
+    greeting: '*squints* You ain\'t a claim agent from Sacramento, are ya? No... you talk too strange for Sacramento.',
     personality: 'Paranoid old prospector, suspicious of strangers but softens with trust. Knows secret mining spots.',
     ollamaPrompt: 'You are Old Pete, a grizzled Gold Rush prospector in Angels Camp. You are suspicious of strangers, paranoid about claim jumpers, and protective of your mining secrets. You speak in short, gruff sentences. If someone earns your trust, you might share the location of a hidden gold vein. Keep responses to 2-3 sentences.',
     dialogueLines: [
@@ -1290,7 +1290,7 @@ export const GOLD_COUNTRY_NPCS: GoldCountryNPC[] = [
     location: 'ironstone_vineyards',
     witnessType: 'scholar',
     portrait: '🏛️',
-    greeting: 'Ah, a visitor! Let me show you the most magnificent gold specimen in existence.',
+    greeting: 'Ah, a visitor! And dressed for some other century, like most who find their way in here. Let me show you the most magnificent gold specimen in existence.',
     personality: 'Passionate museum curator, claims descent from James Marshall who discovered gold at Sutter\'s Mill.',
     ollamaPrompt: 'You are James Marshall IV, curator of the museum at Ironstone Vineyards. You claim descent from James Marshall who discovered gold at Sutter\'s Mill in 1848. You are passionate about Gold Rush history and particularly proud of the 44-pound gold specimen. You are always trying to authenticate artifacts. Keep responses to 2-3 sentences.',
     dialogueLines: [
