@@ -17,6 +17,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
+  Quaternion,
   SRGBColorSpace,
   Vector3,
 } from 'three';
@@ -43,6 +44,35 @@ const CAPTIONS = params.get('captions') === '1';
 const BRAIN_URL = PROBE && /^\d+$/.test(params.get('brain') || '') ? `http://127.0.0.1:${params.get('brain')}/ask` : REVEAL.brainUrl;
 // Words the brain uses to mark 'no mind answered': never shown as speech.
 const SPOKEN_TIERS = ['remembered', 'local', 'strong'];
+
+// Per-player memory: a random id per browser, so 'You asked me that before' is only ever
+// said to the player who asked. Storage can be blocked: then it lives for this page only.
+const PLAYER_KEY = 'outOfTime.playerId';
+const PLAYER_ID = (() => {
+  const make = () => 'p_' + Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
+  try {
+    let id = localStorage.getItem(PLAYER_KEY);
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id || '')) {
+      id = make();
+      localStorage.setItem(PLAYER_KEY, id);
+    }
+    return id;
+  } catch {
+    return make();
+  }
+})();
+
+// A model often wraps its whole answer in quote marks; she does not speak in quote marks.
+// Only a matching pair around the WHOLE answer is removed, and only if that mark does not
+// occur inside ('"Beans," she says. "Coffee."' is left as it is).
+const QUOTE_PAIRS = [['"', '"'], ['\u201c', '\u201d'], ["'", "'"], ['\u2018', '\u2019']];
+function stripWrappingQuotes(text) {
+  for (const [a, z] of QUOTE_PAIRS) {
+    const inner = text.slice(1, -1);
+    if (text.length > 2 && text.startsWith(a) && text.endsWith(z) && !inner.includes(a) && !inner.includes(z)) return inner.trim();
+  }
+  return text;
+}
 
 const scan = { planes: [], placedBy: null, steps: [], lastSelect: null };
 const tableRefs = []; // detected real tables (verification only)
@@ -228,7 +258,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       const res = await fetch(BRAIN_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ npc_id: REVEAL.npcId, question: card.text }),
+        body: JSON.stringify({ npc_id: REVEAL.npcId, question: card.text, player_id: PLAYER_ID }),
         signal: ctl.signal,
       });
       clearTimeout(timer);
@@ -240,16 +270,17 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     rec.ms = Math.round(performance.now() - t0);
     rec.tier = r ? r.tier : 'unreachable';
     rec.learned = !!(r && r.learned);
-    rec.brain = r ? { tier: r.tier, answer: r.answer, _conf: r._conf, why: r.why, source: r.source, best: r.best, learned: r.learned } : null;
+    rec.brain = r ? { tier: r.tier, answer: r.answer, _conf: r._conf, why: r.why, source: r.source, best: r.best, learned: r.learned, remembered_from: r.remembered_from ?? null } : null;
     reveal.busy = false;
     reveal.thinking = false;
-    const answer = r && SPOKEN_TIERS.includes(r.tier) && typeof r.answer === 'string' ? r.answer.trim() : '';
+    const answer = r && SPOKEN_TIERS.includes(r.tier) && typeof r.answer === 'string' ? stripWrappingQuotes(r.answer.trim()) : '';
     if (!answer) {
       reveal.shrug = 0; // no mind answered: she shrugs, and says nothing
       rec.shown = null;
       return;
     }
-    const text = (r.tier === 'remembered' ? REVEAL.rememberedPrefix : '') + answer;
+    // 'You asked me that before' only for THIS player's own earlier question, never a seed hit.
+    const text = (r.tier === 'remembered' && r.remembered_from === 'self' ? REVEAL.rememberedPrefix : '') + answer;
     rec.shown = text;
     say(text, r.tier);
   };
@@ -380,6 +411,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     }
   }
 
+  const faceCam = new Quaternion();
+  const camQ = new Quaternion();
   class LineSystem extends createSystem({}) {
     update(delta, time) {
       const current = LINE[state.index].id;
@@ -395,11 +428,15 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         }
       });
 
+      // Layer glows are planes (so real depth can hide them): turn them to the camera.
+      root.getWorldQuaternion(faceCam).invert().multiply(this.world.camera.getWorldQuaternion(camQ));
       // Lantern flicker, drifting motes and fog, the door in the air.
       layers.c1867.traverse((o) => {
+        if (o.userData.billboard) o.quaternion.copy(faceCam);
         if (o.userData.flicker !== undefined) o.material.opacity = o.material.userData.baseOpacity * state.fades[1] * (0.8 + 0.2 * Math.sin(time * 9 + o.userData.flicker));
       });
       layers.slip1.traverse((o) => {
+        if (o.userData.billboard) o.quaternion.copy(faceCam);
         const d = o.userData.drift;
         if (d) o.position.set(d.base.x + Math.sin(time * 0.4 + d.phase) * d.amp, d.base.y + Math.sin(time * 0.7 + d.phase) * d.amp * 0.6, d.base.z + Math.cos(time * 0.3 + d.phase) * d.amp);
         if (o.userData.bob) {
@@ -708,6 +745,25 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       depth: () => {
         const sys = world.getSystem(DepthSensingSystem);
         return { cpu: sys?.cpuDepthData?.length ?? -1, gpu: sys?.gpuDepthData?.length ?? -1, enabled: world.session?.enabledFeatures ?? null };
+      },
+      playerId: () => PLAYER_ID,
+      // Verification only: pin every drifting Sideways glow (motes, fog) at one point of the
+      // facade frame, still, at one size, so an occlusion pixel-diff is repeatable.
+      pinGlows: (x, y, z, size) => {
+        let n = 0;
+        layers.slip1.traverse((o) => {
+          if (!o.userData.drift) return;
+          o.userData.drift.base.set(x, y, z);
+          o.userData.drift.amp = 0;
+          o.scale.setScalar(size);
+          n++;
+        });
+        return n;
+      },
+      glowKinds: () => {
+        const k = { mesh: 0, sprite: 0 };
+        for (const g of [layers.c1867, layers.slip1]) g.traverse((o) => { if (o.isSprite) k.sprite++; else if (o.userData.glow) k.mesh++; });
+        return k;
       },
       // Verification only: pin Hattie at x (facade frame) for like-for-like screenshots; null resumes the walk.
       holdHattie: (x) => { state.hattieHold = x; },

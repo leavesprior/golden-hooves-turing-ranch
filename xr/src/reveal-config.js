@@ -36,12 +36,18 @@ export const REVEAL = {
   brainUrl: 'http://127.0.0.1:8177/ask',
   brainTimeoutMs: 300000, // a 'strong' answer can take minutes
   npcId: 'hattie_1867',
+  // Said ONLY when the brain reports a remembered hit on THIS player's own learned note
+  // (tier remembered AND remembered_from 'self'); a shared-list (seed) hit is spoken plainly.
   rememberedPrefix: 'You asked me that before — ',
-  // Authored (not the brain, not an answer): what she says when you first come close.
-  greeting: 'So you can see me. Most folk look straight through.',
+  // Her first words on contact are not invented here: they are her authored seed lore, the
+  // answer to 'What is your name?' in SEEDS.hattie_1867 of the bench brain
+  // (~/.local/share/neoma/bench/npc-scope-20260928/npc_brain_scoped.py, seed _conf 1,
+  // source seed:neoma-composite). The greeting probe checks this text against that file.
+  greeting: 'Hattie. I run this kitchen, and the kitchen runs me.',
+  greetingSource: { npc: 'hattie_1867', seedQuestion: 'What is your name?', conf: 1 },
   cards: [
     { id: 'ordinary', text: 'What are you cooking?' },
     { id: 'remembered', text: 'Is your coffee strong?' },
-    { id: 'new', text: 'Does the theatre company pay for its suppers in gold dust?' },
+    { id: 'new', text: 'Do you ever get a day off?' }, // novel to her shared memory (cosine 0.54): a strong answer, learned per player
   ],
 };
