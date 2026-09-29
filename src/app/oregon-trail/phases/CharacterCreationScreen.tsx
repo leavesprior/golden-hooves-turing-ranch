@@ -232,7 +232,7 @@ export function CharacterCreationScreen() {
               data-testid="saddle-roll"
               onClick={rollDice}
               disabled={isRolling}
-              className={`west-face-pill flex-1 min-h-11 text-center transition-all active:scale-[0.98] ${
+              className={`west-face-pill flex-1 min-h-11! text-center transition-all active:scale-[0.98] ${
                 isRolling ? 'animate-pulse' : ''
               }`}
             >
@@ -243,7 +243,7 @@ export function CharacterCreationScreen() {
                 type="button"
                 data-testid="saddle-standard"
                 onClick={spendEven}
-                className="west-face-pill min-h-11 text-center"
+                className="west-face-pill min-h-11! text-center"
               >
                 Spend remaining evenly
               </button>
@@ -352,7 +352,7 @@ export function CharacterCreationScreen() {
           data-testid="saddle-begin"
           onClick={handleFinalize}
           disabled={pointsRemaining !== 0 || !selectedBackground}
-          className="west-face-pill west-face-pill-cream relative z-10 mt-4 w-full min-h-12 text-center text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+          className="west-face-pill west-face-pill-cream relative z-10 mt-4 w-full min-h-12! text-center text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
         >
           {!selectedBackground ? 'Select a background' : pointsRemaining > 0 ? `Assign ${pointsRemaining} more points` : 'Hitch the wagon'}
         </button>
