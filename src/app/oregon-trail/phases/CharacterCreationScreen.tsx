@@ -17,6 +17,7 @@ import { NarratorOverlay } from '../components/NarratorOverlay'
 import { creationBonusPoints, isKidMode } from '@/lib/gftAgeMode'
 import { applySaddleAdjust } from '@/lib/gftSaddleAdjust'
 import { PlayerPortrait } from '../components/PlayerPortrait'
+import { editorialForLandmark } from '@/lib/californiaTrailArt'
 
 export function CharacterCreationScreen() {
   const { state: trailState, beginJourney } = useOregonTrail()
@@ -163,22 +164,32 @@ export function CharacterCreationScreen() {
     Expertise: 'Tracking, survival, repair',
   }
 
+  // Same Independence still and grade as the outfitters (continuity doc §6: one western look).
+  const still = editorialForLandmark('Independence, Missouri') || '/place-art/editorial/independence.jpg'
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-gray-900 to-amber-950 p-4 pb-28">
+    <div className="relative min-h-screen pb-28">
       <KarmaToastContainer />
       <NarratorOverlay position="corner" />
 
-      <div className="max-w-2xl mx-auto pt-8">
-        <header className="text-center mb-8">
-          <h1 className="font-pixel text-purple-300 text-xl mb-2">Swear In Your Agent</h1>
-          <p className="text-purple-400 text-sm">
+      <div className="pointer-events-none fixed inset-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={still} alt="" className="h-full w-full object-cover object-[center_38%]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/60 to-black/40" />
+      </div>
+
+      <div className="relative z-10 max-w-2xl mx-auto px-4 pt-8">
+        <header className="mb-6">
+          <p className="west-face-eyebrow">First camp · Independence, Missouri</p>
+          <h1 className="west-face-title mt-2">Swear In Your Agent</h1>
+          <p className="west-face-body mt-2">
             Saddle up your S.A.D.D.L.E. stats{kidTrail ? ' · kid trail' : ' · adult warrant'}
           </p>
         </header>
 
         {/* Background Selection */}
-        <div className="bg-gray-900/80 border-2 border-purple-600 rounded-lg p-4 mb-6">
-          <h2 className="font-pixel text-purple-300 text-sm mb-4">Choose Your Past</h2>
+        <div className="west-face-paper mb-6">
+          <h2 className="west-face-eyebrow mb-4">Choose Your Past</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {backgrounds.map(bg => (
               <button
@@ -187,29 +198,29 @@ export function CharacterCreationScreen() {
                 data-testid={`saddle-background-${bg.id}`}
                 onClick={() => setSelectedBackground(bg.id)}
                 aria-pressed={selectedBackground === bg.id}
-                className={`flex items-start gap-3 p-4 md:p-3 rounded border-2 text-left transition-all active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-300 ${
+                className={`flex items-start gap-3 p-4 md:p-3 rounded-xl border text-left transition-all active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--west-cream)] ${
                   selectedBackground === bg.id
-                    ? 'bg-purple-900/60 border-purple-400 text-purple-200'
-                    : 'bg-gray-800/60 border-gray-600 text-gray-400 hover:border-gray-500'
+                    ? 'bg-[var(--west-cream)] border-transparent text-[var(--west-cream-ink)]'
+                    : 'bg-[var(--west-pill)] border-[var(--west-line)] text-[var(--west-ink)] hover:border-[var(--west-muted)]'
                 }`}
               >
                 <PlayerPortrait background={bg.id} name={bg.name} width={48} />
                 <span className="min-w-0">
-                  <span className="font-pixel text-sm md:text-xs">{bg.name}</span>
-                  <span className="block text-xs md:text-[10px] mt-1 opacity-70">{bg.description}</span>
+                  <span className="font-serif text-base md:text-sm">{bg.name}</span>
+                  <span className="block font-serif text-sm md:text-xs mt-1 opacity-80">{bg.description}</span>
                 </span>
               </button>
             ))}
           </div>
-          <p className="mt-3 text-xs text-purple-300/70">Fictional adult portraits {'\u2014'} no real folks sat for these daguerreotypes.</p>
+          <p className="west-face-footer mt-3">Fictional adult portraits {'\u2014'} no real folks sat for these daguerreotypes.</p>
         </div>
 
         {/* Dice Roll Section */}
-        <div className="bg-gray-900/80 border-2 border-amber-600 rounded-lg p-4 mb-6">
+        <div className="west-face-paper mb-6">
           <div className="flex justify-between items-center mb-3">
-            <h2 className="font-pixel text-amber-300 text-sm">{'\uD83C\uDFB2'} Roll the Bones</h2>
+            <h2 className="west-face-eyebrow">{'\uD83C\uDFB2'} Roll the Bones</h2>
             {hasRolled && (
-              <span className="text-amber-400 text-xs">
+              <span className="font-serif text-xs text-[var(--west-muted)]">
                 Total: {getTotalStats()} | Rolls: {rollCount}
               </span>
             )}
@@ -221,10 +232,8 @@ export function CharacterCreationScreen() {
               data-testid="saddle-roll"
               onClick={rollDice}
               disabled={isRolling}
-              className={`flex-1 py-4 md:py-2 font-pixel text-base md:text-sm rounded border-2 transition-all active:scale-[0.98] ${
-                isRolling
-                  ? 'bg-amber-800 border-amber-600 text-amber-300 animate-pulse'
-                  : 'bg-amber-700 border-amber-500 text-amber-100 hover:bg-amber-600'
+              className={`west-face-pill flex-1 min-h-11! text-center transition-all active:scale-[0.98] ${
+                isRolling ? 'animate-pulse' : ''
               }`}
             >
               {isRolling ? '\uD83C\uDFB2 Rolling...' : hasRolled ? '\uD83C\uDFB2 Reroll Stats (3d6)' : '\uD83C\uDFB2 Roll Stats (3d6 each)'}
@@ -234,7 +243,7 @@ export function CharacterCreationScreen() {
                 type="button"
                 data-testid="saddle-standard"
                 onClick={spendEven}
-                className="py-4 md:py-2 px-3 font-pixel text-xs rounded border-2 border-amber-700 text-amber-200 hover:bg-amber-900/40"
+                className="west-face-pill min-h-11! text-center"
               >
                 Spend remaining evenly
               </button>
@@ -252,10 +261,10 @@ export function CharacterCreationScreen() {
 
                 return (
                   <div key={stat} className={`flex items-center gap-2 px-2 py-1 rounded ${
-                    isGoodRoll ? 'bg-green-900/40' : isBadRoll ? 'bg-red-900/40' : 'bg-gray-800/40'
+                    isGoodRoll ? 'bg-green-900/40' : isBadRoll ? 'bg-red-900/40' : 'bg-[var(--west-pill)]'
                   }`}>
-                    <span className="text-purple-300 w-8">{stat.charAt(0)}.</span>
-                    <span className="text-gray-400">
+                    <span className="text-[var(--west-ink)] w-8">{stat.charAt(0)}.</span>
+                    <span className="text-[var(--west-muted)]">
                       [{dice.map((d, i) => (
                         <span key={i} className={d === 6 ? 'text-green-400' : d === 1 ? 'text-red-400' : ''}>
                           {d}{i < 2 ? '+' : ''}
@@ -263,7 +272,7 @@ export function CharacterCreationScreen() {
                       ))}]
                     </span>
                     <span className={`font-pixel ml-auto ${
-                      isGoodRoll ? 'text-green-400' : isBadRoll ? 'text-red-400' : 'text-amber-300'
+                      isGoodRoll ? 'text-green-400' : isBadRoll ? 'text-red-400' : 'text-[var(--west-ink)]'
                     }`}>
                       = {total}
                     </span>
@@ -274,17 +283,17 @@ export function CharacterCreationScreen() {
           )}
 
           {!hasRolled && (
-            <p className="text-gray-500 text-xs text-center">
+            <p className="west-face-footer text-center">
               Standard: 5 base + background + {creationBonusPoints(false)} points. Rolled: 3d6 + background + {creationBonusPoints(true)}.
             </p>
           )}
         </div>
 
         {/* Stat Distribution */}
-        <div className="bg-gray-900/80 border-2 border-purple-600 rounded-lg p-4 mb-6">
+        <div className="west-face-paper mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="font-pixel text-purple-300 text-sm">S.A.D.D.L.E. Stats</h2>
-            <span className={`font-pixel text-sm ${pointsRemaining > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+            <h2 className="west-face-eyebrow">S.A.D.D.L.E. Stats</h2>
+            <span className={`font-serif text-sm ${pointsRemaining > 0 ? 'text-amber-100/80' : 'text-[var(--west-cream)]'}`}>
               Bonus Points: {pointsRemaining}
             </span>
           </div>
@@ -299,38 +308,38 @@ export function CharacterCreationScreen() {
               return (
                 <div key={stat} className="flex items-center gap-2 md:gap-3">
                   <div className="w-20 md:w-24">
-                    <span className="text-purple-200 text-sm md:text-xs font-pixel">{stat.charAt(0)}</span>
-                    <span className="text-gray-400 text-sm md:text-xs">. {stat.slice(1)}</span>
+                    <span className="text-[#f3ead8] text-sm md:text-xs font-serif">{stat.charAt(0)}</span>
+                    <span className="text-[var(--west-muted)] text-sm md:text-xs font-serif">. {stat.slice(1)}</span>
                   </div>
                   <div className="flex-1 flex items-center gap-2">
                     <button
                       onClick={() => adjustStat(stat, -1)}
                       disabled={value <= baseValue}
-                      className="w-11 h-11 md:w-6 md:h-6 text-lg md:text-base bg-purple-800 text-purple-200 rounded disabled:opacity-30 active:bg-purple-600"
+                      className="w-11 h-11 md:w-7 md:h-7 text-lg md:text-base bg-[var(--west-pill)] text-[var(--west-ink)] border border-[var(--west-line)] rounded-full disabled:opacity-30 active:opacity-80"
                     >-</button>
-                    <div className="flex-1 h-3 md:h-2 bg-gray-700 rounded overflow-hidden relative">
+                    <div className="flex-1 h-3 md:h-2 bg-[var(--west-line)] rounded-full overflow-hidden relative">
                       {/* Base value indicator */}
                       {hasRolled && (
                         <div
-                          className="absolute h-full bg-amber-700/50"
+                          className="absolute h-full bg-[color-mix(in_srgb,var(--west-muted)_45%,transparent)]"
                           style={{ width: `${(baseValue / 18) * 100}%` }}
                         />
                       )}
                       <div
-                        className="h-full bg-purple-500 transition-all relative"
+                        className="h-full bg-[var(--west-cream)] transition-all relative"
                         style={{ width: `${(shown / 18) * 100}%` }}
                       />
                     </div>
-                    <span className="w-8 text-center text-purple-200 text-base md:text-sm font-pixel">{shown}</span>
+                    <span className="w-8 text-center text-[#f3ead8] text-base md:text-sm font-serif">{shown}</span>
                     <button
                       type="button"
                       data-testid={`saddle-plus-${stat}`}
                       onClick={() => adjustStat(stat, 1)}
                       disabled={value >= 18 || pointsRemaining <= 0}
-                      className="w-11 h-11 md:w-6 md:h-6 text-lg md:text-base bg-purple-800 text-purple-200 rounded disabled:opacity-30 active:bg-purple-600"
+                      className="w-11 h-11 md:w-7 md:h-7 text-lg md:text-base bg-[var(--west-pill)] text-[var(--west-ink)] border border-[var(--west-line)] rounded-full disabled:opacity-30 active:opacity-80"
                     >+</button>
                   </div>
-                  <span className="w-32 text-gray-500 text-[10px] hidden md:block">{statDescriptions[stat]}</span>
+                  <span className="w-32 font-serif text-[var(--west-muted)] text-xs hidden md:block">{statDescriptions[stat]}</span>
                 </div>
               )
             })}
@@ -343,7 +352,7 @@ export function CharacterCreationScreen() {
           data-testid="saddle-begin"
           onClick={handleFinalize}
           disabled={pointsRemaining !== 0 || !selectedBackground}
-          className="relative z-10 mt-4 w-full py-4 md:py-3 bg-purple-700 hover:bg-purple-600 text-purple-100 font-pixel text-base md:text-sm rounded border-4 border-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
+          className="west-face-pill west-face-pill-cream relative z-10 mt-4 w-full min-h-12! text-center text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
         >
           {!selectedBackground ? 'Select a background' : pointsRemaining > 0 ? `Assign ${pointsRemaining} more points` : 'Hitch the wagon'}
         </button>
