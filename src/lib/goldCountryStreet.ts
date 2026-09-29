@@ -317,7 +317,7 @@ export const TOWN_FRONTS: TownFront[] = [
     kind: 'saloon',
     x: 42, y: 40,
     keeperNpcId: 'innkeeper_rosa',
-    patronNpcIds: ['ghost_hunter_edgar'],
+    patronNpcIds: ['ghost_hunter_edgar', 'bard_robert_service'],
     searchAreaIds: ['mokelumne_hotel_basement'],
     goods: goods(G.whiskey, G.flour, G.lamp),
     interior: 'The cellar under the store — the corner that will one day be the Léger.',
