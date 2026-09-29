@@ -26,7 +26,7 @@ export const TOWN_ARRIVALS: Record<string, TownArrivalSet> = {
   'Independence, Missouri': {
     first: [
       { text: 'The jumping-off point. Everything west of here is either adventure or regret—often both.', mood: 'mysterious' },
-      { text: 'Independence bustles with dreamers and schemers. The trail begins where the certainty ends.', mood: 'business' },
+      { text: 'Independence bustles with dreamers and schemers, and one time traveler trying hard to look like neither. The trail begins where the certainty ends.', mood: 'business' },
     ],
     return: [
       { text: 'Back to Independence. The town seems smaller now that you know what lies beyond.', mood: 'weary' },
@@ -107,7 +107,7 @@ export const TOWN_ARRIVALS: Record<string, TownArrivalSet> = {
   'Independence Rock': {
     first: [
       { text: 'Independence Rock. Thousands of names carved over decades. Your story joins the stone library.', mood: 'mysterious' },
-      { text: 'They say reach here by Independence Day for good luck. You check the calendar nervously.', mood: 'foreboding' },
+      { text: 'They say reach here by Independence Day for good luck. You check the calendar nervously, then check the year, just to be safe.', mood: 'foreboding' },
     ],
     return: [
       { text: 'You find your previous carvings. They look lonely. You add to them.', mood: 'mysterious' },
@@ -171,7 +171,7 @@ export const TOWN_ARRIVALS: Record<string, TownArrivalSet> = {
   'Fort Hall': {
     first: [
       { text: 'Fort Hall. The last outpost before things get truly western. Stock up on certainty while you can.', mood: 'business' },
-      { text: 'British traders built this post. Now it\'s American. The wilderness doesn\'t care either way.', mood: 'mysterious' },
+      { text: 'An American trader built this post, and the British Hudson\'s Bay Company bought it. The wilderness doesn\'t care either way.', mood: 'mysterious' },
     ],
     return: [
       { text: 'Fort Hall\'s familiar buildings appear through the dust. The trail remembers you.', mood: 'welcoming' },
@@ -250,7 +250,7 @@ export const TOWN_ARRIVALS: Record<string, TownArrivalSet> = {
 
   'Sacramento Valley': {
     first: [
-      { text: 'The Sacramento Valley spreads before you—golden and promising. You made it to California.', mood: 'welcoming' },
+      { text: 'The Sacramento Valley spreads before you—golden and promising. You made it to California, only a hundred and seventy-seven years early.', mood: 'welcoming' },
       { text: 'Fertile land, endless potential, and somewhere out there: gold. The journey\'s end is the beginning.', mood: 'mysterious' },
     ],
     return: [
@@ -266,7 +266,7 @@ export const TOWN_ARRIVALS: Record<string, TownArrivalSet> = {
 
   'West Point': {
     first: [
-      { text: 'West Point. A small town with large ambitions. Cynthia\'s Inn glows warmly in the evening.', mood: 'welcoming' },
+      { text: 'West Point. A small town with large ambitions, and one man in a tall hat whose ambitions are larger. Cynthia\'s Inn glows warmly in the evening.', mood: 'welcoming' },
       { text: 'The heart of Gold Country. Every rock tells a story of fortune sought and sometimes found.', mood: 'mysterious' },
     ],
     return: [
@@ -283,7 +283,7 @@ export const TOWN_ARRIVALS: Record<string, TownArrivalSet> = {
   'Gold Country': {
     first: [
       { text: 'Gold Country. The promised land. The hills glitter with possibility—and danger.', mood: 'mysterious' },
-      { text: 'You made it. Two thousand miles of trail behind you, untold adventure ahead.', mood: 'welcoming' },
+      { text: 'You made it. Two thousand miles of trail behind you, untold adventure ahead, and a golden frog in your pocket that knows the way home.', mood: 'welcoming' },
     ],
     return: [
       { text: 'Gold Country welcomes you back. The streams remember the feel of your pan.', mood: 'welcoming' },

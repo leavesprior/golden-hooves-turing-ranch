@@ -38,13 +38,13 @@ export const RANDOM_EVENTS: RandomEvent[] = [
   {
     id: 'sick_traveler',
     title: 'Sick Traveler',
-    description: 'You encounter a sick traveler by the trail, too weak to continue alone.',
+    description: 'A sick traveler sits by the trail, too weak to go on alone. He asks what year it is. You tell him 1849, which is true, if not the whole truth.',
     choices: [
       {
         id: 'help',
         text: 'Share your medicine and food',
         outcome: {
-          message: 'The traveler thanks you and recovers. Good karma flows.',
+          message: 'Your medicine does what medicine will. He shakes your hand and swears he\'ll return the favor someday. Out here, someday is a long word.',
           foodDelta: -20,
           medicineDelta: -1,
           neutralKarmaDelta: -20,  // Costs 20🌮
@@ -57,7 +57,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'ignore',
         text: 'Continue on your way',
         outcome: {
-          message: 'You leave the traveler behind. Their fate is uncertain.',
+          message: 'You leave him by the trail. You will never learn how his story ends, and that is its own kind of weight.',
           badKarmaDelta: 3,  // Gains 3🪨
         },
         karmaLawful: 0,
@@ -68,13 +68,13 @@ export const RANDOM_EVENTS: RandomEvent[] = [
   {
     id: 'broken_wagon',
     title: 'Stranded Family',
-    description: 'A family is stranded with a broken wagon wheel. They look desperate.',
+    description: 'A family sits beside a wagon with a busted wheel, a long way from anywhere with a wheelwright.',
     choices: [
       {
         id: 'share_parts',
         text: 'Give them a spare part',
         outcome: {
-          message: 'The family is deeply grateful. They share some of their food.',
+          message: 'The wheel goes on and the family\'s spirits go up. They press a sack of food on you and won\'t hear otherwise.',
           spareParts: -1,
           foodDelta: 10,
           goodKarmaDelta: 10,  // Earns 10🍪
@@ -86,7 +86,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'trade_unfair',
         text: 'Offer to trade at triple the value',
         outcome: {
-          message: 'They reluctantly agree. You profit from their misfortune.',
+          message: 'They pay it, because what else can they do. You profit from their misfortune, and the trail takes note.',
           spareParts: -1,
           neutralKarmaDelta: 30,  // Earns 30🌮
           badKarmaDelta: 5,       // Gains 5🪨 debt
@@ -97,7 +97,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
       {
         id: 'pass',
         text: 'Wish them luck and continue',
-        outcome: { message: 'You pass by without stopping.' },
+        outcome: { message: 'You tip your hat and roll on. They are still sitting there when you look back.' },
         karmaLawful: 0,
         karmaGood: 3,
       },
@@ -106,7 +106,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
   {
     id: 'native_trade',
     title: 'Native Traders',
-    description: 'A group of Native American traders approaches with goods to trade.',
+    description: 'A party of Native American traders rides up with goods to trade. They know this country far better than any map in your wagon.',
     choices: [
       {
         id: 'fair_trade',
@@ -125,7 +125,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
       {
         id: 'decline',
         text: 'Politely decline',
-        outcome: { message: 'They nod respectfully and continue on.' },
+        outcome: { message: 'They nod and ride on, unbothered. They have seen plenty of wagons pass.' },
         karmaLawful: 0,
         karmaGood: 0,
       },
@@ -133,7 +133,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'steal',
         text: 'Wait until nightfall and take their goods',
         outcome: {
-          message: 'You steal their supplies. It weighs on your conscience.',
+          message: 'You take their goods in the dark. It sits in your wagon and on your conscience, and only one of them lightens with time.',
           foodDelta: 80,
           ammoDelta: 20,
           neutralKarmaDelta: 80,  // Ill-gotten gains 80🌮 worth
@@ -147,13 +147,13 @@ export const RANDOM_EVENTS: RandomEvent[] = [
   {
     id: 'claim_jumping',
     title: 'Claim Jumpers',
-    description: 'You witness claim jumpers trying to steal a prospector\'s land.',
+    description: 'Three claim jumpers are pulling up a prospector\'s stakes while he hollers about the law. The law is several hundred miles away.',
     choices: [
       {
         id: 'report',
         text: 'Help the prospector and report to authorities',
         outcome: {
-          message: 'Justice is served. The prospector rewards you.',
+          message: 'You stand with the prospector until the jumpers think better of it. He pays you in gratitude and a little dust.',
           neutralKarmaDelta: 25,  // Reward 25🌮
           goodKarmaDelta: 10,     // Earns 10🍪
           daysLost: 1,
@@ -165,7 +165,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'join',
         text: 'Join the claim jumpers for a cut',
         outcome: {
-          message: 'You share in ill-gotten gains.',
+          message: 'You take your cut of a stolen claim. It spends the same as honest gold. It doesn\'t sleep the same.',
           neutralKarmaDelta: 50,  // Ill-gotten 50🌮
           badKarmaDelta: 15,      // Major bad karma 15🪨
         },
@@ -175,7 +175,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
       {
         id: 'avoid',
         text: 'Mind your own business',
-        outcome: { message: 'You slip away unnoticed.' },
+        outcome: { message: 'You find something fascinating to look at in the other direction, and keep looking until you are out of sight.' },
         karmaLawful: 0,
         karmaGood: 3,
       },
@@ -184,13 +184,13 @@ export const RANDOM_EVENTS: RandomEvent[] = [
   {
     id: 'starving_family',
     title: 'Starving Family',
-    description: 'A family hasn\'t eaten in days. Their children look weak.',
+    description: 'A family by the trail hasn\'t eaten in days. The children are too tired to beg.',
     choices: [
       {
         id: 'share_food',
         text: 'Share a generous portion of food',
         outcome: {
-          message: 'The family weeps with gratitude. Your heart feels light.',
+          message: 'The family eats their first real meal in a week. Your wagon is lighter, and so, somehow, are you.',
           foodDelta: -40,
           neutralKarmaDelta: -40,  // Costs 40🌮 worth
           goodKarmaDelta: 15,      // Earns 15🍪
@@ -202,7 +202,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'small_share',
         text: 'Share a small amount',
         outcome: {
-          message: 'It\'s not much, but it helps.',
+          message: 'It isn\'t much. It is more than they had an hour ago.',
           foodDelta: -15,
           goodKarmaDelta: 5,  // Earns 5🍪
         },
@@ -213,7 +213,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'refuse',
         text: 'You can\'t spare any food',
         outcome: {
-          message: 'You walk away from their pleas.',
+          message: 'You walk on. Their voices follow you further than you\'d like.',
           badKarmaDelta: 8,  // Gains 8🪨
         },
         karmaLawful: 0,
@@ -224,12 +224,12 @@ export const RANDOM_EVENTS: RandomEvent[] = [
   {
     id: 'wild_animal',
     title: 'Wild Animal Attack',
-    description: 'A mountain lion stalks your camp at night!',
+    description: 'Two green eyes at the edge of the firelight. A mountain lion is taking an interest in your camp.',
     choices: [
       {
         id: 'shoot',
         text: 'Shoot it before it attacks',
-        outcome: { message: 'Your quick reflexes save the party.', ammoDelta: -3 },
+        outcome: { message: 'Quick hands and a few loud shots, and the lion decides your camp is more trouble than supper.', ammoDelta: -3 },
         karmaLawful: 0,
         karmaGood: 0,
       },
@@ -237,7 +237,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'scare',
         text: 'Try to scare it away with fire',
         outcome: {
-          message: 'The lion retreats into the darkness, but a party member got scratched.',
+          message: 'A burning branch sends the lion back into the dark, but not before it leaves a party member a souvenir.',
           healthDelta: -15,
           goodKarmaDelta: 2,  // Mercy earns a little good karma
         },
@@ -249,13 +249,13 @@ export const RANDOM_EVENTS: RandomEvent[] = [
   {
     id: 'found_gold',
     title: 'Karma Nugget',
-    description: 'You spot something glinting in a stream bed. It could be valuable!',
+    description: 'Something glints in the stream bed. Could be gold. Could be fool\'s gold. Could be a tin button somebody lost in 1848.',
     choices: [
       {
         id: 'pan',
         text: 'Spend a day panning',
         outcome: {
-          message: 'Lady luck smiles! You find a decent nugget.',
+          message: 'Lady Luck smiles, and a respectable nugget rolls into your pan. Half of Missouri would give a year for this.',
           neutralKarmaDelta: 40,  // Earns 40🌮
           daysLost: 1,
         },
@@ -274,13 +274,13 @@ export const RANDOM_EVENTS: RandomEvent[] = [
   {
     id: 'oxen_theft',
     title: 'Oxen Thieves',
-    description: 'Bandits try to steal your oxen in the night!',
+    description: 'Somebody is untying your oxen in the dark, and it isn\'t anybody you hired.',
     choices: [
       {
         id: 'fight',
         text: 'Fight them off',
         outcome: {
-          message: 'You drive them away but use ammunition.',
+          message: 'A few shots into the dark and the rustlers remember urgent business elsewhere. Your ammunition does not come back.',
           ammoDelta: -10,
           goodKarmaDelta: 5,  // Defending yourself is honorable
         },
@@ -291,7 +291,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'negotiate',
         text: 'Offer them karma to leave',
         outcome: {
-          message: 'They take the karma and disappear.',
+          message: 'They take the karma, tip their hats, and melt into the night. Fine manners, for thieves.',
           neutralKarmaDelta: -25,  // Costs 25🌮
         },
         karmaLawful: 5,
@@ -309,7 +309,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'engage',
         text: 'Engage in philosophical debate',
         outcome: {
-          message: 'Two hours later, you have solved nothing but somehow feel enlightened. The stranger vanishes with a knowing smile.',
+          message: 'Two hours later you have solved nothing, but you feel enlightened. The stranger mentions he has read about you in a history book, then vanishes with a knowing smile.',
           daysLost: 0,
           goodKarmaDelta: 5,
         },
@@ -470,7 +470,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
   {
     id: 'prophetic_child',
     title: 'The Prophetic Child',
-    description: 'A child from a passing wagon points at you and declares, "The trail knows your name." Their parents apologize and hurry on. You are left with questions.',
+    description: 'A child from a passing wagon points at you and declares, "The trail knows your name, and the year you came from." Their parents apologize and hurry on. You are left with questions.',
     choices: [
       {
         id: 'ponder',
@@ -496,7 +496,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
   {
     id: 'ghost_town_shortcut',
     title: 'The Unusually Quiet Settlement',
-    description: 'You pass through a town that exists on no map. The buildings are well-maintained but the streets are empty. A sign reads: "WELCOME. PLEASE DON\'T STAY."',
+    description: 'You pass through a town that exists on no map, not this century\'s and not yours. The buildings are well kept but the streets are empty. A sign reads: "WELCOME. PLEASE DON\'T STAY."',
     choices: [
       {
         id: 'take_supplies',
