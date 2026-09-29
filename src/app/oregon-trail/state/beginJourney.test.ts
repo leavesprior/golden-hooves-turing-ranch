@@ -9,7 +9,7 @@ import { gameReducer } from './reducer'
 
 const FIRST = [
   'The jumping-off point. Everything west of here is either adventure or regret—often both.',
-  'Independence bustles with dreamers and schemers. The trail begins where the certainty ends.',
+  'Independence bustles with dreamers and schemers, and one time traveler trying hard to look like neither. The trail begins where the certainty ends.',
 ]
 
 let passed = 0

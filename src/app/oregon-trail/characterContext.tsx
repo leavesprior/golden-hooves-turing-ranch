@@ -134,7 +134,7 @@ export const BACKGROUND_DESCRIPTIONS: Record<CharacterBackground, {
   // (Britannica); in spring 1849 Allan Pinkerton was a Chicago police detective.
   pinkerton_veteran: {
     name: 'Detective Veteran',
-    description: 'Years as a city detective. The Pinkertons will hire you the minute they exist.',
+    description: 'Years as a city detective. The great detective agencies will hire you the minute they exist.',
     bonuses: '+2 Shrewdness, +2 Expertise'
   },
   frontier_scout: {
