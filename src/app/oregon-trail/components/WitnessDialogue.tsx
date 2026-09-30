@@ -263,11 +263,25 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
   const sendToDmChat = useCallback(async (message: string) => {
     if (!npc) return
     addToHistory('YOU', message)
+    // The grounded clue does not depend on the model: a slow or unreachable chat
+    // still hands it over, spoken as the fallback line the first time.
+    const grantClue = () => {
+      if (!clue || clueObtained) return false
+      addClue(clue)
+      setClueObtained(true)
+      onClueObtained?.(clue)
+      addExperience(XP_REWARDS.CLUE_OBTAINED)
+      return true
+    }
+    const floorLine = () => {
+      const pending = clue && !clueObtained ? clue.text : undefined
+      grantClue()
+      return pending || npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...'
+    }
     const sessionId = await ensureDmSession()
     if (!sessionId) {
-      // DM chat unreachable — degrade to a scripted dialogueLine (the offline floor).
-      const line = npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...'
-      addToHistory(npc.name, line)
+      // DM chat unreachable — degrade to the scripted floor.
+      addToHistory(npc.name, floorLine())
       return
     }
     setIsStreaming(true)
@@ -284,20 +298,16 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
         signal: controller.signal,
       })
       const data = res.ok ? await res.json() : null
-      const text = data?.response
-        || npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)]
-        || '...'
-      updateLastHistory(text)
-      // Grant the grounded clue on the first real exchange (mirrors the offline path).
-      if (clue && !clueObtained) {
-        addClue(clue)
-        setClueObtained(true)
-        onClueObtained?.(clue)
-        addExperience(XP_REWARDS.CLUE_OBTAINED)
+      if (data?.response) {
+        updateLastHistory(data.response)
+        // Grant the grounded clue on the first real exchange.
+        grantClue()
+      } else {
+        updateLastHistory(floorLine())
       }
     } catch {
-      // Includes AbortError on timeout — fall back to a scripted line and clear the "...".
-      updateLastHistory(npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...')
+      // Includes AbortError on timeout — fall back to the scripted floor and clear the "...".
+      updateLastHistory(floorLine())
     } finally {
       clearTimeout(timeoutId)
       setIsStreaming(false)

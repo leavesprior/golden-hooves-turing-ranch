@@ -175,7 +175,7 @@ export function InvestigationScreen() {
                           {place.name}
                           {interviewed && ' ✓'}
                         </p>
-                        <p className="text-amber-500 text-xs">{w.name}, {w.role}</p>
+                        <p className="text-amber-500 text-xs">{w.name.toLowerCase().includes(w.role.toLowerCase()) ? w.name : `${w.name}, ${w.role}`}</p>
                         {place.later && (
                           <p className="text-indigo-300 text-[10px] mt-1">{'\u23F3'} A crossing to {place.year}</p>
                         )}

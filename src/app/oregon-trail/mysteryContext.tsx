@@ -621,6 +621,8 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
   // Add a clue manually (also extracts traits if present)
   const addClue = useCallback((clue: CollectedClue) => {
     setState(prev => {
+      // The witness dialogue grants a clue and its onClueObtained adds it again.
+      if (prev.collectedClues.some(c => c.id === clue.id)) return prev
       const newState = {
         ...prev,
         collectedClues: [...prev.collectedClues, clue]
