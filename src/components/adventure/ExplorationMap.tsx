@@ -145,6 +145,9 @@ export function ExplorationMap({
      try {
       // Dynamic import — avoids SSR crash
       const PIXI = await import('pixi.js')
+      // The site CSP forbids unsafe-eval; this module swaps Pixi's generated
+      // shader code for eval-free versions so the map renders under it.
+      await import('pixi.js/unsafe-eval')
       if (destroyedRef.current) return
 
       app = new PIXI.Application()

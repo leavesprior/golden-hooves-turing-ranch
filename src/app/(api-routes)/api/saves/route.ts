@@ -52,7 +52,9 @@ export async function GET(request: NextRequest) {
   try {
     if (searchParams.get('metadataOnly') === 'true') {
       const meta = getSaveMeta(playerId, saveType)
-      return meta ? NextResponse.json(meta) : NextResponse.json(null, { status: 404 })
+      // No save yet is an ordinary answer, not an error: a 404 printed a red
+      // console error for every new player.
+      return meta ? NextResponse.json(meta) : NextResponse.json({ exists: false })
     }
     const result = readSave(playerId, saveType ?? '', request.headers.get('x-save-proof') ?? '', clientIpFrom(request.headers))
     if (!result.ok) return failure(result.reason)

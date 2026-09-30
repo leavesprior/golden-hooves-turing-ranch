@@ -184,11 +184,12 @@ export default function AdventureRewardTracker({
   return (
     <>
       {collapsed ? (
-        /* Collapsed: a small chip that stays out of the way (mobile-safe) */
+        /* Collapsed: a small chip that stays out of the way (mobile-safe).
+           Bottom-anchored: at top-right it sat on the site header's Book Your Stay. */
         <button
           onClick={toggleCollapsed}
           aria-label="Expand reward tracker"
-          className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] px-3 py-2 font-[var(--font-pixel)] shadow-lg hover:border-[var(--pixel-gold-mid)] transition-colors"
+          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-50 flex items-center gap-2 bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] px-3 py-2 font-[var(--font-pixel)] shadow-lg hover:border-[var(--pixel-gold-mid)] transition-colors"
         >
           <span className="text-[14px]">
             {currentTier ? EXTENDED_TIERS[currentTier].badge : '🏆'}
@@ -198,7 +199,7 @@ export default function AdventureRewardTracker({
           </span>
         </button>
       ) : (
-      <div className="fixed top-4 right-4 w-80 bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] p-4 font-[var(--font-pixel)] shadow-lg z-50">
+      <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 w-80 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto bg-[var(--pixel-bg-dark)] border-4 border-[var(--pixel-ui-border)] p-4 font-[var(--font-pixel)] shadow-lg z-50">
         {/* Header */}
         <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-[var(--pixel-ui-border)]">
           <h3 className="text-[12px] text-[var(--pixel-gold-light)] uppercase tracking-wider">

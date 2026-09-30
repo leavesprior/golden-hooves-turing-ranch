@@ -2253,7 +2253,7 @@ function AdventureContent() {
           locationsVisited={adventureState.visitedLocationIds.length}
           totalLocations={getChapterLocations(adventureState.chapter).length}
           chapter={adventureState.chapter}
-          playTimeMinutes={Math.floor((nowMs - adventureState.playStartTime) / 60000)}
+          playTimeMinutes={Math.max(0, Math.floor((nowMs - adventureState.playStartTime) / 60000))}
           cluesAnswered={adventureState.cluesAnswered}
           onUseHint={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
         />
