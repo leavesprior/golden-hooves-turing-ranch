@@ -69,19 +69,12 @@ export function BridgeKeeper({
   const [questionsAsked, setQuestionsAsked] = useState<BridgeQuestion[]>([])
   const submittedAnswers = useRef<string[]>([])
 
-  // Select 3 random questions (always include name and quest, then one random).
+  // Name and quest (the traveller's own), then one question with a real answer.
   // When an override set is supplied (dp-bridge-variant), pose it verbatim.
   const getQuestions = useCallback(() => {
     if (questionsOverride && questionsOverride.length > 0) return questionsOverride
-    const mandatory = BRIDGE_QUESTIONS.slice(0, 3) // name, quest, color
-    const tricky = BRIDGE_QUESTIONS.slice(3) // capital, swallow
-    const randomTricky = tricky[Math.floor(Math.random() * tricky.length)]
-
-    // 30% chance to get the tricky question instead of color
-    if (Math.random() < 0.3) {
-      return [mandatory[0], mandatory[1], randomTricky]
-    }
-    return mandatory
+    const [name, quest, ...answerable] = BRIDGE_QUESTIONS // answerable: capital, swallow
+    return [name, quest, answerable[Math.floor(Math.random() * answerable.length)]]
   }, [questionsOverride])
 
   const [questions] = useState(() => getQuestions())
@@ -137,27 +130,28 @@ export function BridgeKeeper({
     }
   }
 
+  // z-[60]: above the fixed Save/Load row (z-50), which covered the dialog foot.
   return (
-    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
-      <div className="max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-gradient-to-b from-slate-800 to-slate-900 border-4 border-slate-600 rounded-lg">
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4">
+      <div className="max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto bg-[#16130f] border-4 border-[rgba(232,220,196,0.18)] rounded-lg">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-700 via-slate-600 to-slate-700 p-4 text-center border-b-2 border-slate-500">
-          <h1 className="text-xl font-bold text-slate-200">The Bridge of Death</h1>
-          <p className="text-slate-400 text-sm">A Mysterious Encounter</p>
+        <div className="bg-[#2a241c] p-4 text-center border-b-2 border-[rgba(232,220,196,0.18)]">
+          <h1 className="text-xl font-serif text-[#e8dcc4]">The Bridge of Death</h1>
+          <p className="text-[#b8a88a] text-sm">A Mysterious Encounter</p>
         </div>
 
         {playerBackground && (
           <div data-testid="bridge-player" className="flex items-center justify-center gap-3 px-4 pt-4 text-left">
             <PlayerPortrait background={playerBackground} name={playerName} width={48} data-testid="bridge-player-portrait" />
             <div className="min-w-0">
-              <p className="text-slate-400 text-xs">At the bridge</p>
+              <p className="text-[#b8a88a] text-xs">At the bridge</p>
               <p className="text-amber-100 text-sm break-words">{playerName}</p>
             </div>
           </div>
         )}
 
         {/* Bridge Keeper Image (ASCII art style) */}
-        <div className="bg-slate-950 p-4 text-center font-mono text-xs text-slate-500">
+        <div className="bg-[#0e0c0a] p-4 text-center font-mono text-xs text-[#b8a88a]">
           <pre className="inline-block text-left">{`
       .---.
      /     \\
@@ -171,8 +165,8 @@ export function BridgeKeeper({
 
         {/* Dialogue */}
         <div className="p-6">
-          <div className="bg-slate-800/50 border border-slate-600 rounded p-4 mb-4">
-            <p className="text-slate-200 text-center italic">
+          <div className="bg-[#0e0c0a]/60 border border-[rgba(232,220,196,0.18)] rounded p-4 mb-4">
+            <p className="text-[#e8dcc4] text-center italic">
               "{dialogue}"
             </p>
           </div>
@@ -188,7 +182,7 @@ export function BridgeKeeper({
                       ? 'bg-green-500'
                       : i === currentQuestionIndex
                       ? 'bg-yellow-500'
-                      : 'bg-slate-600'
+                      : 'bg-[#3a3228]'
                   }`}
                 />
               ))}
@@ -202,13 +196,13 @@ export function BridgeKeeper({
                 type="button"
                 data-testid="bridge-keeper-approach"
                 onClick={handleStartQuestions}
-                className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded border-2 border-slate-500 transition-colors"
+                className="w-full py-3 bg-[#2a241c] hover:bg-[#3a3228] text-[#e8dcc4] font-bold rounded border-2 border-[rgba(232,220,196,0.18)] transition-colors"
               >
                 {approachLabel}
               </button>
               <button
                 onClick={onCancel}
-                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded border border-slate-600 transition-colors"
+                className="w-full py-2 bg-[#1d1914] hover:bg-[#2a241c] text-[#b8a88a] rounded border border-[rgba(232,220,196,0.18)] transition-colors"
               >
                 Find Another Way
               </button>
@@ -223,20 +217,20 @@ export function BridgeKeeper({
                 onChange={(e) => setAnswer(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSubmitAnswer()}
                 placeholder="Speak your answer..."
-                className="w-full p-3 bg-slate-800 border-2 border-slate-600 rounded text-slate-200 placeholder-slate-500 focus:border-slate-400 focus:outline-none"
+                className="w-full p-3 bg-[#1d1914] border-2 border-[rgba(232,220,196,0.18)] rounded text-[#e8dcc4] placeholder-[#b8a88a]/60 focus:border-[#b8a88a] focus:outline-none"
                 autoFocus
               />
               <button
                 onClick={handleSubmitAnswer}
                 disabled={!answer.trim()}
-                className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:bg-slate-700 disabled:text-slate-500 text-amber-100 font-bold rounded border-2 border-amber-600 disabled:border-slate-600 transition-colors"
+                className="w-full py-3 bg-[#e8dcc4] hover:bg-[#f3ead8] disabled:bg-[#2a241c] disabled:text-[#b8a88a] text-[#1a1208] font-bold rounded border-2 border-[#e8dcc4] disabled:border-[rgba(232,220,196,0.18)] transition-colors"
               >
                 Answer
               </button>
 
               {/* Hint for the swallow question */}
               {questions[currentQuestionIndex]?.isSwallowQuestion && (
-                <p className="text-slate-500 text-xs text-center">
+                <p className="text-[#b8a88a] text-xs text-center">
                   Hint: Perhaps question the question itself...
                 </p>
               )}
@@ -286,8 +280,8 @@ export function BridgeKeeper({
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-800 p-3 text-center border-t border-slate-600">
-          <p className="text-slate-500 text-xs">
+        <div className="bg-[#1d1914] p-3 text-center border-t border-[rgba(232,220,196,0.18)]">
+          <p className="text-[#b8a88a] text-xs">
             {phase === 'questioning'
               ? `Question ${currentQuestionIndex + 1} of ${questions.length}`
               : 'What is the airspeed velocity of an unladen swallow?'

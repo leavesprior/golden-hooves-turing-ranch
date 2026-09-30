@@ -256,7 +256,7 @@ export interface BridgeQuestion {
 export const BRIDGE_KEEPER_INTRO = [
   "Stop! Who would cross the Bridge of Death must answer me these questions three, ere the other side he see.",
   "*old man appears from mist* Answer my questions three and you may cross.",
-  "What... is your name? What... is your quest? What... is your favorite color?",
+  "What... is your name? What... is your quest? And the third, stranger, has a true answer.",
 ]
 
 export const BRIDGE_QUESTIONS: BridgeQuestion[] = [
@@ -288,12 +288,8 @@ export const BRIDGE_QUESTIONS: BridgeQuestion[] = [
     ],
     wrongAnswerEffect: "none"
   },
-  {
-    question: "What... is your favorite color?",
-    correctAnswer: ["any"],
-    wrongAnswerEffect: "none"
-  },
-  // The trick questions
+  // The third question always has a real answer (Leif 2026-09-30). Name and
+  // quest belong to the traveller; the third must be answered correctly.
   {
     question: "What... is the capital of Assyria?",
     correctAnswer: ["nineveh", "assur", "ashur", "calah", "dur-sharrukin"],
