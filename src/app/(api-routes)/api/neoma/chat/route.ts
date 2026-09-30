@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { answerFromBank } from '@/lib/npcAnswerBank'
+import { askRelay, workerIsLive } from '@/lib/neomaRelay'
 import { getNPCById } from '@/app/oregon-trail/data/goldCountryNPCs'
 import { GOLD_COUNTRY_LOCATIONS } from '@/app/oregon-trail/data/goldCountryLocations'
 import {
@@ -54,6 +55,8 @@ const NPC_MAX_MSG_LENGTH = 160
 const TIMED_CHARACTER_IDS = new Set(['volcano'])
 // Answers stay short: a slow local model cannot run long.
 const MAX_ANSWER_TOKENS = 150
+// How long a visitor waits for Neoma's relayed answer before the next provider.
+const RELAY_TIMEOUT_MS = 12_000
 const MAX_ACTIVE_SESSIONS_PER_IP = 2
 const CLEANUP_INTERVAL_MS = 600_000 // 10 min
 const IP_ENTRY_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -336,7 +339,13 @@ async function getLLMResponse(
     ...messages.map(m => ({ role: m.role, content: m.content })),
   ]
 
-  // Try Ollama first
+  // Neoma's own worker first, when one is connected through the pull relay.
+  if (workerIsLive()) {
+    const relayed = await askRelay(llmMessages, MAX_ANSWER_TOKENS, RELAY_TIMEOUT_MS)
+    if (relayed) return relayed
+  }
+
+  // Then Ollama
   const model = await getOllamaModel()
   if (model) {
     const response = await chatOllama(llmMessages, model)
