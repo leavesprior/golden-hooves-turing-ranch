@@ -218,46 +218,46 @@ export function RiverCrossing({
 
   if (!riverState) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-950 via-blue-900 to-cyan-950 flex items-center justify-center">
-        <div className="text-cyan-300 font-pixel animate-pulse">Approaching the river...</div>
+      <div className="min-h-screen bg-[#0e0c0a] flex items-center justify-center">
+        <div className="text-[#e8dcc4] font-pixel animate-pulse">Approaching the river...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-950 via-blue-900 to-cyan-950 p-4">
+    <div className="min-h-screen bg-[#0e0c0a] p-4">
       <div className="max-w-2xl mx-auto">
         {/* River Header */}
         <header className="text-center mb-6">
-          <h1 className="font-pixel text-cyan-200 text-2xl mb-2">{riverName}</h1>
-          <p className="text-cyan-400 text-sm italic">{riverDescription}</p>
+          <h1 className="font-serif text-[#e8dcc4] text-3xl mb-2">{riverName}</h1>
+          <p className="text-[#b8a88a] text-sm italic">{riverDescription}</p>
         </header>
 
         {/* River Stats Display */}
-        <div className="bg-blue-900/60 border-2 border-cyan-600 rounded-lg p-4 mb-6">
+        <div className="bg-[#16130f] border border-[rgba(232,220,196,0.18)] rounded-lg p-4 mb-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-cyan-500 text-xs font-pixel">Depth</div>
-              <div className={`font-pixel text-lg ${riverState.depth > 4 ? 'text-red-400' : 'text-cyan-200'}`}>
+              <div className="text-[#b8a88a] text-xs font-pixel">Depth</div>
+              <div className={`font-pixel text-lg ${riverState.depth > 4 ? 'text-red-400' : 'text-[#e8dcc4]'}`}>
                 {riverState.depth} ft
               </div>
             </div>
             <div>
-              <div className="text-cyan-500 text-xs font-pixel">Width</div>
-              <div className="font-pixel text-lg text-cyan-200">{riverState.width} ft</div>
+              <div className="text-[#b8a88a] text-xs font-pixel">Width</div>
+              <div className="font-pixel text-lg text-[#e8dcc4]">{riverState.width} ft</div>
             </div>
             <div>
-              <div className="text-cyan-500 text-xs font-pixel">Current</div>
-              <div className={`font-pixel text-lg ${riverState.currentSpeed > 4 ? 'text-orange-400' : 'text-cyan-200'}`}>
+              <div className="text-[#b8a88a] text-xs font-pixel">Current</div>
+              <div className={`font-pixel text-lg ${riverState.currentSpeed > 4 ? 'text-orange-400' : 'text-[#e8dcc4]'}`}>
                 {riverState.currentSpeed} mph
               </div>
             </div>
             <div>
-              <div className="text-cyan-500 text-xs font-pixel">Condition</div>
+              <div className="text-[#b8a88a] text-xs font-pixel">Condition</div>
               <div className={`font-pixel text-lg ${
                 riverState.condition === 'flood' ? 'text-purple-400' :
                 riverState.condition === 'high' ? 'text-red-400' :
-                riverState.condition === 'low' ? 'text-green-400' : 'text-cyan-200'
+                riverState.condition === 'low' ? 'text-green-400' : 'text-[#e8dcc4]'
               }`}>
                 {riverState.condition.charAt(0).toUpperCase() + riverState.condition.slice(1)}
               </div>
@@ -265,14 +265,14 @@ export function RiverCrossing({
           </div>
 
           {/* Weather indicator */}
-          <div className="mt-3 text-center text-cyan-500 text-xs">
+          <div className="mt-3 text-center text-[#b8a88a] text-xs">
             Weather: {weather.charAt(0).toUpperCase() + weather.slice(1)}
             {weather === 'storm' && ' ⚠️'}
           </div>
 
           {/* Active trait bonuses */}
           {activeTraitBonuses.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-cyan-800/50">
+            <div className="mt-2 pt-2 border-t border-[rgba(232,220,196,0.18)]">
               <div className="flex flex-wrap justify-center gap-2">
                 {activeTraitBonuses.map(bonus => (
                   <span key={bonus.traitId} className="px-2 py-0.5 bg-amber-900/40 border border-amber-600/40 rounded text-amber-300 text-xs">
@@ -304,13 +304,13 @@ export function RiverCrossing({
                 <img
                   src={riverArt}
                   alt=""
-                  className="h-44 w-full rounded-lg border-2 border-cyan-700/50 object-cover object-[center_45%]"
+                  className="h-44 w-full rounded-lg border-2 border-[rgba(232,220,196,0.18)] object-cover object-[center_45%]"
                 />
               </PlacePictureLift>
             ) : (
               <PlaceBackdrop
                 id={'ot_' + riverName.toLowerCase().replace(/ crossing$/, '').replace(/[^a-z]+/g, '_')}
-                className="mb-4 h-36 rounded-lg border-2 border-cyan-700/50"
+                className="mb-4 h-36 rounded-lg border-2 border-[rgba(232,220,196,0.18)]"
               />
             )}
             {/* Show RiverAnimation in assessment phase too */}
@@ -326,7 +326,7 @@ export function RiverCrossing({
               </div>
             )}
 
-            <p className="text-cyan-300 mb-4">
+            <p className="text-[#e8dcc4] mb-4">
               You have arrived at the river crossing. How would you like to proceed?
             </p>
 
@@ -337,11 +337,11 @@ export function RiverCrossing({
                   type="button"
                   data-testid="approach-ancient-bridge"
                   onClick={() => setPhase('bridge_keeper')}
-                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-pixel rounded border-2 border-slate-500 transition-colors"
+                  className="px-6 py-3 bg-[#2a241c] hover:bg-[#3a3228] text-[#e8dcc4] font-pixel rounded border-2 border-[rgba(232,220,196,0.18)] transition-colors"
                 >
                   🌉 Approach the Ancient Bridge
                 </button>
-                <p className="text-slate-400 text-xs mt-2 italic">
+                <p className="text-[#b8a88a] text-xs mt-2 italic">
                   "Stop! Who would cross the Bridge of Death must answer me these questions three..."
                 </p>
               </div>
@@ -349,7 +349,7 @@ export function RiverCrossing({
 
             <button
               onClick={() => setPhase('choose')}
-              className="px-6 py-3 bg-cyan-700 hover:bg-cyan-600 text-cyan-100 font-pixel rounded border-2 border-cyan-500 transition-colors"
+              className="px-6 py-3 bg-[#e8dcc4] hover:bg-[#f3ead8] text-[#1a1208] font-pixel rounded border-2 border-[#e8dcc4] transition-colors"
             >
               Examine Crossing Options
             </button>
@@ -360,7 +360,7 @@ export function RiverCrossing({
           <>
             {/* Crossing Choices */}
             <div className="space-y-3 mb-6">
-              <h2 className="font-pixel text-cyan-300 text-sm mb-3">Choose Your Method:</h2>
+              <h2 className="font-pixel text-[#e8dcc4] text-sm mb-3">Choose Your Method:</h2>
 
               {choices.map(choice => {
                 const riskStyle = RISK_COLORS[choice.riskLevel]
@@ -375,28 +375,28 @@ export function RiverCrossing({
                       w-full p-4 rounded-lg border-2 text-left transition-all
                       ${isSelected ? `${riskStyle.bg} ${riskStyle.border} ring-2 ring-white/30` :
                         choice.available ? `${riskStyle.bg} ${riskStyle.border} hover:ring-2 hover:ring-white/20` :
-                        'bg-gray-900/50 border-gray-600 opacity-50 cursor-not-allowed'}
+                        'bg-[#0e0c0a]/60 border-[rgba(232,220,196,0.12)] opacity-50 cursor-not-allowed'}
                     `}
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-2xl">{choice.icon}</span>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className={`font-pixel text-sm ${choice.available ? riskStyle.text : 'text-gray-400'}`}>
+                          <span className={`font-pixel text-sm ${choice.available ? riskStyle.text : 'text-[#b8a88a]'}`}>
                             {choice.name}
                           </span>
                           <span className={`text-xs px-2 py-0.5 rounded ${riskStyle.bg} ${riskStyle.text}`}>
                             {RISK_LABELS[choice.riskLevel]}
                           </span>
                         </div>
-                        <p className="text-gray-400 text-xs mt-1">{choice.description}</p>
+                        <p className="text-[#b8a88a] text-xs mt-1">{choice.description}</p>
 
                         {!choice.available && choice.unavailableReason && (
                           <p className="text-red-400 text-xs mt-1">{choice.unavailableReason}</p>
                         )}
 
                         {choice.statCheck && (
-                          <p className="text-cyan-500 text-xs mt-1">
+                          <p className="text-[#b8a88a] text-xs mt-1">
                             {choice.statCheck.stat} check (DC {choice.statCheck.difficulty}) -
                             Your {choice.statCheck.stat}: {playerStats[choice.statCheck.stat]}
                           </p>
@@ -423,7 +423,7 @@ export function RiverCrossing({
               {onCancel && (
                 <button
                   onClick={onCancel}
-                  className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 font-pixel text-sm rounded border-2 border-gray-500 transition-colors"
+                  className="flex-1 py-3 bg-[#2a241c] hover:bg-[#3a3228] text-[#e8dcc4] font-pixel text-sm rounded border-2 border-[rgba(232,220,196,0.18)] transition-colors"
                 >
                   Turn Back
                 </button>
@@ -431,7 +431,7 @@ export function RiverCrossing({
               <button
                 onClick={handleConfirmCrossing}
                 disabled={!selectedChoice}
-                className="flex-1 py-3 bg-cyan-700 hover:bg-cyan-600 text-cyan-100 font-pixel text-sm rounded border-2 border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 py-3 bg-[#e8dcc4] hover:bg-[#f3ead8] text-[#1a1208] font-pixel text-sm rounded border-2 border-[#e8dcc4] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {selectedChoice ? `Attempt Crossing` : 'Select a Method'}
               </button>
@@ -451,7 +451,7 @@ export function RiverCrossing({
               crossingSuccess={null}
             />
 
-            <p className="text-cyan-300 font-pixel animate-pulse mt-4">
+            <p className="text-[#e8dcc4] font-pixel animate-pulse mt-4">
               {selectedChoice === 'ford' && 'Wading through the current...'}
               {selectedChoice === 'caulk' && 'Floating across...'}
               {selectedChoice === 'ferry' && 'The ferry carries you across...'}
@@ -467,7 +467,7 @@ export function RiverCrossing({
             ${outcome.success
               ? outcome.critical
                 ? 'bg-green-900/60 border-green-400'
-                : 'bg-cyan-900/60 border-cyan-500'
+                : 'bg-[#16130f] border-[#b8a88a]'
               : outcome.critical
                 ? 'bg-red-900/60 border-red-400'
                 : 'bg-orange-900/60 border-orange-500'
@@ -491,14 +491,14 @@ export function RiverCrossing({
             {outcome.failureScene && <TrailOutcomePicture art={outcome.failureScene} caption={outcome.failureSceneCaption ?? RIVER_FAILURE_CAPTIONS[outcome.failureScene]} />}
 
             {/* Flavor Text */}
-            <p className="text-gray-200 italic text-center mb-4">
+            <p className="text-[#e8dcc4] italic text-center mb-4">
               "{outcome.flavorText}"
             </p>
 
             {/* Effects Summary */}
             {Object.keys(outcome.effects).length > 0 && (
               <div className="bg-black/30 rounded p-3">
-                <h3 className="text-cyan-400 text-xs font-pixel mb-2">Effects:</h3>
+                <h3 className="text-[#b8a88a] text-xs font-pixel mb-2">Effects:</h3>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {outcome.effects.foodLost && (
                     <div className="text-red-400">-{outcome.effects.foodLost} lbs food</div>
@@ -535,7 +535,7 @@ export function RiverCrossing({
             <button
               data-testid="river-continue"
               onClick={handleContinue}
-              className="w-full mt-4 py-3 bg-cyan-700 hover:bg-cyan-600 text-cyan-100 font-pixel text-sm rounded border-2 border-cyan-500 transition-colors"
+              className="w-full mt-4 py-3 bg-[#e8dcc4] hover:bg-[#f3ead8] text-[#1a1208] font-pixel text-sm rounded border-2 border-[#e8dcc4] transition-colors"
             >
               Continue Journey
             </button>
@@ -543,7 +543,8 @@ export function RiverCrossing({
         )}
 
         {/* Karma Balance Display */}
-        <div className="fixed bottom-4 right-4 bg-amber-900/80 border-2 border-amber-600 rounded-lg px-4 py-2">
+        {/* bottom-20: bottom-4 right-4 is the sound button's corner. */}
+        <div className="fixed bottom-20 right-4 z-40 bg-amber-900/80 border-2 border-amber-600 rounded-lg px-4 py-2">
           <span className="text-amber-400 text-sm font-pixel">🌮 {karmaBalance}</span>
         </div>
       </div>
