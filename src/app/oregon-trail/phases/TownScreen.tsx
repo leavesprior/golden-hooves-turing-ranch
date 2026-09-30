@@ -1,5 +1,6 @@
 'use client'
 
+import { MapIcon } from '../components/map/MapIcons'
 import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react'
 import { useOregonTrail, LANDMARKS, hasCynthiasInn } from '../oregonTrailContext'
 import { useKarmaWallet } from '../karmaWalletContext'
@@ -277,7 +278,7 @@ export function TownScreen({
               (mysteryState.collectedClues?.length || 0) === 0 ? 'animate-pulse' : ''
             }`}
           >
-            <span className="text-2xl">🔍</span>
+            <span className="inline-flex justify-center" data-testid="town-investigate-icon"><MapIcon type="question" tier={state.graphicsTier} size={28} /></span>
             <p className="text-red-200 text-xs mt-1">Investigate</p>
             {(mysteryState.collectedClues?.length || 0) === 0 && (
               <p className="text-red-300/80 text-[10px] mt-0.5">A warrant waits</p>

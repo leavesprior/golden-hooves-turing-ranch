@@ -1,6 +1,8 @@
 'use client'
 
-import { isTrailWitnessId } from '@/lib/trailInvestigation'
+import { figureForWitness, isTrailWitnessId } from '@/lib/trailInvestigation'
+import { InvestigationFigure } from './InvestigationFigure'
+import { useOregonTrail } from '../oregonTrailContext'
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { type WitnessType, WITNESS_PERSONALITIES } from '../data/clueTemplates'
 import { type DialogueTree, type DialogueNode, type DialogueResponse, type RevisitBehavior, type ProficiencyRequirement, getDialogueTree, type DialogueEffect } from '../data/dialogueTrees'
@@ -15,7 +17,7 @@ import { SkillCheck } from './SkillCheck'
 import { ConversationStore, generateNPCId } from '../lib/conversationStore'
 import { detectAdamsKeyword } from '../data/adamsEasterEggs'
 import { getMoodEntry, trustToMoodLevel, MOOD_SCALE, type MoodLevel } from '../data/npcMoodScale'
-import type { GoldCountryNPC } from '../data/goldCountryNPCs'
+import type { GoldCountryNPC, GoldCountryWitnessType } from '../data/goldCountryNPCs'
 import { getDmPlayerId, storeDmQueueCapability } from '../hooks/useDmDirectives'
 
 interface WitnessDialogueProps {
@@ -608,23 +610,24 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
     return comments[Math.floor(Math.random() * comments.length)]
   }
 
+  const { state: trailState } = useOregonTrail()
+  const graphicsTier = trailState.graphicsTier
+  const figure = figureForWitness(npc?.id, witnessType as GoldCountryWitnessType)
+
   return (
-    <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border-2 border-amber-700 rounded-lg w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4" data-testid="witness-dialogue">
+      {/* Same paper as the Investigation screen (west-face tokens, literal: this overlay sits outside the shell). */}
+      <div className="bg-[#16130f] text-[#e8dcc4] border border-[rgba(232,220,196,0.16)] rounded-[1.25rem] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gray-800 p-4 border-b border-amber-700 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">{npc ? npc.portrait : getWitnessEmoji(witnessType)}</span>
-            <div>
-              <h2 className="text-amber-300">
+        <div className="p-4 border-b border-[rgba(232,220,196,0.12)] flex justify-between items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <InvestigationFigure {...figure} tier={graphicsTier} size="lg" alt={npc ? npc.name : ''} />
+            <div className="min-w-0">
+              <p className="west-face-eyebrow">{location}</p>
+              <h2 className="font-serif text-xl text-[#f3ead8] leading-tight">
                 {npc ? npc.name : (dialogueMode === 'dynamic' ? npcName : getWitnessLabel(witnessType))}
               </h2>
-              <p className="text-gray-500 text-xs">
-                {location}
-                {dialogueMode === 'dynamic' && npcState.ollamaModel && (
-                  <span className="ml-2 text-emerald-600">✨ AI</span>
-                )}
-              </p>
+              {npc && <p className="text-sm text-[#b8a88a]">{npc.title}</p>}
             </div>
           </div>
           {/* Mood Indicator */}
@@ -641,7 +644,6 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
                 }}
                 title={moodInfo.description}
               >
-                <span className="text-lg">{moodInfo.face}</span>
                 <div className="text-right">
                   <p className="text-xs font-bold" style={{ color: moodInfo.color }}>
                     {moodInfo.label}
@@ -667,10 +669,10 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
 
           <div className="text-right">
             {clueObtained && (
-              <span className="text-emerald-400 text-xs">&#10003; Clue Obtained</span>
+              <span className="west-face-pill inline-flex items-center text-[11px] text-[#d9bf7a]">Clue obtained</span>
             )}
             {dialogueMode === 'checking' && (
-              <span className="text-gray-500 text-xs animate-pulse">Connecting...</span>
+              <span className="text-[#b8a88a] text-xs animate-pulse">Connecting...</span>
             )}
           </div>
         </div>
@@ -682,15 +684,15 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
               key={index}
               className={`flex ${line.speaker === 'YOU' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[80%] p-3 rounded-lg ${
+              <div className={`max-w-[80%] p-3 rounded-xl border ${
                 line.speaker === 'YOU'
-                  ? 'bg-blue-900/50 text-blue-200'
+                  ? 'bg-[#2a241c] border-[rgba(232,220,196,0.12)] text-[#e8dcc4]'
                   : line.speaker === 'NARRATOR'
-                  ? 'bg-purple-900/50 text-purple-200 italic'
-                  : 'bg-gray-800 text-gray-200'
+                  ? 'bg-transparent border-transparent text-[#b8a88a] italic'
+                  : 'bg-[#1f1a14] border-[rgba(232,220,196,0.08)] text-[#e8dcc4]'
               }`}>
-                <p className="text-xs text-gray-500 mb-1">{line.speaker}</p>
-                <p className="text-sm">
+                <p className="west-face-eyebrow mb-1 text-[10px]">{line.speaker === 'YOU' ? 'You' : line.speaker === 'NARRATOR' ? 'Narrator' : line.speaker}</p>
+                <p className="font-serif text-[0.95rem] leading-relaxed">
                   {line.isStreaming ? (
                     <span className="animate-pulse">{streamingText || '...'}</span>
                   ) : (
@@ -705,7 +707,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
 
         {/* Dynamic Mode Input */}
         {dialogueMode === 'dynamic' && !isEnded && (
-          <div className="border-t border-gray-700 p-4 space-y-3">
+          <div className="border-t border-[rgba(232,220,196,0.12)] p-4 space-y-3">
             {/* Quick questions */}
             <div className="flex flex-wrap gap-2">
               {quickQuestions.map((q, idx) => (
@@ -716,7 +718,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
                     inputRef.current?.focus()
                   }}
                   disabled={isStreaming}
-                  className="px-4 py-2.5 md:px-3 md:py-1 text-sm md:text-xs bg-gray-800 text-gray-300 rounded hover:bg-gray-700 active:bg-gray-600 disabled:opacity-50"
+                  className="west-face-pill disabled:opacity-50"
                 >
                   {q.text}
                 </button>
@@ -733,12 +735,12 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
                 onKeyDown={(e) => e.key === 'Enter' && handleDynamicInput()}
                 placeholder="Ask something..."
                 disabled={isStreaming}
-                className="flex-1 px-4 py-3 md:px-3 md:py-2 text-base md:text-sm bg-gray-800 text-gray-200 border border-gray-700 rounded focus:border-amber-600 outline-none disabled:opacity-50"
+                className="flex-1 px-4 py-3 md:px-3 md:py-2 text-base md:text-sm bg-[#0e0c0a] text-[#e8dcc4] font-serif border border-[rgba(232,220,196,0.16)] rounded-full focus:border-[#d9bf7a]/60 outline-none disabled:opacity-50"
               />
               <button
                 onClick={handleDynamicInput}
                 disabled={isStreaming || !customInput.trim()}
-                className="px-5 py-3 md:px-4 md:py-2 text-base md:text-sm bg-amber-700 text-amber-100 rounded hover:bg-amber-600 active:bg-amber-500 disabled:opacity-50"
+                className="west-face-pill west-face-pill-cream disabled:opacity-50"
               >
                 {isStreaming ? '...' : 'Ask'}
               </button>
@@ -748,7 +750,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
             <button
               onClick={handleClose}
               disabled={isStreaming}
-              className="w-full py-3 md:py-2 bg-gray-800 text-gray-400 rounded hover:bg-gray-700 active:bg-gray-600 text-base md:text-sm"
+              className="west-face-pill w-full"
             >
               End Conversation
             </button>
@@ -757,7 +759,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
 
         {/* Scripted Mode Response Options */}
         {dialogueMode === 'scripted' && !isEnded && currentNode?.responses && !showSkillCheck && (
-          <div className="border-t border-gray-700 p-4 space-y-2">
+          <div className="border-t border-[rgba(232,220,196,0.12)] p-4 space-y-2">
             {currentNode.responses
               .filter(response => {
                 // On revisit, hide responses marked 'hide' that were already chosen
@@ -961,22 +963,5 @@ function getWitnessLabel(type: WitnessType): string {
   return labels[type] || 'Witness'
 }
 
-function getWitnessEmoji(type: WitnessType): string {
-  const emojis: Record<WitnessType, string> = {
-    bartender: '🍺',
-    shopkeeper: '🏪',
-    stable_hand: '🐴',
-    traveler: '🧭',
-    settler: '🏠',
-    native_trader: '🪶',
-    telegraph_operator: '⚡',
-    sheriff_deputy: '⭐',
-    prostitute: '🌹',
-    preacher: '✝️',
-    drunk: '🍻',
-    child: '👦'
-  }
-  return emojis[type] || '🗣️'
-}
 
 export default WitnessDialogue

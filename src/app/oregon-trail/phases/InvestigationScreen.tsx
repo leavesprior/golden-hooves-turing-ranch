@@ -4,18 +4,26 @@ import React, { useState, useEffect } from 'react'
 import { useOregonTrail } from '../oregonTrailContext'
 import { useMystery } from '../mysteryContext'
 import { useNarrator } from '../narratorContext'
-import { useReputation } from '../reputationContext'
+import { useCharacter } from '../characterContext'
 import { KarmaToastContainer } from '@/components/karma'
 import { NarratorOverlay, ReliabilityIndicator } from '../components/NarratorOverlay'
+import { PlayerPortrait } from '../components/PlayerPortrait'
+import { InvestigationFigure } from '../components/InvestigationFigure'
+import { MapIcon } from '../components/map/MapIcons'
 import { getNPCsAtLocation } from '../data/goldCountryNPCs'
 import { CRIME_DESCRIPTIONS } from '../data/clueTemplates'
-import { getGenericPlaces, getTrailPlaces, resolveTrailTown } from '@/lib/trailInvestigation'
+import { getGenericPlaces, getTrailPlaces, heroStillFor, resolveTrailTown, tradeGlyph, TRAIL_YEAR } from '@/lib/trailInvestigation'
+
+// Same card language as the Level 2 interiors (GoldCountryShopInterior).
+const CARD = 'rounded-lg border border-[var(--west-line)] p-3 text-left min-h-11 w-full transition-colors'
+const CARD_OPEN = 'hover:bg-[#1f1a14]'
+const CARD_DONE = 'opacity-60'
 
 export function InvestigationScreen() {
-  const { state, closeInvestigation, openWitnessDialogue, openDossier, openTelegraph, openJournal, investigateLocation } = useOregonTrail()
+  const { state, closeInvestigation, openWitnessDialogue, openDossier, openTelegraph, openJournal } = useOregonTrail()
   const { state: mysteryState, generateCrimeAtLocation } = useMystery()
   const { comment, recordPlayerAction } = useNarrator()
-  const { getReputation } = useReputation()
+  const { state: characterState } = useCharacter()
 
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
 
@@ -34,6 +42,10 @@ export function InvestigationScreen() {
   const landmark = state.currentLandmark || ''
   const townPlaces = getTrailPlaces(landmark)
   const investigationLocations = getGenericPlaces()
+  const hero = heroStillFor(landmark)
+  const tier = state.graphicsTier
+  const player = characterState.character
+  const interviewedIds = state.investigation.witnessesInterviewed
 
   const hoursRemaining = state.investigation.maxInvestigationHours - state.investigation.hoursInvestigated
 
@@ -42,97 +54,132 @@ export function InvestigationScreen() {
   // name slug missed West Point and Calaveras Big Trees).
   const townNPCs = resolveTrailTown(landmark).npcLocations.flatMap(getNPCsAtLocation)
   const hasTownNPCs = townNPCs.length > 0
+  const present = townPlaces.filter(p => !p.later)
+  const crossings = townPlaces.filter(p => p.later)
+
+  const interview = (id: string) => {
+    if (interviewedIds.includes(id)) return
+    // Track by id (unique per person) and carry it for the grounded-clue path.
+    openWitnessDialogue(id, id)
+    recordPlayerAction(`interview_${id}`)
+  }
+
+  const placeCard = (place: (typeof townPlaces)[number]) => {
+    const w = place.witnesses[0]
+    const done = interviewedIds.includes(w.id)
+    const who = w.name.toLowerCase().includes(w.role.toLowerCase()) ? w.name : `${w.name}, ${w.role}`
+    return (
+      <button
+        key={place.id}
+        type="button"
+        onClick={() => interview(w.id)}
+        disabled={done}
+        data-testid="investigation-place"
+        data-later={place.later ? 'true' : 'false'}
+        className={`${CARD} ${done ? CARD_DONE : CARD_OPEN} ${place.later ? 'border-[#b8963e]/40' : ''}`}
+      >
+        <div className="flex items-start gap-3">
+          <InvestigationFigure still={place.still} sprite={w.sprite} glyph={place.glyph} tier={tier} alt={place.displayName} />
+          <div className="min-w-0">
+            <p className="font-serif text-[#e8dcc4] leading-snug">
+              {place.displayName}
+              {done && <span className="ml-1 text-[#9fb58a]">{'✓'}</span>}
+            </p>
+            <p className="text-sm text-[#b8a88a] mt-0.5">{who}</p>
+            {place.later && (
+              <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-[#d9bf7a]">
+                <MapIcon type="frog" tier={tier} size={14} />A crossing to {place.year}
+              </p>
+            )}
+          </div>
+        </div>
+      </button>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-amber-950 to-gray-900 p-4">
+    <div className="west-face-shell min-h-screen game-chrome-pad" data-testid="investigation-screen">
       <KarmaToastContainer />
       <NarratorOverlay position="corner" />
 
-      <div className="max-w-2xl mx-auto pt-8">
-        <header className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="font-pixel text-amber-200 text-xl">Investigation</h1>
-            <p className="text-amber-400 text-sm">{state.currentLandmark}</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className={`text-xs ${hoursRemaining <= 2 ? 'text-red-400' : 'text-amber-400'}`}>
-              {'\u23F0'} {hoursRemaining}h remaining
-            </div>
-            <ReliabilityIndicator compact />
-          </div>
-        </header>
+      <header className="px-4 py-3 border-b border-[var(--west-line)] flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="west-face-eyebrow">Investigation · {TRAIL_YEAR}</p>
+          <h1 className="west-face-title text-3xl truncate">{landmark}</h1>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={`west-face-pill inline-flex items-center ${hoursRemaining <= 2 ? 'text-[#e89a8a]' : ''}`}>
+            {hoursRemaining}h left
+          </span>
+          <ReliabilityIndicator compact />
+        </div>
+      </header>
 
+      {hero && (
+        <div className="relative w-full aspect-video max-h-[46vh] overflow-hidden bg-[#120e0a]" data-testid="investigation-hero">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={hero.src} alt={`${landmark}, ${TRAIL_YEAR}`} className="absolute inset-0 h-full w-full object-cover object-center" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0e0c0a] via-[#0e0c0a]/30 to-transparent" />
+          {player?.name ? (
+            <div className="absolute bottom-3 left-3 flex items-end gap-2">
+              <PlayerPortrait background={player.background} name={player.name} width={72} className="shadow-lg" />
+              <span className="west-face-paper px-2 py-1 font-serif text-xs text-[#e8dcc4]">{player.name}</span>
+            </div>
+          ) : null}
+          {hero.caption && (
+            <p className="absolute bottom-2 right-3 max-w-[55%] text-right font-serif text-[11px] italic text-[#cbbfa6] drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)]">
+              {hero.caption}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="max-w-4xl mx-auto p-4 space-y-4">
         {mysteryState.currentCrime && (
-          <div className="mb-6 rounded-lg border-2 border-amber-700/70 bg-black/30 p-4">
-            <p className="font-pixel text-amber-200 text-sm">
+          <div className="west-face-paper">
+            <h2 className="west-face-eyebrow mb-2">The warrant</h2>
+            <p className="font-serif text-xl text-[#f3ead8]">
               {CRIME_DESCRIPTIONS[mysteryState.currentCrime.type]?.title || 'A crime on the books'}
             </p>
-            <p className="text-amber-400/90 text-sm mt-2 leading-relaxed">
+            <p className="west-face-body mt-2">
               {CRIME_DESCRIPTIONS[mysteryState.currentCrime.type]?.description ||
                 'Someone left a mess. The paper on the spike wants a name.'}
             </p>
-            <p className="text-stone-500 text-xs mt-2">
-              Ask around. Traits go in the journal. The telegraph is for the warrant.
-            </p>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <button type="button" onClick={openJournal} className="west-face-pill">
+                Journal · {mysteryState.collectedClues.length} clues
+              </button>
+              <button type="button" onClick={openDossier} className="west-face-pill">Dossiers</button>
+              <button type="button" onClick={openTelegraph} className="west-face-pill">Telegraph</button>
+            </div>
           </div>
         )}
-
-        {/* Quick Actions */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={openJournal}
-            className="px-3 py-1 bg-amber-800/60 text-amber-200 rounded text-xs hover:bg-amber-700/60"
-          >
-            {'\uD83D\uDCD4'} Journal ({mysteryState.collectedClues.length} clues, {Object.keys(mysteryState.knownTraits).length} traits)
-          </button>
-          <button
-            onClick={openDossier}
-            className="px-3 py-1 bg-amber-800/60 text-amber-200 rounded text-xs hover:bg-amber-700/60"
-          >
-            {'\uD83D\uDCCB'} Dossiers
-          </button>
-          <button
-            onClick={openTelegraph}
-            className="px-3 py-1 bg-amber-800/60 text-amber-200 rounded text-xs hover:bg-amber-700/60"
-          >
-            {'\uD83D\uDCE8'} Telegraph
-          </button>
-        </div>
 
         {/* Per-town townsfolk roster — REAL period NPCs when the town has authored data */}
         {hasTownNPCs && (
-          <div className="mb-6">
-            <p className="text-amber-300 text-xs mb-3 font-pixel">Townsfolk to question</p>
+          <div className="west-face-paper">
+            <h2 className="west-face-eyebrow mb-3">Townsfolk to question</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {townNPCs.map(npc => {
-                const interviewed = state.investigation.witnessesInterviewed.includes(npc.id)
+                const done = interviewedIds.includes(npc.id)
                 return (
                   <button
                     key={npc.id}
-                    onClick={() => {
-                      if (!interviewed) {
-                        // Track by npc.id (unique per person) and carry the id for the
-                        // grounded-clue + DM-voiced-dialogue paths.
-                        openWitnessDialogue(npc.id, npc.id)
-                        recordPlayerAction(`interview_${npc.id}`)
-                      }
-                    }}
-                    disabled={interviewed}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${
-                      interviewed
-                        ? 'bg-green-900/40 border-green-700 opacity-70'
-                        : 'bg-gray-800/70 border-amber-700 hover:border-amber-400'
-                    }`}
+                    type="button"
+                    onClick={() => interview(npc.id)}
+                    disabled={done}
+                    data-testid="investigation-townsfolk"
+                    className={`${CARD} ${done ? CARD_DONE : CARD_OPEN}`}
                   >
                     <div className="flex items-start gap-3">
-                      <span className="text-2xl shrink-0">{npc.portrait}</span>
+                      <InvestigationFigure glyph={tradeGlyph(npc.witnessType)} tier={tier} size="sm" />
                       <div className="min-w-0">
-                        <p className="text-amber-200 text-sm">
+                        <p className="font-serif text-[#e8dcc4]">
                           {npc.name}
-                          {interviewed && ' ✓'}
+                          {done && <span className="ml-1 text-[#9fb58a]">{'✓'}</span>}
                         </p>
-                        <p className="text-amber-500 text-xs">{npc.title}</p>
-                        <p className="text-gray-400 text-xs mt-1 line-clamp-2 italic">&ldquo;{npc.greeting}&rdquo;</p>
+                        <p className="text-sm text-[#b8a88a]">{npc.title}</p>
+                        <p className="west-face-body text-xs mt-1 line-clamp-2 italic">&ldquo;{npc.greeting}&rdquo;</p>
                       </div>
                     </div>
                   </button>
@@ -142,137 +189,90 @@ export function InvestigationScreen() {
           </div>
         )}
 
-        {/* Authored places — each town its own, later eras marked as crossings */}
-        {townPlaces.length > 0 && (
-          <div className="mb-6" data-testid="town-places">
-            <p className="text-amber-300 text-xs mb-3 font-pixel">Places to search</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {townPlaces.map(place => {
-                const w = place.witnesses[0]
-                const interviewed = state.investigation.witnessesInterviewed.includes(w.id)
+        {/* Authored places — each town its own */}
+        {present.length > 0 && (
+          <div className="west-face-paper" data-testid="town-places">
+            <h2 className="west-face-eyebrow mb-3">Places to search</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{present.map(placeCard)}</div>
+          </div>
+        )}
+
+        {/* Later eras — reached through the golden frog's crossing */}
+        {crossings.length > 0 && (
+          <div className="west-face-paper border-[#b8963e]/30" data-testid="town-crossings">
+            <h2 className="west-face-eyebrow mb-1 inline-flex items-center gap-2">
+              <MapIcon type="frog" tier={tier} size={16} />Through the crossing
+            </h2>
+            <p className="west-face-body text-sm mb-3">Places this town becomes, after {TRAIL_YEAR}.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{crossings.map(placeCard)}</div>
+          </div>
+        )}
+
+        {/* Generic fallback for stops with nothing authored */}
+        {!hasTownNPCs && townPlaces.length === 0 && (
+          <div className="west-face-paper">
+            <h2 className="west-face-eyebrow mb-3">Places to search</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {investigationLocations.map(loc => {
+                const interviewedCount = loc.witnesses.filter(w => interviewedIds.includes(w)).length
+                const allInterviewed = interviewedCount === loc.witnesses.length
                 return (
                   <button
-                    key={place.id}
-                    onClick={() => {
-                      if (!interviewed) {
-                        openWitnessDialogue(w.id, w.id)
-                        recordPlayerAction(`interview_${w.id}`)
-                      }
-                    }}
-                    disabled={interviewed}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${
-                      interviewed
-                        ? 'bg-green-900/40 border-green-700 opacity-70'
-                        : place.later
-                        ? 'bg-indigo-950/60 border-indigo-500 hover:border-indigo-300'
-                        : 'bg-gray-800/70 border-amber-700 hover:border-amber-400'
-                    }`}
+                    key={loc.id}
+                    type="button"
+                    onClick={() => setSelectedLocation(loc.id)}
+                    className={`${CARD} ${allInterviewed ? CARD_DONE : CARD_OPEN} ${selectedLocation === loc.id ? 'border-[#d9bf7a]/60' : ''}`}
                   >
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl shrink-0">{place.icon}</span>
-                      <div className="min-w-0">
-                        <p className="text-amber-200 text-sm">
-                          {place.name}
-                          {interviewed && ' ✓'}
-                        </p>
-                        <p className="text-amber-500 text-xs">{w.name.toLowerCase().includes(w.role.toLowerCase()) ? w.name : `${w.name}, ${w.role}`}</p>
-                        {place.later && (
-                          <p className="text-indigo-300 text-[10px] mt-1">{'\u23F3'} A crossing to {place.year}</p>
-                        )}
-                      </div>
-                    </div>
+                    <InvestigationFigure glyph={loc.glyph} tier={tier} size="sm" />
+                    <p className="font-serif text-[#e8dcc4] mt-2">{loc.name}</p>
+                    {interviewedCount > 0 && (
+                      <span className="text-xs text-[#b8a88a]">{interviewedCount}/{loc.witnesses.length} asked</span>
+                    )}
                   </button>
                 )
               })}
             </div>
+
+            {selectedLocation && (
+              <div className="west-face-row mt-3 flex-wrap">
+                {investigationLocations
+                  .find(l => l.id === selectedLocation)
+                  ?.witnesses.map(witness => {
+                    const done = interviewedIds.includes(witness)
+                    return (
+                      <button
+                        key={witness}
+                        type="button"
+                        onClick={() => {
+                          if (!done) {
+                            // Time is spent when dialogue closes (in closeWitnessDialogue)
+                            openWitnessDialogue(witness)
+                            recordPlayerAction(`interview_${witness}`)
+                          }
+                        }}
+                        disabled={done}
+                        className="west-face-pill capitalize"
+                      >
+                        {witness.replace(/_/g, ' ')}
+                        {done && ' ✓'}
+                      </button>
+                    )
+                  })}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Investigation Locations — generic fallback for towns without authored NPCs */}
-        {!hasTownNPCs && townPlaces.length === 0 && (
-        <>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-          {investigationLocations.map(loc => {
-            // Count how many witnesses at this location have been interviewed
-            const interviewedCount = loc.witnesses.filter(w =>
-              state.investigation.witnessesInterviewed.includes(w)
-            ).length
-            const allInterviewed = interviewedCount === loc.witnesses.length
-            return (
-              <button
-                key={loc.id}
-                onClick={() => setSelectedLocation(loc.id)}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  allInterviewed
-                    ? 'bg-green-900/40 border-green-700'
-                    : selectedLocation === loc.id
-                    ? 'bg-amber-900/60 border-amber-400'
-                    : 'bg-gray-800/60 border-gray-600 hover:border-amber-600'
-                }`}
-              >
-                <span className="text-2xl">{loc.icon}</span>
-                <p className="text-amber-200 text-sm mt-1">{loc.name}</p>
-                {interviewedCount > 0 && (
-                  <span className={`text-xs ${allInterviewed ? 'text-green-400' : 'text-amber-400'}`}>
-                    {interviewedCount}/{loc.witnesses.length} interviewed
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Selected Location Details */}
-        {selectedLocation && (
-          <div className="bg-gray-900/80 border-2 border-amber-600 rounded-lg p-4 mb-6">
-            <h3 className="text-amber-200 font-pixel text-sm mb-3">
-              {investigationLocations.find(l => l.id === selectedLocation)?.name}
-            </h3>
-            <p className="text-gray-400 text-xs mb-4">Available witnesses to interview:</p>
-            <div className="flex flex-wrap gap-2">
-              {investigationLocations
-                .find(l => l.id === selectedLocation)
-                ?.witnesses.map(witness => {
-                  const interviewed = state.investigation.witnessesInterviewed.includes(witness)
-                  return (
-                    <button
-                      key={witness}
-                      onClick={() => {
-                        if (!interviewed) {
-                          // Don't mark location as searched - just interview the witness
-                          // Time is spent when dialogue closes (in closeWitnessDialogue)
-                          openWitnessDialogue(witness)
-                          recordPlayerAction(`interview_${witness}`)
-                        }
-                      }}
-                      disabled={interviewed}
-                      className={`px-3 py-2 rounded text-sm ${
-                        interviewed
-                          ? 'bg-gray-700 text-gray-500'
-                          : 'bg-amber-800 text-amber-200 hover:bg-amber-700'
-                      }`}
-                    >
-                      {witness.replace(/_/g, ' ')}
-                      {interviewed && ' \u2713'}
-                    </button>
-                  )
-                })}
-            </div>
-          </div>
-        )}
-        </>
-        )}
-
-        {/* Leave Investigation */}
-        <div className="flex gap-4 justify-center">
+        <div className="flex justify-center pt-2">
           <button
+            type="button"
             onClick={() => {
               comment("Leaving already? The trail grows colder by the hour...", 'warning')
               closeInvestigation()
             }}
-            className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 font-pixel text-sm rounded border-2 border-gray-500"
+            className="west-face-pill west-face-pill-cream"
           >
-            Return to Town
+            Return to town
           </button>
         </div>
       </div>
