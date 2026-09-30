@@ -449,6 +449,14 @@ export function getSceneMeta() {
   return SCENE_META
 }
 
+/**
+ * True for an authored place witness. These have no chat persona (the DM adapter
+ * frames every NPC as 1849 California), so they speak their scripted lines.
+ */
+export function isTrailWitnessId(id: string | null | undefined): boolean {
+  return !!id && (id.startsWith(SCENE_WITNESS_PREFIX) || id.startsWith(TRAIL_STOP_PREFIX))
+}
+
 /** Find an authored place witness by id (scene or trail stop). */
 export function getTrailWitness(id: string): TrailWitness | undefined {
   if (id.startsWith(SCENE_WITNESS_PREFIX)) {

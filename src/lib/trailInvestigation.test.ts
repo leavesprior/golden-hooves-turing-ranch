@@ -7,6 +7,7 @@ import {
   getGenericPlaces,
   getSceneMeta,
   getTrailPlaces,
+  isTrailWitnessId,
   resolveTrailTown,
   resolveWitnessNpc,
 } from './trailInvestigation'
@@ -125,6 +126,15 @@ for (const stop of STOPS) {
 }
 ok(resolveWitnessNpc('volcano_placer_ortiz')?.name === 'Rafael Ortíz', 'period NPCs still resolve first')
 ok(resolveWitnessNpc('tinv:nowhere:x') === undefined && resolveWitnessNpc(null) === undefined, 'unknown ids resolve to nothing')
+
+// ---- 7b. place witnesses stay scripted; period NPCs never speak journal prose ----
+const allWitnessIds = STOPS.flatMap(s => getTrailPlaces(s).flatMap(p => p.witnesses.map(w => w.id)))
+ok(allWitnessIds.every(isTrailWitnessId), 'every place witness is recognised as one')
+ok(!isTrailWitnessId('volcano_placer_ortiz') && !isTrailWitnessId(null), 'period NPCs are not place witnesses')
+const dialogueSrc = readFileSync('src/app/oregon-trail/components/WitnessDialogue.tsx', 'utf8')
+ok(/!npc \|\| isTrailWitnessId\(npc\.id\)\) return null/.test(dialogueSrc), 'place witnesses skip the 1849-framed chat persona')
+ok(/!clueObtained && isTrailWitnessId\(npc\.id\) \? clue\.text/.test(dialogueSrc), 'only place witnesses speak clue text on the fallback')
+ok(/catch \{[\s\S]{0,160}floorLine\(\)/.test(dialogueSrc), 'a timed-out chat still grants the clue')
 
 // ---- 8. every authored scene has an icon and a year ----
 const meta = getSceneMeta()

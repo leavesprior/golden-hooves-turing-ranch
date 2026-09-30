@@ -1,5 +1,6 @@
 'use client'
 
+import { isTrailWitnessId } from '@/lib/trailInvestigation'
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { type WitnessType, WITNESS_PERSONALITIES } from '../data/clueTemplates'
 import { type DialogueTree, type DialogueNode, type DialogueResponse, type RevisitBehavior, type ProficiencyRequirement, getDialogueTree, type DialogueEffect } from '../data/dialogueTrees'
@@ -233,7 +234,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
   // sessionId, or null if the chat route/LLM is unreachable so the caller can degrade.
   const ensureDmSession = useCallback(async (): Promise<string | null> => {
     if (dmSessionIdRef.current) return dmSessionIdRef.current
-    if (!npc) return null
+    if (!npc || isTrailWitnessId(npc.id)) return null
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), DM_CHAT_TIMEOUT_MS)
     try {
@@ -264,7 +265,8 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
     if (!npc) return
     addToHistory('YOU', message)
     // The grounded clue does not depend on the model: a slow or unreachable chat
-    // still hands it over, spoken as the fallback line the first time.
+    // still hands it over. A place witness speaks it (its clue is first-person);
+    // a period NPC's clue is journal prose, so they keep to their own lines.
     const grantClue = () => {
       if (!clue || clueObtained) return false
       addClue(clue)
@@ -274,7 +276,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
       return true
     }
     const floorLine = () => {
-      const pending = clue && !clueObtained ? clue.text : undefined
+      const pending = clue && !clueObtained && isTrailWitnessId(npc.id) ? clue.text : undefined
       grantClue()
       return pending || npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...'
     }
