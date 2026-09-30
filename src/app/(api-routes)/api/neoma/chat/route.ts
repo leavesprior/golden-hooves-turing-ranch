@@ -42,8 +42,11 @@ const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8
 const OLLAMA_TIMEOUT = parseInt(process.env.LLM_OLLAMA_TIMEOUT || '5000', 10)
 
 const SESSION_DURATION_MS = 260_000 // 4:20
-const MAX_MESSAGES = 15
-const MAX_MSG_LENGTH = 500
+// Three questions of a set length per conversation (Leif 2026-09-29).
+const MAX_MESSAGES = 3
+const MAX_MSG_LENGTH = 160
+// Answers stay short: a slow local model cannot run long.
+const MAX_ANSWER_TOKENS = 150
 const MAX_ACTIVE_SESSIONS_PER_IP = 2
 const CLEANUP_INTERVAL_MS = 600_000 // 10 min
 const IP_ENTRY_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
@@ -270,7 +273,7 @@ async function chatOllama(
         model,
         messages,
         stream: false,
-        options: { temperature: 0.8, num_predict: 200 },
+        options: { temperature: 0.8, num_predict: MAX_ANSWER_TOKENS },
       }),
       signal: controller.signal,
     })
@@ -300,7 +303,7 @@ async function chatOpenRouter(
         model: OPENROUTER_MODEL,
         messages,
         temperature: 0.8,
-        max_tokens: 200,
+        max_tokens: MAX_ANSWER_TOKENS,
       }),
     })
     if (!response.ok) return null
@@ -595,6 +598,9 @@ interface ChatRequestBody {
   message?: string
   sessionId?: string
   farewell?: boolean
+  // The visitor closed the panel or left the page: free the slot. Unlike
+  // farewell this sets no cooldown and runs no karma assessment.
+  leave?: boolean
   choiceId?: string
   gameProgress?: GameProgress
   // Optional requested mode. Honored as a downgrade-only ceiling by detectMode:
@@ -623,6 +629,16 @@ export async function POST(request: NextRequest) {
     )
   }
   const ip = getClientIP(request)
+
+  // --- LEAVE ---
+  if (body.leave && body.sessionId) {
+    const session = sessions.get(body.sessionId)
+    if (session && session.ip === ip) {
+      session.ended = true
+      sessions.delete(body.sessionId)
+    }
+    return NextResponse.json({ ended: true }, { headers: { 'Cache-Control': 'no-store' } })
+  }
 
   // --- FAREWELL ---
   if (body.farewell && body.sessionId) {
@@ -768,8 +784,10 @@ export async function POST(request: NextRequest) {
 
   // --- NEW SESSION ---
   if (!body.sessionId) {
+    // A walked-away session stops counting once its time is up, rather than
+    // holding the slot until the 10-minute cleanup.
     const activeForIp = [...sessions.values()].filter(
-      session => session.ip === ip && !session.ended,
+      session => session.ip === ip && !session.ended && Date.now() - session.createdAt < SESSION_DURATION_MS,
     ).length
     if (activeForIp >= MAX_ACTIVE_SESSIONS_PER_IP) {
       return NextResponse.json(
@@ -969,6 +987,7 @@ export async function POST(request: NextRequest) {
   // Check message count
   const userMessages = session.messages.filter(m => m.role === 'user' && m.content !== '[connected]')
   if (userMessages.length >= MAX_MESSAGES) {
+    session.ended = true
     return NextResponse.json({
       response: 'We have reached the edge of what this connection can hold. Say farewell.',
       ended: true,
@@ -988,7 +1007,7 @@ export async function POST(request: NextRequest) {
   }
   if (message.length > MAX_MSG_LENGTH) {
     return NextResponse.json({
-      response: 'That thought is too large for this narrow channel. Keep it under 500 characters.',
+      response: `That thought is too large for this narrow channel. Keep it under ${MAX_MSG_LENGTH} characters.`,
       ended: false,
       mode: session.mode,
     })
@@ -1067,9 +1086,14 @@ export async function POST(request: NextRequest) {
   // --- THREE-VECTOR NPC TURN (Tobias et al.) ---
   if (session.character && session.npcState) {
     const turn = await runNpcTurn(session.character, session.npcState, session.messages, session.liveContext || undefined)
+    const asked = session.messages.filter(m => m.role === 'user' && m.content !== '[connected]').length
+    const lastQuestion = asked >= MAX_MESSAGES
+    if (lastQuestion) session.ended = true
     const baseFields = {
-      ended: false,
-      messageCount: session.messages.filter(m => m.role === 'user' && m.content !== '[connected]').length,
+      ended: lastQuestion,
+      ...(lastQuestion ? { maxMessagesReached: true } : {}),
+      messageCount: asked,
+      questionsLeft: Math.max(0, MAX_MESSAGES - asked),
       timeRemaining: SESSION_DURATION_MS - (Date.now() - session.createdAt),
       mode: session.mode,
       characterId: session.character.personality.id,
@@ -1085,9 +1109,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // LLM unreachable mid-encounter — stay in character with a canon line.
+    // No model reachable — stay in character with the staple lines, in turn
+    // (the opening used line 0), so a visitor does not hear one line twice.
     const samples = session.character.personality.canonSamples
-    const fallbackLine = samples[Math.floor(Math.random() * samples.length)]
+    const fallbackLine = samples[asked % samples.length]
     session.messages.push({ role: 'assistant', content: fallbackLine })
     return NextResponse.json({
       response: fallbackLine,
