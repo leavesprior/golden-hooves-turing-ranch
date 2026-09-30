@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard } from '@/components/pixel'
-import { airbnbBookingLink, airbnbRetreatLink } from '@/lib/airbnbLink'
+import { airbnbBookingLink } from '@/lib/airbnbLink'
 
 /**
  * Shared building blocks for the /events lodging landing pages.
@@ -128,12 +128,6 @@ export function BookDirectCTA() {
           </PixelButton>
           <p className="font-[var(--font-pixel)] text-[7px] text-center text-[var(--pixel-ui-text)]">
             Sleeps 12 · 6 bedrooms · the whole forest ranch
-          </p>
-          <PixelButton href={airbnbRetreatLink('events')} variant="clear" size="md" className="w-full">
-            Smaller group? Book the Retreat
-          </PixelButton>
-          <p className="font-[var(--font-pixel)] text-[7px] text-center text-[var(--pixel-ui-text)]">
-            The Hot Tub Forest Retreat — for parties of 2–6
           </p>
         </div>
 
