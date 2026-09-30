@@ -229,12 +229,16 @@ function OregonTrailGame() {
   }, [])
 
   // Auto-save OregonTrail state to localStorage (debounced, no auth required)
+  // A trailing debounce alone never fires while the player keeps tapping, so a
+  // pending change is also forced out once it is AUTOSAVE_MAX_WAIT_MS old.
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null)
+  const autoSavePendingSince = useRef<number | null>(null)
+  const AUTOSAVE_MAX_WAIT_MS = 10_000
   useEffect(() => {
     if (state.phase === 'title' || state.phase === 'chapter_intro') return
 
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
-    autoSaveTimer.current = setTimeout(() => {
+    const write = () => {
+      autoSavePendingSince.current = null
       try {
         // #13: wrapped shape — savedAt lets Continue compare recency vs slots
         const latest = getCurrentState()
@@ -242,12 +246,22 @@ function OregonTrailGame() {
         writeLocalAutosave(latest)
         setHasLocalSave(true)
       } catch { /* storage full or unavailable */ }
-    }, 2000)
+    }
+
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    const now = Date.now()
+    if (autoSavePendingSince.current === null) autoSavePendingSince.current = now
+    if (now - autoSavePendingSince.current >= AUTOSAVE_MAX_WAIT_MS) {
+      write()
+      return
+    }
+    autoSaveTimer.current = setTimeout(write, 2000)
 
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
   }, [state, getCurrentState])
 
-  // Also save on page unload
+  // Also save when the page goes away. iOS Safari often skips beforeunload,
+  // so pagehide and a hidden visibilitychange carry the save on phones.
   useEffect(() => {
     const handleUnload = () => {
       const latest = getCurrentState()
@@ -257,8 +271,15 @@ function OregonTrailGame() {
         } catch { /* ignore */ }
       }
     }
+    const handleVisibility = () => { if (document.visibilityState === 'hidden') handleUnload() }
     window.addEventListener('beforeunload', handleUnload)
-    return () => window.removeEventListener('beforeunload', handleUnload)
+    window.addEventListener('pagehide', handleUnload)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload)
+      window.removeEventListener('pagehide', handleUnload)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [getCurrentState])
 
   // #17: nothing in the trail flow ever called initializeWallet, so the karma

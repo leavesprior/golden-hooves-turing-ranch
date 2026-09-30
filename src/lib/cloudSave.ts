@@ -241,6 +241,7 @@ export async function hasCloudSave(
     }
 
     const result = await response.json()
+    if (!result || result.exists === false) return { exists: false }
 
     return {
       exists: true,
