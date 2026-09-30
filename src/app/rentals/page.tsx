@@ -323,7 +323,7 @@ export default function RentalsPage() {
                 <BookStayButton variant="gold" size="lg">
                   Check Availability
                 </BookStayButton>
-                <BookStayButton variant="clear" size="md">
+                <BookStayButton variant="clear" size="md" picker={false}>
                   Message on Airbnb
                 </BookStayButton>
               </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PixelCard } from '@/components/pixel'
 
 /**
@@ -77,6 +77,20 @@ export default function InquiryForm({ onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const todayIso = new Date().toISOString().slice(0, 10)
+
+  // Prefill from the Book Your Stay picker's long-stay hand-off
+  // (/rentals/availability?check_in=…&check_out=…&guests=…). Read after mount
+  // so server and client render the same empty form first.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const ci = q.get('check_in')
+    const co = q.get('check_out')
+    const g = Number(q.get('guests'))
+    const DATE = /^\d{4}-\d{2}-\d{2}$/
+    if (ci && DATE.test(ci)) setCheckIn(ci)
+    if (co && DATE.test(co)) setCheckOut(co)
+    if (Number.isInteger(g) && g >= 1 && g <= 12) setGuests(g)
+  }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
