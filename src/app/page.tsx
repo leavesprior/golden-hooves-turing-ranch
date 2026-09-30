@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { PixelNavigation, PixelButton, PixelCard, BookStayButton } from '@/components/pixel'
 import { KarmaStorage, getAlignmentPosition, getDiscountMultiplier, type AlignmentPosition } from '@/lib/karmaStorage'
 import { trackPageView, trackBookingClick } from '@/lib/eventTracker'
-import { airbnbBookingLink, airbnbRetreatLink } from '@/lib/airbnbLink'
+import { airbnbBookingLink } from '@/lib/airbnbLink'
 import { HomeHeroStill } from '@/components/HomeHeroStill'
 
 const cabinPhotos = [
@@ -19,7 +19,6 @@ const cabinPhotos = [
 ]
 
 // Retreat (2nd) listing visibility — OFF while the A/B listing is paused; flip env to restore.
-const RETREAT_LIVE = process.env.NEXT_PUBLIC_RETREAT_LIVE === '1'
 const AIRBNB_FOOTER_URL = airbnbBookingLink('footer')
 
 const amenities = [
@@ -658,13 +657,6 @@ export default function Home() {
               <PixelButton href="/oregon-trail" variant="clear" size="md" className="!font-serif text-lg bg-black/55">
                 Play Golden Frog Trail
               </PixelButton>
-              {RETREAT_LIVE && (
-                <span onClick={() => trackBookingClick('hero-retreat')}>
-                  <PixelButton href={airbnbRetreatLink('site')} variant="orange" size="md">
-                    Couples & Small Groups
-                  </PixelButton>
-                </span>
-              )}
             </div>
           </div>
 
