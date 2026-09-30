@@ -11,7 +11,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useEscapeKey } from '../lib/useEscapeKey'
 import * as AudioManager from '../lib/audioManager'
 
-type SoundtrackMode = 'synth' | 'parov' | 'western' | 'fallout' | 'steampunk'
+type SoundtrackMode = 'synth' | 'rock80s' | 'western' | 'fallout' | 'steampunk'
 
 interface VolumeState {
   masterVolume: number
@@ -151,14 +151,14 @@ export function VolumeControl() {
               Chiptune
             </button>
             <button
-              onClick={() => handleSoundtrackChange('parov')}
+              onClick={() => handleSoundtrackChange('rock80s')}
               className={`py-1.5 px-2 rounded text-xs font-pixel transition-colors ${
-                state.soundtrackMode === 'parov'
-                  ? 'bg-purple-700/60 border border-purple-500/50 text-purple-200'
+                state.soundtrackMode === 'rock80s'
+                  ? 'bg-red-800/60 border border-red-500/50 text-red-100'
                   : 'bg-stone-800/60 border border-stone-600/30 text-stone-400 hover:bg-stone-700/60'
               }`}
             >
-              Parov Stelar
+              80s Rock
             </button>
             <button
               onClick={() => handleSoundtrackChange('western')}
@@ -246,7 +246,7 @@ export function VolumeControl() {
 
 const MODE_LABELS: Record<string, { name: string; color: string }> = {
   fallout: { name: 'Fallout 2 Original Soundtrack', color: 'text-green-500/70' },
-  parov: { name: 'Parov Stelar - Electro Swing', color: 'text-purple-500/70' },
+  rock80s: { name: '80s Rock - Kevin MacLeod (CC-BY)', color: 'text-red-400/80' },
   western: { name: 'Scott Joplin - Ragtime Piano', color: 'text-yellow-500/70' },
   steampunk: { name: 'Electro-Swing - Kevin MacLeod (CC-BY)', color: 'text-cyan-500/70' },
 }
@@ -262,7 +262,7 @@ function NowPlayingMP3({ mode }: { mode: string }) {
       setFellBackToSynth(AudioManager.getSoundtrackMode() === 'synth')
       let current: { title: string } | null = null
       if (mode === 'fallout') current = AudioManager.getCurrentFalloutTrack()
-      else if (mode === 'parov') current = AudioManager.getCurrentParovTrack()
+      else if (mode === 'rock80s') current = AudioManager.getCurrentRock80sTrack()
       else if (mode === 'western') current = AudioManager.getCurrentWesternTrack()
       else if (mode === 'steampunk') current = AudioManager.getCurrentSteampunkTrack()
       setTrackTitle(current?.title ?? null)
@@ -286,6 +286,13 @@ function NowPlayingMP3({ mode }: { mode: string }) {
       <p className="text-stone-500/50 mt-0.5">
         {label.name}
       </p>
+      {(mode === 'rock80s' || mode === 'steampunk') && (
+        // CC-BY 4.0 attribution, kept where the music is chosen.
+        <p className="text-stone-500/60 mt-0.5">
+          Music by Kevin MacLeod (<a href="https://incompetech.com/" target="_blank" rel="noopener noreferrer" className="underline">incompetech.com</a>),{' '}
+          <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline">CC BY 4.0</a>
+        </p>
+      )}
     </div>
   )
 }
