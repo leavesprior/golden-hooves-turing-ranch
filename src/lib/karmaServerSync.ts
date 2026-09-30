@@ -48,6 +48,52 @@ export async function ensureKarmaSession(): Promise<{ sessionId: string; token: 
   }
 }
 
+// --- Session ownership proof (anti karma-grafting) ---------------------------------
+// To link a guest session to an account, the server requires the markerSession HMAC
+// token it issued for that session (proof the client legitimately progressed it). The
+// game records markers under a `game_*` session id and the server returns that token;
+// we persist it here, keyed by session id, so the (separate) SignInPanel component can
+// present it when linking. Without this proof the server refuses to link the session.
+
+const MARKER_PROOF_KEY = 'bobr_marker_proof' // { sessionId, markerToken, difficulty }
+
+export interface MarkerOwnershipProof {
+  sessionId: string
+  markerToken: string
+  difficulty: string
+}
+
+/** Persist the server-issued marker token for a session (called when the server
+ *  returns sessionToken from /api/record-bobr-marker). */
+export function rememberMarkerProof(proof: MarkerOwnershipProof): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(MARKER_PROOF_KEY, JSON.stringify(proof))
+    // Rebased onto Tier 1 (2026-09-28): do NOT overwrite the karma session id here.
+    // Under Tier 1 the karma session is server-minted and paired with its own HMAC
+    // token; swapping in the game_* id would pair session A with session B's token and
+    // every karma event would 403. Linking uses this marker proof on its own.
+  } catch {
+    // best-effort; failing to persist just means the user can't link until next marker
+  }
+}
+
+/** Read the stored marker ownership proof (or null). */
+export function getMarkerProof(): MarkerOwnershipProof | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(MARKER_PROOF_KEY)
+    if (!raw) return null
+    const p = JSON.parse(raw)
+    if (p && typeof p.sessionId === 'string' && typeof p.markerToken === 'string' && typeof p.difficulty === 'string') {
+      return p as MarkerOwnershipProof
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 export interface ServerBalanceResult {
   ok: boolean
   balance?: KarmaBalance
