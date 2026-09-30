@@ -31,6 +31,7 @@ interface ChatApiResponse {
   timeExpired?: boolean
   maxMessagesReached?: boolean
   questionsLeft?: number
+  maxLength?: number
   // DM Layer P1: capability token the game poller uses to drain enqueued directives.
   dmQueueCapability?: string
 }
@@ -43,9 +44,9 @@ const DISPOSITION_MOOD: Record<Disposition, string> = {
   ally: 'at ease with you',
 }
 
-// Matches the server: three questions of up to 160 characters.
-const MAX_LEN = 160
-const MAX_QUESTIONS = 3
+// The server sends the limits: street NPCs get three questions of up to 160
+// characters; timed chats (Neoma, the DM Table) get longer turns and no count.
+const DEFAULT_MAX_LEN = 160
 
 export default function NpcChat({
   characterId,
@@ -75,7 +76,8 @@ export default function NpcChat({
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [ended, setEnded] = useState(false)
-  const [questionsLeft, setQuestionsLeft] = useState(MAX_QUESTIONS)
+  const [questionsLeft, setQuestionsLeft] = useState<number | null>(null)
+  const [maxLen, setMaxLen] = useState(DEFAULT_MAX_LEN)
 
   // Free the server slot when the panel unmounts or the page is hidden, so an
   // abandoned chat does not lock the visitor out of the next one.
@@ -130,6 +132,8 @@ export default function NpcChat({
     }
     storeDmQueueCapability(data.dmQueueCapability)
     if (data.sessionId) setSessionId(data.sessionId)
+    if (typeof data.maxLength === 'number') setMaxLen(data.maxLength)
+    if (typeof data.questionsLeft === 'number') setQuestionsLeft(data.questionsLeft)
     if (data.disposition) setDisposition(data.disposition)
     if (data.response) setLines([{ role: 'npc', text: data.response }])
     if (data.ended || data.cooldown) setEnded(true)
@@ -232,14 +236,16 @@ export default function NpcChat({
             </p>
           ) : (
             <>
-            <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70 text-center pb-1">
-              {questionsLeft} {questionsLeft === 1 ? 'question' : 'questions'} left
-            </p>
+            {questionsLeft !== null && (
+              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70 text-center pb-1">
+                {questionsLeft} {questionsLeft === 1 ? 'question' : 'questions'} left
+              </p>
+            )}
             <div className="flex gap-2">
               <input
                 type="text"
                 value={input}
-                maxLength={MAX_LEN}
+                maxLength={maxLen}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => {
                   if (e.key === 'Enter') send()
