@@ -2,6 +2,7 @@
 
 import { figureForWitness, isTrailWitnessId } from '@/lib/trailInvestigation'
 import { InvestigationFigure } from './InvestigationFigure'
+import { MapIcon } from './map/MapIcons'
 import { useOregonTrail } from '../oregonTrailContext'
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { type WitnessType, WITNESS_PERSONALITIES } from '../data/clueTemplates'
@@ -807,27 +808,29 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
                     checkFreeformUnlock(response.text)
                     handleSelectResponse(response)
                   }}
-                  className={`w-full p-4 md:p-3 text-left rounded transition-colors active:scale-[0.99] ${
+                  className={`w-full p-4 md:p-3 text-left rounded-xl border border-[rgba(232,220,196,0.12)] transition-colors active:scale-[0.99] ${
                     isDimmed
-                      ? 'bg-gray-900/40 text-gray-500 hover:bg-gray-800/60'
+                      ? 'bg-transparent text-[#8a7d66] hover:bg-[#1f1a14]'
                       : isAvailable
-                      ? 'bg-gray-800 text-gray-200 hover:bg-gray-700 active:bg-gray-600'
-                      : 'bg-gray-900/60 text-gray-600 cursor-not-allowed opacity-75'
+                      ? 'bg-[#1f1a14] text-[#e8dcc4] hover:bg-[#2a241c]'
+                      : 'bg-transparent text-[#6f6453] cursor-not-allowed opacity-75'
                   }`}
                   disabled={!isAvailable}
                 >
                   <div className="flex items-start gap-2">
                     {/* Alignment icon */}
                     {alignmentLabel && (
-                      <span className="text-xs mt-0.5 opacity-70 shrink-0">{alignmentLabel}</span>
+                      <span className="west-face-eyebrow text-[9px] mt-1 shrink-0 w-14" data-testid="option-alignment">{alignmentLabel}</span>
                     )}
-                    {/* Lock icon for unavailable options */}
+                    {/* Locked options say so in words */}
                     {!isAvailable && (
-                      <span className="text-xs mt-0.5 shrink-0 text-gray-600">🔒</span>
+                      <span className="west-face-eyebrow text-[9px] mt-1 shrink-0 text-[#8a7d66]">Locked</span>
                     )}
-                    {/* Proficiency icon for gated options */}
+                    {/* Proficiency-gated options carry the investigation glyph */}
                     {response.requiresProficiency && (
-                      <span className="text-xs mt-0.5 shrink-0 text-emerald-400" title={`Requires ${response.requiresProficiency} investigation skill`}>🔍</span>
+                      <span className="mt-0.5 shrink-0" title={`Requires ${response.requiresProficiency} investigation skill`}>
+                        <MapIcon type="question" tier={graphicsTier} size={14} />
+                      </span>
                     )}
                     <div className="flex-1">
                       {/* Skill check label in Fallout style - before the text */}
@@ -837,19 +840,19 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
                         }`}>
                           [{response.skillCheck.stat} {effectiveDifficulty}]
                           {proficiencyBonus > 0 && (
-                            <span className="text-emerald-400 text-[10px] ml-0.5">-{proficiencyBonus}</span>
+                            <span className="text-[#9fb58a] text-[10px] ml-0.5">-{proficiencyBonus}</span>
                           )}
                         </span>
                       )}
-                      <span className="text-base md:text-sm">
+                      <span className="font-serif text-base md:text-sm">
                         {responseText}
                       </span>
                       {/* Memory indicators */}
                       {isDimmed && (
-                        <span className="ml-2 text-xs text-gray-600 italic">(asked before)</span>
+                        <span className="ml-2 text-xs text-[#8a7d66] italic">(asked before)</span>
                       )}
                       {isNewOption && (
-                        <span className="ml-2 text-xs text-emerald-500 font-medium">(new)</span>
+                        <span className="ml-2 text-xs text-[#d9bf7a] font-medium">(new)</span>
                       )}
                       {/* Stat gap indicator for failed checks */}
                       {response.skillCheck && !meetsRequirement && (
@@ -880,10 +883,9 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
             {freeformUnlocked && (ollamaAvailable || !!npc) && (
               <button
                 onClick={enterFreeformMode}
-                className="w-full p-4 md:p-3 text-left rounded transition-colors active:scale-[0.99] bg-indigo-900/50 text-indigo-200 hover:bg-indigo-800/50 active:bg-indigo-700/50 border border-indigo-600/30"
+                className="w-full p-4 md:p-3 text-left rounded-xl transition-colors active:scale-[0.99] bg-transparent text-[#d9bf7a] hover:bg-[#1f1a14] border border-[#b8963e]/40"
               >
-                <span className="text-xs mr-2 opacity-70">✨</span>
-                <span className="text-base md:text-sm italic">[Speak freely...]</span>
+                <span className="font-serif text-base md:text-sm italic">[Speak freely...]</span>
               </button>
             )}
           </div>
@@ -891,10 +893,10 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
 
         {/* End of Dialogue */}
         {(isEnded || (dialogueMode === 'scripted' && !currentNode?.responses && !showSkillCheck)) && (
-          <div className="border-t border-gray-700 p-4">
+          <div className="border-t border-[rgba(232,220,196,0.12)] p-4">
             <button
               onClick={handleClose}
-              className="w-full py-3 md:py-2 bg-amber-700 text-amber-100 rounded hover:bg-amber-600 active:bg-amber-500 text-base md:text-sm"
+              className="west-face-pill west-face-pill-cream w-full"
             >
               End Conversation
             </button>
@@ -903,8 +905,8 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
 
         {/* Loading state */}
         {dialogueMode === 'checking' && (
-          <div className="border-t border-gray-700 p-4 text-center text-gray-500">
-            <p className="animate-pulse">Connecting to witness...</p>
+          <div className="border-t border-[rgba(232,220,196,0.12)] p-4 text-center text-[#b8a88a]">
+            <p className="font-serif italic animate-pulse">Connecting to witness...</p>
           </div>
         )}
       </div>
@@ -926,22 +928,21 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
   )
 }
 
-// Get alignment label emoji for a dialogue response
+// The alignment a dialogue response leans, in the karma legend's own words.
 function getAlignmentLabel(response: DialogueResponse): string {
   const lawful = response.karmaLawful || 0
   const good = response.karmaGood || 0
 
-  // Determine alignment flavor
-  if (lawful > 0 && good > 0) return '⚖️😇' // Lawful Good
-  if (lawful > 0 && good < 0) return '⚖️😈' // Lawful Evil
-  if (lawful > 0 && good === 0) return '⚖️' // Lawful
-  if (lawful < 0 && good > 0) return '🎲😇' // Chaotic Good
-  if (lawful < 0 && good < 0) return '🎲😈' // Chaotic Evil
-  if (lawful < 0 && good === 0) return '🎲' // Chaotic
-  if (good > 0) return '😇' // Good
-  if (good < 0) return '😈' // Evil
-  if (response.skillCheck) return '🎯' // Skill check
-  return '🌮' // Neutral (taco)
+  if (lawful > 0 && good > 0) return 'Lawful good'
+  if (lawful > 0 && good < 0) return 'Lawful evil'
+  if (lawful > 0 && good === 0) return 'Lawful'
+  if (lawful < 0 && good > 0) return 'Chaotic good'
+  if (lawful < 0 && good < 0) return 'Chaotic evil'
+  if (lawful < 0 && good === 0) return 'Chaotic'
+  if (good > 0) return 'Good'
+  if (good < 0) return 'Evil'
+  if (response.skillCheck) return 'Skill'
+  return 'Neutral'
 }
 
 // Helper functions

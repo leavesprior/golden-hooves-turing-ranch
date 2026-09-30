@@ -145,7 +145,7 @@ ok(/!npc \|\| isTrailWitnessId\(npc\.id\)\) return null/.test(dialogueSrc), 'pla
 ok(/!clueObtained && isTrailWitnessId\(npc\.id\) \? clue\.text/.test(dialogueSrc), 'only place witnesses speak clue text on the fallback')
 ok(/catch \{[\s\S]{0,160}floorLine\(\)/.test(dialogueSrc), 'a timed-out chat still grants the clue')
 
-// ---- 7c. the game's own visual language, never emoji ----
+// ---- 7c. the game's own visual language: stills, atlas figures, glyphs (Investigation screen, dialogue, town button) ----
 const EMOJI = /\p{Extended_Pictographic}/u
 const GLYPHS = new Set(['shop', 'mine', 'building', 'landmark', 'assay', 'inn', 'cave', 'frog', 'church', 'fort', 'river', 'blacksmith', 'cabin', 'mountains', 'desert', 'spring', 'saloon', 'stable', 'town'])
 for (const stop of STOPS) {
@@ -160,6 +160,16 @@ ok(getGenericPlaces().every(p => GLYPHS.has(p.glyph)), 'generic places draw glyp
 const invSrc = readFileSync('src/app/oregon-trail/phases/InvestigationScreen.tsx', 'utf8')
 ok(!EMOJI.test(invSrc.replace(/\\u[0-9A-Fa-f]{4}/g, '')), 'the Investigation screen source carries no emoji')
 ok(!/npc\.portrait|\.icon\b/.test(invSrc), 'the screen never renders an emoji portrait or icon field')
+// The dialogue keeps only the karma currency (cookie / taco / rock), which is the
+// game-wide karma legend (20+ files); every other mark is words or a glyph.
+const KARMA_UNITS = /[\u{1F36A}\u{1F32E}\u{1FAA8}]/gu
+const dlgSrc = readFileSync('src/app/oregon-trail/components/WitnessDialogue.tsx', 'utf8')
+const dlgRender = dlgSrc.slice(dlgSrc.lastIndexOf('\n  return (\n    <div className="fixed inset-0'))
+ok(!EMOJI.test(dlgRender.replace(KARMA_UNITS, '')), 'the witness dialogue render and its helpers carry no emoji beyond the karma units')
+ok(!/getWitnessEmoji|npc\.portrait/.test(dlgSrc), 'the dialogue never renders an emoji portrait')
+const townSrc = readFileSync('src/app/oregon-trail/phases/TownScreen.tsx', 'utf8')
+const invBtn = townSrc.slice(townSrc.indexOf('onClick={openInvestigation}'), townSrc.indexOf('Investigate</p>'))
+ok(invBtn.length > 0 && !EMOJI.test(invBtn) && /MapIcon type="question"/.test(invBtn), 'the town Investigate button draws the pixel glyph, not an emoji')
 ok(/west-face-shell/.test(invSrc) && /PlayerPortrait/.test(invSrc) && /InvestigationFigure/.test(invSrc), 'the screen uses the west-face shell, the player portrait and the shared figure')
 for (const stop of STOPS) for (const p of getTrailPlaces(stop)) {
   const f = figureForWitness(p.witnesses[0].id, 'townfolk')
