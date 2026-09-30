@@ -69,19 +69,12 @@ export function BridgeKeeper({
   const [questionsAsked, setQuestionsAsked] = useState<BridgeQuestion[]>([])
   const submittedAnswers = useRef<string[]>([])
 
-  // Select 3 random questions (always include name and quest, then one random).
+  // Name and quest (the traveller's own), then one question with a real answer.
   // When an override set is supplied (dp-bridge-variant), pose it verbatim.
   const getQuestions = useCallback(() => {
     if (questionsOverride && questionsOverride.length > 0) return questionsOverride
-    const mandatory = BRIDGE_QUESTIONS.slice(0, 3) // name, quest, color
-    const tricky = BRIDGE_QUESTIONS.slice(3) // capital, swallow
-    const randomTricky = tricky[Math.floor(Math.random() * tricky.length)]
-
-    // 30% chance to get the tricky question instead of color
-    if (Math.random() < 0.3) {
-      return [mandatory[0], mandatory[1], randomTricky]
-    }
-    return mandatory
+    const [name, quest, ...answerable] = BRIDGE_QUESTIONS // answerable: capital, swallow
+    return [name, quest, answerable[Math.floor(Math.random() * answerable.length)]]
   }, [questionsOverride])
 
   const [questions] = useState(() => getQuestions())

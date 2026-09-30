@@ -44,6 +44,14 @@ for (const questions of [BRIDGE_QUESTIONS, BRIDGE_QUESTIONS_OTHER_SERIES]) {
 }
 ok(!isBridgeSwallowReversal(nameQ, 'African?'), 'non-swallow question cannot reverse the Keeper')
 
+// Leif 2026-09-30: after name and quest, the third question must have a real answer.
+const [, , ...answerable] = BRIDGE_QUESTIONS
+ok(answerable.length > 0, 'the trail bridge has answerable third questions')
+for (const q of answerable) {
+  const accepted = Array.isArray(q.correctAnswer) ? q.correctAnswer : [q.correctAnswer]
+  ok(!accepted.includes('any') && !checkBridgeAnswer(q, 'blue'), `third question "${q.question}" rejects an arbitrary answer`)
+}
+
 if (failed) {
   console.error(`${failed} failed, ${passed} passed`)
   process.exit(1)
