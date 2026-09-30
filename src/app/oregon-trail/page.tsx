@@ -314,8 +314,8 @@ function OregonTrailGame() {
     const savedMode = AudioManager.loadSoundtrackPreference()
     if (savedMode === 'fallout') {
       AudioManager.playFalloutPlaylist()
-    } else if (savedMode === 'parov') {
-      AudioManager.playParovPlaylist()
+    } else if (savedMode === 'rock80s') {
+      AudioManager.playRock80sPlaylist()
     } else if (savedMode === 'western') {
       AudioManager.playWesternPlaylist()
     } else if (savedMode === 'steampunk') {
