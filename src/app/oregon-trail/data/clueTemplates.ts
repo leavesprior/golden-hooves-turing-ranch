@@ -265,7 +265,7 @@ export const LOCATION_CLUES: ClueTemplate[] = [
   {
     id: 'location_telegraph',
     type: 'location',
-    text: "Sent a wire to someone near {destination}. Tried to be discrete.",
+    text: "Sent a wire to someone near {destination}. Tried to be discreet about it.",
     witnessType: 'telegraph_operator',
     reliability: 0.95,
     difficulty: 2
@@ -428,7 +428,7 @@ export const WITNESS_PERSONALITIES: Record<WitnessType, {
     intimidatable: 0.4,
     diplomacyDC: 5,
     shrewdnessDC: 5,
-    greeting: "Just passing through, same as you."
+    greeting: "Just passing through, same as you. Though you look like you've come further than most."
   },
   settler: {
     openness: 0.6,
@@ -464,7 +464,7 @@ export const WITNESS_PERSONALITIES: Record<WitnessType, {
     intimidatable: 0.1,
     diplomacyDC: 4,
     shrewdnessDC: 4,
-    greeting: "Pinkerton, eh? The sheriff's out. I can help."
+    greeting: "Pinkerton, eh? Never heard of 'em. The sheriff's out, but I can help."
   },
   prostitute: {
     openness: 0.8,
@@ -500,7 +500,7 @@ export const WITNESS_PERSONALITIES: Record<WitnessType, {
     intimidatable: 0.0, // Never intimidate children (karma penalty)
     diplomacyDC: 2,
     shrewdnessDC: 3,
-    greeting: "Are you a real detective?"
+    greeting: "Are you a real detective? You talk funny."
   }
 }
 
@@ -527,7 +527,7 @@ export const CRIME_DESCRIPTIONS: Record<CrimeType, {
   },
   train_robbery: {
     title: 'Train Robbery',
-    description: 'The Pacific Express was stopped and looted. Passengers relieved of valuables.',
+    description: 'The Pacific Express was stopped and looted, passengers relieved of their valuables. The rails reached these hills early this time. Somebody\'s calendar is off, and it may be yours.',
     clueLocations: ['station', 'telegraph', 'saloon']
   },
   gold_theft: {

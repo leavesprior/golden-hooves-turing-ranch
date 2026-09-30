@@ -90,8 +90,9 @@ export function TitleScreen({ onStart, hasSaves, onContinue, continueError, from
           Golden Frog Trail
         </h1>
         <p className="mt-3 max-w-md font-serif text-lg text-amber-100/90">
-          An 1849 expedition. Wagon, warrant, and the river that started a country over.
-          The Kansas crossing keeps a Bridge of Death — answer the questions three.
+          A golden frog, a covered wagon, and a warrant for a man who hasn{'’'}t done it yet.
+          1849 lies a hundred and seventy-seven years down the road {'—'} the back road.
+          The Kansas crossing keeps a Bridge of Death {'—'} answer the questions three.
           A towel is never wasted. Ni is optional.
         </p>
         {fromBook && (

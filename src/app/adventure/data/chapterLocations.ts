@@ -471,7 +471,7 @@ export const CHAPTER_2_LOCATIONS: ChapterLocation[] = [
   {
     id: 'ch2_volcano_main',
     name: 'Volcano, California',
-    description: 'A boomtown of 5,000 souls filling a natural amphitheater that early miners mistook for a volcanic crater. Veterans of Stevenson\'s regiment dug the first gold here in Soldiers Gulch in 1848, and by April 1852 the camp counted 300 houses — seventeen hotels at the peak. Despite its rough origins, Volcano is the most cultured camp in the Mother Lode: California\'s first lending library, its first theatrical troupe (1854), and an astronomical observatory (1860), where George Madeira watched the Great Comet blaze over the Sierra in 1861. The Adams Express office handles more gold dust than most banks. On Saturday nights, the whole town drinks and dances until dawn.',
+    description: 'A boomtown of 5,000 souls filling a natural amphitheater that early miners mistook for a volcanic crater. Veterans of Stevenson\'s regiment dug the first gold here in Soldiers Gulch in 1848, and by April 1852 the camp counted 300 houses — seventeen hotels at the peak. Despite its rough origins, Volcano is the most cultured camp in the Mother Lode: California\'s first lending library, its first theatrical troupe (1854), and an astronomical observatory (1860), where George Madeira watched the Great Comet blaze over the Sierra in 1861. The Adams Express office handles more gold dust than most banks. On Saturday nights, the whole town drinks and dances until dawn. You arrive three years after you left Missouri and about a week after you left the frog. Nobody in Volcano finds this strange; half of them lost count of the calendar back in \'49.',
     chapter: 2,
     x: 50, y: 35,
     icon: '\uD83C\uDFD8\uFE0F',
@@ -484,7 +484,7 @@ export const CHAPTER_2_LOCATIONS: ChapterLocation[] = [
       { type: 'saloon', name: 'The Nugget Saloon', description: 'Whiskey and rumors in equal measure' },
     ],
     npcs: [
-      { id: 'ch2_barkeep', name: 'Big Mae Sullivan', role: 'Saloon Owner', witnessType: 'bartender', faction: 'settlers', dialogueHint: 'Hears everything. Tells nothing for free.' },
+      { id: 'ch2_barkeep', name: 'Big Mae Sullivan', role: 'Saloon Owner', witnessType: 'bartender', faction: 'settlers', dialogueHint: 'Hears everything. Tells nothing for free, and some things not for any price.' },
       { id: 'ch2_assayer', name: 'Professor Morley', role: 'Gold Assayer', witnessType: 'merchant', dialogueHint: 'Weighs gold and judges character.' },
     ],
     historicalFact: 'Volcano claims a string of California firsts: lending library, theater group (1854), and astronomical observatory (1860). During the Civil War, the town\'s Union volunteers — the "Volcano Blues" — smuggled in a cannon called Old Abe, an 1837 Boston-cast six-pounder, hidden in a hearse. Loaded with rocks and nails for want of cannonballs, it was never fired in anger: the Confederate sympathizers backed down at the sight of it. Volcano\'s population peaked at 5,000 in 1855 before the placers played out. Old Abe is still displayed in Volcano today, and the little town still fits inside its stone-walled bowl of a valley.',
@@ -658,7 +658,7 @@ export const CHAPTER_2_LOCATIONS: ChapterLocation[] = [
     travelDanger: 'safe',
     services: [],
     npcs: [
-      { id: 'ch2_actress', name: 'Lily Fontaine', role: 'Lead Actress', witnessType: 'settler', dialogueHint: 'Dramatic in all things. Observes everyone from the stage.', skillCheckStat: 'Diplomacy', skillCheckDC: 10 },
+      { id: 'ch2_actress', name: 'Lily Fontaine', role: 'Lead Actress', witnessType: 'settler', dialogueHint: 'Dramatic in all things. From the stage she watches every face in the house, and remembers the ones that do not applaud.', skillCheckStat: 'Diplomacy', skillCheckDC: 10 },
     ],
     historicalFact: 'Theatre was wildly popular in Gold Country. Lola Montez, the notorious Irish-born dancer, performed her scandalous "Spider Dance" across the mining camps. Miners paid in gold dust — a pinch was roughly a dollar. The famous actress Lotta Crabtree got her start as a child performer in these camps, coached by Montez herself, and became the richest actress in America.',
     discoveryClues: [
@@ -869,7 +869,7 @@ export const CHAPTER_2_LOCATIONS: ChapterLocation[] = [
     ],
     npcs: [
       { id: 'ch2_drytown_barkeep', name: 'Whiskey Jim Rawlins', role: 'Saloon Owner', witnessType: 'bartender', dialogueHint: 'Runs the busiest of the 26 saloons. Has opinions about the other 25.', skillCheckStat: 'Diplomacy', skillCheckDC: 8 },
-      { id: 'ch2_drytown_gambler', name: 'Madame Josephine', role: 'Card Sharp', witnessType: 'outlaw', faction: 'outlaws', dialogueHint: 'Deals faro and information in equal measure. French accent, American cunning.', skillCheckStat: 'Luck', skillCheckDC: 12 },
+      { id: 'ch2_drytown_gambler', name: 'Madame Josephine', role: 'Card Sharp', witnessType: 'outlaw', faction: 'outlaws', dialogueHint: 'Deals faro and information in equal measure, and never lets you see which one you just lost. French accent, American cunning.', skillCheckStat: 'Luck', skillCheckDC: 12 },
     ],
     historicalFact: 'Drytown really did have 26 saloons in its heyday, despite a population that never topped 1,500. The town was a microcosm of Gold Rush excess — more money was spent on whiskey than on mining equipment. A fire in 1857 destroyed most of the town, but the saloons were rebuilt first. Drytown was also where the notorious outlaw Rattlesnake Dick Barter got his start, graduating from petty theft to stagecoach robbery.',
     discoveryClues: [
@@ -1009,7 +1009,7 @@ export const CHAPTER_3_LOCATIONS: ChapterLocation[] = [
   {
     id: 'ch3_angels_camp',
     name: 'Angels Camp',
-    description: 'Henry Pinkney Angell set up a trading post in this ravine in 1848, and the camp that grew around it made Calaveras County famous twice over — once for gold, once for a frog. The creek placers gave out fast, but the quartz below ran deep: the hard-rock mines here would pull more than $100 million from the ground. Locals still tell of Bennager Rasberry, who in 1856 fired his jammed musket into the dirt to clear a stuck ramrod and blew the cover off a gold vein — $700 the first day, $2,000 the second, $7,000 the third, or so the story grew in the telling. In the stone-walled Angels Hotel bar, a jumping frog story is waiting for a young reporter named Sam Clemens. Angels Camp still celebrates that frog with a Jubilee every year.',
+    description: 'Henry Pinkney Angell set up a trading post in this ravine in 1848, and the camp that grew around it made Calaveras County famous twice over — once for gold, once for a frog. The creek placers gave out fast, but the quartz below ran deep: the hard-rock mines here would pull more than $100 million from the ground. Locals still tell of Bennager Rasberry, who in 1856 fired his jammed musket into the dirt to clear a stuck ramrod and blew the cover off a gold vein — $700 the first day, $2,000 the second, $7,000 the third, or so the story grew in the telling. In the stone-walled Angels Hotel bar, a jumping frog story is waiting for a young reporter named Sam Clemens. Angels Camp still celebrates that frog with a Jubilee every year. The calendar behind the bar has been torn off in handfuls, and nobody will say what year it is. The frog is not talking either.',
     chapter: 3,
     x: 45, y: 30,
     icon: '\uD83C\uDFD8\uFE0F',
@@ -1416,7 +1416,7 @@ export const CHAPTER_4_LOCATIONS: ChapterLocation[] = [
   {
     id: 'ch4_ranch_site',
     name: 'Back of Beyond - Ranch Site',
-    description: 'Tobias\'s claim. 160 acres of wilderness that will become home — if the outlaws, claim jumpers, and the land itself don\'t stop him. This is the high pine country near West Point — named, the story goes, by Kit Carson himself when he scouted these ridges in 1844 hunting a pass over the Sierra, and a thriving trading post before gold was ever found. The property sits in the contested borderland between law and lawlessness: the sheriff\'s jurisdiction ends at the county line, but Joaquin Murrieta\'s territory has no borders. Building here means clearing manzanita, felling sugar pines, and sleeping with a rifle. But the soil is good, the creek runs year-round, and the view of the Sierra at sunset makes a man believe in futures.',
+    description: 'Tobias\'s claim. 160 acres of wilderness that will become home — if the outlaws, claim jumpers, and the land itself don\'t stop him. This is the high pine country near West Point — named, the story goes, by Kit Carson himself when he scouted these ridges in 1844 hunting a pass over the Sierra, and a thriving trading post before gold was ever found. The property sits in the contested borderland between law and lawlessness: the sheriff\'s jurisdiction ends at the county line, but Joaquin Murrieta\'s territory has no borders. Building here means clearing manzanita, felling sugar pines, and sleeping with a rifle. But the soil is good, the creek runs year-round, and the view of the Sierra at sunset makes a man believe in futures. You have reason to: some hundred and seventy years on, you stood on a guest-cabin porch on this very ground. It is a peculiar feeling, standing on it before it exists.',
     chapter: 4,
     x: 50, y: 40,
     icon: '\uD83C\uDFE0',

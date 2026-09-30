@@ -92,6 +92,16 @@ const CHAPTER_TITLES: Record<number, string> = {
   5: 'The Reckoning',
 }
 
+// The line under the end-of-chapter ceremony. Old west with the time slip.
+// Ordinary flavor only. Royal's hidden chapter is found by sight, in plain
+// view, and is never signposted in copy (Leif 2026-09-29; the design is Tower's).
+const CHAPTER_FLAVOR: Record<number, string> = {
+  1: 'You make camp. The golden frog is quiet tonight. Tomorrow, by its reckoning, is 1852.',
+  2: 'You make camp. The Volcano brothers went home speaking low, as if every word had weight.',
+  3: 'You make camp. The frog that lost today sat heavier than a frog ought to. Nobody laughed but the reporter.',
+  4: 'You make camp on your own land, under your own pines, some hundred and seventy years before anyone will call it a ranch.',
+}
+
 /** Diggings (Gold Country, 1852) starts at Volcano. Chapter 1 is the 1849 Missouri prequel. */
 const DIGGINGS_START_CHAPTER = 2
 const PREQUEL_CHAPTER = 1
@@ -1690,7 +1700,7 @@ function AdventureContent() {
       kind: 'chapter',
       chapter: adventureState.chapter,
       title: CHAPTER_TITLES[adventureState.chapter] ?? 'The trail carries you onward.',
-      flavor: 'A fine place to camp for the night.',
+      flavor: CHAPTER_FLAVOR[adventureState.chapter] ?? 'A fine place to camp for the night.',
     })
     // Show camp management
     setShowCamp(true)

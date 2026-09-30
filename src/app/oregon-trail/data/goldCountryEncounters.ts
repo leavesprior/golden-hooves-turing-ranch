@@ -60,7 +60,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'bandit_ambush',
     title: 'Bandit Ambush!',
-    description: 'A group of road agents blocks the trail ahead. Their leader tips his hat menacingly.',
+    description: 'Four road agents sit their horses across the trail. Their leader tips his hat, which out here is how a robbery says good morning.',
     type: 'combat',
     icon: '🔫',
     choices: [
@@ -68,7 +68,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'fight',
         text: 'Stand your ground and fight',
         outcome: {
-          message: 'After a brief skirmish, you drive off the bandits! They drop some supplies in their retreat.',
+          message: 'A short, loud argument conducted mostly in gunpowder, and the road agents decide they have somewhere else to be. They leave some of their supplies behind as a forwarding address.',
           goldDelta: 25,
           healthDelta: -10,
           reputationDelta: 5,
@@ -89,7 +89,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'negotiate',
         text: 'Try to talk your way out',
         outcome: {
-          message: 'Your silver tongue convinces them you\'re not worth the trouble. They wave you through.',
+          message: 'You talk until they are convinced you are more trouble than you are worth, which, in fairness, you usually are. They wave you through.',
           reputationDelta: 3,
         },
         statCheck: { stat: 'diplomacy', difficulty: 6 },
@@ -108,7 +108,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'traveling_merchant',
     title: 'Traveling Merchant',
-    description: 'A well-stocked wagon pulls alongside you. "Genuine Gold Rush supplies! Best prices this side of Sacramento!"',
+    description: 'A merchant\'s wagon rattles up beside you, hung with pans, picks and patent medicine. "Genuine Gold Rush supplies! Best prices this side of Sacramento, and there ain\'t much on this side of Sacramento!"',
     type: 'trade',
     icon: '🛒',
     choices: [
@@ -116,7 +116,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'buy_supplies',
         text: 'Buy food and medicine (40 gold)',
         outcome: {
-          message: 'You stock up on supplies. The merchant throws in a lucky charm for free.',
+          message: 'You stock up. The merchant throws in a lucky charm "on the house," which suggests he knows what the rest of it cost you.',
           goldDelta: -40,
           foodDelta: 50,
           healthDelta: 10,
@@ -126,7 +126,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'trade_info',
         text: 'Trade information instead',
         outcome: {
-          message: 'The merchant shares valuable intel about a hidden location in exchange for your trail news.',
+          message: 'News is its own currency out here. You trade him yours, and he tells you about a place most folks ride right past.',
           discoveredLocation: 'sandy_gulch',
         },
         statCheck: { stat: 'shrewdness', difficulty: 4 },
@@ -143,7 +143,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'lost_traveler',
     title: 'Lost Traveler',
-    description: 'A disoriented traveler stumbles toward you, dehydrated and confused. "Please... which way to town?"',
+    description: 'A traveler stumbles out of the brush, sunburnt and parched. "Please... which way to town? And what month is it?" You know the feeling better than he does.',
     type: 'rescue',
     icon: '🆘',
     choices: [
@@ -151,7 +151,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'help_fully',
         text: 'Share water and escort them to safety',
         outcome: {
-          message: 'The grateful traveler recovers and shares information about a nearby discovery.',
+          message: 'Water, shade and an escort put him right. Before you part, he tells you about something he found out there, which is more than most lost men bring back.',
           karmaDelta: 20,
           foodDelta: -10,
           reputationDelta: 8,
@@ -170,7 +170,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'ignore',
         text: 'Keep moving - can\'t help everyone',
         outcome: {
-          message: 'You press on, trying not to think about the traveler. Your conscience nags.',
+          message: 'You press on. Your conscience rides along and has plenty to say.',
           karmaDelta: -10,
         },
       },
@@ -179,7 +179,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'grizzly_bear',
     title: 'Grizzly Bear!',
-    description: 'A massive California grizzly blocks the trail, sniffing the air. It\'s between you and your destination.',
+    description: 'A California grizzly stands in the trail, big as a woodshed, sniffing the air. The bear off the Bear Flag has come to see about you.',
     type: 'wildlife',
     icon: '🐻',
     choices: [
@@ -187,7 +187,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'stand_tall',
         text: 'Stand tall and make yourself big',
         outcome: {
-          message: 'The bear decides you\'re not worth the trouble and lumbers away into the brush.',
+          message: 'You make yourself as large as a person can. The bear considers the matter, finds you unimpressive but inconvenient, and ambles off.',
           reputationDelta: 3,
         },
         statCheck: { stat: 'athleticism', difficulty: 5 },
@@ -203,7 +203,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'offer_food',
         text: 'Toss some food as a distraction',
         outcome: {
-          message: 'The bear takes the bait! While it eats, you slip past safely.',
+          message: 'The bear accepts your offering with the air of a toll collector. While it eats, you slip past.',
           foodDelta: -20,
         },
       },
@@ -212,7 +212,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'mysterious_stranger',
     title: 'Mysterious Stranger',
-    description: 'A figure in a long coat sits by a campfire, face hidden by shadow. "Join me for a spell?"',
+    description: 'A figure in a long coat sits by a small fire, face in shadow, as if waiting for you by appointment. "Join me for a spell? I\'ve been expecting you. Longer than you\'d think."',
     type: 'mystery',
     icon: '🕵️',
     choices: [
@@ -246,7 +246,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'abandoned_wagon',
     title: 'Abandoned Wagon',
-    description: 'An overturned wagon sits by the trail. Supplies are scattered, but no one is in sight.',
+    description: 'A wagon lies on its side by the trail, its goods scattered like a dropped deck of cards. No one in sight. Out here, that can mean several things.',
     type: 'opportunity',
     icon: '🛞',
     choices: [
@@ -275,7 +275,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'leave_it',
         text: 'Leave it alone - could be a trap',
         outcome: {
-          message: 'Smart thinking. You notice boot prints in the dust leading to an ambush point.',
+          message: 'Your instincts earn their keep. Boot prints in the dust lead to a boulder with a fine view of the wagon. Somebody was waiting.',
           reputationDelta: 2,
         },
         statCheck: { stat: 'luck', difficulty: 3 },
@@ -293,7 +293,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'pan_for_gold',
         text: 'Spend time panning the stream',
         outcome: {
-          message: 'Your patience pays off! Real gold flakes settle in the pan.',
+          message: 'An hour of cold hands and sore knees, and then there it is: real color, flakes of gold settling in the black sand.',
           goldDelta: 60,
         },
         statCheck: { stat: 'luck', difficulty: 5 },
@@ -311,7 +311,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'stagecoach_holdup',
     title: 'Stagecoach in Trouble',
-    description: 'Ahead, a stagecoach is being robbed by masked men. The driver is pinned down.',
+    description: 'Ahead, masked men have a stagecoach stopped, and the driver is pinned behind his own wheel. Robbing a stage is a young trade in these hills. It will have a long career.',
     type: 'combat',
     icon: '🐎',
     choices: [
@@ -319,7 +319,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         id: 'intervene',
         text: 'Rush in to help the stagecoach',
         outcome: {
-          message: 'You help drive off the robbers! The grateful Wells Fargo driver rewards you handsomely.',
+          message: 'You pitch in, and the robbers decide the payroll isn\'t worth the lead. The Wells Fargo driver shakes your hand and pays you well for your trouble.',
           goldDelta: 75,
           karmaDelta: 20,
           reputationDelta: 10,
@@ -527,7 +527,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'chinese_railroad_workers',
     title: 'Chinese Workers\' Camp',
-    description: 'A neat camp of Chinese railroad laborers is set along the grade. They watch you approach with cautious dignity. The foreman speaks careful English: "You look hungry, stranger. We have rice and pork fat."',
+    description: 'A neat camp of Chinese railroad laborers is set along the grade. They watch you approach with cautious dignity. The foreman speaks careful English: "You look hungry, stranger. We have rice and pork fat." The line they are grading won\'t be finished until 1869, so the calendar has slipped forward again. Their hospitality does not change with the year.',
     type: 'trade',
     icon: '🏮',
     choices: [
@@ -610,7 +610,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'pony_express_rider',
     title: 'Pony Express Rider!',
-    description: 'A rider thunders toward you at a full gallop, mochila strapped tight. He reins in hard: "Route\'s flooded south of Placerville — they\'re redirecting via Sonora Pass. There\'s talk of road agents on the lower road too. You riding that way?"',
+    description: 'A rider thunders toward you at a full gallop, mochila strapped tight. He reins in hard: "Route\'s flooded south of Placerville — they\'re redirecting via Sonora Pass. There\'s talk of road agents on the lower road too. You riding that way?" The mochila says Pony Express, which by your reckoning won\'t exist until 1860. The frog in your pocket has been keeping its own calendar again.',
     type: 'mystery',
     icon: '🐴',
     choices: [
@@ -736,7 +736,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'railroad_agent_demand',
     title: 'Central Pacific Right-of-Way',
-    description: 'A well-dressed man with a brass-capped walking stick blocks the road. Behind him stand two large men. "Central Pacific Railroad surveys this corridor. Your trail crosses our right-of-way. There will be a fee for continued use."',
+    description: 'A well-dressed man with a brass-capped walking stick blocks the road. Behind him stand two large men. "Central Pacific Railroad surveys this corridor. Your trail crosses our right-of-way. There will be a fee for continued use." By your reckoning, the Central Pacific won\'t lay a rail until 1863. Somewhere between the last town and this one, the frog skipped a decade.',
     type: 'combat',
     icon: '🚂',
     choices: [
@@ -1687,7 +1687,7 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
   {
     id: 'hydraulic_mining_protest',
     title: 'Hydraulic Mining Protest',
-    description: 'The hillside above the valley has been blasted to red clay by hydraulic monitors — massive nozzles that tear mountains apart with pressurized water. Below, farmland is buried under mining debris. A group of angry farmers blocks the road with wagons, demanding the mining company stop. The mine foreman and a dozen armed men stand opposite. Both sides are shouting.',
+    description: 'The hillside above the valley has been blasted to red clay by hydraulic monitors — massive nozzles that tear mountains apart with pressurized water. Below, farmland is buried under mining debris. A group of angry farmers blocks the road with wagons, demanding the mining company stop. The mine foreman and a dozen armed men stand opposite. Both sides are shouting. This quarrel belongs to the 1870s, and a federal judge will settle it in 1884. You have slipped forward into the middle of it.',
     type: 'opportunity',
     icon: '⚖️',
     choices: [
@@ -1766,6 +1766,40 @@ export const TRAVEL_ENCOUNTERS: TravelEncounter[] = [
         statCheck: { stat: 'athleticism', difficulty: 12 },
       },
     ],
+  },
+  {
+    // Femme fatale noir, by the history (Leif 2026-09-29). A time slip, true year stated.
+    id: 'lady_at_the_twenty_one_table',
+    title: 'The Lady at the Twenty-One Table',
+    description: 'Lamplight, green baize, and a young woman with a French name dealing vingt-et-un faster than your eye can follow. The sign outside says NEVADA CITY. The broadsheet on the wall says 1854. The frog has slipped you forward again. She is Eleanor Dumont, and she has already noticed that you are not from around here, or from around now. "Sit, stranger. Nobody curses at my table, nobody fights, and nobody leaves richer than I allow."',
+    type: 'mystery',
+    icon: '🃏',
+    choices: [
+      {
+        id: 'play_hands',
+        text: 'Play a few hands of twenty-one',
+        outcome: {
+          message: 'You win the first hand and lose the next two, and you could not say how. She rakes the pot with a smile that costs her nothing and tells you less. "Come back when you know what year it is."',
+          goldDelta: -10,
+        },
+      },
+      {
+        id: 'watch_the_room',
+        text: 'Watch the players, not the cards',
+        outcome: {
+          message: 'The man in the corner who never bets is paying her in whispers. She sees you see it, and lets you keep what you learned. In this town that is a kind of friendship.',
+          reputationDelta: 2,
+        },
+      },
+      {
+        id: 'tip_hat_leave',
+        text: 'Tip your hat and leave the parlor',
+        outcome: {
+          message: 'In the doorway you glance back. She is already looking at the next stranger, and she was never really looking at you. Down the road in Grass Valley, they say Lola Montez keeps a grizzly cub chained in her yard. This country collects dangerous women the way other places collect rain.',
+        },
+      },
+    ],
+    minDistance: 3,
   },
   {
     id: 'thunderstorm_shelter',
