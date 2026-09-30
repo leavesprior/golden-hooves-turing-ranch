@@ -9,7 +9,7 @@
  * NPC's shifting disposition as ambient mood. Pixel-styled to match the clue UI.
  */
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { PixelButton } from '@/components/pixel'
 import { babelfishTransform } from '@/app/oregon-trail/lib/babelfishSpell'
 import { getDmPlayerId, storeDmQueueCapability } from '@/app/oregon-trail/hooks/useDmDirectives'
@@ -30,6 +30,8 @@ interface ChatApiResponse {
   cooldown?: boolean
   timeExpired?: boolean
   maxMessagesReached?: boolean
+  questionsLeft?: number
+  maxLength?: number
   // DM Layer P1: capability token the game poller uses to drain enqueued directives.
   dmQueueCapability?: string
 }
@@ -42,7 +44,9 @@ const DISPOSITION_MOOD: Record<Disposition, string> = {
   ally: 'at ease with you',
 }
 
-const MAX_LEN = 500
+// The server sends the limits: street NPCs get three questions of up to 160
+// characters; timed chats (Neoma, the DM Table) get longer turns and no count.
+const DEFAULT_MAX_LEN = 160
 
 export default function NpcChat({
   characterId,
@@ -72,6 +76,26 @@ export default function NpcChat({
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [ended, setEnded] = useState(false)
+  const [questionsLeft, setQuestionsLeft] = useState<number | null>(null)
+  const [maxLen, setMaxLen] = useState(DEFAULT_MAX_LEN)
+
+  // Free the server slot when the panel unmounts or the page is hidden, so an
+  // abandoned chat does not lock the visitor out of the next one.
+  const liveSession = useRef<string | null>(null)
+  useEffect(() => { liveSession.current = sessionId && !ended ? sessionId : null }, [sessionId, ended])
+  useEffect(() => {
+    const leave = () => {
+      const id = liveSession.current
+      if (!id) return
+      liveSession.current = null
+      const body = JSON.stringify({ sessionId: id, leave: true })
+      if (!navigator.sendBeacon?.('/api/neoma/chat', new Blob([body], { type: 'application/json' }))) {
+        fetch('/api/neoma/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => {})
+      }
+    }
+    window.addEventListener('pagehide', leave)
+    return () => { window.removeEventListener('pagehide', leave); leave() }
+  }, [])
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const scrollToEnd = () => {
@@ -108,6 +132,8 @@ export default function NpcChat({
     }
     storeDmQueueCapability(data.dmQueueCapability)
     if (data.sessionId) setSessionId(data.sessionId)
+    if (typeof data.maxLength === 'number') setMaxLen(data.maxLength)
+    if (typeof data.questionsLeft === 'number') setQuestionsLeft(data.questionsLeft)
     if (data.disposition) setDisposition(data.disposition)
     if (data.response) setLines([{ role: 'npc', text: data.response }])
     if (data.ended || data.cooldown) setEnded(true)
@@ -129,6 +155,7 @@ export default function NpcChat({
     }
     if (data.disposition) setDisposition(data.disposition)
     if (data.response) setLines(prev => [...prev, { role: 'npc', text: data.response! }])
+    if (typeof data.questionsLeft === 'number') setQuestionsLeft(data.questionsLeft)
     if (data.ended || data.timeExpired || data.maxMessagesReached) setEnded(true)
     scrollToEnd()
   }
@@ -208,11 +235,17 @@ export default function NpcChat({
               The conversation has ended.
             </p>
           ) : (
+            <>
+            {questionsLeft !== null && (
+              <p className="font-[var(--font-pixel)] text-[8px] text-[var(--pixel-ui-text)] opacity-70 text-center pb-1">
+                {questionsLeft} {questionsLeft === 1 ? 'question' : 'questions'} left
+              </p>
+            )}
             <div className="flex gap-2">
               <input
                 type="text"
                 value={input}
-                maxLength={MAX_LEN}
+                maxLength={maxLen}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => {
                   if (e.key === 'Enter') send()
@@ -225,6 +258,7 @@ export default function NpcChat({
                 Send
               </PixelButton>
             </div>
+            </>
           )}
         </>
       )}
