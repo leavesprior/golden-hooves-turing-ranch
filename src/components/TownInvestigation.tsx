@@ -17,7 +17,7 @@ import { PlaceBackdrop } from '@/components/PlaceBackdrop'
 import {
   type TownInvestigation as TownCase,
   type CaseEvidence,
-  START_LEADS,
+  startLeads,
   PRESS_COST,
 } from '@/lib/townInvestigations'
 
@@ -27,7 +27,7 @@ const GOLD = 'var(--pixel-gold-light)'
 export function TownInvestigation({ investigation }: { investigation: TownCase }) {
   const [phase, setPhase] = useState<Phase>('setup')
   const [sceneIndex, setSceneIndex] = useState(0)
-  const [leads, setLeads] = useState(START_LEADS)
+  const [leads, setLeads] = useState(() => startLeads(investigation.scenes.length))
   const [pressed, setPressed] = useState(false)
   const [evidence, setEvidence] = useState<CaseEvidence[]>([])
   const [lastFeedback, setLastFeedback] = useState('')
@@ -36,7 +36,7 @@ export function TownInvestigation({ investigation }: { investigation: TownCase }
   const scene = scenes[sceneIndex]
 
   function reset() {
-    setPhase('setup'); setSceneIndex(0); setLeads(START_LEADS)
+    setPhase('setup'); setSceneIndex(0); setLeads(startLeads(scenes.length))
     setPressed(false); setEvidence([]); setLastFeedback('')
   }
 

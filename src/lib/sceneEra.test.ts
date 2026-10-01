@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { INVESTIGATIONS } from './townInvestigations'
+import { INVESTIGATIONS, startLeads } from './townInvestigations'
 import { sceneYear } from './trailInvestigation'
 
 // A witness can only speak of what has already happened. On 10-01 five of eight wrong
@@ -67,4 +67,18 @@ for (const [townId, inv] of Object.entries(INVESTIGATIONS)) {
 }
 assert.ok(scenes >= 30, `only ${scenes} dated scenes found; the walk is broken`)
 assert.deepEqual(violations, [], `witnesses speak of later years:\n${violations.join('\n')}`)
+// Case shape: every answer is one of its choices, every place has a year, and every
+// case gets two leads a place. (Answers are not always the next scene's id: Moke Hill
+// answers with art ids, Angels Camp has a mid-case deduction. The trail treats those
+// as readings.)
+for (const [townId, inv] of Object.entries(INVESTIGATIONS)) {
+  inv.scenes.forEach(sc => {
+    assert.ok(sc.choices.some(c => c.id === sc.answer), `${townId}:${sc.id} answer is not among its choices`)
+    assert.ok(sceneYear(townId, sc.id) !== undefined, `${townId}:${sc.id} has no year`)
+  })
+  assert.ok(startLeads(inv.scenes.length) >= inv.scenes.length * 2, `${townId}: fewer than two leads a place`)
+}
+// Volcano, split 10-01: store -> library (1854) -> Thespian boards (1854) -> Old Abe (1862).
+assert.deepEqual(INVESTIGATIONS.volcano.scenes.map(sc => `${sc.id}->${sc.answer}`),
+  ['general_store->library', 'library->thespian', 'thespian->old_abe', 'old_abe->cannon_roll'])
 console.log(`sceneEra: ${scenes} scenes, no witness speaks of a year after their own`)
