@@ -7,12 +7,17 @@ import {
   CanvasTexture,
   CylinderGeometry,
   DoubleSide,
+  ExtrudeGeometry,
   Group,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  LatheGeometry,
   PlaneGeometry,
+  RepeatWrapping,
+  Shape,
   SRGBColorSpace,
+  Vector2,
   TextureLoader,
   TorusGeometry,
 } from 'three';
@@ -35,6 +40,7 @@ export const SOURCES = {
   thespians: 'Deborah Coleen Cook, "Vestiges of Amador: Olde Time Entertainments, Part III", Amador Ledger-Dispatch, 2018-09-30',
   chl29: 'California Historical Landmark No. 29, Volcano (OHP, ohp.parks.ca.gov/ListedResources/Detail/29)',
   oldAbeCast: 'Wikipedia, "Volcano, California" (cast by Cyrus Alger & Co., Boston, 1837; six-pounder)',
+  vtc: 'Volcano Theatre Company, "About", volcanotheatre.net/about (read 2026-10-01)',
 };
 
 // Narration, by beat. Each entry: one caption. `src` = the source key, or null for instructions.
@@ -55,25 +61,57 @@ export const NARRATION = {
     { text: 'That night is told as 1862, or as 1863.', src: null },
   ],
   plaque: [{ text: 'The same plaque: a town of 17 hotels, a library, a theater.', src: 'chl29' }],
-  slip1: [{ text: "Sideways: the Frog's side of things. Nothing here is history.", src: null }],
   now: [{ text: 'Back to now. The street stays; only the difference was added.', src: null }],
+  walk: [{ text: 'Come. Down the street, the town still keeps a theatre.', src: null }],
+  theatre: [
+    { text: 'The Volcano Theatre Company plays here in summer, behind a restored Gold Rush stone front.', src: 'vtc' },
+    { text: 'Across the street stands its Cobblestone Theatre, built in 1856 as a tobacco and cigar shop.', src: 'vtc' },
+    { text: "The town's love of the stage is older: its Thespian Society was formed in 1854.", src: 'thespians' },
+    { text: 'Their first play was "The Golden Farmer." The bill you saw on the board walk.', src: 'thespians', at: 'bill2' },
+  ],
 };
 
 const mat = (color, extra = {}) => new MeshStandardMaterial({ color, roughness: 0.8, metalness: 0, transparent: true, ...extra });
 
-/** The Guide: the still cut-out on a plane that turns about its vertical axis to the viewer. */
+/**
+ * The Guide: a still cut-out (super-resolved x4 from the concept art, matte cleaned) on a plane that
+ * turns about its vertical axis to the viewer, standing on a soft contact shadow so she sits on the
+ * street instead of floating over it. Never animated video (rule): she only fades and moves as a still.
+ */
 export function buildGuide() {
   const g = new Group();
   const h = 1.68;
-  const w = (h * 137) / 360; // the cut-out's aspect
-  const tex = new TextureLoader().load('./guide/guide_concept_still.png');
+  const w = (h * 550) / 1437; // the cut-out's aspect
+  const tex = new TextureLoader().load('./guide/guide_v3.png');
   tex.colorSpace = SRGBColorSpace;
-  const m = new Mesh(new PlaneGeometry(w, h), new MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.05, side: DoubleSide, depthWrite: false }));
-  m.position.y = h / 2;
+  tex.anisotropy = 8;
+  // A touch warmer and dimmer than white, to sit in the photo's late-afternoon light.
+  const m = new Mesh(new PlaneGeometry(w, h), new MeshBasicMaterial({ map: tex, color: 0xf2e9dc, transparent: true, alphaTest: 0.02, side: DoubleSide, depthWrite: false }));
+  m.position.y = h / 2 - 0.01;
   m.raycast = () => {};
-  g.add(m);
+  const shadow = canvasShadow(0.75, 0.3);
+  shadow.position.set(0, 0.006, 0.02);
+  g.add(shadow, m);
   g.userData.figure = m;
   return g;
+}
+
+function canvasShadow(w, d) {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 128;
+  const ctx = c.getContext('2d');
+  const gr = ctx.createRadialGradient(128, 64, 4, 128, 64, 128);
+  gr.addColorStop(0, 'rgba(0,0,0,0.75)');
+  gr.addColorStop(0.45, 'rgba(0,0,0,0.35)');
+  gr.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(0, 0, 256, 128);
+  const t = new CanvasTexture(c);
+  const m = new Mesh(new PlaneGeometry(w, d), new MeshBasicMaterial({ map: t, transparent: true, opacity: 0.6, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2;
+  m.raycast = () => {};
+  return m;
 }
 
 function canvasPlane(w, h, px, draw) {
@@ -119,39 +157,141 @@ export function buildPlaybill() {
   return m;
 }
 
-/** Old Abe: a bronze six-pounder on a wooden field carriage (shape simplified). */
+// Weathered wood: a grain texture drawn once (grey-brown, as the carriage in the photos of Old Abe).
+let grainTex = null;
+function grain() {
+  if (grainTex) return grainTex;
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#8c7a62';
+  ctx.fillRect(0, 0, 256, 512);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 140; i++) {
+    const x = rnd() * 256;
+    const shade = rnd() < 0.5 ? `rgba(60,48,34,${0.15 + rnd() * 0.3})` : `rgba(190,175,150,${0.1 + rnd() * 0.2})`;
+    ctx.strokeStyle = shade;
+    ctx.lineWidth = 0.6 + rnd() * 2.2;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    for (let y = 0; y <= 512; y += 32) ctx.lineTo(x + Math.sin(y * 0.02 + i) * (2 + rnd() * 3), y);
+    ctx.stroke();
+  }
+  for (let i = 0; i < 6; i++) { // knots
+    ctx.fillStyle = 'rgba(55,40,28,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(rnd() * 256, rnd() * 512, 3 + rnd() * 4, 8 + rnd() * 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  grainTex = new CanvasTexture(c);
+  grainTex.colorSpace = SRGBColorSpace;
+  grainTex.wrapS = grainTex.wrapT = RepeatWrapping;
+  grainTex.anisotropy = 8;
+  return grainTex;
+}
+
+const ring = (rIn, rOut, depth, m, segs = 64) => {
+  const sh = new Shape();
+  sh.absarc(0, 0, rOut, 0, Math.PI * 2, false);
+  const hole = new Shape();
+  hole.absarc(0, 0, rIn, 0, Math.PI * 2, true);
+  sh.holes.push(hole);
+  const geo = new ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 2, curveSegments: segs });
+  geo.translate(0, 0, -depth / 2);
+  return new Mesh(geo, m);
+};
+
+/**
+ * Old Abe: a bronze six-pounder (cast by Cyrus Alger & Co., Boston, 1837) on a wooden field
+ * carriage. Proportions follow the US six-pounder of the period and the photos of the cannon in
+ * Volcano: a turned bronze tube with base ring, reinforce, chase, muzzle astragal and swell,
+ * cascabel knob; two cheeks, a stock trail, an iron-shod axle and two 14-spoke wheels about 1.45 m
+ * across. Built with the barrel along +x (muzzle), y up, wheels at +-z. Shape simplified, scale real.
+ */
 export function buildOldAbe() {
   const g = new Group();
-  const wood = mat(0x5a3b22);
-  const iron = mat(0x2b2b2b);
-  const bronze = mat(0x9a7a3a, { metalness: 0.6, roughness: 0.4 });
+  const wood = new MeshStandardMaterial({ map: grain(), color: 0xffffff, roughness: 0.88, metalness: 0, transparent: true });
+  const iron = new MeshStandardMaterial({ color: 0x2c2b2a, roughness: 0.55, metalness: 0.75, transparent: true });
+  const bronze = new MeshStandardMaterial({ color: 0x76593a, roughness: 0.45, metalness: 1, transparent: true }); // weathered bronze, as in the photos
+  g.userData.metal = [iron, bronze];
+  const add = (o, x, y, z, rx = 0, ry = 0, rz = 0) => { o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
+
+  // The tube, turned about its axis (lathe profile: radius, distance from the base ring, metres).
+  const P = [[0, -0.135], [0.028, -0.132], [0.044, -0.112], [0.046, -0.095], [0.036, -0.072], [0.024, -0.06], [0.026, -0.045],
+    [0.09, -0.03], [0.118, -0.012], [0.128, 0], [0.128, 0.035], [0.12, 0.045], [0.118, 0.56], [0.124, 0.57], [0.124, 0.585],
+    [0.108, 0.595], [0.104, 0.61], [0.081, 1.3], [0.079, 1.33], [0.087, 1.345], [0.087, 1.36], [0.08, 1.375], [0.084, 1.42],
+    [0.095, 1.49], [0.097, 1.525], [0.092, 1.535], [0.047, 1.535], [0.047, 1.2], [0, 1.2]];
+  const tube = new Mesh(new LatheGeometry(P.map(([r, y]) => new Vector2(r, y)), 64), bronze);
+  const trunnionX = 0.0;
+  const axleY = 0.72;
+  const boreY = axleY + 0.24;
+  const base = -0.62; // base ring, relative to the trunnions
+  add(tube, trunnionX + base, boreY, 0, 0, 0, -Math.PI / 2);
   for (const s of [-1, 1]) {
-    const wheel = new Mesh(new TorusGeometry(0.55, 0.035, 8, 32), iron);
-    wheel.position.set(0, 0.58, s * 0.42);
-    const hub = new Mesh(new CylinderGeometry(0.09, 0.09, 0.16, 12), wood);
-    hub.rotation.x = Math.PI / 2;
-    hub.position.copy(wheel.position);
-    g.add(wheel, hub);
-    for (let k = 0; k < 7; k++) {
-      const spoke = new Mesh(new BoxGeometry(0.04, 1.08, 0.04), wood);
-      spoke.position.copy(wheel.position);
-      spoke.rotation.z = (k * Math.PI) / 7;
-      g.add(spoke);
-    }
+    add(new Mesh(new CylinderGeometry(0.042, 0.042, 0.11, 24), bronze), trunnionX, boreY, s * 0.165, Math.PI / 2);
+    add(new Mesh(new CylinderGeometry(0.062, 0.062, 0.02, 24), bronze), trunnionX, boreY, s * 0.12, Math.PI / 2); // rimbase
+    add(new Mesh(new BoxGeometry(0.11, 0.025, 0.08), iron), trunnionX, boreY + 0.045, s * 0.175); // cap square
   }
-  const axle = new Mesh(new BoxGeometry(0.12, 0.12, 0.96), wood);
-  axle.position.set(0, 0.58, 0);
-  const trail = new Mesh(new BoxGeometry(0.9, 0.14, 0.26), wood);
-  trail.position.set(-0.45, 0.42, 0);
-  trail.rotation.z = 0.33;
-  const cheek = new Mesh(new BoxGeometry(0.7, 0.24, 0.3), wood);
-  cheek.position.set(0, 0.74, 0);
-  const barrel = new Mesh(new CylinderGeometry(0.075, 0.115, 1.5, 18), bronze);
-  barrel.rotation.z = Math.PI / 2 + 0.02;
-  barrel.position.set(0.32, 0.9, 0);
-  const knob = new Mesh(new CylinderGeometry(0.05, 0.05, 0.08, 10), bronze);
-  knob.rotation.z = Math.PI / 2;
-  knob.position.set(-0.47, 0.9, 0);
-  g.add(axle, trail, cheek, barrel, knob);
+
+  // Cheeks: two planks, high at the trunnions, stepping down to the trail.
+  const cheekShape = new Shape();
+  cheekShape.moveTo(0.22, -0.12);
+  cheekShape.lineTo(0.22, 0.16);
+  cheekShape.quadraticCurveTo(0.12, 0.25, 0.0, 0.2);
+  cheekShape.lineTo(-0.2, 0.16);
+  cheekShape.lineTo(-0.35, 0.1);
+  cheekShape.lineTo(-0.95, -0.05);
+  cheekShape.lineTo(-0.98, -0.22);
+  cheekShape.lineTo(-0.4, -0.2);
+  cheekShape.quadraticCurveTo(0.0, -0.22, 0.22, -0.12);
+  const cheekGeo = new ExtrudeGeometry(cheekShape, { depth: 0.065, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelSegments: 2 });
+  cheekGeo.translate(0, 0, -0.0325);
+  for (const s of [-1, 1]) add(new Mesh(cheekGeo, wood), 0, axleY, s * 0.155);
+  // Transoms between the cheeks, and the elevating screw under the breech.
+  add(new Mesh(new BoxGeometry(0.12, 0.1, 0.25), wood), -0.42, axleY + 0.02, 0);
+  add(new Mesh(new BoxGeometry(0.12, 0.1, 0.25), wood), -0.85, axleY - 0.1, 0);
+  add(new Mesh(new CylinderGeometry(0.014, 0.014, 0.16, 12), iron), -0.55, axleY + 0.13, 0);
+  add(new Mesh(new CylinderGeometry(0.05, 0.05, 0.015, 16), iron), -0.55, axleY + 0.21, 0);
+  // The stock trail, down to the ground, iron trail plate and lunette at its end.
+  const trailLen = 1.15;
+  const trailAng = Math.atan2(axleY - 0.12 - 0.1, trailLen);
+  add(new Mesh(new BoxGeometry(trailLen, 0.16, 0.2), wood), -0.9 - (trailLen / 2) * Math.cos(trailAng), (axleY - 0.1 + 0.08) / 2 + 0.05, 0, 0, 0, trailAng);
+  add(new Mesh(new BoxGeometry(0.18, 0.02, 0.22), iron), -0.9 - trailLen * Math.cos(trailAng) + 0.05, 0.085, 0, 0, 0, trailAng);
+  add(new Mesh(new TorusGeometry(0.045, 0.012, 8, 20), iron), -0.9 - trailLen * Math.cos(trailAng) - 0.02, 0.06, 0, Math.PI / 2);
+  // Axle-tree with iron arms, and the wheels.
+  add(new Mesh(new BoxGeometry(0.15, 0.14, 1.12), wood), 0, axleY, 0);
+  add(new Mesh(new CylinderGeometry(0.035, 0.035, 1.5, 16), iron), 0, axleY, 0, Math.PI / 2);
+  const R = 0.725;
+  for (const s of [-1, 1]) {
+    const wheel = new Group();
+    wheel.position.set(0, axleY, s * 0.66);
+    g.add(wheel);
+    const hub = new Mesh(new CylinderGeometry(0.085, 0.1, 0.28, 24), wood);
+    hub.rotation.x = Math.PI / 2;
+    wheel.add(hub);
+    for (const z of [-0.12, 0.12]) {
+      const band = new Mesh(new CylinderGeometry(0.1, 0.1, 0.02, 24), iron);
+      band.rotation.x = Math.PI / 2;
+      band.position.z = z;
+      wheel.add(band);
+    }
+    const cap = new Mesh(new CylinderGeometry(0.045, 0.06, 0.05, 20), iron);
+    cap.rotation.x = Math.PI / 2;
+    cap.position.z = s * 0.16;
+    wheel.add(cap);
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2;
+      const spoke = new Mesh(new CylinderGeometry(0.02, 0.028, R - 0.15, 10), wood);
+      spoke.position.set(Math.cos(a) * (R / 2 + 0.02), Math.sin(a) * (R / 2 + 0.02), s * 0.02);
+      spoke.rotation.z = a - Math.PI / 2;
+      wheel.add(spoke);
+    }
+    const felloe = ring(R - 0.085, R - 0.012, 0.075, wood);
+    wheel.add(felloe);
+    wheel.add(ring(R - 0.012, R + 0.004, 0.08, iron));
+  }
+  g.traverse((o) => { if (o.isMesh) o.raycast = () => {}; });
   return g;
 }

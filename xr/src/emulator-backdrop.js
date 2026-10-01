@@ -96,6 +96,31 @@ export async function installBackdrop() {
   surround.name = 'volcano-backdrop-surround';
   sem.scene.add(surround, mesh);
   sem.scene.background = new Color(...sky);
+  // The demo's second stop (emulator only): cross-fade to another photo on the same wall, the
+  // stand-in for walking down the street on a headset. Same size rule as the first photo.
+  window.__swapBackdrop = async (src, seconds = 1.2) => {
+    const img2 = await loadImage(src);
+    const t2 = textures(img2);
+    const ph2 = (pw * img2.height) / img2.width;
+    const cy2 = BACKDROP.photoBottom + ph2 / 2;
+    const m2 = new Mesh(new PlaneGeometry(pw, ph2), new MeshBasicMaterial({ map: t2.photo, transparent: true, opacity: 0 }));
+    m2.position.set(0, cy2, -d - 0.005);
+    const s2 = new Mesh(sg, new MeshBasicMaterial({ map: t2.blur, transparent: true, opacity: 0 }));
+    s2.position.set(0, cy2, -d - 0.02);
+    sem.scene.add(s2, m2);
+    const t0 = performance.now();
+    await new Promise((res) => {
+      const tick = () => {
+        const k = Math.min(1, (performance.now() - t0) / (seconds * 1000));
+        m2.material.opacity = s2.material.opacity = k;
+        if (k < 1) setTimeout(tick, 16);
+        else res();
+      };
+      tick();
+    });
+    sem.scene.background = new Color(...t2.sky);
+    return { ok: true, photo: [img2.width, img2.height] };
+  };
   // Verification: does the emulator's view ray through each screen corner and edge-middle land
   // on the sharp photo (not the blurred fill)? Margin = metres inside the photo's nearest edge.
   const half = [pw / 2, ph / 2];

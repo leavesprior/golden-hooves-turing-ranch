@@ -13,4 +13,9 @@ export const BACKDROP = {
   photoBottom: -5,
   credit:
     "Background: photo of Volcano, CA, 'Volcano, California (March 18, 2014) - Wooden buildings' by Sharon Hahn Darlin, CC BY 2.0, via Wikimedia Commons",
+  // The demo's second stop (the theatre). Leif's own photo replaces it when he has one.
+  theatre: {
+    src: './backdrop/amphitheatre.jpg',
+    credit: "Second background: 'Volcano California Amphitheatre' by Sgerbic, CC BY-SA 4.0, via Wikimedia Commons",
+  },
 };

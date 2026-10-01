@@ -16,12 +16,15 @@ import {
   Group,
   Mesh,
   MeshBasicMaterial,
+  PMREMGenerator,
   PlaneGeometry,
   Quaternion,
   SRGBColorSpace,
   Vector3,
 } from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import projectOptions from 'virtual:iwsdk-project';
+import { BACKDROP } from './backdrop-config.js';
 import { CAST, LINE, PLACE } from './line-data.js';
 import { checkLaws, lawCoverage } from './laws.js';
 import { FACADE_W, build1867, buildCat, buildFrog, buildHattie, buildSlip1, setOpacity } from './line-layers.js';
@@ -154,6 +157,10 @@ const rand = ([a, b]) => a + Math.random() * (b - a);
 World.create(document.getElementById('scene-container'), projectOptions).then((world) => {
   const root = new Group();
   const rootEntity = world.createTransformEntity(root, { persistent: true });
+  // Reflections for the metal pieces only (the Frog's gold, Old Abe's bronze and iron): a neutral
+  // studio environment, so metal reads as metal instead of flat colour.
+  const envMap = new PMREMGenerator(world.renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+  const giveEnv = (o, k = 1) => o.traverse((m) => { if (m.material && m.material.metalness > 0) { m.material.envMap = envMap; m.material.envMapIntensity = k; } });
 
   // Rung 4: the WHOLE c.1867 and Sideways layers sit behind real objects, not only Hattie.
   const layers = { c1867: build1867(), slip1: buildSlip1() };
@@ -165,7 +172,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   }
   const cat = buildCat();
   layerEntities.cat = world.createTransformEntity(cat, { parent: rootEntity, persistent: true });
-  cat.position.set(0, 0.03, 0.8);
+  cat.position.set(0, 0.03, DEMO ? 1.75 : 0.8); // demo: the board walk's front edge, in front of all
+  giveEnv(cat, 0.7);
   setOpacity(cat, 0);
   layerEntities.cat.addComponent(DepthOccludable);
 
@@ -189,16 +197,28 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     const playbill = buildPlaybill();
     playbill.position.set(-1.0, 1.45, 0.04);
     const oldAbe = buildOldAbe();
-    oldAbe.position.set(0.35, 0, 2.05);
-    oldAbe.rotation.y = Math.PI; // the muzzle toward the street's middle
+    // Three-quarter view from the street: the muzzle turned a little toward the viewer, the whole
+    // gun (tube, carriage, both wheels, trail) inside the facade volume and clear of the Guide.
+    oldAbe.position.set(-0.25, 0, 1.25);
+    oldAbe.rotation.y = -0.55;
+    giveEnv(oldAbe);
     layers.c1867.add(playbill, oldAbe);
+    // v2 showed the porch sign board as an empty dark panel (its trim sits behind its face); the
+    // demo has no sourced name to paint on it, so the demo leaves it out.
+    for (const n of ['signboard', 'signtrim']) layers.c1867.remove(layers.c1867.getObjectByName(n));
     setOpacity(layers.c1867, 0);
     // `near`: the piece is told only from within this distance (m), so it is close enough to read.
-    demo.elements = { playbill: { obj: playbill, center: [-1.0, 1.45, 0.04], near: 2.0 }, oldAbe: { obj: oldAbe, center: [0.25, 1.25, 2.05], near: Infinity } };
+    demo.elements = { playbill: { obj: playbill, center: [-1.0, 1.45, 0.04], near: 2.0 }, oldAbe: { obj: oldAbe, center: [-0.2, 1.1, 1.3], near: Infinity } };
     demo.guide = buildGuide();
-    demo.guide.position.set(1.0, 0, 1.3); // on the board walk, between two porch posts
+    demo.guide.position.set(1.2, 0, 1.35); // on the board walk, right of Old Abe's muzzle
     setOpacity(demo.guide, 0);
     root.add(demo.guide);
+    // The theatre stop: the same 1854 bill, shown again on the stone front between two doors.
+    demo.bill2 = buildPlaybill();
+    demo.bill2.position.set(0.0, 1.5, 0.04);
+    demo.bill2.scale.setScalar(1.4);
+    setOpacity(demo.bill2, 0);
+    root.add(demo.bill2);
     demo.guideWords = buildWords({ backing: true });
     demo.guideWords.mesh.scale.setScalar(2.0);
     demo.guideWords.mesh.position.set(0.35, 2.3, 1.9);
@@ -221,7 +241,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   const frog = buildFrog();
   const frogEntity = world.createTransformEntity(frog, { parent: rootEntity, persistent: true });
   frog.position.copy(FROG_HOME);
-  if (DEMO) frog.position.set(-0.45, 0, 0.9); // in view past Old Abe's wheels
+  if (DEMO) frog.position.set(-1.4, 0, 1.75); // on the board walk, in front of Old Abe's near wheel
+  giveEnv(frog, 1.2);
   frog.rotation.y = -0.5;
   setOpacity(frog, 0); // Rung 1: not even the Frog, at first.
   frogEntity.addComponent(RayInteractable);
@@ -243,6 +264,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     if (state.hop >= 0) return;
     state.hop = 0;
     state.index = (state.index + 1) % LINE.length;
+    // The demo skips Sideways: after the cannon the Guide walks to the theatre instead.
+    if (DEMO && LINE[state.index].id === 'slip1') state.index = (state.index + 1) % LINE.length;
     state.stepAtMs = performance.now();
     if (caption) caption.draw(LINE[state.index]);
     // Sound before sight: c.1867 is heard at once, seen REVEAL.sightDelay1867 later.
@@ -480,8 +503,11 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       });
 
       // The cat walks the board walk in 1867; sideways it is and is not.
-      const walkX = Math.sin(time * 0.18) * 1.2;
-      const dir = Math.cos(time * 0.18) >= 0 ? 1 : -1;
+      // Demo: a slower, wider walk along the shop fronts, so the cat is seen whole and walking.
+      // Demo: along the front edge, right of Old Abe's muzzle (behind the gun or the Guide it was hidden in the first v3 cuts).
+      const catW = DEMO ? 0.2 : 0.18;
+      const walkX = DEMO ? 1.45 + Math.sin(time * catW) * 0.7 : Math.sin(time * catW) * 1.2;
+      const dir = Math.cos(time * catW) >= 0 ? 1 : -1;
       cat.position.x = walkX;
       cat.rotation.y = dir > 0 ? 0 : Math.PI;
       cat.userData.legs.forEach((leg, i) => { leg.rotation.z = Math.sin(time * 8 + (i % 2) * Math.PI) * 0.35; });
@@ -693,8 +719,35 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       if (reveal.frog >= 1) narrate('frog');
       const seen1867 = current === 'c1867' && state.fades[1] > 0.9;
       if (seen1867) narrate('c1867');
-      if (current === 'slip1' && state.fades[2] > 0.9) narrate('slip1');
-      if (current === 'now' && demo.said.has('slip1') && state.fades[0] > 0.9) narrate('now');
+      if (current === 'now' && demo.said.has('plaque') && state.fades[0] > 0.9) narrate('now');
+      const silent = !demo.cur && !demo.queue.length;
+      if (demo.said.has('now') && silent) narrate('walk');
+      // The walk: once she has said so, the Guide (still a still) moves down the board walk with a
+      // small step bob, and out of view. The take then cross-fades the street to the theatre (the
+      // emulator's stand-in for walking there; on a headset the player walks), and she walks in.
+      const fig = demo.guide.userData.figure;
+      demo.moving = false;
+      const bob = () => { fig.position.y = 0.83 + Math.abs(Math.sin(demo.stride * 6)) * 0.018; };
+      if (demo.said.has('walk') && silent && !demo.place && demo.guide.position.x < 7.5) {
+        demo.stride = (demo.stride || 0) + delta;
+        demo.guide.position.x += delta * 1.3;
+        demo.moving = true;
+        bob();
+      }
+      if (demo.place === 'theatre' && demo.guide.position.x < 1.2) {
+        demo.stride = (demo.stride || 0) + delta;
+        demo.guide.position.x = Math.min(1.2, demo.guide.position.x + delta * 1.3);
+        demo.moving = true;
+        bob();
+        if (demo.guide.position.x >= 1.2) fig.position.y = 0.83;
+      }
+      if (demo.place === 'theatre' && demo.guide.position.x >= 1.2) narrate('theatre');
+      // The bill again, on the theatre's stone front, while she names the play.
+      if (demo.bill2) {
+        const want2 = demo.cur && demo.cur.at === 'bill2' ? 1 : demo.bill2.userData.fade || 0;
+        const f2 = Math.min(1, (demo.bill2.userData.fade || 0) + delta / 1.2);
+        if (want2 > 0 && demo.bill2.userData.fade !== f2) setOpacity(demo.bill2, (demo.bill2.userData.fade = f2));
+      }
       // Look at a piece for a moment, and the Guide tells it.
       for (const [id, el] of Object.entries(demo.elements)) {
         const c = root.localToWorld(gTmp.set(...el.center)).sub(gHead).normalize();
@@ -712,7 +765,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         demo.cur = { ...line, age: 0, dur: REVEAL.guideHoldSeconds + REVEAL.guideHoldPerChar * line.text.length };
         demo.guideWords.draw(line.text);
         // A caption about a piece seen up close stands by that piece; the rest stand above the Guide.
-        const a = line.at === 'playbill' ? { p: [-1.0, 2.05, 0.35], k: 1.0 } : { p: [0.35, 2.3, 1.9], k: 2.0 };
+        const a = line.at === 'playbill' ? { p: [-1.0, 2.05, 0.35], k: 1.0 } : line.at === 'bill2' ? { p: [0.1, 2.35, 1.0], k: 2.0 } : { p: [0.35, 2.3, 1.9], k: 2.0 };
         demo.guideWords.mesh.position.set(...a.p);
         demo.guideWords.mesh.scale.setScalar(a.k);
         demo.log = demo.log || [];
@@ -853,6 +906,13 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       },
       playerId: () => PLAYER_ID,
       backdrop: () => window.__backdrop ?? null,
+      // Emulator take only: the second stop. Cross-fade the backdrop to the theatre, and the Guide walks in.
+      arrive: async () => {
+        demo.guide.position.x = -6.5; // out of the emulator's wide view, left: she walks in
+        const r = await window.__swapBackdrop(BACKDROP.theatre.src);
+        demo.place = 'theatre';
+        return r;
+      },
       demo: () => (DEMO ? { guide: +demo.fade.toFixed(2), queue: demo.queue.length, cur: demo.cur && demo.cur.text, said: [...demo.said], log: demo.log || [], look: demo.look } : null),
       // Verification: screen rectangles (px) of the Guide and her caption, the playbill's height on screen.
       frameCheck: () => {
@@ -875,7 +935,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         const w = rect(demo.guideWords.mesh);
         const pb = rect(demo.elements.playbill.obj);
         return {
-          guide: { opacity: +demo.fade.toFixed(2), ...st(g) },
+          guide: { opacity: +demo.fade.toFixed(2), moving: !!demo.moving, ...st(g) },
           words: { shown: demo.guideWords.mesh.visible && demo.guideWords.mesh.material.opacity > 0.01, text: demo.cur && demo.cur.text, ...st(w) },
           playbillPx: LINE[state.index].id === 'c1867' && st(pb).inside ? pb.r[3] - pb.r[1] : 0,
           coverage: window.__backdropCoverage ? window.__backdropCoverage() : null,
