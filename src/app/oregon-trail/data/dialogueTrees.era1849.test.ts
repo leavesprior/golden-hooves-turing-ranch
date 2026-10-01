@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { WITNESS_DIALOGUES } from './dialogueTrees'
+import { getPersonality } from './npcPersonalities'
 
 // The trail is spring 1849. The player is time-slipped and carries a Pinkerton badge
 // (ChapterIntro: "The Pinkerton agency will not be founded until next year"), so the
@@ -36,5 +37,11 @@ for (const f of TRAIL_TEXT) {
   for (const phrase of [/Sent a wire/i, /telegraph operator/i, /\brustlers\b/i, /Ten cents a word/i]) {
     assert.ok(!phrase.test(src), `${f} still says ${phrase}`)
   }
+}
+// The live-model persona for the same witness (advisor 10-01): the chat must not talk telegraph either.
+{
+  const p = getPersonality('telegraph_operator')
+  const said = JSON.stringify([p.archetype, p.name, p.description, p.speechPatterns, p.quirks, p.knowledgeAreas, p.exampleExchanges, p.systemPromptAdditions])
+  assert.ok(!/\b(telegra\w*|morse|wires?)\b/i.test(said.replace(/no telegraph anywhere west of Missouri/g, '')), `live persona still talks telegraph: ${said.slice(0, 200)}`)
 }
 console.log(`dialogueTrees.era1849: ${checked} witness lines, no wires, no known agency; trail text has no wires or rustlers`)
