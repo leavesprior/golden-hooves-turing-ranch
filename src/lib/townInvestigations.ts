@@ -295,7 +295,7 @@ const MOKELUMNE_HILL: TownInvestigation = {
       id: 'express_bank',
       place: 'The Adams & Co. express office (the stone hall on Main, rebuilt after the 1854 fire)',
       art: 'mh_hotel_leger',
-      witness: { name: 'Horace Tilden', role: 'express-office clerk for the banking house' },
+      witness: { name: 'Horace Tilden', role: 'once a clerk for Adams & Co.' },
       prompt:
         'The certificate Vane spends carries the express bank\'s own stamp, for gold "shipped east under guard." But the great house here failed in the panic of \'55, and its books — and its stone walls — passed to other hands. A forged certificate has to name a SHIPMENT that the county can\'t check anymore. Where are the records that could still prove whether his gold ever truly left this hill — the one office that logged who deposited, who shipped, and when?',
       clueEasy:
@@ -926,7 +926,7 @@ const MARIPOSA: TownInvestigation = {
       clueEasy:
         'Larkin spreads the old papers. "The grant Micheltorena signed to Alvarado in \'44 had no surveyed lines — just outer limits between the Merced, the Chowchilla and the Sierra. A man could move ten leagues inside that like a tile on a board. Only one bench ever blessed that kind of float."',
       clueHard:
-        'He lowers his voice. "Frémont\'s title rode all the way to Washington. The Supreme Court confirmed Las Mariposas in 1855 — Frémont v. United States — and let a FLOATING claim stand. Vane studied that ruling. He\'s not forging gold; he\'s forging the right to BE somewhere. Find where that float gets stamped honest and you find his model."',
+        'He lowers his voice. "Frémont\'s title will ride all the way to Washington before anyone settles it. A float like this one, only the highest bench in the land can bless. Vane is betting it will. He\'s not forging gold; he\'s forging the right to BE somewhere. Find where that float gets stamped honest and you find his model."',
       evidence: { label: 'GRANT', value: 'Ten square leagues with no surveyed corners — a boundary that floats to the gold' },
       answer: 'courthouse',
       choices: [
