@@ -46,8 +46,8 @@ export const NARRATION = {
   frog: [{ text: 'Pinch the Frog to step back along the line of time.', src: null }],
   c1867: [{ text: 'About 1867. Porches and board walks, simplified.', src: null }],
   playbill: [
-    { text: "Volcano's first thespian society was formed in 1854.", src: 'thespians' },
-    { text: 'Its first play was "The Golden Farmer."', src: 'thespians' },
+    { text: "Volcano's first thespian society was formed in 1854.", src: 'thespians', at: 'playbill' },
+    { text: 'Its first play was "The Golden Farmer."', src: 'thespians', at: 'playbill' },
   ],
   oldAbe: [
     { text: 'Old Abe: a six-pounder cannon, cast in 1837.', src: 'oldAbeCast' },
@@ -90,7 +90,7 @@ function canvasPlane(w, h, px, draw) {
 
 /** A pasted playbill for the Thespian Society's first play (1854; Ledger-Dispatch 2018). */
 export function buildPlaybill() {
-  const m = canvasPlane(0.5, 0.72, 600, (ctx, W, H) => {
+  const m = canvasPlane(0.6, 0.864, 720, (ctx, W, H) => {
     ctx.fillStyle = '#e8dcb8';
     ctx.fillRect(0, 0, W, H);
     // age: uneven tone
@@ -141,8 +141,8 @@ export function buildOldAbe() {
   }
   const axle = new Mesh(new BoxGeometry(0.12, 0.12, 0.96), wood);
   axle.position.set(0, 0.58, 0);
-  const trail = new Mesh(new BoxGeometry(1.2, 0.14, 0.26), wood);
-  trail.position.set(-0.6, 0.4, 0);
+  const trail = new Mesh(new BoxGeometry(0.9, 0.14, 0.26), wood);
+  trail.position.set(-0.45, 0.42, 0);
   trail.rotation.z = 0.33;
   const cheek = new Mesh(new BoxGeometry(0.7, 0.24, 0.3), wood);
   cheek.position.set(0, 0.74, 0);

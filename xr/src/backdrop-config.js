@@ -6,10 +6,11 @@ export const BACKDROP = {
   src: './backdrop/volcano.jpg',
   // Where the photographed street stands, metres ahead of the emulated headset's start.
   wallDistance: 3.6,
-  // Width the photo spans on that wall, metres. Height follows the photo's aspect.
-  photoWidth: 13,
+  // Width the photo spans on that wall, metres. Height follows the photo's aspect. Wide enough that
+  // the emulator's ~116-degree view stays inside the photo for head turns up to ~15 degrees.
+  photoWidth: 24,
   // Height of the photo's bottom edge above the floor, metres (negative = below the floor).
-  photoBottom: -1.6,
+  photoBottom: -5,
   credit:
     "Background: photo of Volcano, CA, 'Volcano, California (March 18, 2014) - Wooden buildings' by Sharon Hahn Darlin, CC BY 2.0, via Wikimedia Commons",
 };

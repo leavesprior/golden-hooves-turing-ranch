@@ -51,6 +51,7 @@ export const REVEAL = {
   guideHoldPerChar: 0.05,
   guideLookDeg: 10, // head-forward within this of a piece = looking at it
   guideLookSeconds: 0.7,
+  guideHomeRadius: 0.4, // m: step further than this from where you began and the Guide fades
   cards: [
     { id: 'ordinary', text: 'What are you cooking?' },
     { id: 'remembered', text: 'Is your coffee strong?' },

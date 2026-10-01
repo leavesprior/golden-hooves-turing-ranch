@@ -187,19 +187,21 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   const demo = { guide: null, guideWords: null, elements: {}, queue: [], cur: null, said: new Set(), look: {}, fade: 0 };
   if (DEMO) {
     const playbill = buildPlaybill();
-    playbill.position.set(-0.95, 1.3, 0.04);
+    playbill.position.set(-1.0, 1.45, 0.04);
     const oldAbe = buildOldAbe();
-    oldAbe.position.set(0.25, 0, 2.0);
+    oldAbe.position.set(0.35, 0, 2.05);
+    oldAbe.rotation.y = Math.PI; // the muzzle toward the street's middle
     layers.c1867.add(playbill, oldAbe);
     setOpacity(layers.c1867, 0);
-    demo.elements = { playbill: { obj: playbill, center: [-0.95, 1.3, 0.04] }, oldAbe: { obj: oldAbe, center: [0.4, 0.8, 2.0] } };
+    // `near`: the piece is told only from within this distance (m), so it is close enough to read.
+    demo.elements = { playbill: { obj: playbill, center: [-1.0, 1.45, 0.04], near: 2.0 }, oldAbe: { obj: oldAbe, center: [0.25, 1.25, 2.05], near: Infinity } };
     demo.guide = buildGuide();
-    demo.guide.position.set(-1.15, 0, 2.25);
+    demo.guide.position.set(1.0, 0, 1.3); // on the board walk, between two porch posts
     setOpacity(demo.guide, 0);
     root.add(demo.guide);
     demo.guideWords = buildWords({ backing: true });
     demo.guideWords.mesh.scale.setScalar(2.0);
-    demo.guideWords.mesh.position.set(-0.3, 2.62, 2.1);
+    demo.guideWords.mesh.position.set(0.35, 2.3, 1.9);
     root.add(demo.guideWords.mesh);
   }
   const narrate = (key) => {
@@ -219,6 +221,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   const frog = buildFrog();
   const frogEntity = world.createTransformEntity(frog, { parent: rootEntity, persistent: true });
   frog.position.copy(FROG_HOME);
+  if (DEMO) frog.position.set(-0.45, 0, 0.9); // in view past Old Abe's wheels
   frog.rotation.y = -0.5;
   setOpacity(frog, 0); // Rung 1: not even the Frog, at first.
   frogEntity.addComponent(RayInteractable);
@@ -677,7 +680,12 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       cam.getWorldDirection(gFwd);
       const current = LINE[state.index].id;
       // The Guide: a still figure, faded in (never animated); turned about her vertical axis to you.
-      if (reveal.elapsed >= REVEAL.guideAppearSeconds && demo.fade < 1) setOpacity(demo.guide, (demo.fade = Math.min(1, demo.fade + delta / 1.5)));
+      // She keeps her place on the street: walk away from where you stood and she fades; come back and she is there.
+      // Home = where the head is once the session has settled (the first XR frames can still carry the flat-preview camera).
+      if (!demo.home && reveal.elapsed >= 0.5) demo.home = gHead.clone();
+      const atHome = !!demo.home && gHead.distanceTo(demo.home) < REVEAL.guideHomeRadius;
+      const want = reveal.elapsed >= REVEAL.guideAppearSeconds && atHome ? 1 : 0;
+      if (demo.fade !== want) setOpacity(demo.guide, (demo.fade = want > demo.fade ? Math.min(1, demo.fade + delta / 1.0) : Math.max(0, demo.fade - delta / 0.3)));
       const local = root.worldToLocal(gTmp.copy(gHead));
       demo.guide.rotation.y = Math.atan2(local.x - demo.guide.position.x, local.z - demo.guide.position.z);
       // Beats.
@@ -693,7 +701,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         const deg = Math.acos(Math.max(-1, Math.min(1, gFwd.dot(c)))) / DEG;
         // Only while she is silent (she does not interrupt herself), so a glance in passing does not count.
         const idle = demo.said.has('c1867') && !demo.cur && !demo.queue.length;
-        demo.look[id] = seen1867 && idle && deg < REVEAL.guideLookDeg ? (demo.look[id] || 0) + delta : 0;
+        const near = gTmp.copy(root.localToWorld(new Vector3(...el.center))).distanceTo(gHead) <= el.near;
+        demo.look[id] = seen1867 && idle && near && deg < REVEAL.guideLookDeg ? (demo.look[id] || 0) + delta : 0;
         if (demo.look[id] >= REVEAL.guideLookSeconds) narrate(id);
       }
       if (demo.said.has('oldAbe') && !demo.queue.length && !demo.cur) narrate('plaque');
@@ -702,6 +711,10 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         const line = demo.queue.shift();
         demo.cur = { ...line, age: 0, dur: REVEAL.guideHoldSeconds + REVEAL.guideHoldPerChar * line.text.length };
         demo.guideWords.draw(line.text);
+        // A caption about a piece seen up close stands by that piece; the rest stand above the Guide.
+        const a = line.at === 'playbill' ? { p: [-1.0, 2.05, 0.35], k: 1.0 } : { p: [0.35, 2.3, 1.9], k: 2.0 };
+        demo.guideWords.mesh.position.set(...a.p);
+        demo.guideWords.mesh.scale.setScalar(a.k);
         demo.log = demo.log || [];
         demo.log.push({ key: line.key, text: line.text, src: line.src, at: +reveal.elapsed.toFixed(1) });
       }
@@ -841,6 +854,33 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       playerId: () => PLAYER_ID,
       backdrop: () => window.__backdrop ?? null,
       demo: () => (DEMO ? { guide: +demo.fade.toFixed(2), queue: demo.queue.length, cur: demo.cur && demo.cur.text, said: [...demo.said], log: demo.log || [], look: demo.look } : null),
+      // Verification: screen rectangles (px) of the Guide and her caption, the playbill's height on screen.
+      frameCheck: () => {
+        const rect = (o) => {
+          // The plane's own corners (not a world box around it, which grows when the plane turns).
+          o.updateMatrixWorld(true);
+          const pos = o.geometry.attributes.position;
+          const pts = [];
+          for (let i = 0; i < pos.count; i++) pts.push(screen(new Vector3().fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld)));
+          const r = [Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1])), Math.max(...pts.map((q) => q[0])), Math.max(...pts.map((q) => q[1]))];
+          return { r, behind: pts.some((q) => q[2] > 1 || q[2] < -1) };
+        };
+        const W = window.innerWidth; const H = window.innerHeight;
+        const st = (x) => {
+          const on = !x.behind && x.r[2] > 0 && x.r[0] < W && x.r[3] > 0 && x.r[1] < H;
+          const inside = !x.behind && x.r[0] >= 0 && x.r[1] >= 0 && x.r[2] <= W && x.r[3] <= H;
+          return { on, inside, r: x.r };
+        };
+        const g = rect(demo.guide.userData.figure);
+        const w = rect(demo.guideWords.mesh);
+        const pb = rect(demo.elements.playbill.obj);
+        return {
+          guide: { opacity: +demo.fade.toFixed(2), ...st(g) },
+          words: { shown: demo.guideWords.mesh.visible && demo.guideWords.mesh.material.opacity > 0.01, text: demo.cur && demo.cur.text, ...st(w) },
+          playbillPx: LINE[state.index].id === 'c1867' && st(pb).inside ? pb.r[3] - pb.r[1] : 0,
+          coverage: window.__backdropCoverage ? window.__backdropCoverage() : null,
+        };
+      },
       demoWorld: (id) => (id === 'guide' ? demo.guide.getWorldPosition(new Vector3()).add(new Vector3(0, 1.5, 0)).toArray() : root.localToWorld(new Vector3(...demo.elements[id].center)).toArray()),
       // Verification only: pin every drifting Sideways glow (motes, fog) at one point of the
       // facade frame, still, at one size, so an occlusion pixel-diff is repeatable.

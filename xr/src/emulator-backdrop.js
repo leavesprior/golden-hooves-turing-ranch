@@ -3,7 +3,7 @@
 // depth box behind the wall. The SEM is IWER's stand-in for the real world (it draws the
 // "passthrough" canvas and answers plane detection, hit tests and depth), so the app's own
 // layers stay purely additive: nothing here is part of the app's scene.
-import { CanvasTexture, Color, Mesh, MeshBasicMaterial, MirroredRepeatWrapping, PlaneGeometry, SRGBColorSpace } from 'three';
+import { CanvasTexture, Color, Mesh, MeshBasicMaterial, MirroredRepeatWrapping, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three';
 import { BACKDROP } from './backdrop-config.js';
 
 const WALL_Q = { x: -Math.SQRT1_2, y: 0, z: 0, w: Math.SQRT1_2 }; // plane +Y into the wall, as IWER's own walls
@@ -96,5 +96,23 @@ export async function installBackdrop() {
   surround.name = 'volcano-backdrop-surround';
   sem.scene.add(surround, mesh);
   sem.scene.background = new Color(...sky);
+  // Verification: does the emulator's view ray through each screen corner and edge-middle land
+  // on the sharp photo (not the blurred fill)? Margin = metres inside the photo's nearest edge.
+  const half = [pw / 2, ph / 2];
+  window.__backdropCoverage = () => {
+    const cam = sem.camera;
+    const o = new Vector3().setFromMatrixPosition(cam.matrixWorld);
+    let margin = Infinity;
+    for (const [nx, ny] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const p = new Vector3(nx, ny, 0.5).applyMatrix4(cam.projectionMatrixInverse).applyMatrix4(cam.matrixWorld);
+      const d = p.sub(o);
+      const t = (mesh.position.z - o.z) / d.z;
+      if (!(t > 0)) return { covered: false, margin: -Infinity };
+      const x = o.x + d.x * t - mesh.position.x;
+      const y = o.y + d.y * t - mesh.position.y;
+      margin = Math.min(margin, half[0] - Math.abs(x), half[1] - Math.abs(y));
+    }
+    return { covered: margin > 0, margin: +margin.toFixed(2) };
+  };
   return { ok: true, entities: sem.objectMap.size, photo: [img.width, img.height], meters: [+pw.toFixed(2), +ph.toFixed(2)], wallDistance: d };
 }
