@@ -22,7 +22,7 @@ const DANGER_COLORS: Record<string, string> = {
 const SERVICE_LABELS: Record<string, string> = {
   inn: 'Inn',
   shop: 'Shop',
-  telegraph: 'Telegraph',
+  telegraph: 'Express office',
   saloon: 'Saloon',
   mine: 'Mine',
   assay: 'Assay',

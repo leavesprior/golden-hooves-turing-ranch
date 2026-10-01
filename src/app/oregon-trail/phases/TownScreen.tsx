@@ -291,7 +291,7 @@ export function TownScreen({
             className="p-3 bg-blue-900/60 hover:bg-blue-800/60 border-2 border-blue-600 rounded-lg text-center"
           >
             <span className="text-2xl">📨</span>
-            <p className="text-blue-200 text-xs mt-1">Telegraph</p>
+            <p className="text-blue-200 text-xs mt-1">Express</p>
           </button>
           )}
           {deeperTown && (

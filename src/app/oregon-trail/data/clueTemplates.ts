@@ -455,7 +455,7 @@ export const WITNESS_PERSONALITIES: Record<WitnessType, {
     intimidatable: 0.6,
     diplomacyDC: 6,
     shrewdnessDC: 3,
-    greeting: "Telegraph office. Ten cents a word."
+    greeting: "Post and express. Letters go with the next courier."
   },
   sheriff_deputy: {
     openness: 0.7,

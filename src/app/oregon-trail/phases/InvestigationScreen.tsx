@@ -150,7 +150,7 @@ export function InvestigationScreen() {
                 Journal · {mysteryState.collectedClues.length} clues, {Object.keys(mysteryState.knownTraits).length} traits
               </button>
               <button type="button" onClick={openDossier} className="west-face-pill">Dossiers</button>
-              <button type="button" onClick={openTelegraph} className="west-face-pill">Telegraph</button>
+              <button type="button" onClick={openTelegraph} className="west-face-pill">Express office</button>
             </div>
           </div>
         )}

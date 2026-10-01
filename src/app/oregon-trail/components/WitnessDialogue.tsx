@@ -954,7 +954,7 @@ function getWitnessLabel(type: WitnessType): string {
     traveler: 'A Traveler',
     settler: 'A Settler',
     native_trader: 'Native Trader',
-    telegraph_operator: 'Telegraph Operator',
+    telegraph_operator: 'Express Clerk',
     sheriff_deputy: 'Deputy Sheriff',
     prostitute: 'A Woman',
     preacher: 'The Preacher',
