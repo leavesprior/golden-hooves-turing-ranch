@@ -20,6 +20,7 @@
 
 import { TOWN_REGISTRY, getCanonicalTown } from './townRegistry'
 import { getInvestigation, type InvestigationScene } from './townInvestigations'
+import { EDITORIAL_ERA_CAPTION, editorialForExplorePlace } from './goldCountryEditorial'
 import { getNPCById, type GoldCountryNPC, type GoldCountryWitnessType } from '@/app/oregon-trail/data/goldCountryNPCs'
 
 export const TRAIL_YEAR = 1849
@@ -35,12 +36,23 @@ export interface TrailLead {
   year?: number
 }
 
+/** Pixel glyph drawn by MapIcon at the player's graphics tier (never an emoji). */
+export type PlaceGlyph =
+  | 'shop' | 'mine' | 'building' | 'landmark' | 'assay' | 'inn' | 'cave' | 'frog' | 'church'
+  | 'fort' | 'river' | 'blacksmith' | 'cabin' | 'mountains' | 'desert' | 'spring' | 'saloon'
+  | 'stable' | 'town'
+
+/** Figures in the visual64 character atlas (globals.css .visual64-character-sprite). */
+export type WitnessSprite = 'sleuth' | 'doctor' | 'priest' | 'miner' | 'actor' | 'nell' | 'headmistress'
+
 export interface TrailWitness {
   id: string
   name: string
   role: string
   witnessType: GoldCountryWitnessType
   portrait: string
+  /** Atlas figure, only where it honestly fits the person (see WITNESS_SPRITES). */
+  sprite?: WitnessSprite
   greeting: string
   lines: string[]
   clue: string
@@ -50,8 +62,13 @@ export interface TrailWitness {
 
 export interface TrailPlace {
   id: string
+  /** Era-guarded text: a later place sits inside "(Later: …)". */
   name: string
-  icon: string
+  /** The plain place name for the card title; the crossing badge carries the year. */
+  displayName: string
+  glyph: PlaceGlyph
+  /** A painted still of this place (path under public/), or null for the glyph. */
+  still: string | null
   /** Year the place belongs to; > TRAIL_YEAR means a crossing into a later era. */
   year: number
   later: boolean
@@ -94,43 +111,65 @@ export function resolveTrailTown(landmark: string): TrailTownResolution {
 }
 
 // ---------------------------------------------------------------------------
-// California: the authored town scenes, with an icon and a year each.
+// California: the authored town scenes, with a glyph and a year each.
 // ---------------------------------------------------------------------------
 
 /** `approx` marks a year given to the decade, not the documented date. */
-const SCENE_META: Record<string, { icon: string; year: number; approx?: boolean }> = {
-  'west_point:trading_post': { icon: '🏪', year: 1849 },
-  'west_point:sandy_gulch': { icon: '🥇', year: 1849 },
-  'west_point:sawmill': { icon: '🪚', year: 1905 },
-  'volcano:general_store': { icon: '🧂', year: 1852 },
-  'volcano:library': { icon: '📚', year: 1850 },
-  'volcano:thespian': { icon: '🎭', year: 1854 },
-  'mokelumne_hill:diggings': { icon: '⛏️', year: 1849 },
-  'mokelumne_hill:express_bank': { icon: '🏦', year: 1855 },
-  'mokelumne_hill:courthouse': { icon: '⚖️', year: 1866 },
-  'murphys:murphys_hotel': { icon: '🏨', year: 1856 },
-  'murphys:mercer_caverns': { icon: '🦇', year: 1885 },
-  'murphys:big_trees': { icon: '🌲', year: 1853 },
-  'angels_camp:angels_hotel': { icon: '🏨', year: 1855 },
+const SCENE_META: Record<string, { glyph: PlaceGlyph; year: number; approx?: boolean }> = {
+  'west_point:trading_post': { glyph: 'shop', year: 1849 },
+  'west_point:sandy_gulch': { glyph: 'mine', year: 1849 },
+  'west_point:sawmill': { glyph: 'building', year: 1905 },
+  'volcano:general_store': { glyph: 'shop', year: 1852 },
+  'volcano:library': { glyph: 'building', year: 1850 },
+  'volcano:thespian': { glyph: 'building', year: 1854 },
+  'mokelumne_hill:diggings': { glyph: 'mine', year: 1849 },
+  'mokelumne_hill:express_bank': { glyph: 'assay', year: 1855 },
+  'mokelumne_hill:courthouse': { glyph: 'building', year: 1866 },
+  'murphys:murphys_hotel': { glyph: 'inn', year: 1856 },
+  'murphys:mercer_caverns': { glyph: 'cave', year: 1885 },
+  'murphys:big_trees': { glyph: 'landmark', year: 1853 },
+  'angels_camp:angels_hotel': { glyph: 'inn', year: 1855 },
   // Cave-in 22 Dec 1889; the survivor speaks some years on, date unfixed.
-  'angels_camp:utica_mine': { icon: '🛗', year: 1890, approx: true },
-  'angels_camp:frog_jubilee': { icon: '🐸', year: 1928 },
-  'jackson:kennedy_mine': { icon: '🏗️', year: 1914 },
-  'jackson:tailing_wheels': { icon: '🎡', year: 1914 },
-  'jackson:st_sava': { icon: '⛪', year: 1922 },
-  'san_andreas:sa_courthouse': { icon: '🏛️', year: 1883 },
-  'san_andreas:old_jail': { icon: '🔒', year: 1883 },
-  'san_andreas:hall_of_records': { icon: '📜', year: 1893 },
-  'nevada_city:national_hotel': { icon: '🏨', year: 1856 },
-  'nevada_city:nevada_theatre': { icon: '🎭', year: 1865 },
-  'nevada_city:malakoff': { icon: '💦', year: 1884 },
-  'grass_valley:empire_mine': { icon: '🏡', year: 1897 },
-  'grass_valley:north_star': { icon: '⚙️', year: 1895 },
-  'grass_valley:lola_montez': { icon: '💃', year: 1853 },
-  'mariposa:las_mariposas_grant': { icon: '🗺️', year: 1849 },
-  'mariposa:courthouse': { icon: '🕰️', year: 1854 },
-  'mariposa:pine_tree_mine': { icon: '⚒️', year: 1858 },
+  'angels_camp:utica_mine': { glyph: 'mine', year: 1890, approx: true },
+  'angels_camp:frog_jubilee': { glyph: 'frog', year: 1928 },
+  'jackson:kennedy_mine': { glyph: 'mine', year: 1914 },
+  'jackson:tailing_wheels': { glyph: 'mine', year: 1914 },
+  'jackson:st_sava': { glyph: 'church', year: 1922 },
+  'san_andreas:sa_courthouse': { glyph: 'building', year: 1883 },
+  'san_andreas:old_jail': { glyph: 'building', year: 1883 },
+  'san_andreas:hall_of_records': { glyph: 'building', year: 1893 },
+  'nevada_city:national_hotel': { glyph: 'inn', year: 1856 },
+  'nevada_city:nevada_theatre': { glyph: 'landmark', year: 1865 },
+  'nevada_city:malakoff': { glyph: 'mine', year: 1884 },
+  'grass_valley:empire_mine': { glyph: 'mine', year: 1897 },
+  'grass_valley:north_star': { glyph: 'mine', year: 1895 },
+  'grass_valley:lola_montez': { glyph: 'cabin', year: 1853 },
+  'mariposa:las_mariposas_grant': { glyph: 'mountains', year: 1849 },
+  'mariposa:courthouse': { glyph: 'building', year: 1854 },
+  'mariposa:pine_tree_mine': { glyph: 'mine', year: 1858 },
 }
+
+/**
+ * Atlas figures, only where the figure's own role is the person's role: a priest,
+ * the lamp-helmet hard-rock miner (1880s+ mines only, never an 1849 placer man),
+ * and the actor. The woman prospector and the woman with the book read as specific
+ * playtest characters, so they never stand in for other women (council 09-30).
+ */
+const WITNESS_SPRITES: Record<string, WitnessSprite> = {
+  'jackson:st_sava': 'priest',
+  'angels_camp:utica_mine': 'miner',
+  'jackson:kennedy_mine': 'miner',
+  'grass_valley:north_star': 'miner',
+  'nevada_city:nevada_theatre': 'actor',
+}
+
+/**
+ * Painted stills per place. Empty on purpose: the council (09-30) opened the four
+ * candidates and found an app screenshot (sa_courthouse.png), a castle for Sutter's
+ * Fort, the investigator in place of Dowd, and a bordered photo. A place gets a
+ * still only after someone has looked at it; until then it draws its glyph.
+ */
+const PLACE_STILLS: Record<string, string> = {}
 
 const SCENE_WITNESS_PREFIX = 'tinv:'
 
@@ -169,7 +208,8 @@ function sceneWitness(townId: string, scene: InvestigationScene, index: number):
     name: scene.witness.name,
     role: scene.witness.role,
     witnessType: 'townfolk',
-    portrait: meta?.icon ?? '🔎',
+    portrait: '',
+    sprite: WITNESS_SPRITES[`${townId}:${scene.id}`],
     greeting,
     lines,
     clue,
@@ -187,7 +227,9 @@ function scenePlaces(townId: string): TrailPlace[] {
     return {
       id: `${townId}:${scene.id}`,
       name: year > TRAIL_YEAR ? `(Later: ${year} — ${laterSafe(scene.place)})` : scene.place,
-      icon: meta?.icon ?? '🔎',
+      displayName: laterSafe(scene.place).replace(/^ — /, ''),
+      glyph: meta?.glyph ?? 'building',
+      still: PLACE_STILLS[`${townId}:${scene.id}`] ?? null,
       year,
       later: year > TRAIL_YEAR,
       witnesses: [sceneWitness(townId, scene, i)],
@@ -203,16 +245,16 @@ function scenePlaces(townId: string): TrailPlace[] {
 
 const TRAIL_STOP_PREFIX = 'tstop:'
 
-type StopPlace = Omit<TrailPlace, 'witnesses' | 'year' | 'later'> & {
+type StopPlace = Omit<TrailPlace, 'witnesses' | 'year' | 'later' | 'displayName' | 'still'> & {
   witness: Omit<TrailWitness, 'id' | 'obscurity'> & { obscurity?: Obscurity }
 }
 
 const TRAIL_STOPS: Record<string, StopPlace[]> = {
   'Independence, Missouri': [
     {
-      id: 'courthouse_square', name: 'The outfitters on the courthouse square', icon: '🧰',
+      id: 'courthouse_square', name: 'The outfitters on the courthouse square', glyph: 'shop',
       witness: {
-        name: 'An outfitter\'s clerk', role: 'outfitter', witnessType: 'merchant', portrait: '🧰',
+        name: 'An outfitter\'s clerk', role: 'outfitter', witnessType: 'merchant', portrait: '',
         greeting: 'Flour, bacon, powder, a good India-rubber sheet. Every company bound for California fits out on this square.',
         lines: [
           'Half the county is here buying for the California road. Prices climb every week the grass gets greener.',
@@ -223,9 +265,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
       },
     },
     {
-      id: 'wayne_city_landing', name: 'The river landing at Wayne City', icon: '⚓',
+      id: 'wayne_city_landing', name: 'The river landing at Wayne City', glyph: 'river',
       witness: {
-        name: 'A steamboat deckhand', role: 'deckhand', witnessType: 'traveler', portrait: '⚓',
+        name: 'A steamboat deckhand', role: 'deckhand', witnessType: 'traveler', portrait: '',
         greeting: 'Every boat up from St. Louis is packed to the rails with gold-seekers and their wagons.',
         lines: [
           'We land them at the Wayne City landing and they haul up the bluff to Independence.',
@@ -236,9 +278,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
       },
     },
     {
-      id: 'wagon_yard', name: 'The wagon yard and forge', icon: '🛞',
+      id: 'wagon_yard', name: 'The wagon yard and forge', glyph: 'blacksmith',
       witness: {
-        name: 'A wagon-maker', role: 'wagon-maker', witnessType: 'settler', portrait: '🛞',
+        name: 'A wagon-maker', role: 'wagon-maker', witnessType: 'settler', portrait: '',
         greeting: 'Wagons, yokes, and wheels. This town builds and mends more of them than anywhere west of St. Louis.',
         lines: [
           'A light wagon and a strong team beats a heavy wagon every time. Most folks learn that at the Platte.',
@@ -251,9 +293,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
   ],
   'Fort Kearny': [
     {
-      id: 'post', name: 'The sod-and-adobe post', icon: '🏚️',
+      id: 'post', name: 'The sod-and-adobe post', glyph: 'fort',
       witness: {
-        name: 'A soldier of the garrison', role: 'soldier', witnessType: 'lawman', portrait: '🪖',
+        name: 'A soldier of the garrison', role: 'soldier', witnessType: 'lawman', portrait: '',
         greeting: 'The army built this post last year to watch over the emigrant road. It is mostly sod and adobe yet.',
         lines: [
           'The officers keep a count of the wagons that pass. This season it runs to the thousands.',
@@ -264,9 +306,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
       },
     },
     {
-      id: 'sutler', name: 'The sutler\'s store', icon: '🏪',
+      id: 'sutler', name: 'The sutler\'s store', glyph: 'shop',
       witness: {
-        name: 'The sutler\'s clerk', role: 'sutler\'s clerk', witnessType: 'shopkeeper', portrait: '🏪',
+        name: 'The sutler\'s clerk', role: 'sutler\'s clerk', witnessType: 'shopkeeper', portrait: '',
         greeting: 'Everything costs more past the Missouri, friend. Next store is Laramie.',
         lines: [
           'Flour\'s dear here and dearer at Laramie. Buy what you need, not what you fancy.',
@@ -276,9 +318,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
       },
     },
     {
-      id: 'platte_bank', name: 'The Platte River bank', icon: '🌊',
+      id: 'platte_bank', name: 'The Platte River bank', glyph: 'river',
       witness: {
-        name: 'An emigrant woman', role: 'emigrant', witnessType: 'settler', portrait: '🧺',
+        name: 'An emigrant woman', role: 'emigrant', witnessType: 'settler', portrait: '',
         greeting: 'That river is wide and shallow and full of quicksand. Nobody drinks it without settling it first.',
         lines: [
           'We follow the Platte for weeks. There is no wood, so we burn buffalo chips.',
@@ -290,9 +332,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
   ],
   'Fort Laramie': [
     {
-      id: 'fort_john', name: 'The adobe walls of Fort John', icon: '🧱',
+      id: 'fort_john', name: 'The adobe walls of Fort John', glyph: 'fort',
       witness: {
-        name: 'A fur-company clerk', role: 'fur-company clerk', witnessType: 'merchant', portrait: '🦫',
+        name: 'A fur-company clerk', role: 'fur-company clerk', witnessType: 'merchant', portrait: '',
         greeting: 'The army bought this post from the American Fur Company this June. The walls are still ours in all but the paper.',
         lines: [
           'It was a trading post for robes and furs. Now it is an army post for emigrants.',
@@ -302,9 +344,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
       },
     },
     {
-      id: 'laramie_ford', name: 'The Laramie River ford', icon: '🌊',
+      id: 'laramie_ford', name: 'The Laramie River ford', glyph: 'river',
       witness: {
-        name: 'A hand at the ford', role: 'ford hand', witnessType: 'traveler', portrait: '🛶',
+        name: 'A hand at the ford', role: 'ford hand', witnessType: 'traveler', portrait: '',
         greeting: 'High water or low, somebody always wants across before the next company.',
         lines: [
           'Past the ford it\'s the long climb to South Pass. Names are carved on every rock along the way.',
@@ -314,9 +356,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
       },
     },
     {
-      id: 'discard_piles', name: 'The discard piles by the road', icon: '🗑️',
+      id: 'discard_piles', name: 'The discard piles by the road', glyph: 'desert',
       witness: {
-        name: 'An emigrant sorting goods', role: 'emigrant', witnessType: 'settler', portrait: '🪓',
+        name: 'An emigrant sorting goods', role: 'emigrant', witnessType: 'settler', portrait: '',
         greeting: 'Stoves, anvils, trunks of books. Everyone lightens their wagon here or loses the team on the mountains.',
         lines: [
           'You can outfit a whole house from what\'s left by this road.',
@@ -328,9 +370,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
   ],
   'Fort Bridger': [
     {
-      id: 'trading_post', name: 'Bridger and Vásquez\'s trading post', icon: '🏕️',
+      id: 'trading_post', name: 'Bridger and Vásquez\'s trading post', glyph: 'fort',
       witness: {
-        name: 'A trading-post hand', role: 'trading-post hand', witnessType: 'merchant', portrait: '🏕️',
+        name: 'A trading-post hand', role: 'trading-post hand', witnessType: 'merchant', portrait: '',
         greeting: 'Jim Bridger and Louis Vásquez built this post for the emigrant trade. We sell and mend what the road breaks.',
         lines: [
           'Plenty of companies skip us this year for the cutoff. They save days and lose the grass.',
@@ -340,9 +382,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
       },
     },
     {
-      id: 'forge', name: 'The blacksmith\'s forge', icon: '🔨',
+      id: 'forge', name: 'The blacksmith\'s forge', glyph: 'blacksmith',
       witness: {
-        name: 'The blacksmith', role: 'blacksmith', witnessType: 'settler', portrait: '🔨',
+        name: 'The blacksmith', role: 'blacksmith', witnessType: 'settler', portrait: '',
         greeting: 'Iron tires shrink in this dry air. I set more of them than I can count.',
         lines: [
           'A wheel that rattles here falls apart on the Humboldt.',
@@ -352,9 +394,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
       },
     },
     {
-      id: 'blacks_fork', name: 'The Blacks Fork meadows', icon: '🌾',
+      id: 'blacks_fork', name: 'The Blacks Fork meadows', glyph: 'spring',
       witness: {
-        name: 'A herder', role: 'herder', witnessType: 'traveler', portrait: '🐂',
+        name: 'A herder', role: 'herder', witnessType: 'traveler', portrait: '',
         greeting: 'Best grass for days in either direction. Rest the team while you can.',
         lines: [
           'After here the country gets drier every day to California.',
@@ -366,9 +408,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
   ],
   'Sacramento Valley': [
     {
-      id: 'sutters_fort', name: 'Sutter\'s Fort', icon: '🏰',
+      id: 'sutters_fort', name: 'Sutter\'s Fort', glyph: 'fort',
       witness: {
-        name: 'A store clerk at the fort', role: 'store clerk', witnessType: 'merchant', portrait: '🏰',
+        name: 'A store clerk at the fort', role: 'store clerk', witnessType: 'merchant', portrait: '',
         greeting: 'Pans, picks, and flour at gold-rush prices. Everything that goes to the mines passes through here.',
         lines: [
           'The whole valley emptied out for the diggings. The fort is a store now more than a fort.',
@@ -379,9 +421,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
       },
     },
     {
-      id: 'embarcadero', name: 'The Embarcadero at Sacramento City', icon: '⛵',
+      id: 'embarcadero', name: 'The Embarcadero at Sacramento City', glyph: 'river',
       witness: {
-        name: 'A boatman', role: 'boatman', witnessType: 'traveler', portrait: '⛵',
+        name: 'A boatman', role: 'boatman', witnessType: 'traveler', portrait: '',
         greeting: 'Ships up from San Francisco every day, and a town of tents on the bank.',
         lines: [
           'They laid out Sacramento City last winter. It\'s canvas and lumber and mud.',
@@ -394,9 +436,9 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
   ],
   'Carson Hill': [
     {
-      id: 'carson_creek', name: 'Carson Creek', icon: '⛏️',
+      id: 'carson_creek', name: 'Carson Creek', glyph: 'mine',
       witness: {
-        name: 'A placer miner', role: 'placer miner', witnessType: 'miner', portrait: '⛏️',
+        name: 'A placer miner', role: 'placer miner', witnessType: 'miner', portrait: '',
         greeting: 'James Carson found gold in this creek last year, and the hill has been crawling with men since.',
         lines: [
           'The creek\'s rich, but the men who know say the real gold is in the quartz of the hill itself.',
@@ -410,12 +452,12 @@ const TRAIL_STOPS: Record<string, StopPlace[]> = {
 }
 
 /** The generic list, now only for stops with nothing authored. No 1849 telegraph. */
-const GENERIC_PLACES: { id: string; name: string; icon: string; witnesses: string[] }[] = [
-  { id: 'saloon', name: 'Saloon', icon: '🍺', witnesses: ['bartender', 'drunk', 'traveler'] },
-  { id: 'stable', name: 'Stable', icon: '🐴', witnesses: ['stable_hand'] },
-  { id: 'general_store', name: 'General Store', icon: '🏪', witnesses: ['shopkeeper'] },
-  { id: 'church', name: 'Church', icon: '⛪', witnesses: ['preacher'] },
-  { id: 'street', name: 'Street', icon: '🛤️', witnesses: ['settler', 'child', 'traveler'] },
+const GENERIC_PLACES: { id: string; name: string; glyph: PlaceGlyph; witnesses: string[] }[] = [
+  { id: 'saloon', name: 'Saloon', glyph: 'saloon', witnesses: ['bartender', 'drunk', 'traveler'] },
+  { id: 'stable', name: 'Stable', glyph: 'stable', witnesses: ['stable_hand'] },
+  { id: 'general_store', name: 'General Store', glyph: 'shop', witnesses: ['shopkeeper'] },
+  { id: 'church', name: 'Church', glyph: 'church', witnesses: ['preacher'] },
+  { id: 'street', name: 'Street', glyph: 'town', witnesses: ['settler', 'child', 'traveler'] },
 ]
 
 function stopPlaces(landmark: string): TrailPlace[] {
@@ -424,10 +466,17 @@ function stopPlaces(landmark: string): TrailPlace[] {
   return stops.map(p => ({
     id: p.id,
     name: p.name,
-    icon: p.icon,
+    displayName: p.name,
+    glyph: p.glyph,
+    still: PLACE_STILLS[`${landmark}:${p.id}`] ?? null,
     year: TRAIL_YEAR,
     later: false,
-    witnesses: [{ ...p.witness, id: `${TRAIL_STOP_PREFIX}${landmark}:${p.id}`, obscurity: p.witness.obscurity ?? 1 }],
+    witnesses: [{
+      ...p.witness,
+      id: `${TRAIL_STOP_PREFIX}${landmark}:${p.id}`,
+      obscurity: p.witness.obscurity ?? 1,
+      sprite: WITNESS_SPRITES[`${landmark}:${p.id}`],
+    }],
   }))
 }
 
@@ -448,6 +497,14 @@ export function getAuthoredStops(): string[] {
 
 export function getSceneMeta() {
   return SCENE_META
+}
+
+export function getWitnessSprites() {
+  return WITNESS_SPRITES
+}
+
+export function getPlaceStills() {
+  return PLACE_STILLS
 }
 
 /**
@@ -501,4 +558,51 @@ export function resolveWitnessNpc(id: string | null | undefined): GoldCountryNPC
   if (npc) return npc
   const w = getTrailWitness(id)
   return w ? trailWitnessAsNpc(w) : undefined
+}
+
+/** Editorial still keys for trail stops that are not registry towns. */
+const STOP_HERO_KEYS: Record<string, string> = {
+  'Independence, Missouri': 'ch1_independence',
+  'Fort Kearny': 'ch1_fort_kearny',
+  'Fort Laramie': 'ot_fort_laramie',
+  'Fort Bridger': 'ot_fort_bridger',
+  'Sacramento Valley': 'ch1_sutters_fort',
+}
+
+/** The town's editorial still for the page hero, and its honest era caption. */
+export function heroStillFor(landmark: string): { src: string; caption?: string } | null {
+  const { townId } = resolveTrailTown(landmark)
+  const key = townId ?? STOP_HERO_KEYS[landmark]
+  const src = key ? editorialForExplorePlace(key) : null
+  if (!src) return null
+  return { src, caption: townId ? EDITORIAL_ERA_CAPTION[townId] : undefined }
+}
+
+/** A person's trade as a pixel glyph, for people with no atlas figure. */
+const TRADE_GLYPH: Record<GoldCountryWitnessType, PlaceGlyph> = {
+  bartender: 'saloon', shopkeeper: 'shop', stable_hand: 'stable', traveler: 'river', settler: 'cabin',
+  native_trader: 'spring', telegraph_operator: 'building', sheriff_deputy: 'fort', prostitute: 'saloon',
+  preacher: 'church', drunk: 'saloon', child: 'cabin', innkeeper: 'inn', miner: 'mine', townfolk: 'town',
+  merchant: 'shop', lawman: 'fort', scholar: 'building',
+}
+
+export function tradeGlyph(type: GoldCountryWitnessType): PlaceGlyph {
+  return TRADE_GLYPH[type] ?? 'town'
+}
+
+/** The figure for a witness: a place witness's still/sprite/glyph, else their trade glyph. */
+export function figureForWitness(
+  id: string | null | undefined,
+  fallbackType: GoldCountryWitnessType,
+): { still: string | null; sprite?: WitnessSprite; glyph: PlaceGlyph } {
+  if (id && isTrailWitnessId(id)) {
+    const key = id.slice(id.indexOf(':') + 1)
+    const w = getTrailWitness(id)
+    const glyph = id.startsWith(SCENE_WITNESS_PREFIX)
+      ? SCENE_META[key]?.glyph ?? 'building'
+      : TRAIL_STOPS[key.slice(0, key.lastIndexOf(':'))]?.find(p => p.id === key.slice(key.lastIndexOf(':') + 1))?.glyph ?? 'town'
+    return { still: PLACE_STILLS[key] ?? null, sprite: w?.sprite, glyph }
+  }
+  const npc = id ? getNPCById(id) : undefined
+  return { still: null, glyph: tradeGlyph(npc?.witnessType ?? fallbackType) }
 }

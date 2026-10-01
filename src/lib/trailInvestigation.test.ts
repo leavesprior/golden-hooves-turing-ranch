@@ -1,13 +1,18 @@
 // Trail Investigate screen: every town its own places, leads that go somewhere
 // real, harder clues in California, later eras kept inside "(Later: …)".
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import {
   TRAIL_YEAR,
   getAuthoredStops,
   getGenericPlaces,
   getSceneMeta,
+  figureForWitness,
+  getPlaceStills,
   getTrailPlaces,
+  getWitnessSprites,
+  heroStillFor,
   isTrailWitnessId,
+  tradeGlyph,
   resolveTrailTown,
   resolveWitnessNpc,
 } from './trailInvestigation'
@@ -31,13 +36,14 @@ const STOPS = [...new Set([...TOWNS, ...getAuthoredStops()])]
 
 // ---- 1. every town and fort has its own places, with its own icons ----
 ok(TOWNS.length >= 9, `found the trail towns and forts (${TOWNS.join(', ')})`)
+const HERO_GAPS = new Set(['Carson Hill'])
 const signatures = new Map<string, string>()
 for (const stop of STOPS) {
   const places = getTrailPlaces(stop)
   ok(places.length >= 1, `${stop}: has authored places`)
-  const icons = places.map(p => p.icon)
-  ok(new Set(icons).size === icons.length, `${stop}: icons differ within the town (${icons.join(' ')})`)
-  ok(!icons.includes('🔎'), `${stop}: no fallback icon`)
+  // Glyphs name the KIND of place honestly; two courthouse-like buildings may share one.
+  // Art gaps are named, never filled with another town's picture.
+  if (!HERO_GAPS.has(stop)) ok(!!heroStillFor(stop), `${stop}: has a hero still`)
   const sig = places.map(p => p.name).sort().join('|')
   ok(!signatures.has(sig), `${stop}: places are not a copy of ${signatures.get(sig)}`)
   signatures.set(sig, stop)
@@ -136,11 +142,74 @@ ok(/!npc \|\| isTrailWitnessId\(npc\.id\)\) return null/.test(dialogueSrc), 'pla
 ok(/!clueObtained && isTrailWitnessId\(npc\.id\) \? clue\.text/.test(dialogueSrc), 'only place witnesses speak clue text on the fallback')
 ok(/catch \{[\s\S]{0,160}floorLine\(\)/.test(dialogueSrc), 'a timed-out chat still grants the clue')
 
-// ---- 8. every authored scene has an icon and a year ----
+// ---- 7c. the game's own visual language: stills, atlas figures, glyphs (Investigation screen, dialogue, town button) ----
+const EMOJI = /\p{Extended_Pictographic}/u
+const GLYPHS = new Set(['shop', 'mine', 'building', 'landmark', 'assay', 'inn', 'cave', 'frog', 'church', 'fort', 'river', 'blacksmith', 'cabin', 'mountains', 'desert', 'spring', 'saloon', 'stable', 'town'])
+for (const stop of STOPS) {
+  for (const p of getTrailPlaces(stop)) {
+    ok(GLYPHS.has(p.glyph), `${stop}/${p.id}: glyph "${p.glyph}" is one MapIcon draws`)
+    ok(!EMOJI.test(p.displayName) && !EMOJI.test(p.name), `${stop}/${p.id}: no emoji in the place name`)
+    if (!p.later) ok(!LATER.test(p.displayName), `${stop}/${p.id}: 1849 display name has no later-era names`)
+    if (p.later) {
+      const cardTitle = `(Later: ${p.year} — ${p.displayName})`
+      ok(stripLater(cardTitle).trim() === '', `${stop}/${p.id}: the later card title sits wholly inside (Later: …)`)
+    }
+  }
+}
+ok(getGenericPlaces().every(p => GLYPHS.has(p.glyph)), 'generic places draw glyphs')
+const invSrc = readFileSync('src/app/oregon-trail/phases/InvestigationScreen.tsx', 'utf8')
+ok(!EMOJI.test(invSrc.replace(/\\u[0-9A-Fa-f]{4}/g, '')), 'the Investigation screen source carries no emoji')
+ok(!/npc\.portrait|\.icon\b/.test(invSrc), 'the screen never renders an emoji portrait or icon field')
+ok(/place\.later \? `\(Later: \$\{place\.year\} — \$\{place\.displayName\}\)`/.test(invSrc), 'the screen renders later card titles inside (Later: YEAR — …)')
+// The dialogue keeps only the karma currency (cookie / taco / rock), which is the
+// game-wide karma legend (20+ files); every other mark is words or a glyph.
+const KARMA_UNITS = /[\u{1F36A}\u{1F32E}\u{1FAA8}]/gu
+const dlgSrc = readFileSync('src/app/oregon-trail/components/WitnessDialogue.tsx', 'utf8')
+const dlgRender = dlgSrc.slice(dlgSrc.lastIndexOf('\n  return (\n    <div className="fixed inset-0'))
+ok(!EMOJI.test(dlgRender.replace(KARMA_UNITS, '')), 'the witness dialogue render and its helpers carry no emoji beyond the karma units')
+ok(!/getWitnessEmoji|npc\.portrait/.test(dlgSrc), 'the dialogue never renders an emoji portrait')
+const townSrc = readFileSync('src/app/oregon-trail/phases/TownScreen.tsx', 'utf8')
+const invBtn = townSrc.slice(townSrc.indexOf('onClick={openInvestigation}'), townSrc.indexOf('Investigate</p>'))
+ok(invBtn.length > 0 && !EMOJI.test(invBtn) && /MapIcon type="question"/.test(invBtn), 'the town Investigate button draws the pixel glyph, not an emoji')
+ok(/west-face-shell/.test(invSrc) && /PlayerPortrait/.test(invSrc) && /InvestigationFigure/.test(invSrc), 'the screen uses the west-face shell, the player portrait and the shared figure')
+for (const stop of STOPS) for (const p of getTrailPlaces(stop)) {
+  const f = figureForWitness(p.witnesses[0].id, 'townfolk')
+  ok(f.glyph === p.glyph && f.still === p.still && f.sprite === p.witnesses[0].sprite, `${p.witnesses[0].id}: dialogue figure matches its card`)
+}
+ok(figureForWitness('volcano_placer_ortiz', 'townfolk').glyph === 'mine', 'a period miner gets the mine glyph')
+ok(['bartender', 'miner', 'preacher', 'merchant', 'lawman'].every(t => GLYPHS.has(tradeGlyph(t as never))), 'townsfolk trades map to drawable glyphs')
+
+// Atlas figures: the figure's own role must BE the person's role, read from the
+// authored witness role (independent of the sprite table). The playtest-character
+// figures (nell, headmistress) never stand in for anyone else.
+const ROLE_FOR_SPRITE: Record<string, RegExp> = {
+  priest: /\bpriest\b/i,
+  miner: /timberman|shift boss|pumpman/i,
+  actor: /stage manager|actor/i,
+}
+const allWitnesses = [
+  ...Object.values(INVESTIGATIONS).flatMap(inv => inv.scenes.map(sc => [`${inv.townId}:${sc.id}`, sc.witness.role] as const)),
+]
+for (const [k, v] of Object.entries(getWitnessSprites())) {
+  const role = allWitnesses.find(([id]) => id === k)?.[1] ?? ''
+  ok(!!ROLE_FOR_SPRITE[v] && ROLE_FOR_SPRITE[v].test(role), `sprite ${k} -> ${v} matches the person's role ("${role}")`)
+}
+const sceneMeta = getSceneMeta()
+for (const [k, v] of Object.entries(getWitnessSprites())) {
+  if (v === 'miner') ok((sceneMeta[k]?.year ?? 0) >= 1880, `${k}: the lamp-helmet miner only stands in a hard-rock era`)
+}
+ok(Object.keys(getPlaceStills()).length === 0, 'no place still until someone has looked at it (council 09-30)')
+for (const [k, src] of Object.entries(getPlaceStills())) ok(existsSync(`public/${src.replace(/^\//, '').split('?')[0]}`), `${k}: still ${src} exists`)
+for (const stop of STOPS) {
+  const h = heroStillFor(stop)
+  if (h) ok(existsSync(`public/${h.src.replace(/^\//, '').split('?')[0]}`), `${stop}: hero ${h.src} exists`)
+}
+
+// ---- 8. every authored scene has a glyph and a year ----
 const meta = getSceneMeta()
 for (const inv of Object.values(INVESTIGATIONS)) {
   for (const sc of inv.scenes) {
-    ok(!!meta[`${inv.townId}:${sc.id}`], `${inv.townId}:${sc.id} has an icon and year`)
+    ok(!!meta[`${inv.townId}:${sc.id}`], `${inv.townId}:${sc.id} has a glyph and year`)
   }
 }
 
