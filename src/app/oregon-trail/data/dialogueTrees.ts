@@ -166,7 +166,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
       },
       badge_shown: {
         id: 'badge_shown',
-        text: "Pinkerton, eh? *polishes glass nervously* I don't want trouble with your agency.",
+        text: "*squints at the badge* Pinkerton? Never heard of it. But a star's a star. *polishes glass nervously* I don't want trouble with the law.",
         speaker: 'witness',
         responses: [
           {
@@ -413,7 +413,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
       },
       official_response: {
         id: 'official_response',
-        text: "Pinkertons! Of course, officer. Happy to assist the law.",
+        text: "Pinker-who? *peers at the star* Well, it's shiny enough. Happy to assist the law, officer.",
         speaker: 'witness',
         effect: { grantClue: true },
         nextNode: 'gives_info'
@@ -954,7 +954,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
         responses: [
           {
             id: 'explain',
-            text: "Dangerous outlaw. A horse thief who's been robbing emigrant camps along the road.",
+            text: "Dangerous outlaw. Rides with a man who calls himself Black Bart.",
             nextNode: 'heard_of',
             grantsClue: true
           }
@@ -962,7 +962,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
       },
       heard_of: {
         id: 'heard_of',
-        text: "A camp robber! I've heard of him. There was someone... [CLUE_PLACEHOLDER]",
+        text: "Black Bart? Never heard of him. *lowers voice* But there was someone... [CLUE_PLACEHOLDER]",
         speaker: 'witness',
         effect: { grantClue: true },
         nextNode: 'end'
@@ -1059,7 +1059,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     nodes: {
       revisit_greeting: {
         id: 'revisit_greeting',
-        text: "*looks up from tapping* Back again, Pinkerton? There have been more wires since your last visit...",
+        text: "*looks up from the letter book* Back again, detective? More letters have come through since your last visit...",
         speaker: 'witness',
         responses: [
           {
@@ -1072,18 +1072,18 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
       },
       greeting: {
         id: 'greeting',
-        text: "Telegraph office. Ten cents a word. What's your message?",
+        text: "Post and express. Letters go east with the next courier, if the courier makes it. What are you sending?",
         speaker: 'witness',
         responses: [
           {
             id: 'pinkerton',
-            text: "[Show credentials] Pinkerton agency. I need to check your records.",
+            text: "[Show badge] Pinkerton agency. I need to check your letter book.",
             nextNode: 'official_access',
             reputationEffect: { faction: 'pinkerton', delta: 2 }
           },
           {
             id: 'bribe_big',
-            text: "[Pay $25] I need to see who's been sending wires.",
+            text: "[Pay $25] I need to see who's been sending letters.",
             karmaCost: 25,
             nextNode: 'shows_records',
             grantsClue: true
@@ -1092,7 +1092,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
       },
       official_access: {
         id: 'official_access',
-        text: "*checks credentials carefully* Everything seems in order. What do you need?",
+        text: "*turns the badge over twice* Never heard of the outfit, but the seal looks proper. What do you need?",
         speaker: 'witness',
         responses: [
           {
@@ -1126,7 +1126,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
     nodes: {
       revisit_greeting: {
         id: 'revisit_greeting',
-        text: "Pinkerton! Good timing. We got some new reports since you were last here.",
+        text: "The detective! Good timing. We got some new reports since you were last here.",
         speaker: 'witness',
         responses: [
           {
@@ -1140,7 +1140,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
       },
       greeting: {
         id: 'greeting',
-        text: "Pinkerton, eh? Sheriff's out chasing rustlers. I'm Deputy Morrison. How can I help?",
+        text: "Pinkerton, eh? Never heard of 'em. Sheriff's out chasing horse thieves. I'm Deputy Morrison. How can I help?",
         speaker: 'witness',
         responses: [
           {
@@ -1161,7 +1161,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
       },
       end: {
         id: 'end',
-        text: "Good hunting, Pinkerton. Wire us if you make an arrest.",
+        text: "Good hunting, detective. Send word by the courier if you make an arrest.",
         speaker: 'witness'
       }
     }

@@ -60,17 +60,17 @@ export function TelegraphOffice({ onClose, onWarrantIssued }: TelegraphOfficePro
   // Issue the warrant
   const handleIssueWarrant = () => {
     if (Object.keys(selectedTraits).length === 0) {
-      comment('The telegraph operator stares at you blankly. "You need to describe the suspect, detective."', 'observation')
+      comment('The express clerk stares at you blankly. "You need to describe the suspect, detective."', 'observation')
       return
     }
 
     if (matchingOutlaws.length === 0) {
-      comment('The operator frowns. "Nobody in our records matches that description."', 'observation')
+      comment('The clerk frowns. "Nobody in our records matches that description."', 'observation')
       return
     }
 
     if (matchingOutlaws.length > 1) {
-      comment(`The operator shakes their head. "That description matches ${matchingOutlaws.length} known outlaws. Need more specifics."`, 'observation')
+      comment(`The clerk shakes their head. "That description matches ${matchingOutlaws.length} known outlaws. Need more specifics."`, 'observation')
       setMood('annoyed')
       return
     }
@@ -125,9 +125,9 @@ export function TelegraphOffice({ onClose, onWarrantIssued }: TelegraphOfficePro
     return (
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
         <div className="bg-gray-900 border-2 border-red-600 rounded-lg p-6 max-w-md">
-          <h2 className="text-red-400 text-xl mb-4">Telegraph Office</h2>
+          <h2 className="text-red-400 text-xl mb-4">Express Office</h2>
           <p className="text-gray-300 mb-4">
-            The operator looks at you coldly. "The Pinkerton agency has revoked your telegraph privileges, detective.
+            The clerk looks at you coldly. "I won't carry your letters, detective. Badge or no badge.
             Your reputation precedes you."
           </p>
           <button
@@ -192,7 +192,7 @@ export function TelegraphOffice({ onClose, onWarrantIssued }: TelegraphOfficePro
         {/* Header */}
         <div className="bg-gray-800 p-4 border-b border-amber-600 flex justify-between items-center">
           <div>
-            <h2 className="text-amber-300 text-xl">Telegraph Office - Warrant System</h2>
+            <h2 className="text-amber-300 text-xl">Express Office - Warrants by Courier</h2>
             <p className="text-gray-500 text-sm">Issue a warrant based on your evidence</p>
           </div>
           <button
@@ -319,7 +319,7 @@ export function TelegraphOffice({ onClose, onWarrantIssued }: TelegraphOfficePro
           <div className="bg-gray-800 p-4 border-t border-amber-600">
             <div className="flex justify-between items-center">
               <p className="text-gray-500 text-sm">
-                Wire cost: $0.50 | Pinkerton standing: {pinkertonRep > 0 ? '+' : ''}{pinkertonRep}
+                Letter by courier: $0.50 | Pinkerton standing: {pinkertonRep > 0 ? '+' : ''}{pinkertonRep}
               </p>
               <button
                 onClick={handleIssueWarrant}

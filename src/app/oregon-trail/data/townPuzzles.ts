@@ -175,7 +175,7 @@ export const TOWN_PUZZLES: TownPuzzle[] = [
     id: 'laramie_telegraph',
     title: 'The Coded Message',
     landmark: 'Fort Laramie',
-    description: 'The telegraph operator pulls you aside. "Got a message in code. Sender said the next person headed to Gold Country would know what to do." The message reads: XLIIV QEFIC XQ WYFHKIV',
+    description: 'The express clerk pulls you aside. "Got a letter in code. Sender said the next person headed to Gold Country would know what to do." The message reads: XLIIV QEFIC XQ WYFHKIV',
     narratorIntro: 'A cipher. The narrator is impressed you haven\'t already walked away.',
     difficulty: 'hard',
     startStepId: 'examine_message',

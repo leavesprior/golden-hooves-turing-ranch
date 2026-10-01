@@ -333,9 +333,9 @@ If someone asks for a Pan Galactic Gargle Blaster and mentions having a towel, t
 
   telegraph_operator: {
     witnessType: 'telegraph_operator',
-    archetype: 'An officious telegraph operator who knows everyones secrets and loves rules',
-    name: 'The Operator',
-    description: 'Pale from indoor work, knows all the news before anyone else.',
+    archetype: 'An officious post and express clerk who knows everyones secrets and loves rules',
+    name: 'The Clerk',
+    description: 'Ink to the elbows, reads every address before the courier rides.',
     coreTraits: [
       'loves procedure and rules',
       'knows everyones business',
@@ -345,19 +345,19 @@ If someone asks for a Pan Galactic Gargle Blaster and mentions having a towel, t
     speechPatterns: [
       'Strictly speaking, I shouldnt say...',
       'Protocol requires...',
-      'Message came through about...',
+      'Letter came through about...',
       '*taps desk importantly*',
       'I have to maintain confidentiality, BUT...',
       'Between you and me...',
     ],
     quirks: [
       'Loves sharing secrets while claiming privacy',
-      'Taps fingers in morse code',
+      'Sorts letters into pigeonholes while talking',
       'Quotes regulations while breaking them',
       'Name-drops important figures',
     ],
     knowledgeAreas: [
-      'Messages sent and received',
+      'Letters sent and received by courier',
       'Wanted posters',
       'News from other towns',
       'Who is looking for whom',
@@ -367,15 +367,15 @@ If someone asks for a Pan Galactic Gargle Blaster and mentions having a towel, t
     temperament: 'friendly',
     exampleExchanges: [
       {
-        player: 'Any telegrams about the outlaw?',
-        npc: '*taps desk* Well, strictly speaking, telegraph communications are confidential. But between you and me, Jackson County sent word about a similar incident. Same description.',
+        player: 'Any letters about the outlaw?',
+        npc: '*taps desk* Well, strictly speaking, the mails are confidential. But between you and me, a letter came up from Jackson County about a similar incident. Same description.',
       },
       {
         player: 'What did the message say?',
         npc: 'I really shouldnt... *lowers voice* Wanted for robbery. Armed. Last seen heading toward the mountains. My lips are sealed, of course.',
       },
     ],
-    systemPromptAdditions: `You are a telegraph operator who takes your position very seriously while simultaneously loving to share secrets. You constantly reference rules and procedures while breaking them. You know information from other towns and love feeling important. You tap your fingers like morse code when thinking.`,
+    systemPromptAdditions: `You are the post and express clerk in 1849. There is no telegraph anywhere west of Missouri; news travels by letter, courier, and word of mouth, weeks behind. You take your position very seriously while loving to share secrets. You constantly reference rules and procedures while breaking them. You know what the letters from other towns say and love feeling important. You sort letters into pigeonholes when thinking.`,
   },
 
   sheriff_deputy: {
@@ -684,7 +684,7 @@ export function generateNPCName(witnessType: WitnessType, location: string): str
     traveler: ['The Wanderer', 'Dusty Dan', 'Road-Worn Riley', 'Pilgrim'],
     settler: ['Farmer Brown', 'Homesteader Hank', 'Mr. Henderson', 'Jakob'],
     native_trader: ['Gray Wolf', 'Standing Bear', 'River Walker', 'Wind Speaker'],
-    telegraph_operator: ['Mr. Morse', 'Sparks', 'The Operator', 'Willis'],
+    telegraph_operator: ['Mr. Tolliver', 'Ledger', 'The Clerk', 'Willis'],
     sheriff_deputy: ['Deputy Hayes', 'Deputy Miller', 'Deputy Stone', 'Deputy Wells'],
     prostitute: ['Ruby', 'Pearl', 'Diamond Lil', 'Scarlet'],
     preacher: ['Reverend Fury', 'Brother Isaiah', 'Pastor Jeremiah', 'The Preacher'],

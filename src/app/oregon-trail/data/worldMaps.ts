@@ -160,7 +160,7 @@ export const CHAPTER_1_WAYPOINTS: MapLocation[] = [
       founded: '1834',
       peakPopulation: 800,
       historicalNote: 'Originally a fur trading post, converted to military fort in 1849.',
-      easterEggs: ['The telegraph operator hints at strange messages from the west'],
+      easterEggs: ['The express clerk hints at strange letters from the west'],
     },
     services: ['inn', 'shop', 'telegraph', 'stable', 'blacksmith', 'doctor'],
     dangerLevel: 'safe',
