@@ -6,6 +6,7 @@ import { useKarmaWallet } from '../karmaWalletContext'
 import { getGoldCountryLocation } from '../data/goldCountryLocations'
 import { TRAVEL_ENCOUNTERS, type EncounterChoice } from '../data/goldCountryEncounters'
 import { goldCountryTravelTick } from '@/lib/goldCountryTravelTick'
+import { MapIcon, goldCountryIconToType, isGoldCountryIconKeyword } from './map/MapIcons'
 import { GoldCountryCalendar, formatTravelMinutes } from './GoldCountryTransportChoices'
 import type { GoldCountryTripResult } from '../state/goldCountryTrip'
 
@@ -277,7 +278,9 @@ export function GoldCountryTravel({
     return (
       <div className="west-face-shell min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <span className="text-4xl">{toLoc?.icon}</span>
+          {toLoc && isGoldCountryIconKeyword(toLoc.icon)
+            ? <span className="inline-block" data-testid="arriving-icon"><MapIcon type={goldCountryIconToType(toLoc.icon)} tier="classic_8bit" size={40} /></span>
+            : <span className="text-4xl">{toLoc?.icon}</span>}
           <p className="text-amber-400 font-pixel text-lg mt-4">ARRIVING AT</p>
           <p className="text-green-300 font-pixel text-xl mt-1">{toLoc?.name}</p>
           {ticket}{notice}

@@ -4,7 +4,8 @@ import { useOregonTrail } from '../oregonTrailContext'
 import { useMystery } from '../mysteryContext'
 import { WitnessDialogue } from '../components/WitnessDialogue'
 import { type WitnessType } from '../data/clueTemplates'
-import { getNPCById, type GoldCountryWitnessType } from '../data/goldCountryNPCs'
+import { type GoldCountryWitnessType } from '../data/goldCountryNPCs'
+import { resolveWitnessNpc } from '@/lib/trailInvestigation'
 
 /**
  * Coerce a GoldCountryNPC's (superset) witnessType down to a base trail WitnessType,
@@ -47,7 +48,7 @@ export function WitnessScreen() {
 
   // If a real GoldCountryNPC is the witness, resolve it and coerce its witnessType for
   // the scripted machinery; otherwise activeWitness is already a base WitnessType string.
-  const npc = activeNpcId ? getNPCById(activeNpcId) : undefined
+  const npc = resolveWitnessNpc(activeNpcId)
   const witnessType: WitnessType = npc
     ? WITNESS_TYPE_COERCION[npc.witnessType]
     : (activeWitness as WitnessType)

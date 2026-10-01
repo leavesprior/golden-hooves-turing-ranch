@@ -160,7 +160,7 @@ const WEST_POINT: TownInvestigation = {
     'West Point, named by scout Kit Carson — a thriving trading post before the gold discovery (CHL #268, plaque dedicated 1949). The plaque credits Carson with naming the place, not operating the post.',
     'Sandy Gulch (2 mi south): the Carsner brothers\' 1849 nugget find, the district\'s first stamp mill, and a Mi-Wuk village.',
     'Indian Gulch (1852) → renamed West Point (1854) → post office (1856); the writer Bret Harte lived here; 10+ stamp mills by the 1860s–70s.',
-    'Locally-milled timber tradition: the Harris mill (Sandy Gulch, "supplied materials throughout the region"), the Tiger Creek mill (photographed 1920), and the Raggio steam sawmill (1888–1924). West Point still keeps Lumberjack Day.',
+    'Locally-milled timber tradition: the Harris mill (Sandy Gulch, "supplied materials throughout the region"), the Tiger Creek mill (photographed 1920), and the Raggio steam sawmill (San Domingo Creek 1905, Cowell Creek 1910, cut out 1924). West Point still keeps Lumberjack Day.',
   ],
 }
 
@@ -620,7 +620,7 @@ const JACKSON: TownInvestigation = {
     'Which is the one thing this deep-rock country cannot do. The Kennedy shaft really plunges 5,912 feet — among the deepest gold mines in North America. The fifty-eight-foot tailing wheels really lifted hundreds of tons of waste a day over two hills after the 1912 anti-pollution law. And on August 27, 1922, the Argonaut fire really took 47 miners — the worst gold-mine disaster in California history, mourned at St. Sava, the first Serbian Orthodox church in the Western Hemisphere, raised by those very miners. The honest record of who was really here — and who was lost — is exactly what catches a man who was never honestly present at all.',
   sources: [
     'Kennedy Gold Mine, Jackson: shaft reached 5,912 ft — among the deepest gold mines in North America; California Historical Landmark No. 786 (with the Argonaut).',
-    'Kennedy Tailing Wheels: four 58-ft redwood wheels built 1912 to lift tailings over two hills to an impound dam, after the 1912 state act compelled mines to impound tailings (two wheels still stand at Kennedy Tailing Wheels Park).',
+    'Kennedy Tailing Wheels: four 58-ft redwood wheels built 1914 to lift tailings over two hills to an impound dam, after the 1912 state act compelled mines to impound tailings (two wheels still stand at Kennedy Tailing Wheels Park).',
     '1922 Argonaut Mine disaster: fire on Aug. 27, 1922 trapped 47 miners at the ~4,650-ft level; the worst gold-mine disaster in California history; led to major mine-safety reforms.',
     'St. Sava Serbian Orthodox Church, Jackson: consecrated 1894 — the first Serbian Orthodox church in the Western Hemisphere — built by Kennedy and Argonaut miners; on the National Register of Historic Places.',
   ],
@@ -988,7 +988,7 @@ const MARIPOSA: TownInvestigation = {
   ],
   verdict:
     'You corner Cyrus Vane at the Pine Tree, and the trick falls apart in the order he built it: a deed with no honest corners, a court claim that the grant carried the quartz, and a boundary that "floats" onto the richest lode only in ink. One crime under all of it — the forgery of PRESENCE: swearing he had surveyed, bounded, and worked ground where he never honestly stood. ' +
-    'It is the oldest Mariposa story, told small. The Las Mariposas grant really was a floating ten leagues that Frémont slid onto the gold; the Supreme Court really confirmed it in 1854; men really seized the Pine Tree at gunpoint in 1858 and the courts really flipped before settling the mineral law of the West. And against all that floating stands the one thing that cannot drift: the Mariposa County Courthouse, raised in 1854 of local timber and hand-cut joinery, oldest court still sitting west of the Rockies — a real place, honestly built and never moved, where a floating boundary is finally made to touch the ground.',
+    'It is the oldest Mariposa story, told small. The Las Mariposas grant really was a floating ten leagues that Frémont slid onto the gold; the Supreme Court really confirmed it in 1855; men really seized the Pine Tree at gunpoint in 1858 and the courts really flipped before settling the mineral law of the West. And against all that floating stands the one thing that cannot drift: the Mariposa County Courthouse, raised in 1854 of local timber and hand-cut joinery, oldest court still sitting west of the Rockies — a real place, honestly built and never moved, where a floating boundary is finally made to touch the ground.',
   sources: [
     'Fremont v. United States, 58 U.S. (17 How.) 542 (1855): the U.S. Supreme Court confirmed the "floating" Las Mariposas grant — ten square leagues (~44,387 acres) granted by Gov. Micheltorena to Juan B. Alvarado in 1844, bought for Frémont by consul Thomas O. Larkin in 1847.',
     'Rancho Las Mariposas: Frémont repositioned his floating ten leagues onto mineral land (Pine Tree & Josephine quartz mines); the 1858 "Battle of the Pine Tree" — armed Merced Mining Co. men seized the lode until the governor intervened; Biddle Boggs v. Merced Mining Co. ruled against Frémont (1858) then for him (1859).',

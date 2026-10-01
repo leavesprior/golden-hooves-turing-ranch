@@ -1,5 +1,6 @@
 'use client'
 
+import { isTrailWitnessId } from '@/lib/trailInvestigation'
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { type WitnessType, WITNESS_PERSONALITIES } from '../data/clueTemplates'
 import { type DialogueTree, type DialogueNode, type DialogueResponse, type RevisitBehavior, type ProficiencyRequirement, getDialogueTree, type DialogueEffect } from '../data/dialogueTrees'
@@ -233,7 +234,7 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
   // sessionId, or null if the chat route/LLM is unreachable so the caller can degrade.
   const ensureDmSession = useCallback(async (): Promise<string | null> => {
     if (dmSessionIdRef.current) return dmSessionIdRef.current
-    if (!npc) return null
+    if (!npc || isTrailWitnessId(npc.id)) return null
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), DM_CHAT_TIMEOUT_MS)
     try {
@@ -263,11 +264,26 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
   const sendToDmChat = useCallback(async (message: string) => {
     if (!npc) return
     addToHistory('YOU', message)
+    // The grounded clue does not depend on the model: a slow or unreachable chat
+    // still hands it over. A place witness speaks it (its clue is first-person);
+    // a period NPC's clue is journal prose, so they keep to their own lines.
+    const grantClue = () => {
+      if (!clue || clueObtained) return false
+      addClue(clue)
+      setClueObtained(true)
+      onClueObtained?.(clue)
+      addExperience(XP_REWARDS.CLUE_OBTAINED)
+      return true
+    }
+    const floorLine = () => {
+      const pending = clue && !clueObtained && isTrailWitnessId(npc.id) ? clue.text : undefined
+      grantClue()
+      return pending || npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...'
+    }
     const sessionId = await ensureDmSession()
     if (!sessionId) {
-      // DM chat unreachable — degrade to a scripted dialogueLine (the offline floor).
-      const line = npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...'
-      addToHistory(npc.name, line)
+      // DM chat unreachable — degrade to the scripted floor.
+      addToHistory(npc.name, floorLine())
       return
     }
     setIsStreaming(true)
@@ -284,20 +300,16 @@ export function WitnessDialogue({ witnessType, location, npc, clue, onClose, onC
         signal: controller.signal,
       })
       const data = res.ok ? await res.json() : null
-      const text = data?.response
-        || npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)]
-        || '...'
-      updateLastHistory(text)
-      // Grant the grounded clue on the first real exchange (mirrors the offline path).
-      if (clue && !clueObtained) {
-        addClue(clue)
-        setClueObtained(true)
-        onClueObtained?.(clue)
-        addExperience(XP_REWARDS.CLUE_OBTAINED)
+      if (data?.response) {
+        updateLastHistory(data.response)
+        // Grant the grounded clue on the first real exchange.
+        grantClue()
+      } else {
+        updateLastHistory(floorLine())
       }
     } catch {
-      // Includes AbortError on timeout — fall back to a scripted line and clear the "...".
-      updateLastHistory(npc.dialogueLines[Math.floor(Math.random() * npc.dialogueLines.length)] || '...')
+      // Includes AbortError on timeout — fall back to the scripted floor and clear the "...".
+      updateLastHistory(floorLine())
     } finally {
       clearTimeout(timeoutId)
       setIsStreaming(false)

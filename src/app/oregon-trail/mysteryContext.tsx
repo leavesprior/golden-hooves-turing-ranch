@@ -30,7 +30,7 @@ import {
   getClueById,
   checkAnswer as checkEducationalAnswer
 } from './data/educationalClues'
-import { getNPCById } from './data/goldCountryNPCs'
+import { getTrailWitness, resolveWitnessNpc } from '@/lib/trailInvestigation'
 import {
   CASES,
   type Case,
@@ -58,6 +58,8 @@ export interface CollectedClue {
   timestamp: number  // Game time when collected
   isTrue?: boolean   // Whether this clue is accurate (based on witness reliability)
   outlawId?: string  // Which outlaw this clue is about (for bounty hunter mode)
+  obscurity?: 1 | 2 | 3  // 1 = the lead is named; 2-3 = California, work it out
+  leadsTo?: string   // town id, trail landmark, or `town:scene` the clue points on to
 }
 
 export interface Crime {
@@ -490,8 +492,9 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
     // An educationalClueId links to a verified fact in EDUCATIONAL_CLUES so the clue
     // teaches real history. Falls through to the random generator when absent.
     if (npcId) {
-      const npc = getNPCById(npcId)
+      const npc = resolveWitnessNpc(npcId)
       const ic = npc?.investigationClue
+      const trail = getTrailWitness(npcId)
       if (ic) {
         const eduClue = ic.educationalClueId ? getClueById(ic.educationalClueId) : undefined
         return {
@@ -503,6 +506,8 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
           reliability: 0.95, // grounded, cited history — high reliability
           isTrue: ic.isTrue,
           timestamp: Date.now(),
+          obscurity: trail?.obscurity,
+          leadsTo: trail?.lead?.to,
         }
       }
     }
@@ -616,6 +621,8 @@ export function MysteryProvider({ children }: { children: ReactNode }) {
   // Add a clue manually (also extracts traits if present)
   const addClue = useCallback((clue: CollectedClue) => {
     setState(prev => {
+      // The witness dialogue grants a clue and its onClueObtained adds it again.
+      if (prev.collectedClues.some(c => c.id === clue.id)) return prev
       const newState = {
         ...prev,
         collectedClues: [...prev.collectedClues, clue]

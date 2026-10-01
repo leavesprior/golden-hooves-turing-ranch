@@ -9,6 +9,7 @@ import { KarmaToastContainer } from '@/components/karma'
 import { NarratorOverlay, ReliabilityIndicator } from '../components/NarratorOverlay'
 import { getNPCsAtLocation } from '../data/goldCountryNPCs'
 import { CRIME_DESCRIPTIONS } from '../data/clueTemplates'
+import { getGenericPlaces, getTrailPlaces, resolveTrailTown } from '@/lib/trailInvestigation'
 
 export function InvestigationScreen() {
   const { state, closeInvestigation, openWitnessDialogue, openDossier, openTelegraph, openJournal, investigateLocation } = useOregonTrail()
@@ -28,25 +29,18 @@ export function InvestigationScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Available investigation locations based on landmark type
-  const investigationLocations = [
-    { id: 'saloon', name: 'Saloon', icon: '\uD83C\uDF7A', witnesses: ['bartender', 'drunk', 'traveler'] },
-    { id: 'stable', name: 'Stable', icon: '\uD83D\uDC34', witnesses: ['stable_hand'] },
-    { id: 'general_store', name: 'General Store', icon: '\uD83C\uDFEA', witnesses: ['shopkeeper'] },
-    { id: 'telegraph', name: 'Telegraph Office', icon: '\u26A1', witnesses: ['telegraph_operator'] },
-    { id: 'church', name: 'Church', icon: '\u26EA', witnesses: ['preacher'] },
-    { id: 'street', name: 'Street', icon: '\uD83D\uDEE4\uFE0F', witnesses: ['settler', 'child', 'traveler'] },
-  ]
+  // Per-town places (Leif 09-30). California towns use their authored scenes,
+  // trail stops their own 1849 places; the generic list is the last resort.
+  const landmark = state.currentLandmark || ''
+  const townPlaces = getTrailPlaces(landmark)
+  const investigationLocations = getGenericPlaces()
 
   const hoursRemaining = state.investigation.maxInvestigationHours - state.investigation.hoursInvestigated
 
-  // Town Investigations 1849 (insertion 1): resolve the current town's REAL period
-  // townsfolk from goldCountryNPCs. Location id is derived from the landmark name the
-  // same way TownScreen does. When a town has authored NPCs, we render one interview per
-  // real person; otherwise we fall back to the generic saloon/street witness roster so
-  // towns without data (and old saves) still work with no crash.
-  const locationId = (state.currentLandmark || '').toLowerCase().replace(/[^a-z]/g, '_')
-  const townNPCs = getNPCsAtLocation(locationId)
+  // Town Investigations 1849 (insertion 1): the current town's REAL period
+  // townsfolk from goldCountryNPCs, resolved through the town registry (the old
+  // name slug missed West Point and Calaveras Big Trees).
+  const townNPCs = resolveTrailTown(landmark).npcLocations.flatMap(getNPCsAtLocation)
   const hasTownNPCs = townNPCs.length > 0
 
   return (
@@ -148,8 +142,54 @@ export function InvestigationScreen() {
           </div>
         )}
 
+        {/* Authored places — each town its own, later eras marked as crossings */}
+        {townPlaces.length > 0 && (
+          <div className="mb-6" data-testid="town-places">
+            <p className="text-amber-300 text-xs mb-3 font-pixel">Places to search</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {townPlaces.map(place => {
+                const w = place.witnesses[0]
+                const interviewed = state.investigation.witnessesInterviewed.includes(w.id)
+                return (
+                  <button
+                    key={place.id}
+                    onClick={() => {
+                      if (!interviewed) {
+                        openWitnessDialogue(w.id, w.id)
+                        recordPlayerAction(`interview_${w.id}`)
+                      }
+                    }}
+                    disabled={interviewed}
+                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                      interviewed
+                        ? 'bg-green-900/40 border-green-700 opacity-70'
+                        : place.later
+                        ? 'bg-indigo-950/60 border-indigo-500 hover:border-indigo-300'
+                        : 'bg-gray-800/70 border-amber-700 hover:border-amber-400'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl shrink-0">{place.icon}</span>
+                      <div className="min-w-0">
+                        <p className="text-amber-200 text-sm">
+                          {place.name}
+                          {interviewed && ' ✓'}
+                        </p>
+                        <p className="text-amber-500 text-xs">{w.name.toLowerCase().includes(w.role.toLowerCase()) ? w.name : `${w.name}, ${w.role}`}</p>
+                        {place.later && (
+                          <p className="text-indigo-300 text-[10px] mt-1">{'\u23F3'} A crossing to {place.year}</p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Investigation Locations — generic fallback for towns without authored NPCs */}
-        {!hasTownNPCs && (
+        {!hasTownNPCs && townPlaces.length === 0 && (
         <>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
           {investigationLocations.map(loc => {

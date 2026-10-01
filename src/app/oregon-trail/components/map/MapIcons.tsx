@@ -433,24 +433,33 @@ export function MapIcon({ type, tier, size, glow = false, dimmed = false, animat
   return renderIcon()
 }
 
+const GOLD_COUNTRY_ICON_TYPES: Record<string, MapIconProps['type']> = {
+  cabin: 'cabin',
+  frog: 'frog',
+  wine: 'wine',
+  cave: 'cave',
+  crystal: 'crystal',
+  tree: 'landmark',
+  mine: 'mine',
+  saloon: 'saloon_icon',
+  grapes: 'grapes',
+  building: 'building',
+  bridge: 'bridge',
+}
+
+/**
+ * True when a GoldCountryLocation icon is a keyword ('frog', 'cabin') rather than
+ * an emoji. Keywords must be drawn with MapIcon — printed raw they show as words.
+ */
+export function isGoldCountryIconKeyword(icon: string): boolean {
+  return /^[a-z_]+$/.test(icon)
+}
+
 /**
  * Map a GoldCountryLocation icon string to a MapIcon type.
  */
 export function goldCountryIconToType(icon: string): MapIconProps['type'] {
-  const mapping: Record<string, MapIconProps['type']> = {
-    cabin: 'cabin',
-    frog: 'frog',
-    wine: 'wine',
-    cave: 'cave',
-    crystal: 'crystal',
-    tree: 'landmark',
-    mine: 'mine',
-    saloon: 'saloon_icon',
-    grapes: 'grapes',
-    building: 'building',
-    bridge: 'bridge',
-  }
-  return mapping[icon] || 'town'
+  return GOLD_COUNTRY_ICON_TYPES[icon] || 'town'
 }
 
 export default MapIcon

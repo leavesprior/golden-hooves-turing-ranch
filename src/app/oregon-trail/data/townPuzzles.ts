@@ -8,6 +8,7 @@
  * Puzzles are tied to specific landmarks and reward exploration + stat use.
  */
 
+import { resolveTrailTown } from '@/lib/trailInvestigation'
 import type { StatName } from '../characterContext'
 
 export type PuzzleStepAction =
@@ -703,8 +704,11 @@ export function getPuzzlesForLandmark(
   currentDay: number = 1,
   inventory: string[] = []
 ): TownPuzzle[] {
+  // Some puzzles are keyed by the canonical town id ('big_trees', 'mokelumne_hill'),
+  // others by the trail landmark name; accept either.
+  const townId = resolveTrailTown(landmark).townId
   return TOWN_PUZZLES.filter(puzzle => {
-    if (puzzle.landmark !== landmark) return false
+    if (puzzle.landmark !== landmark && puzzle.landmark !== townId) return false
     if (puzzle.oneTimeOnly && solvedPuzzles.includes(puzzle.id)) return false
     if (puzzle.minDay && currentDay < puzzle.minDay) return false
     if (puzzle.requiresItem && !inventory.includes(puzzle.requiresItem)) return false
