@@ -280,7 +280,7 @@ export const RANDOM_EVENTS: RandomEvent[] = [
         id: 'fight',
         text: 'Fight them off',
         outcome: {
-          message: 'A few shots into the dark and the rustlers remember urgent business elsewhere. Your ammunition does not come back.',
+          message: 'A few shots into the dark and the horse thieves remember urgent business elsewhere. Your ammunition does not come back.',
           ammoDelta: -10,
           goodKarmaDelta: 5,  // Defending yourself is honorable
         },

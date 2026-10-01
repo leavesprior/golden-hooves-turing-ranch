@@ -265,7 +265,7 @@ export const LOCATION_CLUES: ClueTemplate[] = [
   {
     id: 'location_telegraph',
     type: 'location',
-    text: "Sent a wire to someone near {destination}. Tried to be discreet about it.",
+    text: "Sent a letter by the courier to someone near {destination}. Tried to be discreet about it.",
     witnessType: 'telegraph_operator',
     reliability: 0.95,
     difficulty: 2

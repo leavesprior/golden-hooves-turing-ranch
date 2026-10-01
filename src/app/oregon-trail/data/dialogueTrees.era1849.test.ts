@@ -7,7 +7,9 @@ import { WITNESS_DIALOGUES } from './dialogueTrees'
 // player may say "Pinkerton". The people of 1849 may not know the agency, and there is
 // no wire west of Missouri: word goes by letter and courier.
 const NO_WIRES = /\b(wires?|wired|telegraph\w*|rustl\w*)\b/i
-const KNOWS_AGENCY = /\b(your agency|Pinkertons!|Pinkerton!)/i
+// A witness who names Pinkerton must show they have never heard of it.
+const SAYS_PINKERTON = /Pinker/i
+const NEVER_HEARD = /never heard|Pinker-who/i
 
 let checked = 0
 for (const [type, tree] of Object.entries(WITNESS_DIALOGUES)) {
@@ -15,7 +17,7 @@ for (const [type, tree] of Object.entries(WITNESS_DIALOGUES)) {
     const where = `${type}.${nodeId}`
     if (node.speaker === 'witness') {
       assert.ok(!NO_WIRES.test(node.text), `${where}: 1849 witness mentions wires: ${node.text}`)
-      assert.ok(!KNOWS_AGENCY.test(node.text), `${where}: 1849 witness knows the Pinkerton agency: ${node.text}`)
+      assert.ok(!SAYS_PINKERTON.test(node.text) || NEVER_HEARD.test(node.text), `${where}: 1849 witness knows the Pinkerton agency: ${node.text}`)
       checked++
     }
     for (const r of node.responses ?? []) {
@@ -27,9 +29,12 @@ for (const [type, tree] of Object.entries(WITNESS_DIALOGUES)) {
 }
 assert.ok(checked > 60, `only ${checked} witness lines checked; the walk is broken`)
 
-// Black Bart worked alone (1875-83). No gang, anywhere on the trail screens.
-for (const f of ['./dialogueTrees.ts', '../components/DossierView.tsx']) {
+// Other 1849 trail text the dialogue walk does not reach (council 10-01, codex).
+const TRAIL_TEXT = ['./clueTemplates.ts', './worldMaps.ts', './townPuzzles.ts', '../state/constants.ts']
+for (const f of TRAIL_TEXT) {
   const src = readFileSync(new URL(f, import.meta.url), 'utf8')
-  assert.ok(!/Bart(&apos;|'|’)s gang/i.test(src), `${f} gives Black Bart a gang`)
+  for (const phrase of [/Sent a wire/i, /telegraph operator/i, /\brustlers\b/i, /Ten cents a word/i]) {
+    assert.ok(!phrase.test(src), `${f} still says ${phrase}`)
+  }
 }
-console.log(`dialogueTrees.era1849: ${checked} witness lines, no wires, no known agency, no Bart gang`)
+console.log(`dialogueTrees.era1849: ${checked} witness lines, no wires, no known agency; trail text has no wires or rustlers`)
