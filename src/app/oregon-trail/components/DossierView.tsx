@@ -142,7 +142,7 @@ export function DossierView({ onClose, showCapturedOnly = false }: DossierViewPr
             className="text-sm tracking-[0.2em] uppercase mt-0.5"
             style={{ color: '#a08050', fontFamily: 'Georgia, serif' }}
           >
-            Black Bart &mdash; Pinkerton Case Files
+            Black Bart&apos;s Gang &mdash; Pinkerton Case Files
           </p>
 
           {/* Close button */}

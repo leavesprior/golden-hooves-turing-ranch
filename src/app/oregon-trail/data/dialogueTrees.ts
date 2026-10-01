@@ -954,7 +954,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
         responses: [
           {
             id: 'explain',
-            text: "Dangerous outlaw. Calls himself Black Bart. Works alone.",
+            text: "Dangerous outlaw. Rides with a man who calls himself Black Bart.",
             nextNode: 'heard_of',
             grantsClue: true
           }
