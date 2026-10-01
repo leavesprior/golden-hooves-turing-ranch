@@ -45,6 +45,12 @@ export const REVEAL = {
   // source seed:neoma-composite). The greeting probe checks this text against that file.
   greeting: 'Hattie. I run this kitchen, and the kitchen runs me.',
   greetingSource: { npc: 'hattie_1867', seedQuestion: 'What is your name?', conf: 1 },
+  // The Volcano demo (?demo=volcano): the Guide's timing.
+  guideAppearSeconds: 2,
+  guideHoldSeconds: 2.6,
+  guideHoldPerChar: 0.05,
+  guideLookDeg: 10, // head-forward within this of a piece = looking at it
+  guideLookSeconds: 0.7,
   cards: [
     { id: 'ordinary', text: 'What are you cooking?' },
     { id: 'remembered', text: 'Is your coffee strong?' },

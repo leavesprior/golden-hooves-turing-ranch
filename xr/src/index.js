@@ -28,6 +28,7 @@ import { FACADE_W, build1867, buildCat, buildFrog, buildHattie, buildSlip1, setO
 import { REVEAL } from './reveal-config.js';
 import { EMITTERS, createPeriodAudio } from './period-audio.js';
 import { buildCard, buildWords } from './speech.js';
+import { GUIDE_CAST, NARRATION, buildGuide, buildOldAbe, buildPlaybill } from './volcano-demo.js';
 
 const FADE_SECONDS = 0.8;
 const WALL_WAIT_SECONDS = 3;
@@ -40,6 +41,10 @@ const params = new URLSearchParams(location.search);
 const PROBE = params.get('probe') === '1';
 // Rung 1: the caption cards break the spell, so they exist only with ?captions=1.
 const CAPTIONS = params.get('captions') === '1';
+// The Volcano demo: the red-coated Guide narrates; the playbill and Old Abe join c.1867; Hattie rests.
+const DEMO = params.get('demo') === 'volcano';
+// Emulator only (probe-gated): IWER's synthetic room becomes a photo of Volcano's Main Street.
+const BACKDROP_VOLCANO = PROBE && params.get('backdrop') === 'volcano';
 // Probe-only: point Hattie at another loopback port (a stub, or a dead port).
 const BRAIN_URL = PROBE && /^\d+$/.test(params.get('brain') || '') ? `http://127.0.0.1:${params.get('brain')}/ask` : REVEAL.brainUrl;
 // Words the brain uses to mark 'no mind answered': never shown as speech.
@@ -176,6 +181,32 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   const words = buildWords();
   words.mesh.position.set(0, 1.86, HATTIE_Z);
   root.add(words.mesh);
+
+  // The Volcano demo pieces. The playbill and Old Abe belong to c.1867 (they fade with it and
+  // real depth can hide them); the Guide stands in every layer, a still figure, and narrates.
+  const demo = { guide: null, guideWords: null, elements: {}, queue: [], cur: null, said: new Set(), look: {}, fade: 0 };
+  if (DEMO) {
+    const playbill = buildPlaybill();
+    playbill.position.set(-0.95, 1.3, 0.04);
+    const oldAbe = buildOldAbe();
+    oldAbe.position.set(0.25, 0, 2.0);
+    layers.c1867.add(playbill, oldAbe);
+    setOpacity(layers.c1867, 0);
+    demo.elements = { playbill: { obj: playbill, center: [-0.95, 1.3, 0.04] }, oldAbe: { obj: oldAbe, center: [0.4, 0.8, 2.0] } };
+    demo.guide = buildGuide();
+    demo.guide.position.set(-1.15, 0, 2.25);
+    setOpacity(demo.guide, 0);
+    root.add(demo.guide);
+    demo.guideWords = buildWords({ backing: true });
+    demo.guideWords.mesh.scale.setScalar(2.0);
+    demo.guideWords.mesh.position.set(-0.3, 2.62, 2.1);
+    root.add(demo.guideWords.mesh);
+  }
+  const narrate = (key) => {
+    if (!DEMO || demo.said.has(key)) return;
+    demo.said.add(key);
+    demo.queue.push(...NARRATION[key].map((l) => ({ ...l, key })));
+  };
 
   const caption = CAPTIONS ? captionCard() : null;
   if (caption) {
@@ -472,6 +503,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       // Rung 3: in c.1867 she is seen at the edge of vision; looked at, she is gone (until she notices you).
       let hattieOpacity = current === 'c1867' ? state.fades[1] * (reveal.noticed ? 1 : reveal.gazeFade) : 0;
       if (current === 'slip1') hattieOpacity = Math.sin(time * 2.3) * Math.sin(time * 1.1) > 0.3 ? state.fades[2] * 0.6 : 0;
+      if (DEMO) hattieOpacity = 0; // the demo is the Guide's; Hattie rests
       if (hattie.userData.fade !== hattieOpacity) {
         hattie.userData.fade = hattieOpacity;
         setOpacity(hattie, hattieOpacity);
@@ -628,6 +660,64 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     }
   }
 
+  // The Volcano demo: the Guide fades in, narrates by beat, and tells what the player looks at.
+  const gHead = new Vector3();
+  const gFwd = new Vector3();
+  const gTmp = new Vector3();
+  class GuideSystem extends createSystem({}) {
+    update(delta) {
+      if (!DEMO) return;
+      if (!this.world.session || reveal.t0 === null) {
+        if (demo.fade !== 0) setOpacity(demo.guide, (demo.fade = 0));
+        demo.guideWords.mesh.visible = false;
+        return;
+      }
+      const cam = this.world.camera;
+      cam.getWorldPosition(gHead);
+      cam.getWorldDirection(gFwd);
+      const current = LINE[state.index].id;
+      // The Guide: a still figure, faded in (never animated); turned about her vertical axis to you.
+      if (reveal.elapsed >= REVEAL.guideAppearSeconds && demo.fade < 1) setOpacity(demo.guide, (demo.fade = Math.min(1, demo.fade + delta / 1.5)));
+      const local = root.worldToLocal(gTmp.copy(gHead));
+      demo.guide.rotation.y = Math.atan2(local.x - demo.guide.position.x, local.z - demo.guide.position.z);
+      // Beats.
+      if (demo.fade >= 1) narrate('intro');
+      if (reveal.frog >= 1) narrate('frog');
+      const seen1867 = current === 'c1867' && state.fades[1] > 0.9;
+      if (seen1867) narrate('c1867');
+      if (current === 'slip1' && state.fades[2] > 0.9) narrate('slip1');
+      if (current === 'now' && demo.said.has('slip1') && state.fades[0] > 0.9) narrate('now');
+      // Look at a piece for a moment, and the Guide tells it.
+      for (const [id, el] of Object.entries(demo.elements)) {
+        const c = root.localToWorld(gTmp.set(...el.center)).sub(gHead).normalize();
+        const deg = Math.acos(Math.max(-1, Math.min(1, gFwd.dot(c)))) / DEG;
+        // Only while she is silent (she does not interrupt herself), so a glance in passing does not count.
+        const idle = demo.said.has('c1867') && !demo.cur && !demo.queue.length;
+        demo.look[id] = seen1867 && idle && deg < REVEAL.guideLookDeg ? (demo.look[id] || 0) + delta : 0;
+        if (demo.look[id] >= REVEAL.guideLookSeconds) narrate(id);
+      }
+      if (demo.said.has('oldAbe') && !demo.queue.length && !demo.cur) narrate('plaque');
+      // One caption at a time: fade in, hold, fade out.
+      if (!demo.cur && demo.queue.length) {
+        const line = demo.queue.shift();
+        demo.cur = { ...line, age: 0, dur: REVEAL.guideHoldSeconds + REVEAL.guideHoldPerChar * line.text.length };
+        demo.guideWords.draw(line.text);
+        demo.log = demo.log || [];
+        demo.log.push({ key: line.key, text: line.text, src: line.src, at: +reveal.elapsed.toFixed(1) });
+      }
+      const w = demo.guideWords.mesh;
+      if (demo.cur) {
+        const sp = demo.cur;
+        sp.age += delta;
+        const o = Math.min(Math.min(1, sp.age / 0.3), Math.max(0, 1 - Math.max(0, sp.age - 0.3 - sp.dur) / 0.6));
+        w.material.opacity = o;
+        w.visible = o > 0.001;
+        w.lookAt(gHead);
+        if (sp.age > 0.3 + sp.dur + 0.6) demo.cur = null;
+      } else w.visible = false;
+    }
+  }
+
   world.renderer.xr.addEventListener('sessionstart', () => {
     world.renderer.xr.getSession().addEventListener('selectstart', onSelectStart);
   });
@@ -636,6 +726,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   world.registerSystem(FrogSystem);
   world.registerSystem(LineSystem);
   world.registerSystem(RevealSystem);
+  world.registerSystem(GuideSystem);
 
   if (PROBE) {
     // Everything this app adds to the world, for 'is anything drawn?' checks.
@@ -664,7 +755,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       session: () => !!world.session,
       laws: () => {
         root.updateMatrixWorld(true);
-        return checkLaws({ scene: world.scene, root, layers: { ...layers, hattie, words: words.mesh }, line: LINE, cast: CAST });
+        const extra = DEMO ? { guide: demo.guide, guideWords: demo.guideWords.mesh } : {};
+        return checkLaws({ scene: world.scene, root, layers: { ...layers, hattie, words: words.mesh, ...extra }, line: LINE, cast: DEMO ? [...CAST, GUIDE_CAST] : CAST });
       },
       lawCoverage: () => lawCoverage({ ...layers, hattie, words: words.mesh }),
       // Mutation seed for testing the law machine itself: adds a full-frame sheet.
@@ -747,6 +839,9 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         return { cpu: sys?.cpuDepthData?.length ?? -1, gpu: sys?.gpuDepthData?.length ?? -1, enabled: world.session?.enabledFeatures ?? null };
       },
       playerId: () => PLAYER_ID,
+      backdrop: () => window.__backdrop ?? null,
+      demo: () => (DEMO ? { guide: +demo.fade.toFixed(2), queue: demo.queue.length, cur: demo.cur && demo.cur.text, said: [...demo.said], log: demo.log || [], look: demo.look } : null),
+      demoWorld: (id) => (id === 'guide' ? demo.guide.getWorldPosition(new Vector3()).add(new Vector3(0, 1.5, 0)).toArray() : root.localToWorld(new Vector3(...demo.elements[id].center)).toArray()),
       // Verification only: pin every drifting Sideways glow (motes, fog) at one point of the
       // facade frame, still, at one size, so an occlusion pixel-diff is repeatable.
       pinGlows: (x, y, z, size) => {
@@ -788,6 +883,14 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       },
       head: () => world.camera.getWorldPosition(new Vector3()).toArray(),
     };
+  }
+
+  if (BACKDROP_VOLCANO) {
+    window.__backdrop = { pending: true };
+    import('./emulator-backdrop.js')
+      .then((m) => m.installBackdrop())
+      .then((r) => { window.__backdrop = r; })
+      .catch((e) => { window.__backdrop = { ok: false, why: String(e && e.message) }; });
   }
 
   const button = document.getElementById('enter-ar');
