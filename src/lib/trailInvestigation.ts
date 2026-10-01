@@ -120,15 +120,15 @@ const SCENE_META: Record<string, { glyph: PlaceGlyph; year: number; approx?: boo
   'west_point:sandy_gulch': { glyph: 'mine', year: 1849 },
   'west_point:sawmill': { glyph: 'building', year: 1905 },
   'volcano:general_store': { glyph: 'shop', year: 1852 },
-  'volcano:library': { glyph: 'building', year: 1850 },
-  'volcano:thespian': { glyph: 'building', year: 1854 },
+  'volcano:library': { glyph: 'building', year: 1854 },
+  'volcano:thespian': { glyph: 'building', year: 1862 },
   'mokelumne_hill:diggings': { glyph: 'mine', year: 1849 },
-  'mokelumne_hill:express_bank': { glyph: 'assay', year: 1855 },
+  'mokelumne_hill:express_bank': { glyph: 'assay', year: 1861 },
   'mokelumne_hill:courthouse': { glyph: 'building', year: 1866 },
-  'murphys:murphys_hotel': { glyph: 'inn', year: 1856 },
+  'murphys:murphys_hotel': { glyph: 'inn', year: 1885 },
   'murphys:mercer_caverns': { glyph: 'cave', year: 1885 },
   'murphys:big_trees': { glyph: 'landmark', year: 1853 },
-  'angels_camp:angels_hotel': { glyph: 'inn', year: 1855 },
+  'angels_camp:angels_hotel': { glyph: 'inn', year: 1884 },
   // Cave-in 22 Dec 1889; the survivor speaks some years on, date unfixed.
   'angels_camp:utica_mine': { glyph: 'mine', year: 1890, approx: true },
   'angels_camp:frog_jubilee': { glyph: 'frog', year: 1928 },
@@ -139,14 +139,19 @@ const SCENE_META: Record<string, { glyph: PlaceGlyph; year: number; approx?: boo
   'san_andreas:old_jail': { glyph: 'building', year: 1883 },
   'san_andreas:hall_of_records': { glyph: 'building', year: 1893 },
   'nevada_city:national_hotel': { glyph: 'inn', year: 1856 },
-  'nevada_city:nevada_theatre': { glyph: 'landmark', year: 1865 },
+  'nevada_city:nevada_theatre': { glyph: 'landmark', year: 1884 },
   'nevada_city:malakoff': { glyph: 'mine', year: 1884 },
   'grass_valley:empire_mine': { glyph: 'mine', year: 1897 },
   'grass_valley:north_star': { glyph: 'mine', year: 1895 },
-  'grass_valley:lola_montez': { glyph: 'cabin', year: 1853 },
-  'mariposa:las_mariposas_grant': { glyph: 'mountains', year: 1849 },
-  'mariposa:courthouse': { glyph: 'building', year: 1854 },
+  'grass_valley:lola_montez': { glyph: 'cabin', year: 1855 },
+  'mariposa:las_mariposas_grant': { glyph: 'mountains', year: 1855 },
+  'mariposa:courthouse': { glyph: 'building', year: 1859 },
   'mariposa:pine_tree_mine': { glyph: 'mine', year: 1858 },
+}
+
+/** The year a California scene is set, or undefined for an 1849 trail place. */
+export function sceneYear(townId: string, sceneId: string): number | undefined {
+  return SCENE_META[`${townId}:${sceneId}`]?.year
 }
 
 /**
