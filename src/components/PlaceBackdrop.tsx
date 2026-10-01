@@ -26,33 +26,34 @@ function stripObjectUtils(cn: string): string {
 }
 
 const PLACE_ART: Record<string, string> = {
+  // west_point, nevada_city, vol_st_george, bobr_cabin and sa_courthouse .png are APP
+  // SCREENSHOTS (address bar, side panel, hotbar), not paintings. Their places resolve to
+  // editorial photos first; unmapped here so a missing photo draws nothing, never a
+  // screenshot (09-30). Guarded in placeBackdropScreenshots.test.ts.
   // --- Where in Time eras (custom-generated) ---
   forester_trail: 'forester_trail', welcome_gate: 'welcome_gate',
   // --- Town-investigation scene art (2026-06-17) ---
-  sandy_gulch: 'sandy_gulch', harris_ranch: 'harris_ranch', vol_st_george: 'vol_st_george',
-  mh_hotel_leger: 'mh_hotel_leger', sa_courthouse: 'sa_courthouse', ace_angels_hotel: 'ace_angels_hotel',
+  sandy_gulch: 'sandy_gulch', harris_ranch: 'harris_ranch',
+  mh_hotel_leger: 'mh_hotel_leger', ace_angels_hotel: 'ace_angels_hotel',
   // --- Gold Country Explorer ---
-  volcano: 'volcano', angels_camp: 'angels_camp', west_point: 'west_point',
-  mokelumne_hill: 'mokelumne_hill', san_andreas: 'san_andreas', bobr_ranch: 'bobr_cabin',
-  nevada_city: 'nevada_city', grass_valley: 'grass_valley',
+  volcano: 'volcano', angels_camp: 'angels_camp',
+  mokelumne_hill: 'mokelumne_hill', san_andreas: 'san_andreas', grass_valley: 'grass_valley',
   angels_camp_expanded: 'ace_angels_hotel', mariposa: 'mariposa',
   // --- Oregon Trail (Gold Country) ---
-  bobr_cabin: 'bobr_cabin', murphys: 'murphys', moaning_cavern: 'moaning_cavern',
+  murphys: 'murphys', moaning_cavern: 'moaning_cavern',
   california_caverns: 'big_trees', big_trees: 'big_trees', kennedy_mine: 'kennedy_mine',
   ironstone_vineyards: 'murphys', jackson: 'jackson', natural_bridges: 'natural_bridges',
   // --- Adventure / Prospector's Tale (ch1-2 confirmed; ch3-5 best matches) ---
   ch1_independence: 'ch1_independence', ch1_fort_kearny: 'ch1_fort_kearny',
   ch1_sacramento_waterfront: 'ch1_sacramento_waterfront', ch1_sutters_fort: 'ch1_sutters_fort',
   ch1_sacramento_tent_city: 'ch1_sacramento_waterfront',
-  ch2_volcano_main: 'volcano', ch2_st_george: 'vol_st_george', ch2_masonic_lodge: 'volcano',
+  ch2_volcano_main: 'volcano', ch2_masonic_lodge: 'volcano',
   ch2_cobblestone: 'volcano', ch2_miners_camp: 'volcano', ch2_cemetery: 'volcano',
   ch2_hangtown: 'ch2_hangtown', ch2_drytown: 'ch2_drytown', ch2_chinese_camp: 'ch2_chinese_camp',
   ch3_angels_camp: 'angels_camp', ch3_murphys: 'murphys', ch3_moaning_cavern: 'moaning_cavern',
   ch3_big_trees: 'big_trees', ch3_natural_bridges: 'natural_bridges',
   ch3_donner_pass: 'ch3_donner_pass', ch3_carson_trail: 'ch3_carson_trail',
-  ch3_jumping_frog: 'angels_camp',
-  ch4_west_point: 'west_point', ch4_jackson: 'jackson', ch4_mokelumne_hill: 'mokelumne_hill',
-  ch4_ranch_site: 'bobr_cabin', ch5_ranch_house: 'bobr_cabin',
+  ch3_jumping_frog: 'angels_camp', ch4_jackson: 'jackson', ch4_mokelumne_hill: 'mokelumne_hill',
   ch5_ghost_town: 'ch5_ghost_town', ch5_hydraulic_scar: 'ch5_hydraulic_scar',
   // --- Oregon Trail landmarks (generated 2026-07-14, Tower batch; vision-judged) ---
   ot_kansas_river: 'ot_kansas_river', ot_chimney_rock: 'ot_chimney_rock',
