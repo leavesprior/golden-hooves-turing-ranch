@@ -31,9 +31,6 @@ export function InvestigationFigure({
       <span className={`relative shrink-0 overflow-hidden rounded-md border border-[var(--west-line)] bg-[#120e0a] ${box}`} data-figure="still">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={still} alt={alt} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-        {sprite ? (
-          <span className="visual64-character-sprite absolute bottom-0 right-0" data-sprite={sprite} style={{ width: 28, height: 44 }} aria-hidden="true" />
-        ) : null}
       </span>
     )
   }

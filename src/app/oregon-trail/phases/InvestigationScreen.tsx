@@ -82,7 +82,7 @@ export function InvestigationScreen() {
           <InvestigationFigure still={place.still} sprite={w.sprite} glyph={place.glyph} tier={tier} alt={place.displayName} />
           <div className="min-w-0">
             <p className="font-serif text-[#e8dcc4] leading-snug">
-              {place.displayName}
+              {place.later ? `(Later: ${place.year} — ${place.displayName})` : place.displayName}
               {done && <span className="ml-1 text-[#9fb58a]">{'✓'}</span>}
             </p>
             <p className="text-sm text-[#b8a88a] mt-0.5">{who}</p>
@@ -118,7 +118,7 @@ export function InvestigationScreen() {
       {hero && (
         <div className="relative w-full aspect-video max-h-[46vh] overflow-hidden bg-[#120e0a]" data-testid="investigation-hero">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={hero.src} alt={`${landmark}, ${TRAIL_YEAR}`} className="absolute inset-0 h-full w-full object-cover object-center" />
+          <img src={hero.src} alt={hero.caption ? `${landmark}. ${hero.caption}` : `${landmark}, ${TRAIL_YEAR}`} className="absolute inset-0 h-full w-full object-cover object-center" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0e0c0a] via-[#0e0c0a]/30 to-transparent" />
           {player?.name ? (
             <div className="absolute bottom-3 left-3 flex items-end gap-2">
@@ -147,7 +147,7 @@ export function InvestigationScreen() {
             </p>
             <div className="flex flex-wrap gap-2 mt-4">
               <button type="button" onClick={openJournal} className="west-face-pill">
-                Journal · {mysteryState.collectedClues.length} clues
+                Journal · {mysteryState.collectedClues.length} clues, {Object.keys(mysteryState.knownTraits).length} traits
               </button>
               <button type="button" onClick={openDossier} className="west-face-pill">Dossiers</button>
               <button type="button" onClick={openTelegraph} className="west-face-pill">Telegraph</button>

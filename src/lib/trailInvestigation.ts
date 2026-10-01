@@ -121,7 +121,7 @@ const SCENE_META: Record<string, { glyph: PlaceGlyph; year: number; approx?: boo
   'west_point:sawmill': { glyph: 'building', year: 1855, approx: true },
   'volcano:general_store': { glyph: 'shop', year: 1852 },
   'volcano:library': { glyph: 'building', year: 1850 },
-  'volcano:thespian': { glyph: 'landmark', year: 1854 },
+  'volcano:thespian': { glyph: 'building', year: 1854 },
   'mokelumne_hill:diggings': { glyph: 'mine', year: 1849 },
   'mokelumne_hill:express_bank': { glyph: 'assay', year: 1854 },
   'mokelumne_hill:courthouse': { glyph: 'building', year: 1852, approx: true },
@@ -132,16 +132,16 @@ const SCENE_META: Record<string, { glyph: PlaceGlyph; year: number; approx?: boo
   'angels_camp:utica_mine': { glyph: 'mine', year: 1890, approx: true },
   'angels_camp:frog_jubilee': { glyph: 'frog', year: 1928 },
   'jackson:kennedy_mine': { glyph: 'mine', year: 1900, approx: true },
-  'jackson:tailing_wheels': { glyph: 'landmark', year: 1914 },
+  'jackson:tailing_wheels': { glyph: 'mine', year: 1914 },
   'jackson:st_sava': { glyph: 'church', year: 1894 },
   'san_andreas:sa_courthouse': { glyph: 'building', year: 1867 },
-  'san_andreas:old_jail': { glyph: 'fort', year: 1883 },
-  'san_andreas:hall_of_records': { glyph: 'assay', year: 1867, approx: true },
+  'san_andreas:old_jail': { glyph: 'building', year: 1883 },
+  'san_andreas:hall_of_records': { glyph: 'building', year: 1867, approx: true },
   'nevada_city:national_hotel': { glyph: 'inn', year: 1856 },
   'nevada_city:nevada_theatre': { glyph: 'landmark', year: 1865 },
-  'nevada_city:malakoff': { glyph: 'river', year: 1884 },
+  'nevada_city:malakoff': { glyph: 'mine', year: 1884 },
   'grass_valley:empire_mine': { glyph: 'mine', year: 1897 },
-  'grass_valley:north_star': { glyph: 'blacksmith', year: 1895 },
+  'grass_valley:north_star': { glyph: 'mine', year: 1895 },
   'grass_valley:lola_montez': { glyph: 'cabin', year: 1853 },
   'mariposa:las_mariposas_grant': { glyph: 'mountains', year: 1849 },
   'mariposa:courthouse': { glyph: 'building', year: 1854 },
@@ -149,19 +149,12 @@ const SCENE_META: Record<string, { glyph: PlaceGlyph; year: number; approx?: boo
 }
 
 /**
- * Atlas figures, assigned person by person (never by role keyword): a figure
- * that does not fit is worse than none. The lamp-helmet miner is a hard-rock
- * man of the 1890s-1900s, so he never stands in for an 1849 placer miner.
+ * Atlas figures, only where the figure's own role is the person's role: a priest,
+ * the lamp-helmet hard-rock miner (1880s+ mines only, never an 1849 placer man),
+ * and the actor. The woman prospector and the woman with the book read as specific
+ * playtest characters, so they never stand in for other women (council 09-30).
  */
 const WITNESS_SPRITES: Record<string, WitnessSprite> = {
-  'west_point:sandy_gulch': 'nell',
-  'mariposa:pine_tree_mine': 'nell',
-  'volcano:library': 'headmistress',
-  'san_andreas:old_jail': 'headmistress',
-  'san_andreas:hall_of_records': 'headmistress',
-  'jackson:tailing_wheels': 'headmistress',
-  'grass_valley:empire_mine': 'headmistress',
-  'nevada_city:national_hotel': 'headmistress',
   'jackson:st_sava': 'priest',
   'angels_camp:utica_mine': 'miner',
   'jackson:kennedy_mine': 'miner',
@@ -170,17 +163,12 @@ const WITNESS_SPRITES: Record<string, WitnessSprite> = {
 }
 
 /**
- * Painted stills per place. Each was opened and checked by eye against the place
- * (09-30 forensic pass); a still that merely repeats the town's hero is left out.
- * Places without one draw their glyph. Unchecked candidates stay out until seen.
+ * Painted stills per place. Empty on purpose: the council (09-30) opened the four
+ * candidates and found an app screenshot (sa_courthouse.png), a castle for Sutter's
+ * Fort, the investigator in place of Dowd, and a bordered photo. A place gets a
+ * still only after someone has looked at it; until then it draws its glyph.
  */
-const PLACE_STILLS: Record<string, string> = {
-  'san_andreas:sa_courthouse': '/place-art/sa_courthouse.png',
-  'angels_camp:angels_hotel': '/place-art/ace_angels_hotel.png',
-  'Sacramento Valley:sutters_fort': '/place-art/ch1_sutters_fort.png',
-  // Plate manifest check: a miners' camp among the giant sequoias of the Calaveras Grove.
-  'murphys:big_trees': '/images/interiors/trees_camp.jpg',
-}
+const PLACE_STILLS: Record<string, string> = {}
 
 const SCENE_WITNESS_PREFIX = 'tinv:'
 
