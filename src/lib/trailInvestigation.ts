@@ -144,7 +144,7 @@ const SCENE_META: Record<string, { glyph: PlaceGlyph; year: number; approx?: boo
   'grass_valley:empire_mine': { glyph: 'mine', year: 1897 },
   'grass_valley:north_star': { glyph: 'mine', year: 1895 },
   'grass_valley:lola_montez': { glyph: 'cabin', year: 1855 },
-  'mariposa:las_mariposas_grant': { glyph: 'mountains', year: 1855 },
+  'mariposa:las_mariposas_grant': { glyph: 'mountains', year: 1849 },
   'mariposa:courthouse': { glyph: 'building', year: 1859 },
   'mariposa:pine_tree_mine': { glyph: 'mine', year: 1858 },
 }

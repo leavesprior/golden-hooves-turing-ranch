@@ -11,20 +11,25 @@ const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty:
 const UNITS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 }
 
 /**
- * '22 means whichever of 1822 / 1922 sits nearer the scene year, as a listener would
- * hear it, but never more than 30 years ahead: in 1928 "'65" is Twain's 1865, not 1965.
+ * The game's world runs from 1849 to the 1928 Jubilee; no witness speaks of a year
+ * outside 1800–1935. Within that span '22 is whichever of 1822 / 1922 sits nearer the
+ * scene year, as a listener would hear it: in 1894 it is 1922, in 1928 "'65" is 1865,
+ * and in 1852 "'83" is 1883, not 1783 (council 10-01: a 30-years-ahead cap hid that).
  */
+const WORLD_END = 1935
 function nearest(yy: number, near: number): number {
-  return [1700, 1800, 1900].map(c => c + yy).filter(y => y <= near + 30)
+  return [1800 + yy, 1900 + yy].filter(y => y <= WORLD_END)
     .reduce((a, b) => (Math.abs(b - near) < Math.abs(a - near) ? b : a))
 }
 
-/** Years spoken inside double-quoted speech. */
+/** Years spoken inside straight or curly double quotes. */
 export function spokenYears(text: string, near: number): number[] {
-  const speech = [...text.matchAll(/"([^"]*)"/g)].map(m => m[1]).join(' ')
+  const speech = [...text.matchAll(/["“]([^"“”]*)["”]/g)].map(m => m[1]).join(' ')
   const out: number[] = []
-  for (const m of speech.matchAll(/\b(1[789]\d\d)\b/g)) out.push(Number(m[1]))
+  for (const m of speech.matchAll(/\b(1[89]\d\d)\b/g)) out.push(Number(m[1]))
   for (const m of speech.matchAll(/(?:^|[^\w])['’](\d\d)\b/g)) out.push(nearest(Number(m[1]), near))
+  // the far end of a range written "'58-59" or "'58–59"
+  for (const m of speech.matchAll(/['’]\d\d[-–](\d\d)\b/g)) out.push(nearest(Number(m[1]), near))
   for (const m of speech.matchAll(/['’](twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-(one|two|three|four|five|six|seven|eight|nine))?\b/gi)) {
     out.push(nearest(TENS[m[1].toLowerCase()] + (m[2] ? UNITS[m[2].toLowerCase()] : 0), near))
   }
@@ -37,6 +42,10 @@ assert.deepEqual(spokenYears(`"Since '12 the State won't let us"`, 1900), [1912]
 assert.deepEqual(spokenYears(`"They went down the Argonaut in '22"`, 1894), [1922])
 assert.deepEqual(spokenYears(`"until February of 'fifty-five"`, 1854), [1855])
 assert.deepEqual(spokenYears(`"Twain heard it in the winter of '65"`, 1928), [1865], 'a 1928 speaker means 1865, not 1965')
+assert.deepEqual(spokenYears(`"Bart robbed the stage in '83"`, 1852), [1883], 'an 1852 speaker saying \'83 means 1883, not 1783')
+assert.deepEqual(spokenYears(`“Built in 1883”`, 1852), [1883], 'curly quotes are speech too')
+assert.deepEqual(spokenYears(`"the courts flipped in '58-59"`, 1858), [1858, 1859], 'the far end of a range counts')
+assert.deepEqual(spokenYears(`"in '99"`, 1849), [1899], 'never throws on any two digits')
 assert.deepEqual(spokenYears(`"Built in 1883, and 'fifty-one before it"`, 1883), [1883, 1851])
 assert.deepEqual(spokenYears(`Narration says 1928, outside the quotes. "Nothing here."`, 1849), [])
 assert.deepEqual(spokenYears(`"the boys' wages"`, 1849), [], 'a possessive apostrophe is not a year')
