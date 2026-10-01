@@ -954,7 +954,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
         responses: [
           {
             id: 'explain',
-            text: "Dangerous outlaw. Part of Black Bart's gang.",
+            text: "Dangerous outlaw. A horse thief who's been robbing emigrant camps along the road.",
             nextNode: 'heard_of',
             grantsClue: true
           }
@@ -962,7 +962,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
       },
       heard_of: {
         id: 'heard_of',
-        text: "Black Bart! I've heard of him. There was someone... [CLUE_PLACEHOLDER]",
+        text: "A camp robber! I've heard of him. There was someone... [CLUE_PLACEHOLDER]",
         speaker: 'witness',
         effect: { grantClue: true },
         nextNode: 'end'
@@ -1145,7 +1145,7 @@ export const WITNESS_DIALOGUES: Record<WitnessType, DialogueTree> = {
         responses: [
           {
             id: 'professional',
-            text: "Deputy. I'm tracking a member of Black Bart's gang.",
+            text: "Deputy. I'm tracking a claim-jumper and road thief who came in off the trail.",
             nextNode: 'shares_info',
             grantsClue: true,
             reputationEffect: { faction: 'pinkerton', delta: 3 }
