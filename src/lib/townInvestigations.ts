@@ -72,6 +72,10 @@ export interface TownInvestigation {
 }
 
 export const START_LEADS = 6
+/** Two leads a place, so a four-place case is no harsher than a three-place one. */
+export function startLeads(sceneCount: number): number {
+  return Math.max(START_LEADS, sceneCount * 2)
+}
 export const PRESS_COST = 0.5
 export const SESSION_KEY_PREFIX = 'bobr_town_investigation_'
 
@@ -224,11 +228,34 @@ const VOLCANO: TownInvestigation = {
     },
     {
       id: 'thespian',
-      place: 'The Volcano Thespian Society & the cannon "Old Abe"',
+      place: 'The Volcano Thespian Society — upstairs in Mahoney\'s Hall',
+      art: 'volcano',
+      witness: { name: 'The Society\'s prompter', role: 'keeps the prompt-book, Volcano Thespian Society' },
+      prompt:
+        'A library seat was not enough for Vane. He wants the whole town to have SEEN him belong, so now he swears he played the lead on the Thespians\' very first night, The Golden Farmer, up the stairs in Mahoney\'s Hall. A little theater keeps its own paper. What in the prompt-book catches him out, and where will a man like that try to write himself in next?',
+      clueEasy:
+        'The prompter opens the book to the first page. "The Golden Farmer, our first night. James Whitesides played the farmer, and every one of us saw him do it. The women\'s parts went to two boys, for want of ladies. Mr. Vane\'s name is not in my book at all, not even in the crowd."',
+      clueHard:
+        'He taps the margin where a strange hand has written a name in after the cast was set. "Somebody tried to put him in after. A man who buys his way onto the boards to be remembered won\'t stop at a stage. He\'ll want his name wherever this town next stands together and keeps a roll of who was there."',
+      evidence: { label: 'CAST', value: 'Claims the lead in The Golden Farmer; the prompt-book names James Whitesides' },
+      answer: 'old_abe',
+      choices: [
+        { id: 'old_abe', label: 'The cannon "Old Abe" and the roll of the Volcano Blues' },
+        { id: 'st_george', label: 'The St. George Hotel register' },
+        { id: 'observatory', label: 'Madeira\'s observatory on the knoll' },
+      ],
+      feedback:
+        'The Blues\' roll. A man who wrote himself into a playbill will next try to write himself in among the men the town trusted with its gun.',
+      wrongHint:
+        'Not there. Vane takes his bow in the wrong town while you read the wrong book.',
+    },
+    {
+      id: 'old_abe',
+      place: 'The cannon "Old Abe" and the Volcano Blues',
       art: 'volcano',
       witness: { name: 'Sergeant of the Volcano Blues', role: 'militiaman, the Volcano Blues' },
       prompt:
-        'On the society\'s rolls Vane played the role of a leading Union man — a "founder" who, he claimed, helped keep Volcano loyal in \'62. But the town keeps one record no actor can rewrite: who actually stood behind the gun the night the secessionists marched. What in that true account catches Vane out?',
+        'Now Vane claims a place among the Union men, a "founder" who, he says, helped keep Volcano loyal in \'62. But the town keeps one record no actor can rewrite: who actually stood behind the gun the night the secessionists marched. What in that true account catches Vane out?',
       clueEasy:
         'The sergeant snorts. "He says he stood with us in \'62. But we smuggled Old Abe into this town inside a HEARSE — a six-pounder, near eight hundred pounds, brought up the Carson road at night so no Confederate would know. The men who built her carriage and faced down that mob — every name is known. His isn\'t on it."',
       clueHard:
@@ -251,6 +278,7 @@ const VOLCANO: TownInvestigation = {
     'Which is the one thing this town cannot do. Stevenson\'s soldiers really washed the first gold from Soldiers Gulch. Volcano really built California\'s first rental library in 1850 and the Thespian Society\'s Little Theater in 1854. The Volcano Blues really hid a six-pounder in a hearse in 1862 and kept the town Union without firing a ball. A place that earned its standing by being honestly, publicly, RECORDED is exactly what catches a man who only counterfeited belonging.',
   sources: [
     'Volcano — California Historical Landmark #29: started 1848 by soldiers of Col. Stevenson\'s regiment; site of "the first California rental library, 1850" and one of the first "Little Theaters," the Volcano Thespian Society, 1854.',
+    'The Volcano Thespian Society\'s first play was The Golden Farmer, staged upstairs in Mahoney Hall; James Whitesides played the farmer and two boys took the women\'s parts (Amador Ledger-Dispatch, "Vestiges of Amador: Olde Time Entertainments, Part III", 2018 — single source).',
     'The "Old Abe" cannon — a ~6-pounder bronze gun smuggled into Volcano by hearse by the "Volcano Blues" in 1862 to face down Confederate sympathizers; still displayed in town on its 19th-century carriage.',
     'George Madeira\'s observatory — California Historical Landmark #715: the first amateur astronomical observatory of record in California, built on the knoll above Volcano in 1860 (Madeira observed the Great Comet of 1861).',
     'The Volcano General Store, operating since 1852 — among the longest continuously operated general stores in California; built of Volcano brick and native limestone.',

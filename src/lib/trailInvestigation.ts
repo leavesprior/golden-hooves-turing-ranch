@@ -121,7 +121,9 @@ const SCENE_META: Record<string, { glyph: PlaceGlyph; year: number; approx?: boo
   'west_point:sawmill': { glyph: 'building', year: 1905 },
   'volcano:general_store': { glyph: 'shop', year: 1852 },
   'volcano:library': { glyph: 'building', year: 1854 },
-  'volcano:thespian': { glyph: 'building', year: 1862 },
+  'volcano:thespian': { glyph: 'building', year: 1854 },
+  // The Blues served 1861-66; the hearse night is told as '62, one source says '63.
+  'volcano:old_abe': { glyph: 'landmark', year: 1862, approx: true },
   'mokelumne_hill:diggings': { glyph: 'mine', year: 1849 },
   'mokelumne_hill:express_bank': { glyph: 'assay', year: 1861 },
   'mokelumne_hill:courthouse': { glyph: 'building', year: 1866 },
