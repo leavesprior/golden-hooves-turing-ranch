@@ -16,18 +16,22 @@ import {
   Group,
   Mesh,
   MeshBasicMaterial,
+  PMREMGenerator,
   PlaneGeometry,
   Quaternion,
   SRGBColorSpace,
   Vector3,
 } from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import projectOptions from 'virtual:iwsdk-project';
+import { BACKDROP } from './backdrop-config.js';
 import { CAST, LINE, PLACE } from './line-data.js';
 import { checkLaws, lawCoverage } from './laws.js';
 import { FACADE_W, build1867, buildCat, buildFrog, buildHattie, buildSlip1, setOpacity } from './line-layers.js';
 import { REVEAL } from './reveal-config.js';
 import { EMITTERS, createPeriodAudio } from './period-audio.js';
 import { buildCard, buildWords } from './speech.js';
+import { GUIDE_CAST, NARRATION, buildGuide, buildOldAbe, buildPlaybill, buildWatch } from './volcano-demo.js';
 
 const FADE_SECONDS = 0.8;
 const WALL_WAIT_SECONDS = 3;
@@ -40,6 +44,10 @@ const params = new URLSearchParams(location.search);
 const PROBE = params.get('probe') === '1';
 // Rung 1: the caption cards break the spell, so they exist only with ?captions=1.
 const CAPTIONS = params.get('captions') === '1';
+// The Volcano demo: the red-coated Guide narrates; the playbill and Old Abe join c.1867; Hattie rests.
+const DEMO = params.get('demo') === 'volcano';
+// Emulator only (probe-gated): IWER's synthetic room becomes a photo of Volcano's Main Street.
+const BACKDROP_VOLCANO = PROBE && params.get('backdrop') === 'volcano';
 // Probe-only: point Hattie at another loopback port (a stub, or a dead port).
 const BRAIN_URL = PROBE && /^\d+$/.test(params.get('brain') || '') ? `http://127.0.0.1:${params.get('brain')}/ask` : REVEAL.brainUrl;
 // Words the brain uses to mark 'no mind answered': never shown as speech.
@@ -149,6 +157,10 @@ const rand = ([a, b]) => a + Math.random() * (b - a);
 World.create(document.getElementById('scene-container'), projectOptions).then((world) => {
   const root = new Group();
   const rootEntity = world.createTransformEntity(root, { persistent: true });
+  // Reflections for the metal pieces only (the Frog's gold, Old Abe's bronze and iron): a neutral
+  // studio environment, so metal reads as metal instead of flat colour.
+  const envMap = new PMREMGenerator(world.renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+  const giveEnv = (o, k = 1) => o.traverse((m) => { if (m.material && m.material.metalness > 0) { m.material.envMap = envMap; m.material.envMapIntensity = k; } });
 
   // Rung 4: the WHOLE c.1867 and Sideways layers sit behind real objects, not only Hattie.
   const layers = { c1867: build1867(), slip1: buildSlip1() };
@@ -160,7 +172,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   }
   const cat = buildCat();
   layerEntities.cat = world.createTransformEntity(cat, { parent: rootEntity, persistent: true });
-  cat.position.set(0, 0.03, 0.8);
+  cat.position.set(0, 0.03, DEMO ? 1.75 : 0.8); // demo: the board walk's front edge, in front of all
+  giveEnv(cat, 0.7);
   setOpacity(cat, 0);
   layerEntities.cat.addComponent(DepthOccludable);
 
@@ -177,6 +190,48 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   words.mesh.position.set(0, 1.86, HATTIE_Z);
   root.add(words.mesh);
 
+  // The Volcano demo pieces. The playbill and Old Abe belong to c.1867 (they fade with it and
+  // real depth can hide them); the Guide stands in every layer, a still figure, and narrates.
+  const demo = { guide: null, guideWords: null, elements: {}, queue: [], cur: null, said: new Set(), look: {}, fade: 0 };
+  if (DEMO) {
+    const playbill = buildPlaybill();
+    playbill.position.set(0.4, 1.45, 0.04); // v3.1: right of Old Abe, so the walk to it is clear
+    const oldAbe = buildOldAbe();
+    // Three-quarter view from the street: the muzzle turned a little toward the viewer, the whole
+    // gun (tube, carriage, both wheels, trail) inside the facade volume and clear of the Guide.
+    // v3.1 (Leif: the cannon must not block her): moved left, turned further, its right end ~1.2 m short of her.
+    oldAbe.position.set(-0.65, 0, 1.5);
+    oldAbe.rotation.y = -0.75;
+    giveEnv(oldAbe);
+    layers.c1867.add(playbill, oldAbe);
+    // v2 showed the porch sign board as an empty dark panel (its trim sits behind its face); the
+    // demo has no sourced name to paint on it, so the demo leaves it out.
+    // v3.1 (Leif): the hitching rail is gone too, so nothing stands between the viewer and the Guide.
+    for (const n of ['signboard', 'signtrim', 'hitchrail']) layers.c1867.remove(layers.c1867.getObjectByName(n));
+    setOpacity(layers.c1867, 0);
+    // `near`: the piece is told only from within this distance (m), so it is close enough to read.
+    demo.elements = { playbill: { obj: playbill, center: [0.4, 1.45, 0.04], near: 2.0 }, oldAbe: { obj: oldAbe, center: [-0.4, 1.1, 1.75], near: Infinity } };
+    demo.guide = buildGuide();
+    demo.guide.position.set(1.2, 0, 1.35); // on the board walk, right of Old Abe's muzzle
+    setOpacity(demo.guide, 0);
+    root.add(demo.guide);
+    // The theatre stop: the same 1854 bill, shown again on the stone front between two doors.
+    demo.bill2 = buildPlaybill();
+    demo.bill2.position.set(0.0, 1.5, 0.04);
+    demo.bill2.scale.setScalar(1.4);
+    setOpacity(demo.bill2, 0);
+    root.add(demo.bill2);
+    demo.guideWords = buildWords({ backing: true });
+    demo.guideWords.mesh.scale.setScalar(2.0);
+    demo.guideWords.mesh.position.set(0.35, 2.3, 1.9);
+    root.add(demo.guideWords.mesh);
+  }
+  const narrate = (key) => {
+    if (!DEMO || demo.said.has(key)) return;
+    demo.said.add(key);
+    demo.queue.push(...NARRATION[key].map((l) => ({ ...l, key })));
+  };
+
   const caption = CAPTIONS ? captionCard() : null;
   if (caption) {
     caption.mesh.position.set(-1.05, 1.3, 1.1);
@@ -185,9 +240,12 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     caption.draw(LINE[0]);
   }
 
-  const frog = buildFrog();
+  // v3.1 (Leif): in the demo the Guide's pocket watch is the thing you pinch; no Golden Frog.
+  const frog = DEMO ? buildWatch() : buildFrog();
   const frogEntity = world.createTransformEntity(frog, { parent: rootEntity, persistent: true });
   frog.position.copy(FROG_HOME);
+  if (DEMO) frog.position.set(0.85, 0, 1.75); // the watch hangs at her hand's height, a step in front of her
+  giveEnv(frog, 1.2);
   frog.rotation.y = -0.5;
   setOpacity(frog, 0); // Rung 1: not even the Frog, at first.
   frogEntity.addComponent(RayInteractable);
@@ -209,6 +267,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     if (state.hop >= 0) return;
     state.hop = 0;
     state.index = (state.index + 1) % LINE.length;
+    // The demo skips Sideways: after the cannon the Guide walks to the theatre instead.
+    if (DEMO && LINE[state.index].id === 'slip1') state.index = (state.index + 1) % LINE.length;
     state.stepAtMs = performance.now();
     if (caption) caption.draw(LINE[state.index]);
     // Sound before sight: c.1867 is heard at once, seen REVEAL.sightDelay1867 later.
@@ -446,13 +506,16 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       });
 
       // The cat walks the board walk in 1867; sideways it is and is not.
-      const walkX = Math.sin(time * 0.18) * 1.2;
-      const dir = Math.cos(time * 0.18) >= 0 ? 1 : -1;
+      // Demo: a slower, wider walk along the shop fronts, so the cat is seen whole and walking.
+      // Demo: along the front edge, right of Old Abe's muzzle (behind the gun or the Guide it was hidden in the first v3 cuts).
+      const catW = DEMO ? 0.2 : 0.18;
+      const walkX = DEMO ? 1.45 + Math.sin(time * catW) * 0.7 : Math.sin(time * catW) * 1.2;
+      const dir = Math.cos(time * catW) >= 0 ? 1 : -1;
       cat.position.x = walkX;
       cat.rotation.y = dir > 0 ? 0 : Math.PI;
       cat.userData.legs.forEach((leg, i) => { leg.rotation.z = Math.sin(time * 8 + (i % 2) * Math.PI) * 0.35; });
       cat.userData.tail.rotation.x = Math.sin(time * 2) * 0.4;
-      let catOpacity = current === 'c1867' ? state.fades[1] : 0;
+      let catOpacity = current === 'c1867' && !DEMO ? state.fades[1] : 0; // v3.1: no cat in the demo
       if (current === 'slip1') catOpacity = Math.sin(time * 3.1) * Math.sin(time * 1.7) > 0.15 ? state.fades[2] : 0;
       if (cat.userData.fade !== catOpacity) {
         cat.userData.fade = catOpacity;
@@ -472,6 +535,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       // Rung 3: in c.1867 she is seen at the edge of vision; looked at, she is gone (until she notices you).
       let hattieOpacity = current === 'c1867' ? state.fades[1] * (reveal.noticed ? 1 : reveal.gazeFade) : 0;
       if (current === 'slip1') hattieOpacity = Math.sin(time * 2.3) * Math.sin(time * 1.1) > 0.3 ? state.fades[2] * 0.6 : 0;
+      if (DEMO) hattieOpacity = 0; // the demo is the Guide's; Hattie rests
       if (hattie.userData.fade !== hattieOpacity) {
         hattie.userData.fade = hattieOpacity;
         setOpacity(hattie, hattieOpacity);
@@ -481,7 +545,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       if (state.hop >= 0) {
         state.hop += delta / 0.6;
         const t = Math.min(state.hop, 1);
-        frog.position.y = Math.sin(t * Math.PI) * 0.35;
+        frog.position.y = DEMO ? 0 : Math.sin(t * Math.PI) * 0.35; // the watch spins in place
         frog.rotation.y = -0.5 + t * Math.PI * 2;
         if (state.hop >= 1) {
           state.hop = -1;
@@ -489,7 +553,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
           frog.rotation.y = -0.5;
         }
       } else {
-        frog.scale.setScalar(1 + Math.sin(time * 2.2) * 0.03);
+        if (DEMO) frog.userData.pivot.rotation.z = Math.sin(time * 1.7) * 0.08; // the watch swings on its chain
+        else frog.scale.setScalar(1 + Math.sin(time * 2.2) * 0.03);
       }
     }
   }
@@ -519,7 +584,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       const current = LINE[state.index].id;
 
       // Rung 1: the Frog, the first thing seen, only after the quiet and the first sounds.
-      if (reveal.elapsed >= REVEAL.frogAppearSeconds && reveal.frog < 1) {
+      if (reveal.elapsed >= REVEAL.frogAppearSeconds && reveal.frog < 1 && !(DEMO && demo.said && demo.said.has('walk'))) {
         reveal.frog = Math.min(1, reveal.frog + delta / REVEAL.frogFadeSeconds);
         setOpacity(frog, reveal.frog);
       }
@@ -628,6 +693,99 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     }
   }
 
+  // The Volcano demo: the Guide fades in, narrates by beat, and tells what the player looks at.
+  const gHead = new Vector3();
+  const gFwd = new Vector3();
+  const gTmp = new Vector3();
+  class GuideSystem extends createSystem({}) {
+    update(delta) {
+      if (!DEMO) return;
+      if (!this.world.session || reveal.t0 === null) {
+        if (demo.fade !== 0) setOpacity(demo.guide, (demo.fade = 0));
+        demo.guideWords.mesh.visible = false;
+        return;
+      }
+      const cam = this.world.camera;
+      cam.getWorldPosition(gHead);
+      cam.getWorldDirection(gFwd);
+      const current = LINE[state.index].id;
+      // The Guide: a still figure, faded in (never animated); turned about her vertical axis to you.
+      // She keeps her place on the street: walk away from where you stood and she fades; come back and she is there.
+      // Home = where the head is once the session has settled (the first XR frames can still carry the flat-preview camera).
+      if (!demo.home && reveal.elapsed >= 0.5) demo.home = gHead.clone();
+      const atHome = !!demo.home && gHead.distanceTo(demo.home) < REVEAL.guideHomeRadius;
+      const want = reveal.elapsed >= REVEAL.guideAppearSeconds && atHome ? 1 : 0;
+      if (demo.fade !== want) setOpacity(demo.guide, (demo.fade = want > demo.fade ? Math.min(1, demo.fade + delta / 1.0) : Math.max(0, demo.fade - delta / 0.3)));
+      const local = root.worldToLocal(gTmp.copy(gHead));
+      demo.guide.rotation.y = Math.atan2(local.x - demo.guide.position.x, local.z - demo.guide.position.z);
+      // Beats.
+      if (demo.fade >= 1) narrate('intro');
+      if (reveal.frog >= 1) narrate('frog');
+      const seen1867 = current === 'c1867' && state.fades[1] > 0.9;
+      if (seen1867) narrate('c1867');
+      if (current === 'now' && demo.said.has('plaque') && state.fades[0] > 0.9) narrate('now');
+      const silent = !demo.cur && !demo.queue.length;
+      if (demo.said.has('now') && silent) narrate('walk');
+      // The walk: once she has said so, the Guide (a walk-cycle sprite) moves down the board walk, stepping
+      // through her stride, and out of view. The take then cross-fades the street to the theatre (the
+      // emulator's stand-in for walking there; on a headset the player walks), and she walks in.
+      demo.moving = false;
+      if (demo.said.has('walk') && silent && !demo.place && demo.guide.position.x < 7.5) {
+        demo.stride = (demo.stride || 0) + delta;
+        demo.guide.position.x += delta * 1.3;
+        demo.moving = true;
+      }
+      if (demo.place === 'theatre' && demo.guide.position.x < 1.2) {
+        demo.stride = (demo.stride || 0) + delta;
+        demo.guide.position.x = Math.min(1.2, demo.guide.position.x + delta * 1.3);
+        demo.moving = true;
+      }
+      demo.guide.userData.animate(delta, demo.moving);
+      // v3.1: the watch has done its work once she sets off; it fades rather than hang in an empty street.
+      if (demo.said.has('walk') && reveal.frog > 0) setOpacity(frog, (reveal.frog = Math.max(0, reveal.frog - delta / 0.8)));
+      if (demo.place === 'theatre' && demo.guide.position.x >= 1.2) narrate('theatre');
+      // The bill again, on the theatre's stone front, while she names the play.
+      if (demo.bill2) {
+        const want2 = demo.cur && demo.cur.at === 'bill2' ? 1 : demo.bill2.userData.fade || 0;
+        const f2 = Math.min(1, (demo.bill2.userData.fade || 0) + delta / 1.2);
+        if (want2 > 0 && demo.bill2.userData.fade !== f2) setOpacity(demo.bill2, (demo.bill2.userData.fade = f2));
+      }
+      // Look at a piece for a moment, and the Guide tells it.
+      for (const [id, el] of Object.entries(demo.elements)) {
+        const c = root.localToWorld(gTmp.set(...el.center)).sub(gHead).normalize();
+        const deg = Math.acos(Math.max(-1, Math.min(1, gFwd.dot(c)))) / DEG;
+        // Only while she is silent (she does not interrupt herself), so a glance in passing does not count.
+        const idle = demo.said.has('c1867') && !demo.cur && !demo.queue.length;
+        const near = gTmp.copy(root.localToWorld(new Vector3(...el.center))).distanceTo(gHead) <= el.near;
+        demo.look[id] = seen1867 && idle && near && deg < REVEAL.guideLookDeg ? (demo.look[id] || 0) + delta : 0;
+        if (demo.look[id] >= REVEAL.guideLookSeconds) narrate(id);
+      }
+      if (demo.said.has('oldAbe') && !demo.queue.length && !demo.cur) narrate('plaque');
+      // One caption at a time: fade in, hold, fade out.
+      if (!demo.cur && demo.queue.length) {
+        const line = demo.queue.shift();
+        demo.cur = { ...line, age: 0, dur: REVEAL.guideHoldSeconds + REVEAL.guideHoldPerChar * line.text.length };
+        demo.guideWords.draw(line.text);
+        // A caption about a piece seen up close stands by that piece; the rest stand above the Guide.
+        const a = line.at === 'playbill' ? { p: [0.4, 2.05, 0.35], k: 1.0 } : line.at === 'bill2' ? { p: [0.1, 2.35, 1.0], k: 2.0 } : { p: [0.35, 2.3, 1.9], k: 2.0 };
+        demo.guideWords.mesh.position.set(...a.p);
+        demo.guideWords.mesh.scale.setScalar(a.k);
+        demo.log = demo.log || [];
+        demo.log.push({ key: line.key, text: line.text, src: line.src, at: +reveal.elapsed.toFixed(1) });
+      }
+      const w = demo.guideWords.mesh;
+      if (demo.cur) {
+        const sp = demo.cur;
+        sp.age += delta;
+        const o = Math.min(Math.min(1, sp.age / 0.3), Math.max(0, 1 - Math.max(0, sp.age - 0.3 - sp.dur) / 0.6));
+        w.material.opacity = o;
+        w.visible = o > 0.001;
+        w.lookAt(gHead);
+        if (sp.age > 0.3 + sp.dur + 0.6) demo.cur = null;
+      } else w.visible = false;
+    }
+  }
+
   world.renderer.xr.addEventListener('sessionstart', () => {
     world.renderer.xr.getSession().addEventListener('selectstart', onSelectStart);
   });
@@ -636,6 +794,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   world.registerSystem(FrogSystem);
   world.registerSystem(LineSystem);
   world.registerSystem(RevealSystem);
+  world.registerSystem(GuideSystem);
 
   if (PROBE) {
     // Everything this app adds to the world, for 'is anything drawn?' checks.
@@ -664,7 +823,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       session: () => !!world.session,
       laws: () => {
         root.updateMatrixWorld(true);
-        return checkLaws({ scene: world.scene, root, layers: { ...layers, hattie, words: words.mesh }, line: LINE, cast: CAST });
+        const extra = DEMO ? { guide: demo.guide, guideWords: demo.guideWords.mesh } : {};
+        return checkLaws({ scene: world.scene, root, layers: { ...layers, hattie, words: words.mesh, ...extra }, line: LINE, cast: DEMO ? [...CAST, GUIDE_CAST] : CAST });
       },
       lawCoverage: () => lawCoverage({ ...layers, hattie, words: words.mesh }),
       // Mutation seed for testing the law machine itself: adds a full-frame sheet.
@@ -747,6 +907,54 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         return { cpu: sys?.cpuDepthData?.length ?? -1, gpu: sys?.gpuDepthData?.length ?? -1, enabled: world.session?.enabledFeatures ?? null };
       },
       playerId: () => PLAYER_ID,
+      backdrop: () => window.__backdrop ?? null,
+      // Emulator take only: the second stop. Cross-fade the backdrop to the theatre, and the Guide walks in.
+      arrive: async () => {
+        demo.guide.position.x = -6.5; // out of the emulator's wide view, left: she walks in
+        const r = await window.__swapBackdrop(BACKDROP.theatre.src);
+        demo.place = 'theatre';
+        return r;
+      },
+      demo: () => (DEMO ? { guide: +demo.fade.toFixed(2), moving: !!demo.moving, queue: demo.queue.length, cur: demo.cur && demo.cur.text, said: [...demo.said], log: demo.log || [], look: demo.look } : null),
+      // Verification: screen rectangles (px) of the Guide and her caption, the playbill's height on screen.
+      frameCheck: () => {
+        const rect = (o) => {
+          // The plane's own corners (not a world box around it, which grows when the plane turns).
+          o.updateMatrixWorld(true);
+          const pos = o.geometry.attributes.position;
+          const pts = [];
+          for (let i = 0; i < pos.count; i++) pts.push(screen(new Vector3().fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld)));
+          const r = [Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1])), Math.max(...pts.map((q) => q[0])), Math.max(...pts.map((q) => q[1]))];
+          return { r, behind: pts.some((q) => q[2] > 1 || q[2] < -1) };
+        };
+        const W = window.innerWidth; const H = window.innerHeight;
+        const st = (x) => {
+          const on = !x.behind && x.r[2] > 0 && x.r[0] < W && x.r[3] > 0 && x.r[1] < H;
+          const inside = !x.behind && x.r[0] >= 0 && x.r[1] >= 0 && x.r[2] <= W && x.r[3] <= H;
+          return { on, inside, r: x.r };
+        };
+        const g = rect(demo.guide.userData.figure);
+        // Narrow her box to the current sprite frame's opaque columns (the plane faces the viewer).
+        { const [l, r] = demo.guide.userData.extent(); const x0 = g.r[0], dx = g.r[2] - g.r[0]; g.r = [x0 + l * dx, g.r[1], x0 + r * dx, g.r[3]]; }
+        const w = rect(demo.guideWords.mesh);
+        const pb = rect(demo.elements.playbill.obj);
+        return {
+          guide: { opacity: +demo.fade.toFixed(2), moving: !!demo.moving, ...st(g) },
+          words: { shown: demo.guideWords.mesh.visible && demo.guideWords.mesh.material.opacity > 0.01, text: demo.cur && demo.cur.text, ...st(w) },
+          playbillPx: LINE[state.index].id === 'c1867' && st(pb).inside ? pb.r[3] - pb.r[1] : 0,
+          coverage: window.__backdropCoverage ? window.__backdropCoverage() : null,
+          // Old Abe's screen box (its world box's 8 corners), for 'the cannon never covers the Guide'.
+          abe: (() => {
+            const o = demo.elements.oldAbe.obj;
+            if (!o.visible || LINE[state.index].id !== 'c1867') return null;
+            const b = new Box3().setFromObject(o);
+            const pts = [];
+            for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) pts.push(screen(new Vector3(x, y, z)));
+            return [Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1])), Math.max(...pts.map((q) => q[0])), Math.max(...pts.map((q) => q[1]))];
+          })(),
+        };
+      },
+      demoWorld: (id) => (id === 'guide' ? demo.guide.getWorldPosition(new Vector3()).add(new Vector3(0, 1.5, 0)).toArray() : root.localToWorld(new Vector3(...demo.elements[id].center)).toArray()),
       // Verification only: pin every drifting Sideways glow (motes, fog) at one point of the
       // facade frame, still, at one size, so an occlusion pixel-diff is repeatable.
       pinGlows: (x, y, z, size) => {
@@ -775,9 +983,9 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       }),
       toWorld: (x, y, z) => root.localToWorld(new Vector3(x, y, z)).toArray(),
       toScreen: (x, y, z) => screen(root.localToWorld(new Vector3(x, y, z))),
-      frogWorld: () => frog.getWorldPosition(new Vector3()).toArray(),
+      frogWorld: () => (frog.userData.target || frog).getWorldPosition(new Vector3()).toArray(),
       frogScreen: () => {
-        const p = frog.getWorldPosition(new Vector3()).add(new Vector3(0, 0.1, 0)).project(world.camera);
+        const p = (frog.userData.target ? frog.userData.target.getWorldPosition(new Vector3()) : frog.getWorldPosition(new Vector3()).add(new Vector3(0, 0.1, 0))).project(world.camera);
         return [(p.x + 1) / 2 * window.innerWidth, (1 - p.y) / 2 * window.innerHeight];
       },
       cards: () => cards.map((c) => ({ id: c.id, text: c.text, visible: c.mesh.visible, world: c.mesh.getWorldPosition(new Vector3()).toArray(), screen: screen(c.mesh.getWorldPosition(new Vector3())) })),
@@ -788,6 +996,14 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       },
       head: () => world.camera.getWorldPosition(new Vector3()).toArray(),
     };
+  }
+
+  if (BACKDROP_VOLCANO) {
+    window.__backdrop = { pending: true };
+    import('./emulator-backdrop.js')
+      .then((m) => m.installBackdrop())
+      .then((r) => { window.__backdrop = r; })
+      .catch((e) => { window.__backdrop = { ok: false, why: String(e && e.message) }; });
   }
 
   const button = document.getElementById('enter-ar');

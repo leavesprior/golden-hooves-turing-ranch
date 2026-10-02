@@ -17,7 +17,7 @@ function wrap(ctx, text, maxW) {
 }
 
 /** Floating words: transparent, text only with a soft shadow so it reads on any real wall. */
-export function buildWords() {
+export function buildWords({ backing = false } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
   canvas.height = 320;
@@ -36,6 +36,16 @@ export function buildWords() {
     ctx.font = `${size}px Georgia, serif`;
     const wrapped = wrap(ctx, text, 960).slice(0, 6);
     ctx.textAlign = 'center';
+    if (backing) {
+      // A soft dark band behind the lines, so they read over a bright sky (the Guide's captions).
+      let w = 0;
+      for (const l of wrapped) w = Math.max(w, ctx.measureText(l).width);
+      const bh = wrapped.length * size * 1.2 + size * 0.8;
+      ctx.fillStyle = 'rgba(14, 10, 6, 0.55)';
+      ctx.beginPath();
+      ctx.roundRect(512 - w / 2 - 28, 160 - bh / 2, w + 56, bh, 24);
+      ctx.fill();
+    }
     ctx.shadowColor = 'rgba(0,0,0,0.85)';
     ctx.shadowBlur = 10;
     ctx.fillStyle = '#f6ecd6';
