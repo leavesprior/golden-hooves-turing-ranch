@@ -181,34 +181,54 @@ export function buildPlaybill() {
 let grainTex = null;
 function grain() {
   if (grainTex) return grainTex;
+  // 1024x2048 (was 256x512): on screen a carriage plank spans several hundred pixels, and the old
+  // texture was magnified 3-4x there, which read as pixelated (Leif, 10-01). Finer, layered strokes.
+  const W = 1024;
+  const H = 2048;
   const c = document.createElement('canvas');
-  c.width = 256;
-  c.height = 512;
+  c.width = W;
+  c.height = H;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#8c7a62';
-  ctx.fillRect(0, 0, 256, 512);
+  const base = ctx.createLinearGradient(0, 0, W, 0);
+  base.addColorStop(0, '#87745c');
+  base.addColorStop(0.5, '#917e65');
+  base.addColorStop(1, '#85725a');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, W, H);
   let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let i = 0; i < 140; i++) {
-    const x = rnd() * 256;
-    const shade = rnd() < 0.5 ? `rgba(60,48,34,${0.15 + rnd() * 0.3})` : `rgba(190,175,150,${0.1 + rnd() * 0.2})`;
-    ctx.strokeStyle = shade;
-    ctx.lineWidth = 0.6 + rnd() * 2.2;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 560; i++) {
+    const x = rnd() * W;
+    const dark = rnd() < 0.55;
+    ctx.strokeStyle = dark ? `rgba(58,45,32,${0.08 + rnd() * 0.22})` : `rgba(196,180,152,${0.05 + rnd() * 0.14})`;
+    ctx.lineWidth = 0.8 + rnd() * (dark ? 3.2 : 2.2);
+    const amp = 3 + rnd() * 8;
+    const ph = rnd() * 6.28;
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    for (let y = 0; y <= 512; y += 32) ctx.lineTo(x + Math.sin(y * 0.02 + i) * (2 + rnd() * 3), y);
+    for (let y = 0; y <= H; y += 16) ctx.lineTo(x + Math.sin(y * 0.006 + ph) * amp, y);
     ctx.stroke();
   }
-  for (let i = 0; i < 6; i++) { // knots
-    ctx.fillStyle = 'rgba(55,40,28,0.5)';
+  for (let i = 0; i < 10; i++) { // knots, with rings around them
+    const kx = rnd() * W;
+    const ky = rnd() * H;
+    for (let r = 4; r >= 1; r--) {
+      ctx.strokeStyle = `rgba(55,40,28,${0.12 * r})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(kx, ky, 6 + r * 5, 20 + r * 12, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = 'rgba(50,36,24,0.55)';
     ctx.beginPath();
-    ctx.ellipse(rnd() * 256, rnd() * 512, 3 + rnd() * 4, 8 + rnd() * 10, 0, 0, Math.PI * 2);
+    ctx.ellipse(kx, ky, 6, 16, 0, 0, Math.PI * 2);
     ctx.fill();
   }
   grainTex = new CanvasTexture(c);
   grainTex.colorSpace = SRGBColorSpace;
   grainTex.wrapS = grainTex.wrapT = RepeatWrapping;
-  grainTex.anisotropy = 8;
+  grainTex.anisotropy = 16;
   return grainTex;
 }
 
@@ -232,7 +252,10 @@ const ring = (rIn, rOut, depth, m, segs = 64) => {
  */
 export function buildOldAbe() {
   const g = new Group();
-  const wood = new MeshStandardMaterial({ map: grain(), color: 0xffffff, roughness: 0.88, metalness: 0, transparent: true });
+  // Grain only on the big planks; thin parts (spokes, felloes, hub) get a plain oiled-wood colour, since a
+  // striped texture on a 2 cm spoke shimmers into noise at street distance (read as 'pixelated', 10-01).
+  const wood = new MeshStandardMaterial({ map: grain(), color: 0xa9825c, roughness: 0.8, metalness: 0, transparent: true });
+  const woodPlain = new MeshStandardMaterial({ color: 0x5a4330, roughness: 0.72, metalness: 0, transparent: true });
   const iron = new MeshStandardMaterial({ color: 0x2c2b2a, roughness: 0.55, metalness: 0.75, transparent: true });
   const bronze = new MeshStandardMaterial({ color: 0x76593a, roughness: 0.45, metalness: 1, transparent: true }); // weathered bronze, as in the photos
   g.userData.metal = [iron, bronze];
@@ -266,7 +289,7 @@ export function buildOldAbe() {
   cheekShape.lineTo(-0.98, -0.22);
   cheekShape.lineTo(-0.4, -0.2);
   cheekShape.quadraticCurveTo(0.0, -0.22, 0.22, -0.12);
-  const cheekGeo = new ExtrudeGeometry(cheekShape, { depth: 0.065, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelSegments: 2 });
+  const cheekGeo = new ExtrudeGeometry(cheekShape, { depth: 0.065, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelSegments: 3, curveSegments: 32 });
   cheekGeo.translate(0, 0, -0.0325);
   for (const s of [-1, 1]) add(new Mesh(cheekGeo, wood), 0, axleY, s * 0.155);
   // Transoms between the cheeks, and the elevating screw under the breech.
@@ -288,7 +311,7 @@ export function buildOldAbe() {
     const wheel = new Group();
     wheel.position.set(0, axleY, s * 0.66);
     g.add(wheel);
-    const hub = new Mesh(new CylinderGeometry(0.085, 0.1, 0.28, 24), wood);
+    const hub = new Mesh(new CylinderGeometry(0.085, 0.1, 0.28, 24), woodPlain);
     hub.rotation.x = Math.PI / 2;
     wheel.add(hub);
     for (const z of [-0.12, 0.12]) {
@@ -303,12 +326,12 @@ export function buildOldAbe() {
     wheel.add(cap);
     for (let k = 0; k < 14; k++) {
       const a = (k / 14) * Math.PI * 2;
-      const spoke = new Mesh(new CylinderGeometry(0.02, 0.028, R - 0.15, 10), wood);
+      const spoke = new Mesh(new CylinderGeometry(0.02, 0.028, R - 0.15, 16), woodPlain);
       spoke.position.set(Math.cos(a) * (R / 2 + 0.02), Math.sin(a) * (R / 2 + 0.02), s * 0.02);
       spoke.rotation.z = a - Math.PI / 2;
       wheel.add(spoke);
     }
-    const felloe = ring(R - 0.085, R - 0.012, 0.075, wood);
+    const felloe = ring(R - 0.085, R - 0.012, 0.075, woodPlain);
     wheel.add(felloe);
     wheel.add(ring(R - 0.012, R + 0.004, 0.08, iron));
   }
