@@ -913,7 +913,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         demo.place = 'theatre';
         return r;
       },
-      demo: () => (DEMO ? { guide: +demo.fade.toFixed(2), queue: demo.queue.length, cur: demo.cur && demo.cur.text, said: [...demo.said], log: demo.log || [], look: demo.look } : null),
+      demo: () => (DEMO ? { guide: +demo.fade.toFixed(2), moving: !!demo.moving, queue: demo.queue.length, cur: demo.cur && demo.cur.text, said: [...demo.said], log: demo.log || [], look: demo.look } : null),
       // Verification: screen rectangles (px) of the Guide and her caption, the playbill's height on screen.
       frameCheck: () => {
         const rect = (o) => {
