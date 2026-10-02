@@ -74,17 +74,37 @@ export const NARRATION = {
 const mat = (color, extra = {}) => new MeshStandardMaterial({ color, roughness: 0.8, metalness: 0, transparent: true, ...extra });
 
 /**
- * The Guide: a still cut-out (super-resolved x4 from the concept art, matte cleaned) on a plane that
- * turns about its vertical axis to the viewer, standing on a soft contact shadow so she sits on the
- * street instead of floating over it. Never animated video (rule): she only fades and moves as a still.
+ * The Guide: a walk-cycle sprite on a plane that turns about its vertical axis to the viewer, standing
+ * on a soft contact shadow so she sits on the street instead of floating over it. The atlas is 31 frames
+ * of one stride cut from a Grok Imagine clip (post bbde479b, frames 181-211), an in-game asset inside
+ * real gameplay — the end card says so. `animate(delta, moving)` steps the stride while she walks and
+ * holds the closed-legs frame while she stands.
  */
+const WALK = { frames: 31, cols: 8, rows: 4, cellW: 337, cellH: 600, fps: 24, stand: 14 };
+// Each frame's opaque left/right edge as a fraction of the cell (alpha > 128, measured on the atlas),
+// so a screen check can test her figure rather than the plane's transparent margin.
+const WALK_EXTENT = [[.178,.834],[.199,.917],[.202,.964],[.157,.979],[.119,.967],[.086,.941],[.062,.905],[.047,.866],[.042,.828],[.033,.789],[.033,.751],[.042,.715],[.062,.691],[.086,.706],[.113,.718],[.145,.766],[.175,.858],[.187,.929],[.157,.961],[.128,.961],[.098,.938],[.074,.908],[.053,.869],[.033,.831],[.024,.798],[.021,.777],[.027,.754],[.042,.733],[.068,.709],[.098,.706],[.131,.724]];
 export function buildGuide() {
   const g = new Group();
   const h = 1.68;
-  const w = (h * 550) / 1437; // the cut-out's aspect
-  const tex = new TextureLoader().load('./guide/guide_v3.png');
+  const w = (h * WALK.cellW) / WALK.cellH;
+  const tex = new TextureLoader().load('./guide/guide_walk_atlas.png');
   tex.colorSpace = SRGBColorSpace;
   tex.anisotropy = 8;
+  tex.repeat.set(1 / WALK.cols, 1 / WALK.rows);
+  let cur = WALK.stand;
+  g.userData.extent = () => WALK_EXTENT[cur];
+  const show = (f) => {
+    cur = f;
+    tex.offset.set((f % WALK.cols) / WALK.cols, 1 - (Math.floor(f / WALK.cols) + 1) / WALK.rows);
+  };
+  show(WALK.stand);
+  let t = 0;
+  g.userData.animate = (delta, moving) => {
+    if (!moving) return show(WALK.stand);
+    t += delta;
+    show(Math.floor(t * WALK.fps) % WALK.frames);
+  };
   // A touch warmer and dimmer than white, to sit in the photo's late-afternoon light.
   const m = new Mesh(new PlaneGeometry(w, h), new MeshBasicMaterial({ map: tex, color: 0xf2e9dc, transparent: true, alphaTest: 0.02, side: DoubleSide, depthWrite: false }));
   m.position.y = h / 2 - 0.01;

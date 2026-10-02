@@ -726,25 +726,21 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       if (current === 'now' && demo.said.has('plaque') && state.fades[0] > 0.9) narrate('now');
       const silent = !demo.cur && !demo.queue.length;
       if (demo.said.has('now') && silent) narrate('walk');
-      // The walk: once she has said so, the Guide (still a still) moves down the board walk with a
-      // small step bob, and out of view. The take then cross-fades the street to the theatre (the
+      // The walk: once she has said so, the Guide (a walk-cycle sprite) moves down the board walk, stepping
+      // through her stride, and out of view. The take then cross-fades the street to the theatre (the
       // emulator's stand-in for walking there; on a headset the player walks), and she walks in.
-      const fig = demo.guide.userData.figure;
       demo.moving = false;
-      const bob = () => { fig.position.y = 0.83 + Math.abs(Math.sin(demo.stride * 6)) * 0.018; };
       if (demo.said.has('walk') && silent && !demo.place && demo.guide.position.x < 7.5) {
         demo.stride = (demo.stride || 0) + delta;
         demo.guide.position.x += delta * 1.3;
         demo.moving = true;
-        bob();
       }
       if (demo.place === 'theatre' && demo.guide.position.x < 1.2) {
         demo.stride = (demo.stride || 0) + delta;
         demo.guide.position.x = Math.min(1.2, demo.guide.position.x + delta * 1.3);
         demo.moving = true;
-        bob();
-        if (demo.guide.position.x >= 1.2) fig.position.y = 0.83;
       }
+      demo.guide.userData.animate(delta, demo.moving);
       if (demo.place === 'theatre' && demo.guide.position.x >= 1.2) narrate('theatre');
       // The bill again, on the theatre's stone front, while she names the play.
       if (demo.bill2) {
@@ -936,6 +932,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
           return { on, inside, r: x.r };
         };
         const g = rect(demo.guide.userData.figure);
+        // Narrow her box to the current sprite frame's opaque columns (the plane faces the viewer).
+        { const [l, r] = demo.guide.userData.extent(); const x0 = g.r[0], dx = g.r[2] - g.r[0]; g.r = [x0 + l * dx, g.r[1], x0 + r * dx, g.r[3]]; }
         const w = rect(demo.guideWords.mesh);
         const pb = rect(demo.elements.playbill.obj);
         return {
