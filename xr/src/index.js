@@ -584,7 +584,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       const current = LINE[state.index].id;
 
       // Rung 1: the Frog, the first thing seen, only after the quiet and the first sounds.
-      if (reveal.elapsed >= REVEAL.frogAppearSeconds && reveal.frog < 1) {
+      if (reveal.elapsed >= REVEAL.frogAppearSeconds && reveal.frog < 1 && !(DEMO && demo.said && demo.said.has('walk'))) {
         reveal.frog = Math.min(1, reveal.frog + delta / REVEAL.frogFadeSeconds);
         setOpacity(frog, reveal.frog);
       }
@@ -741,6 +741,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         demo.moving = true;
       }
       demo.guide.userData.animate(delta, demo.moving);
+      // v3.1: the watch has done its work once she sets off; it fades rather than hang in an empty street.
+      if (demo.said.has('walk') && reveal.frog > 0) setOpacity(frog, (reveal.frog = Math.max(0, reveal.frog - delta / 0.8)));
       if (demo.place === 'theatre' && demo.guide.position.x >= 1.2) narrate('theatre');
       // The bill again, on the theatre's stone front, while she names the play.
       if (demo.bill2) {
