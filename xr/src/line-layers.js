@@ -126,6 +126,7 @@ export function build1867() {
   }
   const rail = box(2.1, 0.06, 0.06, wood);
   rail.position.set(0, 0.85, depth + 0.55);
+  rail.name = 'hitchrail';
   g.add(rail);
   return g;
 }

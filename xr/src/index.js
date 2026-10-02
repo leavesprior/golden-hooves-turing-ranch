@@ -31,7 +31,7 @@ import { FACADE_W, build1867, buildCat, buildFrog, buildHattie, buildSlip1, setO
 import { REVEAL } from './reveal-config.js';
 import { EMITTERS, createPeriodAudio } from './period-audio.js';
 import { buildCard, buildWords } from './speech.js';
-import { GUIDE_CAST, NARRATION, buildGuide, buildOldAbe, buildPlaybill } from './volcano-demo.js';
+import { GUIDE_CAST, NARRATION, buildGuide, buildOldAbe, buildPlaybill, buildWatch } from './volcano-demo.js';
 
 const FADE_SECONDS = 0.8;
 const WALL_WAIT_SECONDS = 3;
@@ -195,20 +195,22 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
   const demo = { guide: null, guideWords: null, elements: {}, queue: [], cur: null, said: new Set(), look: {}, fade: 0 };
   if (DEMO) {
     const playbill = buildPlaybill();
-    playbill.position.set(-1.0, 1.45, 0.04);
+    playbill.position.set(0.4, 1.45, 0.04); // v3.1: right of Old Abe, so the walk to it is clear
     const oldAbe = buildOldAbe();
     // Three-quarter view from the street: the muzzle turned a little toward the viewer, the whole
     // gun (tube, carriage, both wheels, trail) inside the facade volume and clear of the Guide.
-    oldAbe.position.set(-0.25, 0, 1.25);
-    oldAbe.rotation.y = -0.55;
+    // v3.1 (Leif: the cannon must not block her): moved left, turned further, its right end ~1.2 m short of her.
+    oldAbe.position.set(-0.65, 0, 1.5);
+    oldAbe.rotation.y = -0.75;
     giveEnv(oldAbe);
     layers.c1867.add(playbill, oldAbe);
     // v2 showed the porch sign board as an empty dark panel (its trim sits behind its face); the
     // demo has no sourced name to paint on it, so the demo leaves it out.
-    for (const n of ['signboard', 'signtrim']) layers.c1867.remove(layers.c1867.getObjectByName(n));
+    // v3.1 (Leif): the hitching rail is gone too, so nothing stands between the viewer and the Guide.
+    for (const n of ['signboard', 'signtrim', 'hitchrail']) layers.c1867.remove(layers.c1867.getObjectByName(n));
     setOpacity(layers.c1867, 0);
     // `near`: the piece is told only from within this distance (m), so it is close enough to read.
-    demo.elements = { playbill: { obj: playbill, center: [-1.0, 1.45, 0.04], near: 2.0 }, oldAbe: { obj: oldAbe, center: [-0.2, 1.1, 1.3], near: Infinity } };
+    demo.elements = { playbill: { obj: playbill, center: [0.4, 1.45, 0.04], near: 2.0 }, oldAbe: { obj: oldAbe, center: [-0.4, 1.1, 1.75], near: Infinity } };
     demo.guide = buildGuide();
     demo.guide.position.set(1.2, 0, 1.35); // on the board walk, right of Old Abe's muzzle
     setOpacity(demo.guide, 0);
@@ -238,10 +240,11 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
     caption.draw(LINE[0]);
   }
 
-  const frog = buildFrog();
+  // v3.1 (Leif): in the demo the Guide's pocket watch is the thing you pinch; no Golden Frog.
+  const frog = DEMO ? buildWatch() : buildFrog();
   const frogEntity = world.createTransformEntity(frog, { parent: rootEntity, persistent: true });
   frog.position.copy(FROG_HOME);
-  if (DEMO) frog.position.set(-1.4, 0, 1.75); // on the board walk, in front of Old Abe's near wheel
+  if (DEMO) frog.position.set(0.85, 0, 1.75); // the watch hangs at her hand's height, a step in front of her
   giveEnv(frog, 1.2);
   frog.rotation.y = -0.5;
   setOpacity(frog, 0); // Rung 1: not even the Frog, at first.
@@ -512,7 +515,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       cat.rotation.y = dir > 0 ? 0 : Math.PI;
       cat.userData.legs.forEach((leg, i) => { leg.rotation.z = Math.sin(time * 8 + (i % 2) * Math.PI) * 0.35; });
       cat.userData.tail.rotation.x = Math.sin(time * 2) * 0.4;
-      let catOpacity = current === 'c1867' ? state.fades[1] : 0;
+      let catOpacity = current === 'c1867' && !DEMO ? state.fades[1] : 0; // v3.1: no cat in the demo
       if (current === 'slip1') catOpacity = Math.sin(time * 3.1) * Math.sin(time * 1.7) > 0.15 ? state.fades[2] : 0;
       if (cat.userData.fade !== catOpacity) {
         cat.userData.fade = catOpacity;
@@ -542,7 +545,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       if (state.hop >= 0) {
         state.hop += delta / 0.6;
         const t = Math.min(state.hop, 1);
-        frog.position.y = Math.sin(t * Math.PI) * 0.35;
+        frog.position.y = DEMO ? 0 : Math.sin(t * Math.PI) * 0.35; // the watch spins in place
         frog.rotation.y = -0.5 + t * Math.PI * 2;
         if (state.hop >= 1) {
           state.hop = -1;
@@ -550,7 +553,8 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
           frog.rotation.y = -0.5;
         }
       } else {
-        frog.scale.setScalar(1 + Math.sin(time * 2.2) * 0.03);
+        if (DEMO) frog.userData.pivot.rotation.z = Math.sin(time * 1.7) * 0.08; // the watch swings on its chain
+        else frog.scale.setScalar(1 + Math.sin(time * 2.2) * 0.03);
       }
     }
   }
@@ -765,7 +769,7 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
         demo.cur = { ...line, age: 0, dur: REVEAL.guideHoldSeconds + REVEAL.guideHoldPerChar * line.text.length };
         demo.guideWords.draw(line.text);
         // A caption about a piece seen up close stands by that piece; the rest stand above the Guide.
-        const a = line.at === 'playbill' ? { p: [-1.0, 2.05, 0.35], k: 1.0 } : line.at === 'bill2' ? { p: [0.1, 2.35, 1.0], k: 2.0 } : { p: [0.35, 2.3, 1.9], k: 2.0 };
+        const a = line.at === 'playbill' ? { p: [0.4, 2.05, 0.35], k: 1.0 } : line.at === 'bill2' ? { p: [0.1, 2.35, 1.0], k: 2.0 } : { p: [0.35, 2.3, 1.9], k: 2.0 };
         demo.guideWords.mesh.position.set(...a.p);
         demo.guideWords.mesh.scale.setScalar(a.k);
         demo.log = demo.log || [];
@@ -939,6 +943,15 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
           words: { shown: demo.guideWords.mesh.visible && demo.guideWords.mesh.material.opacity > 0.01, text: demo.cur && demo.cur.text, ...st(w) },
           playbillPx: LINE[state.index].id === 'c1867' && st(pb).inside ? pb.r[3] - pb.r[1] : 0,
           coverage: window.__backdropCoverage ? window.__backdropCoverage() : null,
+          // Old Abe's screen box (its world box's 8 corners), for 'the cannon never covers the Guide'.
+          abe: (() => {
+            const o = demo.elements.oldAbe.obj;
+            if (!o.visible || LINE[state.index].id !== 'c1867') return null;
+            const b = new Box3().setFromObject(o);
+            const pts = [];
+            for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) pts.push(screen(new Vector3(x, y, z)));
+            return [Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1])), Math.max(...pts.map((q) => q[0])), Math.max(...pts.map((q) => q[1]))];
+          })(),
         };
       },
       demoWorld: (id) => (id === 'guide' ? demo.guide.getWorldPosition(new Vector3()).add(new Vector3(0, 1.5, 0)).toArray() : root.localToWorld(new Vector3(...demo.elements[id].center)).toArray()),
@@ -970,9 +983,9 @@ World.create(document.getElementById('scene-container'), projectOptions).then((w
       }),
       toWorld: (x, y, z) => root.localToWorld(new Vector3(x, y, z)).toArray(),
       toScreen: (x, y, z) => screen(root.localToWorld(new Vector3(x, y, z))),
-      frogWorld: () => frog.getWorldPosition(new Vector3()).toArray(),
+      frogWorld: () => (frog.userData.target || frog).getWorldPosition(new Vector3()).toArray(),
       frogScreen: () => {
-        const p = frog.getWorldPosition(new Vector3()).add(new Vector3(0, 0.1, 0)).project(world.camera);
+        const p = (frog.userData.target ? frog.userData.target.getWorldPosition(new Vector3()) : frog.getWorldPosition(new Vector3()).add(new Vector3(0, 0.1, 0))).project(world.camera);
         return [(p.x + 1) / 2 * window.innerWidth, (1 - p.y) / 2 * window.innerHeight];
       },
       cards: () => cards.map((c) => ({ id: c.id, text: c.text, visible: c.mesh.visible, world: c.mesh.getWorldPosition(new Vector3()).toArray(), screen: screen(c.mesh.getWorldPosition(new Vector3())) })),

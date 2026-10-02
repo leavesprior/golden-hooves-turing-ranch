@@ -47,9 +47,9 @@ export const SOURCES = {
 export const NARRATION = {
   intro: [
     { text: 'Volcano, California. Main Street, as it stands today.', src: null },
-    { text: 'Watch for the Golden Frog.', src: null },
+    { text: 'Mind my watch.', src: null },
   ],
-  frog: [{ text: 'Pinch the Frog to step back along the line of time.', src: null }],
+  frog: [{ text: 'Pinch the watch to step back along the line of time.', src: null }],
   c1867: [{ text: 'About 1867. Porches and board walks, simplified.', src: null }],
   playbill: [
     { text: "Volcano's first thespian society was formed in 1854.", src: 'thespians', at: 'playbill' },
@@ -293,5 +293,76 @@ export function buildOldAbe() {
     wheel.add(ring(R - 0.012, R + 0.004, 0.08, iron));
   }
   g.traverse((o) => { if (o.isMesh) o.raycast = () => {}; });
+  return g;
+}
+
+/**
+ * The Guide's pocket watch (Leif, 10-01: it replaces the Golden Frog in the demo). Gold hunter case
+ * on a short chain, swinging gently from a point at her hand's height; pinch it to step in time.
+ * Shown larger than life (about 2.5x) so it reads at street distance. The group's origin is on the
+ * ground (the app's hop/fade code treats it like the Frog); `userData.pivot` swings, `userData.target`
+ * is the watch face (the pinch point).
+ */
+export function buildWatch() {
+  const g = new Group();
+  const gold = new MeshStandardMaterial({ color: 0xd9ab45, metalness: 1, roughness: 0.22, transparent: true });
+  const pivot = new Group();
+  pivot.position.y = 1.42;
+  g.add(pivot);
+  const chainLen = 0.26;
+  for (let i = 0; i < 9; i++) {
+    const link = new Mesh(new TorusGeometry(0.012, 0.0035, 6, 12), gold);
+    link.position.y = -i * (chainLen / 9);
+    link.rotation.y = i % 2 ? Math.PI / 2 : 0;
+    pivot.add(link);
+  }
+  const watch = new Group();
+  watch.position.y = -chainLen - 0.11;
+  pivot.add(watch);
+  const R = 0.1;
+  const P = [[0, -0.022], [R * 0.9, -0.022], [R, -0.012], [R * 1.02, 0], [R, 0.012], [R * 0.9, 0.02], [0, 0.02]];
+  const kase = new Mesh(new LatheGeometry(P.map(([r, y]) => new Vector2(r, y)), 64), gold);
+  kase.rotation.x = Math.PI / 2;
+  watch.add(kase);
+  const face = canvasPlane(R * 1.7, R * 1.7, 512, (ctx, W, H) => {
+    ctx.fillStyle = '#f3ead6';
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, W / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#2a1c10';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(W / 2, H / 2, W / 2 - 10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#2a1c10';
+    ctx.font = 'bold 54px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const nums = ['XII', 'I', 'II', 'III', 'IIII', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'];
+    nums.forEach((n, i) => {
+      const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+      ctx.fillText(n, W / 2 + Math.cos(a) * W * 0.36, H / 2 + Math.sin(a) * H * 0.36);
+    });
+    const hand = (a, len, w) => {
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(W / 2, H / 2);
+      ctx.lineTo(W / 2 + Math.cos(a) * len, H / 2 + Math.sin(a) * len);
+      ctx.stroke();
+    };
+    hand(-Math.PI / 2 + (10 / 12) * Math.PI * 2, W * 0.2, 10); // about ten to two: no particular hour
+    hand(-Math.PI / 2 + (50 / 60) * Math.PI * 2, W * 0.32, 6);
+  });
+  face.material.transparent = true;
+  face.position.z = 0.021;
+  watch.add(face);
+  const crown = new Mesh(new CylinderGeometry(0.013, 0.013, 0.022, 16), gold);
+  crown.position.y = R + 0.012;
+  watch.add(crown);
+  const bow = new Mesh(new TorusGeometry(0.022, 0.004, 8, 20), gold);
+  bow.position.y = R + 0.035;
+  watch.add(bow);
+  g.userData.pivot = pivot;
+  g.userData.target = watch;
   return g;
 }
