@@ -1,0 +1,48 @@
+/* Ranch guest guide: its own look. Lantern light on old ledger paper, Gold Country brass and pine.
+   Not BOBR's site chrome (Leif 11-07: own look and form), and not anyone else's game. */
+:root {
+  --paper: #f3ead6; --ink: #2a2214; --muted: #6b5d43; --brass: #b8862b; --pine: #2f4a34;
+  --card: #fffaf0; --line: #d9c9a3; --night: #1d1a0c;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #17140b; --ink: #f1e6cc; --muted: #b9a884; --card: #221d10; --line: #3d3420; --pine: #8fb89a; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 17px/1.5 Georgia, "Iowan Old Style", "Palatino Linotype", serif; }
+a { color: var(--pine); }
+.bar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px; background: var(--night); color: #f1e6cc; }
+.brand { color: #f1e6cc; text-decoration: none; display: flex; gap: 8px; align-items: center; font-weight: bold; }
+.brand img { width: 28px; height: 28px; }
+.karma { font-variant-numeric: tabular-nums; }
+.right { display: flex; gap: 10px; align-items: center; }
+.bar button.contact { margin: 0; padding: 5px 10px; font-size: .85em; background: transparent; border-color: #e2cf9f; color: #f1e6cc; }
+main { max-width: 640px; margin: 0 auto; padding: 16px 16px 120px; }
+h1.welcome { font-size: 1.9em; line-height: 1.15; margin: 12px 0 6px; }
+h2 { margin: 6px 0 10px; } h3 { margin: 14px 0 4px; font-size: 1em; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.lede { color: var(--muted); }
+.fine { color: var(--muted); font-size: .88em; }
+.back { display: inline-block; margin: 4px 0 8px; text-decoration: none; }
+.door { display: flex; gap: 14px; align-items: center; padding: 16px; margin: 12px 0; background: var(--card);
+  border: 1px solid var(--line); border-left: 5px solid var(--brass); border-radius: 10px; text-decoration: none; color: var(--ink); }
+.door .i { font-size: 1.8em; } .door b { display: block; font-size: 1.1em; } .door small { color: var(--muted); }
+.list { list-style: none; padding: 0; margin: 8px 0; }
+.list a { display: flex; justify-content: space-between; padding: 14px 12px; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink); }
+.list em { font-style: normal; color: var(--brass); }
+.photos { display: flex; gap: 8px; overflow-x: auto; margin: 6px -16px; padding: 0 16px; scroll-snap-type: x mandatory; }
+.photos img { width: 86%; max-width: 520px; border-radius: 10px; scroll-snap-align: start; flex: none; }
+.notice { font-size: 1.15em; font-style: italic; }
+.comfort, .ask, .choice, .ending { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px 10px; margin: 12px 0; }
+.story { font-size: 1.1em; font-style: italic; }
+.hint { border-left: 3px solid var(--brass); padding-left: 10px; }
+.found { color: var(--pine); font-weight: bold; }
+.letters { text-align: center; letter-spacing: .3em; }
+button, .button { font: inherit; display: inline-block; margin: 6px 6px 0 0; padding: 10px 16px; border-radius: 8px;
+  border: 1px solid var(--pine); background: var(--pine); color: #fff; text-decoration: none; cursor: pointer; }
+button.ghost { background: transparent; color: var(--pine); }
+.always { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: var(--paper); border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: center; }
+.links { padding-left: 18px; }
+.sheet { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 5; padding: 16px; }
+.sheet > div { background: var(--card); border-radius: 12px; padding: 8px 18px 16px; max-width: 420px; }

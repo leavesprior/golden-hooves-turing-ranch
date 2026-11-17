@@ -1,0 +1,9 @@
+{
+  "name": "Back of Beyond Ranch guide",
+  "short_name": "BOBR guide",
+  "start_url": "index.html#home",
+  "display": "standalone",
+  "background_color": "#f3ead6",
+  "theme_color": "#1d1a0c",
+  "icons": [{ "src": "img/logo.png", "sizes": "512x512", "type": "image/png" }]
+}
