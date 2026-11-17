@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Welcome to Back of Beyond Ranch</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  /* 1920x1080 TV welcome. Used two ways: open in a TV browser, or render to img/tv-welcome.png
+     and upload as the WelcomeScreen background. Three choices, each a QR to the guest's phone. */
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #1d1a0c; }
+  body { font-family: Georgia, "Palatino Linotype", serif; color: #f6ecd2;
+    background: linear-gradient(rgba(20,16,6,.55), rgba(20,16,6,.82)), url(img/bg.jpg) center/cover no-repeat; }
+  .top { text-align: center; padding-top: 70px; }
+  .top img { width: 120px; height: 120px; }
+  h1 { font-size: 84px; margin: 12px 0 0; font-weight: normal; letter-spacing: .02em; text-shadow: 0 3px 12px #000; }
+  .sub { font-size: 34px; color: #e2cf9f; margin-top: 10px; }
+  .row { display: flex; justify-content: center; gap: 70px; margin-top: 70px; }
+  .card { width: 440px; background: rgba(246,236,210,.94); color: #2a2214; border-radius: 22px; padding: 26px 28px 30px;
+    text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.5); border-top: 10px solid #b8862b; }
+  .card .i { font-size: 54px; }
+  .card h2 { font-size: 40px; margin: 6px 0 4px; }
+  .card p { font-size: 25px; margin: 0 0 16px; color: #5c4f35; min-height: 64px; }
+  .card img.qr { width: 230px; height: 230px; background: #fff; padding: 10px; border-radius: 10px; }
+  .foot { position: absolute; bottom: 40px; width: 100%; text-align: center; font-size: 26px; color: #e2cf9f; }
+</style>
+</head>
+<body>
+  <div class="top"><img src="img/logo.png" alt=""><h1>Welcome to Back of Beyond Ranch</h1>
+    <div class="sub">Point your phone's camera at a code to begin. Skip anything, any time.</div></div>
+  <div class="row">
+    <div class="card"><div class="i">🏡</div><h2>Take the tour</h2><p>Get to know the house, room by room</p><img class="qr" src="qr/tour.svg" alt="QR: tour"></div>
+    <div class="card"><div class="i">🗝️</div><h2>The ranch mystery</h2><p>Something from 1849 is hidden in this house</p><img class="qr" src="qr/mystery.svg" alt="QR: mystery"></div>
+    <div class="card"><div class="i">🧭</div><h2>Gold Country guide</h2><p>Keep it on your phone: real towns and their history</p><img class="qr" src="qr/towns.svg" alt="QR: towns"></div>
+  </div>
+  <div class="foot">Questions? Message your host in the Airbnb app.</div>
+</body>
+</html>
